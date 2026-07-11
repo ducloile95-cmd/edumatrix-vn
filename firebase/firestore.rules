@@ -1,0 +1,108 @@
+rules_version = '2';
+
+// EDUMATRIX-VN - Firestore Security Rules
+// Nguyen tac: deny-by-default (A16.1). Day la lop bao mat chinh, khong duoc
+// thay the boi UI/route guard (A4.3, A16). Rules nay se duoc mo rong dan
+// theo tung Phase (A5, A30) - hien tai (Phase 1/2) chi mo users/invites.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- Helper functions ----------
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function currentUser() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function userExists() {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isActive() {
+      return userExists() && currentUser().status == 'active';
+    }
+
+    function isAdmin() {
+      return isActive() && currentUser().role == 'admin';
+    }
+
+    function isTeacher() {
+      return isActive() && currentUser().role == 'teacher';
+    }
+
+    function isStaff() {
+      return isAdmin() || isTeacher();
+    }
+
+    function ownsStudent(studentId) {
+      return isActive() &&
+        currentUser().role == 'viewer' &&
+        studentId in currentUser().studentIds;
+    }
+
+    // ---------- users/{uid} ----------
+    // Chi Admin duoc doi role/studentIds/status. Chinh chu duoc doc/sua
+    // thong tin ca nhan cua minh nhung khong duoc tu nang quyen (A16.4, A11).
+
+    match /users/{uid} {
+      allow read: if isAdmin() || request.auth.uid == uid;
+
+      // Tao ho so lan dau: chi tao cho chinh minh, va role/studentIds/status
+      // phai duoc copy dung tu invite tuong ung (kiem tra o buoc claim invite
+      // ben client + Cloud Function/Worker trong giai doan nang cap; o Phase 2
+      // MVP, Admin la nguoi duy nhat duoc seed du lieu users ban dau).
+      allow create: if isAdmin() || (
+        request.auth.uid == uid &&
+        request.resource.data.role == 'viewer'
+      );
+
+      allow update: if isAdmin() || (
+        request.auth.uid == uid &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['displayName', 'photoURL', 'updatedAt']) &&
+        request.resource.data.role == resource.data.role &&
+        request.resource.data.studentIds == resource.data.studentIds &&
+        request.resource.data.status == resource.data.status
+      );
+
+      allow delete: if false;
+    }
+
+    // ---------- invites/{normalizedEmail} ----------
+    // Chi Admin quan ly loi moi. Nguoi dung chi duoc doc loi moi cua chinh
+    // email da xac thuc de thuc hien claim (A16.4).
+
+    match /invites/{email} {
+      allow read: if isAdmin() || (
+        signedIn() &&
+        request.auth.token.email != null &&
+        request.auth.token.email.lower() == email
+      );
+
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ---------- settings/* ----------
+    // Chi Admin doc/ghi cau hinh nhay cam (A16.5). Cac module doc settings.payment
+    // cong khai (thong tin ngan hang) se duoc mo rieng khi trien khai module hoc phi.
+
+    match /settings/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    // ---------- Mac dinh: tu choi tat ca ----------
+    // Cac collection khac (students, classes, sessions, lesson_plans,
+    // attendance, assignments, submissions, scores, invoices, payments,
+    // announcements, audit_logs...) se duoc mo dan theo Phase 3-11, kem
+    // Emulator test cho tung quyen truoc khi enable (A28).
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
