@@ -91,6 +91,54 @@ firebase/
 3. Không có lời mời hợp lệ → chuyển tới `/access-denied` kèm lý do cụ thể (chưa xác minh email / chưa được mời / lỗi kết nối).
 4. Admin khóa/mở tài khoản trực tiếp ở `/app/users` (không tự khóa được chính mình).
 
+### Tạo admin đầu tiên (bootstrap — làm 1 lần cho mỗi môi trường)
+
+Hệ thống là bài toán con-gà-quả-trứng: tạo lời mời cần quyền Admin, mà thành Admin lại cần lời mời. Vì vậy **admin đầu tiên phải được tạo thủ công trong Firestore** (Firebase Console và Admin SDK bỏ qua Security Rules, nên thao tác này hợp lệ dù Rules cấm client tự tạo lời mời).
+
+**Cách khuyến nghị — tạo lời mời admin rồi đăng nhập Google để claim:**
+
+1. Firebase Console → **Firestore Database** → tạo document trong collection `invites` với **Document ID = email của bạn viết thường** (đúng `normalizeEmail` = trim + lowercase, KHÔNG bỏ dấu chấm Gmail). Ví dụ ID: `admin@gmail.com`.
+2. Điền các field (khớp `InviteDoc`):
+
+   | Field | Kiểu | Giá trị |
+   |---|---|---|
+   | `email` | string | (đúng email = Document ID) |
+   | `role` | string | `admin` |
+   | `studentIds` | array | (rỗng) |
+   | `status` | string | `active` |
+   | `createdBy` | string | `manual-bootstrap` |
+   | `createdAt` | timestamp | (thời điểm hiện tại) |
+
+3. Đăng nhập app bằng **đúng Google account** đó. `AuthContext` tự chạy `attemptClaimInvite` → tạo `users/{uid}` với `role: admin` → lời mời chuyển `claimed`.
+4. Từ đây, admin mời mọi người khác qua UI `/app/users` — không cần thao tác thủ công nữa.
+
+**Điều kiện:** đã bật Google sign-in trong Firebase Auth; email đã verified (tài khoản Google mặc định verified).
+
+> Nếu claim trượt: kiểm tra Document ID có đúng email viết thường không, `status` có phải `active` không, và bạn có đăng nhập đúng account đó không.
+
+### Test local bằng Firebase Emulator (không cần project thật)
+
+App tự trỏ sang emulator khi bật cờ `VITE_USE_EMULATORS`. Toàn bộ chạy offline, không đụng dữ liệu production.
+
+1. **`.env`** (hoặc `.env.local`) cho chế độ emulator:
+   ```
+   VITE_USE_EMULATORS=true
+   VITE_FIREBASE_PROJECT_ID=demo-edumatrix
+   VITE_FIREBASE_API_KEY=demo            # các VITE_FIREBASE_* khác để giá trị giả
+   VITE_APPCHECK_SITE_KEY=               # để trống (App Check không áp dụng cho emulator)
+   ```
+2. **Terminal 1** — bật emulator (Auth 9099 + Firestore 8090, kèm Emulator UI):
+   ```
+   npm run emulators
+   ```
+3. **Terminal 2** — seed admin đầu tiên (emulator đang chạy):
+   ```
+   npm run seed:admin -- admin@test.local
+   ```
+4. **Terminal 3** — chạy app: `npm run dev`, mở app → **Đăng nhập Google** → trong trang Auth emulator, thêm tài khoản mới với email `admin@test.local` (email tự verified) → `AuthContext` tự claim → vào với quyền admin.
+
+> Dữ liệu emulator nằm trong RAM, mất khi tắt — chạy lại `npm run seed:admin` mỗi phiên (hoặc dùng `firebase emulators:start --import/--export-on-exit` để giữ). `projectId` trong lệnh seed phải khớp `VITE_FIREBASE_PROJECT_ID` (mặc định `demo-edumatrix`).
+
 ## Trạng thái Phase
 
 **Phase 1 (Foundation):** xong.

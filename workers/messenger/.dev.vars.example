@@ -1,0 +1,5 @@
+META_PAGE_ACCESS_TOKEN=replace_me
+META_APP_SECRET=replace_me
+META_WEBHOOK_VERIFY_TOKEN=replace_with_a_long_random_value
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk@example.iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nreplace_me\n-----END PRIVATE KEY-----\n"

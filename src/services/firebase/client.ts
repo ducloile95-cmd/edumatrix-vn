@@ -4,8 +4,9 @@ import {
   ReCaptchaV3Provider,
   type AppCheck,
 } from "firebase/app-check";
-import { getAuth, GoogleAuthProvider, type Auth } from "firebase/auth";
+import { connectAuthEmulator, getAuth, GoogleAuthProvider, type Auth } from "firebase/auth";
 import {
+  connectFirestoreEmulator,
   initializeFirestore,
   persistentLocalCache,
   persistentSingleTabManager,
@@ -53,3 +54,10 @@ export const db: Firestore = initializeFirestore(firebaseApp, {
     tabManager: persistentSingleTabManager({}),
   }),
 });
+
+// Test local: bat VITE_USE_EMULATORS=true de tro Auth(9099)+Firestore(8090) sang
+// Firebase Emulator thay vi project that (chi trong dev, khong anh huong production).
+if (import.meta.env.DEV && import.meta.env.VITE_USE_EMULATORS === "true") {
+  connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
+  connectFirestoreEmulator(db, "127.0.0.1", 8090);
+}

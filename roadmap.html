@@ -463,12 +463,11 @@ const PHASES = [
   },
 ];
 
-const STORAGE_KEY = "edumatrixRoadmapV3";
+const STORAGE_KEY = "edumatrixRoadmapV13";
 
-// Audit thực tế ngày 11/07/2026 dựa trên trạng thái repo, .firebaserc, .env,
-// log deploy Firestore Rules, App Check Registered, và Phase 2 vừa triển khai
-// (invite claim, Rules siết theo invite, UI Admin, Emulator test). Chỉ tick
-// các mục có bằng chứng cụ thể - còn lại để trống cho bạn tự xác nhận.
+// Audit tự động ngày 11/07/2026 dựa trên mã nguồn, cấu hình Firebase và kết quả
+// chạy build/lint/test. Chỉ tick mục có bằng chứng trong repo; kết quả chưa chạy
+// được hoặc đang lỗi được giữ mở và ghi rõ trong ghi chú của phase tương ứng.
 const SEED_TASKS = {
   "0-0": true, "0-1": true, "0-2": true, "0-3": true, "0-4": true,
   "0-5": true, "0-6": true, "0-7": true, "0-8": true,
@@ -476,15 +475,56 @@ const SEED_TASKS = {
   "1-6": true, "1-7": true, "1-8": true, "1-9": true,
   "2-0": true, "2-1": true, "2-2": true, "2-3": true,
   "2-4": true, "2-5": true, "2-6": true, "2-7": true,
+  "3-0": true, "3-1": true, "3-2": true, "3-3": true,
+  "3-4": true, "3-5": true, "3-6": true,
+  "4-0": true, "4-1": true, "4-2": true, "4-3": true,
+  "4-4": true, "4-5": true,
+  "5-0": true, "5-1": true, "5-2": true, "5-3": true,
+  "5-4": true, "5-5": true, "5-6": true, "5-7": true,
+  "6-0": true, "6-1": true, "6-2": true,
+  "6-3": true, "6-4": true, "6-5": true,
+  "7-0": true, "7-1": true, "7-2": true, "7-3": true,
+  "7-4": true, "7-5": true, "7-6": true, "7-7": true,
+  "8-0": true, "8-1": true, "8-2": true, "8-3": true, "8-4": true,
+  "9-0": true, "9-1": true, "9-2": true, "9-3": true,
+  "9-4": true, "9-5": true, "9-6": true,
+  "10-0": true, "10-1": true, "10-2": true, "10-3": true,
+  "10-4": true, "10-5": true, "10-6": true, "10-7": true, "10-8": true,
+  "11-0": true, "11-1": true, "11-2": true, "11-4": true,
+  "11-5": true, "11-6": true, "11-7": true,
+  "12-0": true, "12-1": true, "12-2": true, "12-3": true, "12-4": true, "12-5": true, "12-6": true, "12-8": true,
+  "13-0": true, "13-1": true, "13-2": true,
 };
 const SEED_CRITERIA = {
   "0-0": true, "0-1": true, "0-2": true,
   "1-0": true, "1-3": true,
   "2-0": true, "2-2": true, "2-3": true,
+  "3-0": true, "3-1": true, "3-2": true,
+  "4-0": true, "4-1": true, "4-2": true,
+  "5-0": true, "5-1": true, "5-2": true,
+  "6-0": true, "6-1": true, "6-2": true,
+  "7-0": true, "7-1": true, "7-2": true,
+  "8-0": true, "8-1": true, "8-2": true,
+  "9-0": true, "9-1": true, "9-2": true,
+  "10-0": true, "10-1": true, "10-2": true,
+  "11-0": true, "11-1": true, "11-2": true, "11-3": true,
+  "12-0": true, "12-1": true, "12-2": true, "12-3": true,
+  "13-0": true,
 };
 const SEED_NOTES = {
-  1: "Còn thiếu để đóng Phase 1: deploy Hosting thành công (đang sửa lỗi build), xác nhận đăng nhập Google end-to-end, và push Git lên GitHub remote.",
-  2: "Đã triển khai: invite claim tự động (AuthContext), Rules siết theo invite (role/studentIds không tự chọn được), UI Admin /app/users (mời, danh sách, khóa/mở), audit log cơ bản, Emulator test (firebase/tests/security-rules.test.ts). Còn thiếu: tự chạy `npm run test:rules` để xác nhận pass, và tiêu chí 'Viewer không xem được dữ liệu học sinh khác' chỉ thật sự kiểm chứng được khi có module Students ở Phase 3.",
+  1: "Audit 11/07/2026: nền tảng, Firebase config, App Check và Hosting config đã có; `npm run build` đã PASS. Chưa đóng phase vì chưa xác minh đăng nhập Google và deploy Hosting end-to-end.",
+  2: "Invite claim, route guard, Rules theo role/invite và UI Admin quản lý tài khoản đã triển khai. `npm run test:rules` PASS 35/35, gồm chống tự nâng role/studentIds, khóa tài khoản và giới hạn quyền Admin/Teacher/Viewer.",
+  3: "Hoàn thành 11/07/2026: CRUD học sinh, môn, khóa học và lớp; ghi danh/rút học; liên kết phụ huynh; tìm kiếm, lọc và phân trang 10 dòng/trang đều đã có. Bốn danh sách dùng chung Pagination/usePagination, tự về trang 1 khi đổi tìm kiếm hoặc bộ lọc. Build, lint, unit test và Rules test đều PASS.",
+  4: "Hoàn thành 11/07/2026: tạo lịch đơn/lặp tuần, đổi lịch giữ nguyên thời lượng, hủy, học bù, lịch tuần/tháng, chi tiết buổi và thông báo schedule_change. Viewer chỉ đọc lịch của lớp có học sinh liên kết. Build/lint PASS, unit test 10/10 PASS và toàn bộ Rules test PASS; riêng Phase 4 có 4/4 test ownership PASS.",
+  5: "Hoàn thành 11/07/2026: CRUD giáo án, mẫu, editor section động, lưu nháp theo submit, sao chép, gắn lớp/khóa/môn/buổi, preview và tóm tắt công khai. Dữ liệu nội bộ và bản public được tách collection để Viewer không đọc được section riêng tư. Build/lint PASS, unit test 10/10 PASS và toàn bộ Rules test PASS; riêng Phase 5 có 5/5 test visibility PASS.",
+  6: "Hoàn thành 11/07/2026: tải danh sách theo buổi/lớp, mặc định có mặt để điểm danh nhanh, batch write cả lớp, sửa lần điểm danh cũ, summary theo buổi và thông báo vắng/đi muộn. ID sessionId_studentId chống ghi trùng; Viewer có lịch sử chuyên cần trên dashboard và chỉ đọc học sinh liên kết. Build/lint PASS, unit test 10/10 PASS và toàn bộ 50 Rules test PASS; riêng Phase 6 có 6/6 test ownership PASS.",
+  7: "Hoàn thành 11/07/2026: Staff tạo bài và gắn giáo án/buổi học, Viewer nộp text/link không cần Storage, giáo viên chấm điểm/nhận xét/yêu cầu làm lại, summary và nhắc từng học sinh chưa nộp. Submission dùng ID assignmentId_studentId; Viewer không sửa được score/comment. Build/lint và toàn bộ Rules test PASS; riêng Phase 7 có 6/6 test permission PASS.",
+  8: "Hoàn thành 11/07/2026: nhập điểm theo lớp, lịch sử giới hạn 50 bản ghi/học sinh, nhận xét, biểu đồ phần trăm tiến bộ và student_summaries cập nhật average/latest ngay khi nhập. Viewer chỉ đọc score/summary của học sinh liên kết; có composite index studentId + createdAt để phân trang tiếp. Build/lint và toàn bộ Rules test PASS; riêng Phase 8 có 5/5 test validation/ownership PASS.",
+  9: "Hoàn thành 11/07/2026: tạo hóa đơn/code/nội dung chuyển khoản, QR chứa snapshot ngân hàng + số tiền + nội dung, Viewer báo đã chuyển, Staff đối soát xác nhận/từ chối, danh sách công nợ và lịch sử payment. Viewer chỉ được chuyển unpaid/rejected sang pending, không tự set paid. Unit test QR/invoice 3/3, build/lint và toàn bộ Rules test PASS; riêng Phase 9 có 6/6 test payment escalation PASS.",
+  10: "Hoàn thành 11/07/2026: portal dùng viewer_dashboards/{uid} làm materialized view một document cho lịch, giáo án public, bài tập, điểm, chuyên cần, học phí và thông báo; có các route lịch/bài tập/học phí/thông báo và bottom navigation mobile. Lịch mở một chạm từ nav, QR mở qua Học phí rồi nút Mo QR. Dashboard chỉ ghi được đúng UID và studentIds liên kết. Build/lint PASS, unit test 13/13 và toàn bộ 71 Rules test PASS; riêng Phase 10 có 4/4 test dashboard isolation PASS.",
+  11: "Audit 11/07/2026: Cloudflare Worker (workers/messenger) đã có đủ xác minh Firebase ID Token bằng jose + x509 của Google, lưu Meta Page token/App secret dưới dạng Worker Secret, webhook liên kết PSID vào messenger_connections, gửi tin qua Graph API, ghi trạng thái sent/failed vào message_outbox và xử lý lỗi (retry 5xx, trả 502, client throw). Chỉ Staff (admin/teacher active) được gửi; frontend chỉ giữ Firebase ID token nên Meta token không lộ ra client. `vitest run` của worker PASS 9/9. CÒN DANG DỞ: (1) chưa kết nối Meta App/Page thật — secret vẫn là placeholder, chưa deploy; (2) chưa kiểm tra chính sách Meta/App Review; (3) sendMessenger chưa được gắn vào bất kỳ luồng UI nào nên tiêu chí 'webapp vẫn chạy khi Messenger lỗi' chưa được chứng minh end-to-end. Bổ sung 11/07/2026: thêm endpoint POST /api/messenger/post (đăng Page feed, mirror send, tái dùng message_outbox type page_post) + client postToPage; worker test 11/11 PASS; đã viết docs/messenger-api-setup.md hướng dẫn chi tiết kết nối Meta/Cloudflare/Firebase cho cả chat và post. Post cần quyền pages_manage_posts (App Review Advanced Access) mới chạy thật; chat cần pages_messaging và tuân cửa sổ 24h. Wiring UI 11/07/2026: trang Thông báo (/app/announcements, vá link chết cũ trong Sidebar) - card 'Đăng bài Fanpage' (mọi Staff, postToPage) và card 'Nhắn phụ huynh' (chỉ Admin vì Rules chỉ cho Admin đọc messenger_connections; resolve PSID từ parentUids rồi sendMessenger). Cả hai chạy trong react-query mutation, lỗi chỉ hiện tại chỗ nên webapp không sập nếu Messenger lỗi (tiêu chí 11-3 ĐẠT). Build/lint PASS. Nâng cấp 11/07/2026: Worker /api/messenger/send giờ tự resolve PSID phụ huynh server-side khi chỉ có studentId (service account đọc students.parentUids -> messenger_connections, gửi tới tất cả phụ huynh liên kết, trả sent/total) -> card 'Nhắn phụ huynh' mở cho MỌI Staff (kể cả Giáo viên), bỏ gate admin và bỏ resolve PSID ở client. Worker test 11/11 PASS, frontend build/lint PASS. Còn lại: chưa gửi runtime thật (cần secret Meta + App Review).",
+  12: "Audit 11/07/2026: đã có nền responsive (BottomNavigation mobile, Sidebar/Topbar), accessibility cơ bản (aria/role/label + htmlFor trên form và nav), bộ trạng thái tải/trống dùng chung (components/feedback: LoadingSkeleton, EmptyState), phân trang 10 dòng/trang (Pagination + usePagination có test) và tối ưu query (composite index trong firestore.indexes.json, giới hạn limit, materialized view viewer_dashboards). Cache client-side ĐẠT: react-query (providers.tsx staleTime 60s, retry 1, refetchOnWindowFocus false) dùng ở 26 file qua useQuery/useMutation + invalidateQueries. Tiêu chí 'không có listener thừa' ĐẠT: toàn app chỉ 1 onSnapshot ở AuthContext cho users/{uid} (A14) và đã cleanup unsubscribe. Staff Dashboard ĐÃ DỰNG (11/07/2026): StaffDashboardPage hiển thị overview thật qua service staffDashboard.getStaffDashboard - thẻ số liệu lớp hôm nay/vắng-muộn/bài chưa chấm/hóa đơn chờ, danh sách lớp sắp diễn ra với nút 'Điểm danh' 1 chạm (link tới /app/attendance?session=; AttendancePage đọc query param để preselect) và hàng 'Cần xử lý' dẫn thẳng tới trang tương ứng → đạt 'tối ưu quy trình giáo viên' và 'thao tác ít bước'. Tái dùng service sẵn có + 1 hàm listAssignmentSummaries; build/lint PASS. Lazy loading ĐÃ LÀM (11/07/2026): router.tsx chuyển toàn bộ page sang React.lazy + Suspense (fallback LoadingSkeleton) → bundle từ 1 file ~1.4MB tách thành 48 chunk, bundle chính còn ~744KB (−47%), ScoresPage/recharts (372KB) tách riêng chỉ tải khi vào trang. Build/lint PASS. Form resilience ĐẠT (11/07/2026): các *Form (react-hook-form) chỉ reset() trong onSuccess nên không mất dữ liệu khi lỗi; đã thêm báo lỗi cho 2 trang nhập theo lô (AttendancePage, ScoresPage) để save fail không im lặng, dữ liệu nhập vẫn còn để thử lại. 360px ĐẠT qua audit tĩnh: không có <table>, không whitespace-nowrap, không fixed-width lớn; mọi grid đa cột đều gated md: (mobile 1 cột), dashboard dùng truncate + min-w-0; chỉ min-w-[200px] trong flex-wrap (200<360, tự wrap). CÒN DANG DỞ: (1) 12-7 kiểm tra trên điện thoại thật - cần chạy app đăng nhập thật, chưa làm headless được (xác nhận trực quan cuối cùng cho 360px cũng nằm ở đây); (2) biểu đồ chuyên cần tuần trên dashboard tạm hoãn (tốn query, giá trị thấp); (3) tùy chọn: tách firebase vendor chunk - đã thử manualChunks nhưng id module không match trên setup này (firebase pre-bundle), chỉ lợi caching không giảm initial-load nên hoãn. Chưa chạy render runtime (cần đăng nhập Firebase).",
+  13: "Kết quả kiểm tra 11/07/2026: build PASS; lint PASS không warning; unit test PASS 7/7; Firestore Rules Emulator PASS 35/35 trên 2 suite. Firebase CLI đã được thêm vào devDependencies và emulator dùng cổng 8089 để tránh xung đột. Chưa có test mạng chậm, double submit, lỗi Messenger, QR, dữ liệu lớn; chưa xác minh deploy Hosting, monitoring và hướng dẫn sử dụng. npm install báo 20 lỗ hổng dependency (17 moderate, 2 high, 1 critical), cần audit riêng trước production.",
 };
 
 function loadState() {

@@ -1,5 +1,4 @@
 import {
-  createContext,
   useEffect,
   useRef,
   useState,
@@ -9,27 +8,9 @@ import { onAuthStateChanged, type User } from "firebase/auth";
 import { doc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "@/services/firebase/client";
 import { COLLECTIONS } from "@/constants/collections";
-import { attemptClaimInvite, type ClaimFailureReason } from "@/services/firestore/users";
+import { attemptClaimInvite } from "@/services/firestore/users";
 import type { UserDoc } from "@/types/user";
-
-interface AuthContextValue {
-  firebaseUser: User | null;
-  userDoc: UserDoc | null;
-  /** true = dang cho Firebase Auth hoac users/{uid} lan dau. */
-  loading: boolean;
-  /** true = dang thu tu dong claim invite sau khi dang nhap Google lan dau. */
-  claiming: boolean;
-  /** Ly do khong claim duoc, de UI hien thong bao phu hop (Section 7, A16.4). */
-  claimFailureReason: ClaimFailureReason | null;
-}
-
-export const AuthContext = createContext<AuthContextValue>({
-  firebaseUser: null,
-  userDoc: null,
-  loading: true,
-  claiming: false,
-  claimFailureReason: null,
-});
+import { AuthContext, type AuthContextValue } from "@/features/auth/context/auth-context-value";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);

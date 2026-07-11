@@ -3,9 +3,12 @@ import {
   LayoutDashboard,
   Users,
   BookOpen,
+  Library,
   CalendarDays,
   ClipboardCheck,
   FileText,
+  NotebookPen,
+  ChartNoAxesCombined,
   Wallet,
   Bell,
   UserCog,
@@ -15,14 +18,17 @@ import { ROUTES } from "@/constants/routes";
 import { USER_ROLES } from "@/constants/roles";
 
 const NAV_ITEMS = [
-  { to: "/app/dashboard", label: "Tổng quan", icon: LayoutDashboard },
-  { to: "/app/students", label: "Học sinh", icon: Users },
-  { to: "/app/classes", label: "Lớp học", icon: BookOpen },
-  { to: "/app/sessions", label: "Lịch học", icon: CalendarDays },
-  { to: "/app/attendance", label: "Điểm danh", icon: ClipboardCheck },
-  { to: "/app/assignments", label: "Bài tập", icon: FileText },
-  { to: "/app/invoices", label: "Học phí", icon: Wallet },
-  { to: "/app/announcements", label: "Thông báo", icon: Bell },
+  { to: ROUTES.STAFF_DASHBOARD, label: "Tổng quan", icon: LayoutDashboard },
+  { to: ROUTES.STAFF_CATALOG, label: "Môn học & Khóa học", icon: Library },
+  { to: ROUTES.STAFF_STUDENTS, label: "Học sinh", icon: Users },
+  { to: ROUTES.STAFF_CLASSES, label: "Lớp học", icon: BookOpen },
+  { to: ROUTES.STAFF_SESSIONS, label: "Lịch học", icon: CalendarDays },
+  { to: ROUTES.STAFF_LESSON_PLANS, label: "Giáo án", icon: NotebookPen },
+  { to: ROUTES.STAFF_ATTENDANCE, label: "Điểm danh", icon: ClipboardCheck },
+  { to: ROUTES.STAFF_ASSIGNMENTS, label: "Bài tập", icon: FileText },
+  { to: ROUTES.STAFF_SCORES, label: "Điểm học tập", icon: ChartNoAxesCombined },
+  { to: ROUTES.STAFF_INVOICES, label: "Học phí", icon: Wallet },
+  { to: ROUTES.STAFF_ANNOUNCEMENTS, label: "Thông báo", icon: Bell },
 ];
 
 const ADMIN_NAV_ITEM = { to: ROUTES.STAFF_USERS, label: "Người dùng", icon: UserCog };

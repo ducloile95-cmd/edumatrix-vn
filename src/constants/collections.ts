@@ -13,6 +13,7 @@ export const COLLECTIONS = {
   ENROLLMENTS: "enrollments",
 
   LESSON_PLANS: "lesson_plans",
+  LESSON_PLAN_PUBLIC: "lesson_plan_public",
   LESSON_PLAN_TEMPLATES: "lesson_plan_templates",
   SESSIONS: "sessions",
 

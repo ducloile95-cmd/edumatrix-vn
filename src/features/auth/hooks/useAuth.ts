@@ -1,5 +1,5 @@
 import { useContext } from "react";
-import { AuthContext } from "@/features/auth/context/AuthContext";
+import { AuthContext } from "@/features/auth/context/auth-context-value";
 import { isStaffRole } from "@/constants/roles";
 
 export function useAuth() {

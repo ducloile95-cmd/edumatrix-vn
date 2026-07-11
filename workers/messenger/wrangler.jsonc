@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "edumatrix-messenger",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-11",
+  "vars": {
+    "FIREBASE_PROJECT_ID": "edumatrix-vn-576b1",
+    "META_GRAPH_VERSION": "v22.0",
+    "ALLOWED_ORIGIN": "http://localhost:5173"
+  },
+  "secrets": {
+    "required": ["META_PAGE_ACCESS_TOKEN", "META_APP_SECRET", "META_WEBHOOK_VERIFY_TOKEN", "FIREBASE_CLIENT_EMAIL", "FIREBASE_PRIVATE_KEY"]
+  },
+  "env": {
+    "production": {
+      "vars": {
+        "FIREBASE_PROJECT_ID": "edumatrix-vn-576b1",
+        "META_GRAPH_VERSION": "v22.0",
+        "ALLOWED_ORIGIN": "https://REPLACE_WITH_HOSTING_DOMAIN"
+      }
+    }
+  }
+}

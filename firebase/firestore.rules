@@ -152,11 +152,213 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // ---------- subjects/{subjectId} ----------
+    // Staff CRUD (khong xoa cung - dung status=archived, A27). Danh muc mon
+    // hoc khong nhay cam theo tung hoc sinh nen moi nguoi dung active deu
+    // doc duoc (Phase 3, phuc vu Portal Phase 10 ve sau).
+
+    match /subjects/{subjectId} {
+      allow read: if isActive();
+      allow create: if isStaff() &&
+        request.resource.data.status == 'active';
+      allow update: if isStaff() &&
+        request.resource.data.status in ['active', 'archived'];
+      allow delete: if false;
+    }
+
+    // ---------- courses/{courseId} ----------
+    // Staff CRUD. Danh muc khoa hoc khong nhay cam theo tung hoc sinh nen
+    // moi nguoi dung active deu doc duoc (Phase 3).
+
+    match /courses/{courseId} {
+      allow read: if isActive();
+      allow create: if isStaff() &&
+        request.resource.data.status in ['draft', 'active', 'completed'];
+      allow update: if isStaff() &&
+        request.resource.data.status in ['draft', 'active', 'completed'];
+      allow delete: if false;
+    }
+
+    // ---------- students/{studentId} ----------
+    // Staff CRUD. Viewer chi doc duoc ho so hoc sinh minh so huu qua
+    // ownsStudent() (A11 - quy tac ownership, khong dua tren du lieu Viewer
+    // tu sua duoc).
+
+    match /students/{studentId} {
+      allow read: if isStaff() || ownsStudent(studentId);
+      allow create: if isStaff() &&
+        request.resource.data.status in ['active', 'inactive'];
+      allow update: if isStaff() &&
+        request.resource.data.status in ['active', 'inactive'];
+      allow delete: if false;
+    }
+
+    // ---------- classes/{classId} ----------
+    // Staff CRUD. Viewer chi doc lop co studentIds giao voi studentIds cua
+    // minh (A11). Ghi danh (them/bot studentIds) chi thuc hien qua
+    // enrollments/{classId_studentId} de dong bo hai chieu voi
+    // students/{id}.currentClassIds (xem services/firestore/enrollments.ts).
+
+    match /classes/{classId} {
+      allow read: if isStaff() ||
+        (isActive() && currentUser().role == 'viewer' &&
+         resource.data.studentIds.hasAny(currentUser().studentIds));
+      allow create: if isStaff() &&
+        request.resource.data.status in ['active', 'completed', 'cancelled'];
+      allow update: if isStaff() &&
+        request.resource.data.status in ['active', 'completed', 'cancelled'];
+      allow delete: if false;
+    }
+
+    // ---------- enrollments/{classId_studentId} ----------
+    // ID xac dinh {classId}_{studentId} chong ghi trung (A13). Staff CRUD;
+    // Viewer chi doc ghi danh cua hoc sinh minh so huu.
+
+    match /enrollments/{enrollmentId} {
+      allow read: if isStaff() || ownsStudent(resource.data.studentId);
+      allow create: if isStaff() &&
+        enrollmentId == request.resource.data.classId + '_' + request.resource.data.studentId &&
+        request.resource.data.status in ['active', 'ended'];
+      allow update: if isStaff() &&
+        request.resource.data.status in ['active', 'ended'];
+      allow delete: if false;
+    }
+
+    match /sessions/{sessionId} {
+      allow read: if isStaff() || (
+        isActive() && currentUser().role == 'viewer' &&
+        get(/databases/$(database)/documents/classes/$(resource.data.classId)).data.studentIds
+          .hasAny(currentUser().studentIds)
+      );
+      allow create, update: if isStaff() &&
+        request.resource.data.status in ['scheduled', 'rescheduled', 'cancelled', 'completed'];
+      allow delete: if false;
+    }
+
+    match /announcements/{announcementId} {
+      allow read: if isStaff() || (
+        isActive() && resource.data.studentId != null && ownsStudent(resource.data.studentId)
+      );
+      allow create: if isStaff();
+      allow update, delete: if false;
+    }
+
+    match /lesson_plans/{lessonPlanId} {
+      allow read: if isStaff();
+      allow create: if isStaff() && request.resource.data.createdBy == request.auth.uid &&
+        request.resource.data.status in ['draft', 'published', 'archived'];
+      allow update: if isStaff() && request.resource.data.status in ['draft', 'published', 'archived'];
+      allow delete: if false;
+    }
+
+    match /lesson_plan_public/{lessonPlanId} {
+      allow read: if isStaff() || (
+        isActive() && currentUser().role == 'viewer' &&
+        get(/databases/$(database)/documents/classes/$(resource.data.classId)).data.studentIds
+          .hasAny(currentUser().studentIds)
+      );
+      allow create, update, delete: if isStaff();
+    }
+
+    match /lesson_plan_templates/{templateId} {
+      allow read, create, update: if isStaff();
+      allow delete: if false;
+    }
+
+    match /attendance/{attendanceId} {
+      allow read: if isStaff() || ownsStudent(resource.data.studentId);
+      allow create: if isStaff() &&
+        attendanceId == request.resource.data.sessionId + '_' + request.resource.data.studentId &&
+        request.resource.data.status in ['present', 'absent', 'late', 'excused'];
+      allow update: if isStaff() && request.resource.data.status in ['present', 'absent', 'late', 'excused'];
+      allow delete: if false;
+    }
+
+    match /attendance_summaries/{sessionId} {
+      allow read: if isStaff() || (
+        isActive() && currentUser().role == 'viewer' &&
+        get(/databases/$(database)/documents/classes/$(resource.data.classId)).data.studentIds
+          .hasAny(currentUser().studentIds)
+      );
+      allow create, update: if isStaff() && request.resource.data.sessionId == sessionId;
+      allow delete: if false;
+    }
+
+    match /assignments/{assignmentId} {
+      allow read: if isStaff() || (
+        isActive() && currentUser().role == 'viewer' && resource.data.status == 'published' &&
+        get(/databases/$(database)/documents/classes/$(resource.data.classId)).data.studentIds.hasAny(currentUser().studentIds)
+      );
+      allow create, update: if isStaff() && request.resource.data.status in ['draft', 'published', 'closed'];
+      allow delete: if false;
+    }
+    match /submissions/{submissionId} {
+      allow read: if isStaff() || ownsStudent(resource.data.studentId);
+      allow create: if ownsStudent(request.resource.data.studentId) &&
+        submissionId == request.resource.data.assignmentId + '_' + request.resource.data.studentId &&
+        request.resource.data.status == 'submitted' && request.resource.data.score == null && request.resource.data.teacherComment == '';
+      allow update: if isStaff() || (
+        ownsStudent(resource.data.studentId) && request.resource.data.studentId == resource.data.studentId &&
+        request.resource.data.assignmentId == resource.data.assignmentId &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['submissionUrl', 'submissionText', 'studentNote', 'status', 'submittedAt', 'updatedAt']) &&
+        request.resource.data.status == 'submitted'
+      );
+      allow delete: if false;
+    }
+    match /assignment_summaries/{assignmentId} {
+      allow read: if isStaff();
+      allow create, update: if isStaff();
+      allow delete: if false;
+    }
+    match /scores/{scoreId} {
+      allow read: if isStaff() || ownsStudent(resource.data.studentId);
+      allow create, update: if isStaff() && request.resource.data.score >= 0 && request.resource.data.score <= request.resource.data.maxScore;
+      allow delete: if false;
+    }
+    match /student_summaries/{studentId} {
+      allow read: if isStaff() || ownsStudent(studentId);
+      allow create, update: if isStaff();
+      allow delete: if false;
+    }
+    match /invoices/{invoiceId} {
+      allow read: if isStaff() || ownsStudent(resource.data.studentId);
+      allow create: if isStaff() && request.resource.data.status == 'unpaid' && request.resource.data.amount > 0;
+      allow update: if isStaff() || (
+        ownsStudent(resource.data.studentId) && resource.data.status in ['unpaid', 'rejected'] &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+      );
+      allow delete: if false;
+    }
+    match /payments/{paymentId} {
+      allow read: if isStaff() || ownsStudent(resource.data.studentId);
+      allow create: if ownsStudent(request.resource.data.studentId) && request.resource.data.status == 'reported' && request.resource.data.verifiedBy == null;
+      allow update: if isStaff() && request.resource.data.status in ['verified', 'rejected'];
+      allow delete: if false;
+    }
+  match /viewer_dashboards/{uid} {
+    allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+    // Dashboard là dữ liệu dẫn xuất; client không được tự ghi để giả mạo điểm,
+    // học phí hoặc chuyên cần. Backend tin cậy có thể ghi bằng Admin SDK.
+    allow create, update: if false;
+    allow delete: if false;
+  }
+    match /message_outbox/{messageId} {
+      allow read: if isStaff();
+      allow create: if isStaff() && request.resource.data.actorUid == request.auth.uid &&
+        request.resource.data.status in ['sent', 'failed'];
+      allow update, delete: if false;
+    }
+    match /messenger_connections/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow write: if false;
+    }
+
     // ---------- Mac dinh: tu choi tat ca ----------
-    // Cac collection khac (students, classes, sessions, lesson_plans,
-    // attendance, assignments, submissions, scores, invoices, payments,
-    // announcements...) se duoc mo dan theo Phase 3-11, kem
-    // Emulator test cho tung quyen truoc khi enable (A28).
+    // Cac collection khac (sessions, lesson_plans, attendance, assignments,
+    // submissions, scores, invoices, payments, announcements...) se duoc mo
+    // dan theo Phase 4-11, kem Emulator test cho tung quyen truoc khi
+    // enable (A28).
 
     match /{document=**} {
       allow read, write: if false;

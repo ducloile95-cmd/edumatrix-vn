@@ -8,6 +8,7 @@ import {
   query,
   serverTimestamp,
   updateDoc,
+  where,
   writeBatch,
 } from "firebase/firestore";
 import type { User } from "firebase/auth";
@@ -15,7 +16,7 @@ import { db } from "@/services/firebase/client";
 import { COLLECTIONS } from "@/constants/collections";
 import { normalizeEmail } from "@/utils/email";
 import { writeAuditLog } from "@/services/firestore/auditLog";
-import type { InviteDoc, UserDoc, UserStatus } from "@/types/user";
+import type { InviteDoc, UserDoc, UserRole, UserStatus } from "@/types/user";
 
 export type ClaimFailureReason = "email_not_verified" | "no_invite" | "error";
 
@@ -87,4 +88,16 @@ export async function setUserStatus(actor: User, uid: string, status: UserStatus
   const ref = doc(db, COLLECTIONS.USERS, uid);
   await updateDoc(ref, { status, updatedAt: serverTimestamp() });
   await writeAuditLog(actor, "user_status_changed", "user", uid, { status });
+}
+
+/** Danh sach tai khoan active theo role - dung de chon Giao vien khi tao/sua lop (Phase 3). */
+export async function listUsersByRole(role: UserRole): Promise<(UserDoc & { uid: string })[]> {
+  const q = query(
+    collection(db, COLLECTIONS.USERS),
+    where("role", "==", role),
+    where("status", "==", "active"),
+    limit(50),
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ uid: d.id, ...(d.data() as UserDoc) }));
 }
