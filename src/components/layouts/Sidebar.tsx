@@ -8,7 +8,11 @@ import {
   FileText,
   Wallet,
   Bell,
+  UserCog,
 } from "lucide-react";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import { ROUTES } from "@/constants/routes";
+import { USER_ROLES } from "@/constants/roles";
 
 const NAV_ITEMS = [
   { to: "/app/dashboard", label: "Tổng quan", icon: LayoutDashboard },
@@ -21,7 +25,12 @@ const NAV_ITEMS = [
   { to: "/app/announcements", label: "Thông báo", icon: Bell },
 ];
 
+const ADMIN_NAV_ITEM = { to: ROUTES.STAFF_USERS, label: "Người dùng", icon: UserCog };
+
 export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { role } = useAuth();
+  const items = role === USER_ROLES.ADMIN ? [...NAV_ITEMS, ADMIN_NAV_ITEM] : NAV_ITEMS;
+
   return (
     <>
       {open && (
@@ -38,7 +47,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
         }`}
       >
         <ul className="space-y-1 p-3">
-          {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
+          {items.map(({ to, label, icon: Icon }) => (
             <li key={to}>
               <NavLink
                 to={to}

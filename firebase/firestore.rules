@@ -45,20 +45,50 @@ service cloud.firestore {
         studentId in currentUser().studentIds;
     }
 
+    // ---------- Invite claim helpers (A16.4) ----------
+    // Email phai ton tai va da duoc Google xac minh - khong tin email chua verify.
+
+    function hasVerifiedEmail() {
+      return signedIn() &&
+        request.auth.token.email != null &&
+        request.auth.token.email_verified == true;
+    }
+
+    function requesterEmail() {
+      return request.auth.token.email.lower();
+    }
+
+    function inviteForRequester() {
+      return get(/databases/$(database)/documents/invites/$(requesterEmail())).data;
+    }
+
+    function hasActiveInvite() {
+      return hasVerifiedEmail() &&
+        exists(/databases/$(database)/documents/invites/$(requesterEmail())) &&
+        inviteForRequester().status == 'active';
+    }
+
+    function isValidRole(role) {
+      return role in ['admin', 'teacher', 'viewer'];
+    }
+
     // ---------- users/{uid} ----------
-    // Chi Admin duoc doi role/studentIds/status. Chinh chu duoc doc/sua
-    // thong tin ca nhan cua minh nhung khong duoc tu nang quyen (A16.4, A11).
+    // Chi Admin duoc doi role/studentIds/status. Tao ho so lan dau (claim invite)
+    // phai khop dung role/studentIds lay tu invite - nguoi dung khong tu chon (A16.4).
 
     match /users/{uid} {
       allow read: if isAdmin() || request.auth.uid == uid;
 
-      // Tao ho so lan dau: chi tao cho chinh minh, va role/studentIds/status
-      // phai duoc copy dung tu invite tuong ung (kiem tra o buoc claim invite
-      // ben client + Cloud Function/Worker trong giai doan nang cap; o Phase 2
-      // MVP, Admin la nguoi duy nhat duoc seed du lieu users ban dau).
       allow create: if isAdmin() || (
         request.auth.uid == uid &&
-        request.resource.data.role == 'viewer'
+        hasActiveInvite() &&
+        request.resource.data.email == requesterEmail() &&
+        request.resource.data.role == inviteForRequester().role &&
+        request.resource.data.studentIds == inviteForRequester().studentIds &&
+        request.resource.data.status == 'active' &&
+        request.resource.data.keys().hasOnly(
+          ['email', 'displayName', 'photoURL', 'role', 'studentIds', 'status', 'createdAt', 'updatedAt']
+        )
       );
 
       allow update: if isAdmin() || (
@@ -74,17 +104,29 @@ service cloud.firestore {
     }
 
     // ---------- invites/{normalizedEmail} ----------
-    // Chi Admin quan ly loi moi. Nguoi dung chi duoc doc loi moi cua chinh
-    // email da xac thuc de thuc hien claim (A16.4).
+    // Chi Admin tao/sua/xoa loi moi. Nguoi duoc moi chi duoc doc loi moi cua
+    // chinh email da xac thuc, va chi duoc cap nhat status active -> claimed
+    // khi claim (khong duoc tu doi role/studentIds/email cua loi moi) (A16.4).
 
     match /invites/{email} {
       allow read: if isAdmin() || (
-        signedIn() &&
-        request.auth.token.email != null &&
-        request.auth.token.email.lower() == email
+        hasVerifiedEmail() && requesterEmail() == email
       );
 
-      allow create, update, delete: if isAdmin();
+      allow create: if isAdmin() &&
+        request.resource.data.email == email &&
+        isValidRole(request.resource.data.role) &&
+        request.resource.data.status == 'active';
+
+      allow update: if isAdmin() || (
+        hasVerifiedEmail() &&
+        requesterEmail() == email &&
+        resource.data.status == 'active' &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'claimedAt']) &&
+        request.resource.data.status == 'claimed'
+      );
+
+      allow delete: if isAdmin();
     }
 
     // ---------- settings/* ----------
@@ -95,10 +137,25 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    // ---------- audit_logs/{logId} ----------
+    // Staff duoc ghi (khong duoc sua/xoa - bat bien), chi Admin duoc xem (A26).
+
+    match /audit_logs/{logId} {
+      allow read: if isAdmin();
+
+      allow create: if isStaff() &&
+        request.resource.data.actorUid == request.auth.uid &&
+        request.resource.data.keys().hasOnly(
+          ['action', 'actorUid', 'actorEmail', 'targetType', 'targetId', 'meta', 'createdAt']
+        );
+
+      allow update, delete: if false;
+    }
+
     // ---------- Mac dinh: tu choi tat ca ----------
     // Cac collection khac (students, classes, sessions, lesson_plans,
     // attendance, assignments, submissions, scores, invoices, payments,
-    // announcements, audit_logs...) se duoc mo dan theo Phase 3-11, kem
+    // announcements...) se duoc mo dan theo Phase 3-11, kem
     // Emulator test cho tung quyen truoc khi enable (A28).
 
     match /{document=**} {

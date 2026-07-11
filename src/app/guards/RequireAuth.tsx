@@ -9,9 +9,9 @@ import { ROUTES } from "@/constants/routes";
  * Rules, day van la lop bao mat that su (A16.3).
  */
 export function RequireAuth({ children }: { children: ReactNode }) {
-  const { loading, isSignedIn, userDoc } = useAuth();
+  const { loading, isSignedIn, userDoc, claiming } = useAuth();
 
-  if (loading) {
+  if (loading || claiming) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <LoadingSkeleton rows={4} className="w-64" />

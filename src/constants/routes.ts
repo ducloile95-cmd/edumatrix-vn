@@ -5,5 +5,6 @@ export const ROUTES = {
   ACCOUNT_DISABLED: "/account-disabled",
 
   STAFF_DASHBOARD: "/app/dashboard",
+  STAFF_USERS: "/app/users",
   VIEWER_DASHBOARD: "/portal/dashboard",
 } as const;

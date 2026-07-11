@@ -8,6 +8,7 @@ import AccessDeniedPage from "@/features/auth/pages/AccessDeniedPage";
 import AccountDisabledPage from "@/features/auth/pages/AccountDisabledPage";
 import StaffDashboardPage from "@/features/dashboard/pages/StaffDashboardPage";
 import ViewerDashboardPage from "@/features/dashboard/pages/ViewerDashboardPage";
+import UsersPage from "@/features/users/pages/UsersPage";
 import { RoleRedirect } from "@/app/RoleRedirect";
 
 export function AppRouter() {
@@ -24,6 +25,17 @@ export function AppRouter() {
             <RequireAuth>
               <RequireRole roles={[USER_ROLES.ADMIN, USER_ROLES.TEACHER]}>
                 <StaffDashboardPage />
+              </RequireRole>
+            </RequireAuth>
+          }
+        />
+
+        <Route
+          path={ROUTES.STAFF_USERS}
+          element={
+            <RequireAuth>
+              <RequireRole roles={[USER_ROLES.ADMIN]} redirectTo={ROUTES.STAFF_DASHBOARD}>
+                <UsersPage />
               </RequireRole>
             </RequireAuth>
           }
