@@ -7,7 +7,7 @@ import { createInvite } from "@/services/firestore/invites";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { USER_ROLES, ROLE_LABELS } from "@/constants/roles";
 
-export function InviteForm() {
+export function InviteForm({ onDone }: { onDone?: () => void }) {
   const { firebaseUser } = useAuth();
   const queryClient = useQueryClient();
   const [successEmail, setSuccessEmail] = useState<string | null>(null);
@@ -36,6 +36,7 @@ export function InviteForm() {
       setSuccessEmail(email);
       reset();
       queryClient.invalidateQueries({ queryKey: ["invites"] });
+      onDone?.();
     },
   });
 
@@ -45,10 +46,7 @@ export function InviteForm() {
         setSuccessEmail(null);
         mutation.mutate(values);
       })}
-      className="rounded-card border border-neutral-200 bg-neutral-0 p-4 sm:p-5"
     >
-      <h2 className="mb-3">Mời tài khoản mới</h2>
-
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label htmlFor="invite-email" className="mb-1 block text-sm font-medium text-neutral-700">

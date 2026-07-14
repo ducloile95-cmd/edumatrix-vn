@@ -49,14 +49,7 @@ export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
   });
 
   return (
-    <form
-      onSubmit={handleSubmit((values) => mutation.mutate(values))}
-      className="rounded-card border border-neutral-200 bg-neutral-0 p-4 sm:p-5"
-    >
-      <h2 className="mb-3">
-        {editingStudent ? `Sửa học sinh ${editingStudent.studentCode}` : "Thêm học sinh"}
-      </h2>
-
+    <form onSubmit={handleSubmit((values) => mutation.mutate(values))}>
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label htmlFor="student-code" className="mb-1 block text-sm font-medium text-neutral-700">

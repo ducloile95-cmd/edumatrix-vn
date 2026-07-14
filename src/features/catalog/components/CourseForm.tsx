@@ -5,7 +5,7 @@ import { courseFormSchema, type CourseFormValues } from "@/schemas/course";
 import { createCourse } from "@/services/firestore/courses";
 import { listSubjects } from "@/services/firestore/subjects";
 
-export function CourseForm() {
+export function CourseForm({ onDone }: { onDone?: () => void }) {
   const queryClient = useQueryClient();
   const { data: subjects } = useQuery({ queryKey: ["subjects"], queryFn: listSubjects });
 
@@ -33,6 +33,7 @@ export function CourseForm() {
     onSuccess: () => {
       reset();
       queryClient.invalidateQueries({ queryKey: ["courses"] });
+      onDone?.();
     },
   });
 
@@ -41,10 +42,7 @@ export function CourseForm() {
   return (
     <form
       onSubmit={handleSubmit((values) => mutation.mutate(values))}
-      className="rounded-card border border-neutral-200 bg-neutral-0 p-4 sm:p-5"
     >
-      <h2 className="mb-3">Thêm khóa học</h2>
-
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <label htmlFor="course-name" className="mb-1 block text-sm font-medium text-neutral-700">

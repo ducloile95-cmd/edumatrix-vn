@@ -14,6 +14,7 @@ import { AppShell } from "@/components/layouts/AppShell";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
 import { ErrorState } from "@/components/feedback/ErrorState";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { ROUTES } from "@/constants/routes";
 import { getStaffDashboard } from "@/services/firestore/staffDashboard";
 
@@ -68,9 +69,7 @@ export default function StaffDashboardPage() {
 
   return (
     <AppShell>
-      <h1>Tổng quan</h1>
-      <p className="mt-1 text-sm text-neutral-500">{format(new Date(), "EEEE, dd/MM/yyyy")}</p>
-
+      <PageHeader title="Tổng quan" description="Những việc cần chú ý hôm nay, lịch lớp sắp tới và tiến độ học tập." />
       {isLoading && <div className="mt-5"><LoadingSkeleton rows={4} /></div>}
       {isError && <div className="mt-5"><ErrorState message="Không tải được dữ liệu tổng quan." onRetry={() => refetch()} /></div>}
 

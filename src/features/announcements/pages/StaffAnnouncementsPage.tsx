@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Send, MessageCircle } from "lucide-react";
 import { AppShell } from "@/components/layouts/AppShell";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { listStudents } from "@/services/firestore/students";
 import { postToPage, sendMessenger } from "@/services/messenger/client";
 
@@ -37,8 +38,7 @@ export default function StaffAnnouncementsPage() {
 
   return (
     <AppShell>
-      <h1>Thông báo</h1>
-      <p className="mt-1 text-sm text-neutral-500">Đăng bài lên Fanpage và nhắn phụ huynh qua Messenger.</p>
+      <PageHeader title="Thông báo" description="Đăng bài lên Fanpage và nhắn phụ huynh qua Messenger." />
 
       <div className="mt-5 max-w-2xl rounded-card border border-neutral-200 bg-neutral-0 p-4">
         <h2 className="text-base">Đăng bài lên Fanpage</h2>

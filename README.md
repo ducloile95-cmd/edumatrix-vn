@@ -22,6 +22,26 @@ npm run typecheck
 npm run build
 ```
 
+### Seed dữ liệu toàn trình trên Emulator
+
+Mở Emulator trong terminal thứ nhất, sau đó seed ở terminal thứ hai:
+
+```bash
+npm run emulators
+npm run seed:local:full -- --reset
+npm run dev
+```
+
+`--reset` chỉ xóa dữ liệu của Auth/Firestore Emulator tại `127.0.0.1`; bỏ cờ này để upsert lại dataset có ID cố định. Mật khẩu chung là `Test@123456`:
+
+- `admin@test.local`
+- `teacher.a@test.local` — phụ trách `class-toan-a`
+- `teacher.b@test.local` — phụ trách `class-anh-b`
+- `parent.a@test.local` — liên kết `HS001`, `HS002`
+- `parent.b@test.local` — liên kết `HS003`
+
+Dataset bao phủ danh mục, lớp/ghi danh, lịch học, giáo án, điểm danh, bài tập/nộp bài, điểm, dashboard phụ huynh, học phí/thanh toán, thông báo và Messenger outbox.
+
 ## Emulator test cho Firestore Security Rules
 
 Bắt buộc chạy trước khi coi Authentication/phân quyền là hoàn thành (A16.4, A28):

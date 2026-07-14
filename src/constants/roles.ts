@@ -1,6 +1,6 @@
 import type { UserRole } from "@/types/user";
 
-/** Nguon duy nhat cho role - khong hardcode chuoi role rai rac (A4.5). */
+/** Nguồn duy nhất cho role — không hardcode chuỗi role rải rác. */
 export const USER_ROLES = {
   ADMIN: "admin",
   TEACHER: "teacher",
@@ -13,11 +13,5 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   viewer: "Phụ huynh/Học sinh",
 };
 
-export const STAFF_ROLES: readonly UserRole[] = [
-  USER_ROLES.ADMIN,
-  USER_ROLES.TEACHER,
-];
-
-export function isStaffRole(role: UserRole): boolean {
-  return STAFF_ROLES.includes(role);
-}
+export const STAFF_ROLES: readonly UserRole[] = [USER_ROLES.ADMIN, USER_ROLES.TEACHER];
+export function isStaffRole(role: UserRole): boolean { return STAFF_ROLES.includes(role); }

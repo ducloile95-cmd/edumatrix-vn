@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { subjectFormSchema, type SubjectFormValues } from "@/schemas/subject";
 import { createSubject } from "@/services/firestore/subjects";
 
-export function SubjectForm() {
+export function SubjectForm({ onDone }: { onDone?: () => void }) {
   const queryClient = useQueryClient();
 
   const {
@@ -22,16 +22,14 @@ export function SubjectForm() {
     onSuccess: () => {
       reset();
       queryClient.invalidateQueries({ queryKey: ["subjects"] });
+      onDone?.();
     },
   });
 
   return (
     <form
       onSubmit={handleSubmit((values) => mutation.mutate(values))}
-      className="rounded-card border border-neutral-200 bg-neutral-0 p-4 sm:p-5"
     >
-      <h2 className="mb-3">Thêm môn học</h2>
-
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label htmlFor="subject-name" className="mb-1 block text-sm font-medium text-neutral-700">

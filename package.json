@@ -13,7 +13,8 @@
     "test:rules": "firebase emulators:exec --only firestore \"vitest run firebase/tests\"",
     "emulators": "firebase emulators:start --only auth,firestore --project demo-edumatrix",
     "seed:admin": "node scripts/seed-admin.mjs",
-    "seed:admin:account": "node scripts/seed-admin-account.mjs"
+    "seed:admin:account": "node scripts/seed-admin-account.mjs",
+    "seed:local:full": "node scripts/seed-local-full.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

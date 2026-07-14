@@ -2,23 +2,70 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --motion-duration: 220ms;
+  --grad-page: radial-gradient(circle at 12% 5%, rgba(147, 180, 253, .24), transparent 30rem), radial-gradient(circle at 92% 18%, rgba(209, 250, 223, .3), transparent 28rem), #fafaf9;
+  --shadow-1: 0 4px 18px rgba(28, 51, 137, .07);
+  --shadow-2: 0 12px 32px rgba(28, 51, 137, .1);
+  --shadow-3: 0 18px 48px rgba(28, 51, 137, .16);
+  --shadow-4: 0 28px 70px rgba(28, 51, 137, .22);
+}
+
 @layer base {
   html {
     @apply text-neutral-800;
+    scroll-behavior: smooth;
   }
   body {
     @apply bg-neutral-50 font-sans antialiased;
+    min-width: 320px;
+    background: var(--grad-page);
+    background-attachment: fixed;
+    letter-spacing: -0.005em;
+    line-height: 1.55;
   }
+  /* Tối ưu font: heading tracking chặt cho cảm giác hiện đại, cân đối với dấu tiếng Việt. */
   h1 {
-    @apply text-2xl font-semibold text-neutral-900 sm:text-[28px];
+    @apply text-2xl font-semibold tracking-[-0.02em] text-neutral-900 sm:text-[28px];
   }
   h2 {
-    @apply text-xl font-semibold text-neutral-900;
+    @apply text-xl font-semibold tracking-[-0.015em] text-neutral-900;
   }
   h3 {
-    @apply text-lg font-semibold text-neutral-900;
+    @apply text-lg font-semibold tracking-[-0.01em] text-neutral-900;
   }
   :focus-visible {
     @apply outline-none ring-2 ring-primary-500 ring-offset-2;
   }
 }
+
+@layer components {
+  .glass-panel { background: rgba(255, 255, 255, .74); backdrop-filter: blur(14px) saturate(150%); box-shadow: inset 0 1px rgba(255,255,255,.85); }
+  .icon-button { @apply min-h-touch min-w-touch items-center justify-center rounded-xl text-neutral-600 transition hover:bg-white/80 hover:text-primary-700 active:scale-95; transition-duration: var(--motion-duration); }
+  .page-enter { animation: page-enter 380ms cubic-bezier(.16, 1, .3, 1) both; }
+
+  /* Đồng bộ toàn bộ form popup (Modal) với màu hệ thống — redesign-preserve (design-taste-frontend). */
+  [role="dialog"] :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+    @apply rounded-input border border-neutral-300 bg-white/85 text-neutral-800 transition;
+  }
+  [role="dialog"] :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea):focus {
+    @apply border-primary-500 outline-none;
+    box-shadow: 0 0 0 3px rgba(51, 102, 240, .16);
+  }
+  [role="dialog"] :is(input, textarea)::placeholder { @apply text-neutral-400; }
+  [role="dialog"] button[type="submit"] {
+    background-image: linear-gradient(135deg, #3366F0, #1D39AC);
+    border-color: transparent;
+    @apply text-white shadow-[0_8px_20px_rgba(35,72,214,.22)];
+  }
+  [role="dialog"] button[type="submit"]:hover { filter: brightness(1.06); }
+  [role="dialog"] button[type="submit"]:active { transform: scale(.98); }
+  [role="dialog"] button[type="submit"]:disabled { opacity: .55; }
+}
+@layer utilities {
+  /* Dense-but-readable data rows: consistent across every role and module. */
+  main .divide-y > li { @apply py-2; }
+}
+@supports not (backdrop-filter: blur(1px)) { .glass-panel { background: rgba(255,255,255,.96); } }
+@keyframes page-enter { from { opacity: 0; transform: translateY(14px) scale(.992); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }

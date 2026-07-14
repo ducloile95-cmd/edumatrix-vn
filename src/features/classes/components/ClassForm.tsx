@@ -85,10 +85,7 @@ export function ClassForm({ editingClass, onDone }: ClassFormProps) {
   return (
     <form
       onSubmit={handleSubmit((values) => mutation.mutate(values))}
-      className="rounded-card border border-neutral-200 bg-neutral-0 p-4 sm:p-5"
     >
-      <h2 className="mb-3">{editingClass ? `Sửa lớp ${editingClass.name}` : "Tạo lớp học"}</h2>
-
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <label htmlFor="class-name" className="mb-1 block text-sm font-medium text-neutral-700">

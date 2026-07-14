@@ -25,7 +25,6 @@ export default function InvoicesPage() {
   });
   const setField = (field: keyof typeof form, value: string | number) => setForm((current) => ({ ...current, [field]: value }));
   return <AppShell>
-    <h1>Hoc phi va doi soat</h1>
     <form onSubmit={(event) => { event.preventDefault(); if (!create.isPending) create.mutate(); }} className="mt-5 grid gap-3 border-y py-5 md:grid-cols-3">
       <select aria-label="Hoc sinh" required value={form.studentId} onChange={(event) => setField("studentId", event.target.value)} className="min-h-touch rounded-input border px-3"><option value="">Chon hoc sinh</option>{students.data?.map((student) => <option key={student.id} value={student.id}>{student.fullName}</option>)}</select>
       <input aria-label="Tieu de hoa don" value={form.title} onChange={(event) => setField("title", event.target.value)} className="min-h-touch rounded-input border px-3" />

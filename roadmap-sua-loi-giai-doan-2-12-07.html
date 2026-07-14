@@ -19,7 +19,7 @@
     <div class="eyebrow">Edumatrix · Remediation roadmap</div>
     <h1>Sửa lỗi Edumatrix Giai đoạn 2 12-07</h1>
     <p>Kế hoạch khắc phục sau audit cục bộ ngày 12/07/2026. Mục tiêu là đưa MVP từ trạng thái “build được” đến trạng thái có thể phát hành có kiểm soát, không mở rộng tính năng mới trong giai đoạn này.</p>
-    <div class="meta"><span class="pill">Trạng thái: Chưa bắt đầu</span><span class="pill">Baseline: 99/112 mục Roadmap cũ</span><span class="pill">Ước lượng: 15–22 ngày làm việc</span><span class="pill">Phạm vi: Security · Data · Test · Release</span></div>
+<div class="meta"><span class="pill">Trạng thái: Đang thực hiện</span><span class="pill">Baseline: 99/112 mục Roadmap cũ</span><span class="pill">Audit lại: 12/07/2026</span><span class="pill">Phạm vi: Security · Data · Test · Release</span></div>
     <div class="progress-wrap"><div class="track"><div class="fill" id="overallFill"></div></div><strong id="overallPct">0%</strong></div>
   </header>
 
@@ -36,7 +36,7 @@
     <div class="spacer"></div><button id="expandBtn">Mở tất cả</button><button id="exportBtn">Xuất JSON</button><button id="resetBtn">Đặt lại</button>
   </div>
   <main class="timeline" id="timeline"></main>
-  <footer class="footer"><span>Tiến độ và ghi chú được lưu cục bộ bằng localStorage.</span><span>Ngày lập: 12/07/2026 · Chưa thực hiện sửa mã nguồn.</span></footer>
+<footer class="footer"><span>Tiến độ và ghi chú được lưu cục bộ bằng localStorage. Xem thêm roadmap-audit-rules-roles-spark-client-12-07-2026.md.</span><span>Cập nhật audit: 12/07/2026 · Security và UAT còn việc mở.</span></footer>
 </div>
 <script>
 const phases=[
@@ -49,15 +49,20 @@ const phases=[
  {code:"Chặng 6",title:"Hiệu năng, Firebase Spark và vận hành",time:"1.5–2.5 ngày",priority:"P2",tasks:["Tách hoặc tối ưu chunk chính đang khoảng 760 kB","Đo tải lần đầu và route Scores trên mạng chậm","Thay pagination client bằng cursor ở danh sách có thể tăng lớn","Rà soát số Firestore reads/writes cho dashboard và summary","Cấu hình môi trường Worker production và ALLOWED_ORIGIN đúng","Thiết lập monitoring, error reporting và ngân sách quota Spark","Viết quy trình backup thủ công và rollback deployment"],outputs:["Không còn cảnh báo bundle không được giải trình","Có giới hạn quota và cảnh báo vận hành","Có runbook deploy, rollback và backup"],gate:"Ứng dụng đáp ứng ngân sách hiệu năng/quota đã chốt trên dữ liệu giả lập.",risk:"Không tối ưu vi mô trước khi có số đo; ưu tiên chi phí Firestore và tải ban đầu."},
  {code:"Chặng 7",title:"UAT, triển khai thử và quyết định Go/No-Go",time:"2–3 ngày",priority:"P0",tasks:["Test đăng nhập Google và claim invite trên project staging","UAT đầy đủ Admin, Teacher và Viewer với dữ liệu mẫu","Kiểm tra Hosting rewrite, cache headers và App Check","Kiểm tra Worker/Meta runtime thật hoặc đánh dấu Messenger tắt có chủ đích","Test trên điện thoại thật, mạng chậm và phiên đăng nhập hết hạn","Đối chiếu lại toàn bộ lỗi P0/P1 và test hồi quy","Chuẩn bị checklist deploy, rollback, người trực và kênh báo lỗi","Ký quyết định Go/No-Go; chỉ deploy khi mọi gate bắt buộc đạt"],outputs:["Biên bản UAT theo từng role","Release candidate có version và changelog","Quyết định phát hành có người phê duyệt"],gate:"Gate 4 — Release: không còn P0/P1 mở; CI, Rules, UAT, backup và rollback đều đạt.",risk:"Nếu Meta chưa được App Review, phát hành webapp với Messenger feature flag tắt; không giả định tích hợp đã hoạt động."}
 ];
-const KEY="edumatrixFixRoadmapPhase2_1207_v6";
+const KEY="edumatrixFixRoadmapPhase2_1207_v7";
 const completedBeforePhase6=Object.fromEntries(phases.slice(0,6).flatMap((phase,phaseIndex)=>phase.tasks.map((_,taskIndex)=>[`${phaseIndex}-${taskIndex}`,true])));
+// Audit 12/07/2026 mo lai cac muc Security chua dat: schema/ownership,
+// test gia mao va ma tran quyen Teacher/Admin.
+delete completedBeforePhase6["1-2"];
+delete completedBeforePhase6["1-3"];
+delete completedBeforePhase6["1-5"];
 completedBeforePhase6["6-3"]=true;
 completedBeforePhase6["6-2"]=true;
 completedBeforePhase6["7-2"]=true;
 completedBeforePhase6["7-3"]=true;
 completedBeforePhase6["7-5"]=true;
 completedBeforePhase6["7-6"]=true;
-const completedNotes={0:"Hoan tat: baseline working tree, dependency baseline, emulator port 8090 va ma tran pham vi da duoc ghi nhan.",1:"Hoan tat: viewer_dashboard khong con ghi tu client; Rules test 71/71 PASS.",2:"Hoan tat: Firebase 12, Rules Unit Testing 5, Vite 6, Vitest 3 va undici da nang cap; production audit 0 vulnerability.",3:"Hoan tat: transaction cho grading/score, deterministic IDs, batch chunking va payment idempotency; full regression PASS.",4:"Hoan tat: form accessibility, pending/error state va invoice page da duoc chuan hoa; typecheck/lint/test/build PASS.",5:"Hoan tat: them idempotency/chunk test va CI workflow cho web, Rules va Worker; frontend 16/16, Rules 71/71, Worker 11/11 PASS.",6:"Dang thuc hien: cursor pagination invoices PASS voi 50 document/trang; attendance queries gioi han 500 de bao ve Spark quota; Worker da co environment production scaffold nhung domain that va monitoring chua cau hinh. Manual chunking khong giam duoc main bundle; chua danh dau bundle.",7:"UAT cục bộ: Hosting rewrite/cache và App Check config PASS; Messenger được tắt có chủ đích vì chưa có Worker URL/secrets production; full regression PASS. Chưa test Google login/UAT role trên staging, thiết bị thật hoặc quyết định Go/No-Go."};
+const completedNotes={0:"Hoan tat baseline 12/07/2026: typecheck, lint, unit 16/16, Rules 71/71, Worker 11/11 va build PASS; production audit 0 vulnerability.",1:"MO LAI SAU AUDIT 12/07/2026. Ma tran quyen da chot: Teacher chi thao tac du lieu hoc vu cua lop duoc phan cong, nhung duoc quan tri va duyet hoc phi cho hoc sinh trong cac lop do. Rules hien tai chua kiem tra teacher ownership theo lop; nhieu update rule chua khoa immutable fields/ownership; Worker cho staff gui den recipientPsid tuy y. Xem roadmap audit moi.",2:"Hoan tat: Firebase 12, Rules Unit Testing 5, Vite 6, Vitest 3 va undici da nang cap; production audit 0 vulnerability.",3:"Hoan tat: transaction cho grading/score, deterministic IDs, batch chunking va payment idempotency; full regression PASS.",4:"Hoan tat phan lon: form accessibility, pending/error state va invoice page da duoc chuan hoa; van con mojibake trong mot so tep nguon/tai lieu can xac minh runtime.",5:"CI va cac bo test hien co PASS. DANG DO: thieu negative tests cho teacher ownership, immutable fields, payment/invoice cross-document integrity, recipient Messenger va route/auth integration.",6:"Dang thuc hien: cursor pagination invoices PASS; production build con canh bao main chunk 1.011 MB. Chua co quota telemetry/alert, backup tu dong (Spark khong ho tro managed backup mien phi), Worker production va monitoring.",7:"UAT cuc bo: Hosting rewrite/cache config PASS ve cau truc; App Check client co khoi tao nhung chua co bang chung Console enforcement. Chua test Google login/UAT 3 role tren staging, thiet bi that, Meta runtime hoac quyet dinh Go/No-Go."};
 let state;try{state=JSON.parse(localStorage.getItem(KEY))||{tasks:completedBeforePhase6,notes:completedNotes,open:{5:true}}}catch{state={tasks:completedBeforePhase6,notes:completedNotes,open:{5:true}}}state.tasks??={};state.notes??={};state.open??={0:true};
 const timeline=document.getElementById("timeline");
 function save(){localStorage.setItem(KEY,JSON.stringify(state))}

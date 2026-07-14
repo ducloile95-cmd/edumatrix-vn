@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { addDays, format, subDays } from "date-fns";
 import { Save } from "lucide-react";
 import { AppShell } from "@/components/layouts/AppShell";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -38,7 +39,7 @@ export default function AttendancePage() {
 
   return (
     <AppShell>
-      <h1>Diem danh</h1><p className="mt-1 text-sm text-neutral-500">Tai danh sach lop, danh dau nhanh va luu ca lop trong mot batch.</p>
+      <PageHeader title="Điểm danh" description="Tải danh sách lớp, đánh dấu nhanh và lưu cả lớp trong một lần." />
       <label htmlFor="attendance-session" className="sr-only">Chon buoi hoc</label><select id="attendance-session" aria-label="Chon buoi hoc" value={sessionId} onChange={(event) => setSessionId(event.target.value)} className="mt-5 min-h-touch w-full max-w-xl rounded-input border border-neutral-300 px-3 text-sm"><option value="">Chon buoi hoc</option>{sessions.data?.map((session) => <option key={session.id} value={session.id}>{format(session.startAt.toDate(), "dd/MM/yyyy HH:mm")} - {session.title}</option>)}</select>
       {(klass.isLoading || students.isLoading || existing.isLoading) && sessionId && <LoadingSkeleton rows={5} />}
       {sessionId && classStudents.length === 0 && !students.isLoading && <EmptyState title="Lop chua co hoc sinh" />}
