@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Copy, Eye, Plus, Save, X } from "lucide-react";
 import { AppShell } from "@/components/layouts/AppShell";
+import { Button, IconButton } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Modal } from "@/components/ui/Modal";
 import { EmptyState } from "@/components/feedback/EmptyState";
@@ -15,8 +16,7 @@ import { createLessonPlan, createLessonPlanTemplate, copyLessonPlan, listLessonP
 import { lessonPlanFormSchema, type LessonPlanFormValues } from "@/schemas/lessonPlan";
 import type { LessonPlanDoc } from "@/types/academic";
 
-const DEFAULT_VALUES: LessonPlanFormValues = { title: "", classId: null, courseId: null, subjectId: null, sessionId: null, sections: [{ title: "Muc tieu", content: "" }, { title: "Noi dung", content: "" }], publicSummary: "", status: "draft" };
-const ADD_BTN = "inline-flex min-h-touch items-center gap-2 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 px-4 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(35,72,214,.25)] transition active:scale-[.98]";
+const DEFAULT_VALUES: LessonPlanFormValues = { title: "", classId: null, courseId: null, subjectId: null, sessionId: null, sections: [{ title: "Mục tiêu", content: "" }, { title: "Nội dung", content: "" }], publicSummary: "", status: "draft" };
 const INPUT = "min-h-touch rounded-input border border-neutral-300 px-3 text-sm focus:border-primary-500";
 
 export default function LessonPlansPage() {
@@ -37,7 +37,7 @@ export default function LessonPlansPage() {
     onSuccess: () => { setEditingId(null); form.reset(DEFAULT_VALUES); queryClient.invalidateQueries({ queryKey: ["lesson-plans"] }); setOpen(false); },
   });
   const copyMutation = useMutation({ mutationFn: (id: string) => copyLessonPlan(id, firebaseUser?.uid ?? "unknown"), onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lesson-plans"] }) });
-  const templateMutation = useMutation({ mutationFn: () => createLessonPlanTemplate(form.getValues("title") || "Mau giao an", form.getValues("sections")), onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lesson-plan-templates"] }) });
+  const templateMutation = useMutation({ mutationFn: () => createLessonPlanTemplate(form.getValues("title") || "Mẫu giáo án", form.getValues("sections")), onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lesson-plan-templates"] }) });
 
   const openCreate = () => { setEditingId(null); form.reset(DEFAULT_VALUES); setOpen(true); };
   const edit = (plan: LessonPlanDoc & { id: string }) => { setEditingId(plan.id); form.reset({ title: plan.title, classId: plan.classId, courseId: plan.courseId, subjectId: plan.subjectId, sessionId: plan.sessionId, sections: plan.sections, publicSummary: plan.publicSummary, status: plan.status }); setOpen(true); };
@@ -45,39 +45,47 @@ export default function LessonPlansPage() {
   return (
     <AppShell>
       <PageHeader title="Giáo án" description="Soạn theo phần, lưu nháp, gắn lớp và xuất bản tóm tắt công khai."
-        actions={<button type="button" onClick={openCreate} className={ADD_BTN}><Plus size={18} />Tạo giáo án</button>} />
+        actions={(
+          <Button variant="primary" onClick={openCreate} icon={<Plus size={18} />}>
+            Tạo giáo án
+          </Button>
+        )} />
 
-      <section className="glass-panel rounded-2xl border border-white/70 p-4 sm:p-5">
-        <h2 className="mb-3">Danh sach giao an</h2>
-        {plans.data?.length === 0 && <EmptyState title="Chua co giao an" />}
-        <ul className="divide-y divide-neutral-100">{plans.data?.map((plan) => <li key={plan.id} className="flex flex-wrap items-center justify-between gap-3 py-3"><div><p className="text-sm font-medium">{plan.title}</p><p className="text-xs text-neutral-500">{plan.status} · {plan.sections.length} section</p></div><div className="flex gap-2"><button title="Xem truoc" aria-label="Xem truoc" onClick={() => setPreview(plan)} className="flex size-10 items-center justify-center rounded-input border border-neutral-300"><Eye size={17} /></button><button title="Sao chep" aria-label="Sao chep" onClick={() => copyMutation.mutate(plan.id)} className="flex size-10 items-center justify-center rounded-input border border-neutral-300"><Copy size={17} /></button><button onClick={() => edit(plan)} className="min-h-touch rounded-input border border-neutral-300 px-3 text-sm">Sua</button></div></li>)}</ul>
+      <section className="rounded-card border border-neutral-200 bg-white p-4 sm:p-5">
+        <h2 className="mb-3">Danh sách giáo án</h2>
+        {plans.data?.length === 0 && <EmptyState title="Chưa có giáo án" />}
+        <ul className="divide-y divide-neutral-100">{plans.data?.map((plan) => <li key={plan.id} className="flex flex-wrap items-center justify-between gap-3 py-3"><div><p className="text-sm font-medium">{plan.title}</p><p className="text-xs text-neutral-500">{plan.status} · {plan.sections.length} section</p></div><div className="flex gap-2"><IconButton title="Xem trước" aria-label="Xem trước" onClick={() => setPreview(plan)}><Eye size={17} /></IconButton><IconButton title="Sao chép" aria-label="Sao chép" onClick={() => copyMutation.mutate(plan.id)}><Copy size={17} /></IconButton><Button onClick={() => edit(plan)}>Sửa</Button></div></li>)}</ul>
       </section>
 
       <Modal open={open} onClose={() => setOpen(false)} size="lg" title={editingId ? "Sửa giáo án" : "Tạo giáo án"} description="Soạn theo phần và gắn lớp/khóa học.">
         <form onSubmit={form.handleSubmit((values) => saveMutation.mutate(values))}>
           <div className="grid gap-3 md:grid-cols-2">
-            <input aria-label="Ten giao an" placeholder="Ten giao an" {...form.register("title")} className={`${INPUT} md:col-span-2`} />
-            <select aria-label="Trang thai" {...form.register("status")} className={INPUT}><option value="draft">Ban nhap</option><option value="published">Cong khai</option><option value="archived">Luu tru</option></select>
-            <select aria-label="Mau giao an" onChange={(event) => { const item = templates.data?.find((value) => value.id === event.target.value); if (item) form.setValue("sections", item.sections); }} className={INPUT}><option value="">Chon mau</option>{templates.data?.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
-            <select aria-label="Gan lop" {...form.register("classId")} className={INPUT}><option value="">Gan lop</option>{classes.data?.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
-            <select aria-label="Gan khoa hoc" {...form.register("courseId")} className={INPUT}><option value="">Gan khoa hoc</option>{courses.data?.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
-            <select aria-label="Gan mon hoc" {...form.register("subjectId")} className={INPUT}><option value="">Gan mon hoc</option>{subjects.data?.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
-            <input aria-label="Ma buoi hoc" placeholder="Ma buoi hoc (tuy chon)" {...form.register("sessionId")} className={INPUT} />
+            <input aria-label="Tên giáo án" placeholder="Tên giáo án" {...form.register("title")} className={`${INPUT} md:col-span-2`} />
+            <select aria-label="Trạng thái" {...form.register("status")} className={INPUT}><option value="draft">Bản nháp</option><option value="published">Công khai</option><option value="archived">Lưu trữ</option></select>
+            <select aria-label="Mẫu giáo án" onChange={(event) => { const item = templates.data?.find((value) => value.id === event.target.value); if (item) form.setValue("sections", item.sections); }} className={INPUT}><option value="">Chọn mẫu</option>{templates.data?.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
+            <select aria-label="Gắn lớp" {...form.register("classId")} className={INPUT}><option value="">Gắn lớp</option>{classes.data?.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
+            <select aria-label="Gắn khóa học" {...form.register("courseId")} className={INPUT}><option value="">Gắn khóa học</option>{courses.data?.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
+            <select aria-label="Gắn môn học" {...form.register("subjectId")} className={INPUT}><option value="">Gắn môn học</option>{subjects.data?.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
+            <input aria-label="Mã buổi học" placeholder="Mã buổi học (tùy chọn)" {...form.register("sessionId")} className={INPUT} />
           </div>
           <div className="mt-4 space-y-3">
-            {sections.fields.map((field, index) => <div key={field.id} className="grid gap-2 border-l-2 border-primary-200 pl-3 md:grid-cols-[220px_1fr_auto]"><input aria-label={`Ten section ${index + 1}`} {...form.register(`sections.${index}.title`)} className={INPUT} /><textarea aria-label={`Noi dung section ${index + 1}`} {...form.register(`sections.${index}.content`)} className="min-h-24 rounded-input border border-neutral-300 p-3 text-sm" /><button type="button" title="Xoa section" aria-label="Xoa section" onClick={() => sections.remove(index)} className="flex size-10 items-center justify-center rounded-input border border-neutral-300"><X size={17} /></button></div>)}
+            {sections.fields.map((field, index) => <div key={field.id} className="grid gap-2 border-l-2 border-primary-200 pl-3 md:grid-cols-[220px_1fr_auto]"><input aria-label={`Tên section ${index + 1}`} {...form.register(`sections.${index}.title`)} className={INPUT} /><textarea aria-label={`Nội dung section ${index + 1}`} {...form.register(`sections.${index}.content`)} className="min-h-24 rounded-input border border-neutral-300 p-3 text-sm" /><IconButton title="Xóa section" aria-label="Xóa section" onClick={() => sections.remove(index)}><X size={17} /></IconButton></div>)}
           </div>
-          <button type="button" onClick={() => sections.append({ title: "Section moi", content: "" })} className="mt-3 inline-flex min-h-touch items-center gap-2 rounded-input border border-neutral-300 px-3 text-sm"><Plus size={17} />Them section</button>
-          <textarea aria-label="Tom tat cong khai" placeholder="Tom tat cong khai cho phu huynh/hoc sinh" {...form.register("publicSummary")} className="mt-3 min-h-20 w-full rounded-input border border-neutral-300 p-3 text-sm" />
+          <Button className="mt-3" onClick={() => sections.append({ title: "Section mới", content: "" })} icon={<Plus size={17} />}>
+            Thêm section
+          </Button>
+          <textarea aria-label="Tóm tắt công khai" placeholder="Tóm tắt công khai cho phụ huynh/học sinh" {...form.register("publicSummary")} className="mt-3 min-h-20 w-full rounded-input border border-neutral-300 p-3 text-sm" />
           <div className="mt-4 flex flex-wrap justify-end gap-2">
-            <button type="button" onClick={() => templateMutation.mutate()} className="min-h-touch rounded-input border border-neutral-300 px-4 text-sm hover:bg-neutral-50">Luu thanh mau</button>
-            <button type="submit" disabled={saveMutation.isPending} className={ADD_BTN}><Save size={17} />{editingId ? "Luu thay doi" : "Luu giao an"}</button>
+            <Button onClick={() => templateMutation.mutate()}>Lưu thành mẫu</Button>
+            <Button type="submit" variant="primary" disabled={saveMutation.isPending} icon={<Save size={17} />}>
+              {editingId ? "Lưu thay đổi" : "Lưu giáo án"}
+            </Button>
           </div>
         </form>
       </Modal>
 
       <Modal open={!!preview} onClose={() => setPreview(null)} size="lg" title={preview?.title ?? "Giáo án"}>
-        <p className="text-sm text-neutral-500">{preview?.publicSummary || "Chua co tom tat cong khai"}</p>
+        <p className="text-sm text-neutral-500">{preview?.publicSummary || "Chưa có tóm tắt công khai"}</p>
         {preview?.sections.map((section, index) => <section key={`${section.title}-${index}`} className="mt-4"><h3 className="font-semibold">{section.title}</h3><p className="whitespace-pre-wrap text-sm">{section.content}</p></section>)}
       </Modal>
     </AppShell>

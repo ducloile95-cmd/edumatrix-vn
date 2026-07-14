@@ -1,0 +1,810 @@
+{
+  "project": "Edumatrix VN",
+  "title": "Roadmap nang cap theo phase",
+  "lastUpdatedAt": "2026-07-14T04:49:51.664Z",
+  "owner": "Codex + project owner",
+  "statusLegend": {
+    "todo": "Chua lam",
+    "active": "Dang lam",
+    "review": "Cho test/review",
+    "done": "Hoan thanh",
+    "blocked": "Dang bi chan"
+  },
+  "qualityGates": [
+    "npm run lint",
+    "npm run typecheck",
+    "npm test",
+    "npm run test:rules",
+    "npm run build",
+    "Push-Location workers/messenger; npm test; npm run build; Pop-Location"
+  ],
+  "phases": [
+    {
+      "id": "phase-0",
+      "name": "Thiet lap roadmap dong",
+      "goal": "Co mot bang dieu khien theo doi ke hoach, cong viec, test va trang thai cap nhat tu script.",
+      "status": "done",
+      "window": "Ngay 1",
+      "tasks": [
+        {
+          "id": "R0-001",
+          "title": "Tao state file cho roadmap",
+          "area": "Docs",
+          "priority": "P0",
+          "status": "done",
+          "analysis": "Can tach du lieu roadmap khoi HTML de co the cap nhat bang script sau moi cong viec.",
+          "implementation": "Tao docs/upgrade-roadmap-state.json lam nguon trang thai.",
+          "tests": [
+            "node -e kiem tra JSON parse"
+          ],
+          "links": [
+            "docs/upgrade-roadmap-state.json"
+          ],
+          "evidence": [
+            {
+              "at": "2026-07-14T03:23:47.921Z",
+              "status": "done",
+              "note": "Da tao state file cho roadmap dong",
+              "test": "JSON parse PASS",
+              "link": "docs/upgrade-roadmap-state.json"
+            }
+          ],
+          "updatedAt": "2026-07-14T03:23:47.921Z",
+          "completedAt": "2026-07-14T03:23:47.921Z",
+          "note": "Da tao state file cho roadmap dong"
+        },
+        {
+          "id": "R0-002",
+          "title": "Tao HTML roadmap tuong tac",
+          "area": "Docs",
+          "priority": "P0",
+          "status": "done",
+          "analysis": "Nguoi dung can xem phase, task, lien ket file va tien do trong trinh duyet.",
+          "implementation": "Tao docs/upgrade-roadmap.html voi filter, search, progress, task detail va diagram.",
+          "tests": [
+            "Kiem tra DOM render bang static inspection"
+          ],
+          "links": [
+            "docs/upgrade-roadmap.html"
+          ],
+          "evidence": [
+            {
+              "at": "2026-07-14T03:23:47.953Z",
+              "status": "done",
+              "note": "Da tao HTML roadmap tuong tac",
+              "test": "HTML state embed sync PASS",
+              "link": "docs/upgrade-roadmap.html"
+            }
+          ],
+          "updatedAt": "2026-07-14T03:23:47.953Z",
+          "completedAt": "2026-07-14T03:23:47.953Z",
+          "note": "Da tao HTML roadmap tuong tac"
+        },
+        {
+          "id": "R0-003",
+          "title": "Tao script cap nhat trang thai roadmap",
+          "area": "Automation",
+          "priority": "P0",
+          "status": "done",
+          "analysis": "Browser tinh khong the ghi file truc tiep. Can CLI cap nhat JSON va embed lai vao HTML.",
+          "implementation": "Tao scripts/update-roadmap-status.mjs va npm script roadmap:update.",
+          "tests": [
+            "node scripts/update-roadmap-status.mjs --help",
+            "cap nhat thu task R0-001"
+          ],
+          "links": [
+            "scripts/update-roadmap-status.mjs",
+            "package.json"
+          ],
+          "evidence": [
+            {
+              "at": "2026-07-14T03:23:48.083Z",
+              "status": "done",
+              "note": "Da tao script cap nhat roadmap",
+              "test": "roadmap:update help PASS",
+              "link": "scripts/update-roadmap-status.mjs"
+            },
+            {
+              "at": "2026-07-14T03:25:37.281Z",
+              "status": "done",
+              "note": "Da xac minh script va HTML dong bo dung",
+              "test": "lint/typecheck/unit/build PASS; test:rules blocked port 8090",
+              "link": "docs/upgrade-roadmap.html"
+            }
+          ],
+          "updatedAt": "2026-07-14T03:25:37.281Z",
+          "completedAt": "2026-07-14T03:25:37.281Z",
+          "note": "Da xac minh script va HTML dong bo dung"
+        }
+      ]
+    },
+    {
+      "id": "phase-1",
+      "name": "Production hardening",
+      "goal": "Dong cac rui ro bao mat, thanh toan va deploy truoc khi them tinh nang lon.",
+      "status": "active",
+      "window": "Ngay 2-4",
+      "tasks": [
+        {
+          "id": "P1-001",
+          "title": "Sua payment retry sau khi bi tu choi",
+          "area": "Finance",
+          "priority": "P1",
+          "status": "done",
+          "analysis": "Payment document hien dung ID co dinh theo invoice va uid. Khi bi rejected, viewer co the khong tao lai duoc report moi.",
+          "implementation": "Cho phep multi-attempt hoac whitelist update tu rejected ve reported voi ownership check chat.",
+          "tests": [
+            "Them Firestore Rules test cho rejected -> reported",
+            "npm run test:rules"
+          ],
+          "links": [
+            "src/services/firestore/invoices.ts",
+            "firebase/firestore.rules",
+            "firebase/tests/phase9-rules.test.ts"
+          ],
+          "evidence": [
+            {
+              "at": "2026-07-14T03:26:39.851Z",
+              "status": "active",
+              "note": "Bat dau Phase 1: sua payment retry sau khi bi tu choi",
+              "test": "",
+              "link": "src/services/firestore/invoices.ts"
+            },
+            {
+              "at": "2026-07-14T03:28:43.346Z",
+              "status": "done",
+              "note": "Da cho phep viewer bao lai payment rejected cua chinh minh va khoa reportedBy theo uid",
+              "test": "lint/typecheck/unit/build PASS; test:rules 73/73 PASS",
+              "link": "firebase/tests/phase9-rules.test.ts"
+            }
+          ],
+          "updatedAt": "2026-07-14T03:28:43.346Z",
+          "note": "Da cho phep viewer bao lai payment rejected cua chinh minh va khoa reportedBy theo uid",
+          "completedAt": "2026-07-14T03:28:43.346Z"
+        },
+        {
+          "id": "P1-002",
+          "title": "Gioi han quyen Teacher theo lop phu trach",
+          "area": "Security Rules",
+          "priority": "P1",
+          "status": "done",
+          "analysis": "isStaff() hien cho Teacher quyen rong tren nhieu collection. ClassDoc da co teacherIds nen co the scope theo lop.",
+          "implementation": "Them isAssignedTeacher(classId), tach Admin va Teacher trong rules va service query.",
+          "tests": [
+            "Rules test Teacher doc lop minh",
+            "Rules test Teacher bi chan voi lop khac",
+            "npm run test:rules"
+          ],
+          "links": [
+            "firebase/firestore.rules",
+            "src/types/academic.ts",
+            "src/services/firestore/classes.ts"
+          ],
+          "evidence": [
+            {
+              "at": "2026-07-14T03:31:31.144Z",
+              "status": "active",
+              "note": "Bat dau gioi han quyen Teacher theo lop phu trach",
+              "test": "",
+              "link": "firebase/firestore.rules"
+            },
+            {
+              "at": "2026-07-14T03:37:04.162Z",
+              "status": "review",
+              "note": "Da siết class-scoped collections theo classes.teacherIds; con gap students scope can data model classIds/teacherIds",
+              "test": "lint/typecheck/unit/build PASS; test:rules 78/78 PASS",
+              "link": "firebase/tests/teacher-scope-rules.test.ts"
+            },
+            {
+              "at": "2026-07-14T04:12:14.167Z",
+              "status": "active",
+              "note": "Tiep tuc gap data model: them students.teacherIds de scope Teacher tren hoc sinh",
+              "test": "",
+              "link": "src/services/firestore/students.ts"
+            },
+            {
+              "at": "2026-07-14T04:19:08.888Z",
+              "status": "done",
+              "note": "Siet Teacher scope theo classId va students.teacherIds; khoa Teacher khong tu mo rong teacherIds/studentIds",
+              "test": "lint PASS; typecheck PASS; unit 16/16 PASS; test:rules 80/80 PASS; build PASS",
+              "link": "firebase/firestore.rules"
+            }
+          ],
+          "updatedAt": "2026-07-14T04:19:08.888Z",
+          "note": "Siet Teacher scope theo classId va students.teacherIds; khoa Teacher khong tu mo rong teacherIds/studentIds",
+          "completedAt": "2026-07-14T04:19:08.888Z"
+        },
+        {
+          "id": "P1-003",
+          "title": "Khoa immutable fields trong Firestore Rules",
+          "area": "Security Rules",
+          "priority": "P1",
+          "status": "done",
+          "analysis": "Nhieu update rule chi check status, chua khoa cac field nhu studentId, classId, amount, createdBy.",
+          "implementation": "Dung diff().affectedKeys().hasOnly(...) va validate schema cho tung collection.",
+          "tests": [
+            "Negative tests cho sua studentId/classId/amount",
+            "npm run test:rules"
+          ],
+          "links": [
+            "firebase/firestore.rules",
+            "firebase/tests"
+          ],
+          "evidence": [
+            {
+              "at": "2026-07-14T04:19:28.724Z",
+              "status": "active",
+              "note": "Bat dau khoa immutable fields trong Firestore Rules",
+              "test": "",
+              "link": "firebase/firestore.rules"
+            },
+            {
+              "at": "2026-07-14T04:24:33.357Z",
+              "status": "done",
+              "note": "Da khoa immutable fields cho identity/scope/audit trong Firestore Rules va giu createdBy goc khi sua diem",
+              "test": "lint PASS; typecheck PASS; unit 16/16 PASS; test:rules 86/86 PASS; build PASS",
+              "link": "firebase/tests/immutable-rules.test.ts"
+            }
+          ],
+          "updatedAt": "2026-07-14T04:24:33.357Z",
+          "note": "Da khoa immutable fields cho identity/scope/audit trong Firestore Rules va giu createdBy goc khi sua diem",
+          "completedAt": "2026-07-14T04:24:33.357Z"
+        },
+        {
+          "id": "P1-004",
+          "title": "Chot worker production deploy config",
+          "area": "Messenger Worker",
+          "priority": "P1",
+          "status": "todo",
+          "analysis": "Wrangler canh bao deploy chua chi ro env, production origin van la placeholder.",
+          "implementation": "Them script build:prod/deploy:prod voi --env production va cap nhat ALLOWED_ORIGIN that.",
+          "tests": [
+            "workers/messenger npm test",
+            "workers/messenger npm run build"
+          ],
+          "links": [
+            "workers/messenger/package.json",
+            "workers/messenger/wrangler.jsonc"
+          ],
+          "evidence": [
+            {
+              "at": "2026-07-14T04:27:13.089Z",
+              "status": "todo",
+              "note": "Tam thoi bo qua P1-004 theo yeu cau, chuyen sang Phase 2",
+              "test": "",
+              "link": "docs/upgrade-roadmap-state.json"
+            }
+          ],
+          "updatedAt": "2026-07-14T04:27:13.089Z",
+          "note": "Tam thoi bo qua P1-004 theo yeu cau, chuyen sang Phase 2"
+        }
+      ]
+    },
+    {
+      "id": "phase-2",
+      "name": "UX foundation va code hygiene",
+      "goal": "Lam UI de doc, de scan va giam no ky thuat truoc khi mo rong workflow.",
+      "status": "done",
+      "window": "Ngay 5-8",
+      "tasks": [
+        {
+          "id": "P2-001",
+          "title": "Sua tieng Viet va encoding bi mojibake",
+          "area": "Frontend Copy",
+          "priority": "P1",
+          "status": "done",
+          "analysis": "Mot so source/doc dang hien thi chuoi loi mojibake trong UI va tai lieu.",
+          "implementation": "Chuan hoa UTF-8, sua copy hien thi, them check grep trong review.",
+          "tests": [
+            "rg kiem tra chuoi mojibake",
+            "npm run build"
+          ],
+          "links": [
+            "src/features/dashboard/pages/StaffDashboardPage.tsx",
+            "README.md",
+            "docs"
+          ],
+          "evidence": [
+            {
+              "at": "2026-07-14T04:27:13.106Z",
+              "status": "active",
+              "note": "Bat dau Phase 2: sua tieng Viet va encoding mojibake",
+              "test": "",
+              "link": "src"
+            },
+            {
+              "at": "2026-07-14T04:29:51.366Z",
+              "status": "done",
+              "note": "Da sua/loai bo chuoi mojibake con lai va them npm run check:mojibake",
+              "test": "check:mojibake PASS; lint PASS; typecheck PASS; build PASS",
+              "link": "scripts/check-mojibake.mjs"
+            }
+          ],
+          "updatedAt": "2026-07-14T04:29:51.366Z",
+          "note": "Da sua/loai bo chuoi mojibake con lai va them npm run check:mojibake",
+          "completedAt": "2026-07-14T04:29:51.366Z"
+        },
+        {
+          "id": "P2-002",
+          "title": "Format lai services dang minified",
+          "area": "Maintainability",
+          "priority": "P2",
+          "status": "done",
+          "analysis": "Mot so file service bi nen thanh mot dong, kho review va tang rui ro sua loi.",
+          "implementation": "Format lai invoices, assignments, viewerDashboard va them format:check neu can.",
+          "tests": [
+            "npm run lint",
+            "npm run typecheck",
+            "npm test"
+          ],
+          "links": [
+            "src/services/firestore/invoices.ts",
+            "src/services/firestore/assignments.ts",
+            "src/services/firestore/viewerDashboard.ts"
+          ],
+          "evidence": [
+            {
+              "at": "2026-07-14T04:30:00.418Z",
+              "status": "active",
+              "note": "Bat dau format lai services dang minified",
+              "test": "",
+              "link": "src/services/firestore"
+            },
+            {
+              "at": "2026-07-14T04:32:02.128Z",
+              "status": "done",
+              "note": "Da format lai invoices, assignments, viewerDashboard services khong doi behavior",
+              "test": "lint PASS; typecheck PASS; check:mojibake PASS; unit 16/16 PASS; build PASS",
+              "link": "src/services/firestore/viewerDashboard.ts"
+            }
+          ],
+          "updatedAt": "2026-07-14T04:32:02.128Z",
+          "note": "Da format lai invoices, assignments, viewerDashboard services khong doi behavior",
+          "completedAt": "2026-07-14T04:32:02.128Z"
+        },
+        {
+          "id": "P2-003",
+          "title": "Chuan hoa PageHeader, Button va state components",
+          "area": "UI System",
+          "priority": "P2",
+          "status": "done",
+          "analysis": "Nhieu page con inline form/button/state nen kho giu consistency.",
+          "implementation": "Dung PageHeader contract, Button/IconButton, loading/empty/error chung.",
+          "tests": [
+            "npm run lint",
+            "npm run build",
+            "manual responsive check"
+          ],
+          "links": [
+            "src/components/ui",
+            "src/components/feedback",
+            "src/features"
+          ],
+          "evidence": [
+            {
+              "at": "2026-07-14T04:39:25.037Z",
+              "status": "active",
+              "note": "Bat dau chuan hoa Button/IconButton va PageHeader actions",
+              "test": "",
+              "link": "src/components/ui"
+            },
+            {
+              "at": "2026-07-14T04:42:00.398Z",
+              "status": "done",
+              "note": "Da them Button/IconButton va chuan hoa CTA trong PageHeader/ErrorState",
+              "test": "lint PASS; typecheck PASS; check:mojibake PASS; build PASS",
+              "link": "src/components/ui/Button.tsx"
+            }
+          ],
+          "updatedAt": "2026-07-14T04:42:00.398Z",
+          "note": "Da them Button/IconButton va chuan hoa CTA trong PageHeader/ErrorState",
+          "completedAt": "2026-07-14T04:42:00.398Z"
+        },
+        {
+          "id": "P2-004",
+          "title": "Giam chunk size production",
+          "area": "Performance",
+          "priority": "P2",
+          "status": "done",
+          "analysis": "Build canh bao index chunk hon 1 MB minified.",
+          "implementation": "Cau hinh manualChunks cho Firebase, Recharts va vendor, audit import chart.",
+          "tests": [
+            "npm run build",
+            "so sanh chunk size truoc/sau"
+          ],
+          "links": [
+            "vite.config.ts",
+            "src/features/scores/pages/ScoresPage.tsx"
+          ],
+          "evidence": [
+            {
+              "at": "2026-07-14T04:42:08.580Z",
+              "status": "active",
+              "note": "Bat dau giam chunk size production",
+              "test": "",
+              "link": "vite.config.ts"
+            },
+            {
+              "at": "2026-07-14T04:47:31.762Z",
+              "status": "done",
+              "note": "Da cau hinh manualChunks tren vite.config.js (config Vite thuc te) va dong bo vite.config.ts; tach React, Firebase, Recharts, date, UI vendor ra khoi entry",
+              "test": "lint PASS; typecheck PASS; check:mojibake PASS; build PASS; index 1011.06 kB -> 14.99 kB; Firestore chunk con 568.20 kB (>500) can lazy-load/Firestore Lite neu muon het warning",
+              "link": "vite.config.ts"
+            }
+          ],
+          "updatedAt": "2026-07-14T04:47:31.762Z",
+          "note": "Da cau hinh manualChunks tren vite.config.js (config Vite thuc te) va dong bo vite.config.ts; tach React, Firebase, Recharts, date, UI vendor ra khoi entry",
+          "completedAt": "2026-07-14T04:47:31.762Z"
+        }
+      ]
+    },
+    {
+      "id": "phase-3",
+      "name": "Data surfaces va workflow theo role",
+      "goal": "Hoan thien cac workflow quan trong cho Admin, Teacher va Viewer.",
+      "status": "active",
+      "window": "Ngay 9-14",
+      "tasks": [
+        {
+          "id": "P3-001",
+          "title": "Toi uu dashboard staff bang summary",
+          "area": "Dashboard",
+          "priority": "P2",
+          "status": "done",
+          "analysis": "Staff dashboard hien gom nhieu query va N+1 attendance theo session.",
+          "implementation": "Tao materialized daily summary hoac query giam doc read.",
+          "tests": [
+            "unit/service test",
+            "npm run build",
+            "Firestore read budget review"
+          ],
+          "links": [
+            "src/services/firestore/staffDashboard.ts"
+          ],
+          "evidence": [
+            {
+              "at": "2026-07-14T04:47:42.860Z",
+              "status": "active",
+              "note": "Bat dau Phase 3: audit Staff Dashboard va giam query/read budget",
+              "test": "",
+              "link": "src/features/dashboard/pages/StaffDashboardPage.tsx"
+            },
+            {
+              "at": "2026-07-14T04:49:51.664Z",
+              "status": "done",
+              "note": "Da toi uu Staff Dashboard: dung attendance_summaries thay vi doc tung attendance, dung getCountFromServer cho pending invoices",
+              "test": "lint PASS; typecheck PASS; check:mojibake PASS; unit 16/16 PASS; build PASS; test:rules BLOCKED port 8090 dang bi chiem",
+              "link": "src/services/firestore/invoices.ts"
+            }
+          ],
+          "updatedAt": "2026-07-14T04:49:51.664Z",
+          "note": "Da toi uu Staff Dashboard: dung attendance_summaries thay vi doc tung attendance, dung getCountFromServer cho pending invoices",
+          "completedAt": "2026-07-14T04:49:51.664Z"
+        },
+        {
+          "id": "P3-002",
+          "title": "Hoan thien audit log UI",
+          "area": "Admin",
+          "priority": "P2",
+          "status": "todo",
+          "analysis": "He thong da ghi audit_logs nhung chua co man hinh doc va loc.",
+          "implementation": "Them trang Admin audit log voi filter actor/action/date va pagination.",
+          "tests": [
+            "Rules test read admin only",
+            "npm run typecheck",
+            "npm run build"
+          ],
+          "links": [
+            "src/services/firestore/auditLog.ts",
+            "firebase/firestore.rules"
+          ],
+          "evidence": []
+        },
+        {
+          "id": "P3-003",
+          "title": "Import du lieu hoc sinh/lop tu CSV",
+          "area": "Operations",
+          "priority": "P2",
+          "status": "todo",
+          "analysis": "Nhap tay tung hoc sinh/lop se cham khi trung tam co du lieu lon.",
+          "implementation": "Them import preview, validate, dry-run va batch write.",
+          "tests": [
+            "unit validation",
+            "emulator smoke test"
+          ],
+          "links": [
+            "src/features/students",
+            "src/features/classes",
+            "scripts"
+          ],
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "phase-4",
+      "name": "Tich hop va tu dong hoa",
+      "goal": "Giam thao tac thu cong va tao kenh giao tiep co kiem soat.",
+      "status": "todo",
+      "window": "Ngay 15-20",
+      "tasks": [
+        {
+          "id": "P4-001",
+          "title": "Thong bao va Messenger campaign",
+          "area": "Messaging",
+          "priority": "P2",
+          "status": "todo",
+          "analysis": "Worker da co send/post/webhook, can UI va audit cho chien dich thong bao.",
+          "implementation": "Them templates, recipient preview, rate limit va outbox monitor.",
+          "tests": [
+            "worker tests",
+            "UI smoke test",
+            "manual Meta sandbox test"
+          ],
+          "links": [
+            "workers/messenger/src/index.ts",
+            "src/services/messenger/client.ts",
+            "src/features/announcements"
+          ],
+          "evidence": []
+        },
+        {
+          "id": "P4-002",
+          "title": "Backup/export va runbook van hanh",
+          "area": "Operations",
+          "priority": "P2",
+          "status": "todo",
+          "analysis": "Runbook co canh bao backup thu cong, can quy trinh ro truoc thay doi du lieu lon.",
+          "implementation": "Them export scripts cho emulator/test data va checklist truoc release.",
+          "tests": [
+            "dry-run export",
+            "docs review"
+          ],
+          "links": [
+            "docs/operations-runbook.md",
+            "scripts"
+          ],
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "phase-5",
+      "name": "Release gate va CI",
+      "goal": "Moi thay doi phai co test gate, preview va cap nhat roadmap truoc khi coi la xong.",
+      "status": "todo",
+      "window": "Ngay 21-24",
+      "tasks": [
+        {
+          "id": "P5-001",
+          "title": "Cau hinh CI cho lint typecheck test build",
+          "area": "CI",
+          "priority": "P2",
+          "status": "todo",
+          "analysis": "Kiem tra dang chay thu cong, can bat buoc tren PR.",
+          "implementation": "Them GitHub Actions cho app, rules tests va worker.",
+          "tests": [
+            "gh pr check hoac action run pass"
+          ],
+          "links": [
+            ".github",
+            "package.json",
+            "workers/messenger/package.json"
+          ],
+          "evidence": []
+        },
+        {
+          "id": "P5-002",
+          "title": "Dinh nghia quy tac Definition of Done",
+          "area": "Process",
+          "priority": "P2",
+          "status": "todo",
+          "analysis": "Can mot quy trinh dong: ke hoach, phan tich, lam, test, cap nhat roadmap.",
+          "implementation": "Moi task xong phai ghi evidence, command test va link diff vao roadmap.",
+          "tests": [
+            "roadmap:update task done co history entry"
+          ],
+          "links": [
+            "docs/upgrade-roadmap.html",
+            "scripts/update-roadmap-status.mjs"
+          ],
+          "evidence": []
+        }
+      ]
+    }
+  ],
+  "history": [
+    {
+      "taskId": "P3-001",
+      "at": "2026-07-14T04:49:51.664Z",
+      "status": "done",
+      "note": "Da toi uu Staff Dashboard: dung attendance_summaries thay vi doc tung attendance, dung getCountFromServer cho pending invoices",
+      "test": "lint PASS; typecheck PASS; check:mojibake PASS; unit 16/16 PASS; build PASS; test:rules BLOCKED port 8090 dang bi chiem",
+      "link": "src/services/firestore/invoices.ts"
+    },
+    {
+      "taskId": "P3-001",
+      "at": "2026-07-14T04:47:42.860Z",
+      "status": "active",
+      "note": "Bat dau Phase 3: audit Staff Dashboard va giam query/read budget",
+      "test": "",
+      "link": "src/features/dashboard/pages/StaffDashboardPage.tsx"
+    },
+    {
+      "taskId": "P2-004",
+      "at": "2026-07-14T04:47:31.762Z",
+      "status": "done",
+      "note": "Da cau hinh manualChunks tren vite.config.js (config Vite thuc te) va dong bo vite.config.ts; tach React, Firebase, Recharts, date, UI vendor ra khoi entry",
+      "test": "lint PASS; typecheck PASS; check:mojibake PASS; build PASS; index 1011.06 kB -> 14.99 kB; Firestore chunk con 568.20 kB (>500) can lazy-load/Firestore Lite neu muon het warning",
+      "link": "vite.config.ts"
+    },
+    {
+      "taskId": "P2-004",
+      "at": "2026-07-14T04:42:08.580Z",
+      "status": "active",
+      "note": "Bat dau giam chunk size production",
+      "test": "",
+      "link": "vite.config.ts"
+    },
+    {
+      "taskId": "P2-003",
+      "at": "2026-07-14T04:42:00.398Z",
+      "status": "done",
+      "note": "Da them Button/IconButton va chuan hoa CTA trong PageHeader/ErrorState",
+      "test": "lint PASS; typecheck PASS; check:mojibake PASS; build PASS",
+      "link": "src/components/ui/Button.tsx"
+    },
+    {
+      "taskId": "P2-003",
+      "at": "2026-07-14T04:39:25.037Z",
+      "status": "active",
+      "note": "Bat dau chuan hoa Button/IconButton va PageHeader actions",
+      "test": "",
+      "link": "src/components/ui"
+    },
+    {
+      "taskId": "P2-002",
+      "at": "2026-07-14T04:32:02.128Z",
+      "status": "done",
+      "note": "Da format lai invoices, assignments, viewerDashboard services khong doi behavior",
+      "test": "lint PASS; typecheck PASS; check:mojibake PASS; unit 16/16 PASS; build PASS",
+      "link": "src/services/firestore/viewerDashboard.ts"
+    },
+    {
+      "taskId": "P2-002",
+      "at": "2026-07-14T04:30:00.418Z",
+      "status": "active",
+      "note": "Bat dau format lai services dang minified",
+      "test": "",
+      "link": "src/services/firestore"
+    },
+    {
+      "taskId": "P2-001",
+      "at": "2026-07-14T04:29:51.366Z",
+      "status": "done",
+      "note": "Da sua/loai bo chuoi mojibake con lai va them npm run check:mojibake",
+      "test": "check:mojibake PASS; lint PASS; typecheck PASS; build PASS",
+      "link": "scripts/check-mojibake.mjs"
+    },
+    {
+      "taskId": "P2-001",
+      "at": "2026-07-14T04:27:13.106Z",
+      "status": "active",
+      "note": "Bat dau Phase 2: sua tieng Viet va encoding mojibake",
+      "test": "",
+      "link": "src"
+    },
+    {
+      "taskId": "P1-004",
+      "at": "2026-07-14T04:27:13.089Z",
+      "status": "todo",
+      "note": "Tam thoi bo qua P1-004 theo yeu cau, chuyen sang Phase 2",
+      "test": "",
+      "link": "docs/upgrade-roadmap-state.json"
+    },
+    {
+      "taskId": "P1-003",
+      "at": "2026-07-14T04:24:33.357Z",
+      "status": "done",
+      "note": "Da khoa immutable fields cho identity/scope/audit trong Firestore Rules va giu createdBy goc khi sua diem",
+      "test": "lint PASS; typecheck PASS; unit 16/16 PASS; test:rules 86/86 PASS; build PASS",
+      "link": "firebase/tests/immutable-rules.test.ts"
+    },
+    {
+      "taskId": "P1-003",
+      "at": "2026-07-14T04:19:28.724Z",
+      "status": "active",
+      "note": "Bat dau khoa immutable fields trong Firestore Rules",
+      "test": "",
+      "link": "firebase/firestore.rules"
+    },
+    {
+      "taskId": "P1-002",
+      "at": "2026-07-14T04:19:08.888Z",
+      "status": "done",
+      "note": "Siet Teacher scope theo classId va students.teacherIds; khoa Teacher khong tu mo rong teacherIds/studentIds",
+      "test": "lint PASS; typecheck PASS; unit 16/16 PASS; test:rules 80/80 PASS; build PASS",
+      "link": "firebase/firestore.rules"
+    },
+    {
+      "taskId": "P1-002",
+      "at": "2026-07-14T04:12:14.167Z",
+      "status": "active",
+      "note": "Tiep tuc gap data model: them students.teacherIds de scope Teacher tren hoc sinh",
+      "test": "",
+      "link": "src/services/firestore/students.ts"
+    },
+    {
+      "taskId": "P1-002",
+      "at": "2026-07-14T03:37:04.162Z",
+      "status": "review",
+      "note": "Da siết class-scoped collections theo classes.teacherIds; con gap students scope can data model classIds/teacherIds",
+      "test": "lint/typecheck/unit/build PASS; test:rules 78/78 PASS",
+      "link": "firebase/tests/teacher-scope-rules.test.ts"
+    },
+    {
+      "taskId": "P1-002",
+      "at": "2026-07-14T03:31:31.144Z",
+      "status": "active",
+      "note": "Bat dau gioi han quyen Teacher theo lop phu trach",
+      "test": "",
+      "link": "firebase/firestore.rules"
+    },
+    {
+      "taskId": "P1-001",
+      "at": "2026-07-14T03:28:43.346Z",
+      "status": "done",
+      "note": "Da cho phep viewer bao lai payment rejected cua chinh minh va khoa reportedBy theo uid",
+      "test": "lint/typecheck/unit/build PASS; test:rules 73/73 PASS",
+      "link": "firebase/tests/phase9-rules.test.ts"
+    },
+    {
+      "taskId": "P1-001",
+      "at": "2026-07-14T03:26:39.851Z",
+      "status": "active",
+      "note": "Bat dau Phase 1: sua payment retry sau khi bi tu choi",
+      "test": "",
+      "link": "src/services/firestore/invoices.ts"
+    },
+    {
+      "taskId": "R0-003",
+      "at": "2026-07-14T03:25:37.281Z",
+      "status": "done",
+      "note": "Da xac minh script va HTML dong bo dung",
+      "test": "lint/typecheck/unit/build PASS; test:rules blocked port 8090",
+      "link": "docs/upgrade-roadmap.html"
+    },
+    {
+      "taskId": "R0-003",
+      "at": "2026-07-14T03:23:48.083Z",
+      "status": "done",
+      "note": "Da tao script cap nhat roadmap",
+      "test": "roadmap:update help PASS",
+      "link": "scripts/update-roadmap-status.mjs"
+    },
+    {
+      "taskId": "R0-002",
+      "at": "2026-07-14T03:23:47.953Z",
+      "status": "done",
+      "note": "Da tao HTML roadmap tuong tac",
+      "test": "HTML state embed sync PASS",
+      "link": "docs/upgrade-roadmap.html"
+    },
+    {
+      "taskId": "R0-001",
+      "at": "2026-07-14T03:23:47.921Z",
+      "status": "done",
+      "note": "Da tao state file cho roadmap dong",
+      "test": "JSON parse PASS",
+      "link": "docs/upgrade-roadmap-state.json"
+    },
+    {
+      "at": "2026-07-14T03:20:00.000Z",
+      "taskId": "R0-001",
+      "status": "active",
+      "note": "Khoi tao roadmap dong tu ket qua audit source ngay 14/07/2026.",
+      "test": "",
+      "link": "docs/upgrade-roadmap-state.json"
+    }
+  ]
+}

@@ -77,8 +77,8 @@ export async function updateSession(
     await addDoc(collection(db, COLLECTIONS.ANNOUNCEMENTS), {
       type: "schedule_change",
       sessionId,
-      title: changes.status === "cancelled" ? "Buoi hoc da huy" : "Lich hoc da thay doi",
-      message: changes.note || "Vui long kiem tra lich hoc moi.",
+      title: changes.status === "cancelled" ? "Buổi học đã hủy" : "Lịch học đã thay đổi",
+      message: changes.note || "Vui lòng kiểm tra lịch học mới.",
       createdAt: serverTimestamp(),
     });
   }

@@ -39,6 +39,20 @@ service cloud.firestore {
       return isAdmin() || isTeacher();
     }
 
+    function isAssignedTeacherForClass(classId) {
+      return isTeacher() &&
+        exists(/databases/$(database)/documents/classes/$(classId)) &&
+        request.auth.uid in get(/databases/$(database)/documents/classes/$(classId)).data.teacherIds;
+    }
+
+    function canManageClass(classId) {
+      return isAdmin() || isAssignedTeacherForClass(classId);
+    }
+
+    function keepsImmutable(fieldNames) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fieldNames);
+    }
+
     function ownsStudent(studentId) {
       return isActive() &&
         currentUser().role == 'viewer' &&
@@ -162,7 +176,8 @@ service cloud.firestore {
       allow create: if isStaff() &&
         request.resource.data.status == 'active';
       allow update: if isStaff() &&
-        request.resource.data.status in ['active', 'archived'];
+        request.resource.data.status in ['active', 'archived'] &&
+        keepsImmutable(['code', 'createdAt']);
       allow delete: if false;
     }
 
@@ -175,7 +190,8 @@ service cloud.firestore {
       allow create: if isStaff() &&
         request.resource.data.status in ['draft', 'active', 'completed'];
       allow update: if isStaff() &&
-        request.resource.data.status in ['draft', 'active', 'completed'];
+        request.resource.data.status in ['draft', 'active', 'completed'] &&
+        keepsImmutable(['createdAt']);
       allow delete: if false;
     }
 
@@ -185,11 +201,21 @@ service cloud.firestore {
     // tu sua duoc).
 
     match /students/{studentId} {
-      allow read: if isStaff() || ownsStudent(studentId);
-      allow create: if isStaff() &&
+      allow read: if isAdmin() || ownsStudent(studentId) ||
+        (isTeacher() && request.auth.uid in resource.data.teacherIds);
+      allow create: if isAdmin() &&
         request.resource.data.status in ['active', 'inactive'];
-      allow update: if isStaff() &&
-        request.resource.data.status in ['active', 'inactive'];
+      allow update: if keepsImmutable(['studentCode', 'createdAt']) &&
+        (
+          (isAdmin() && request.resource.data.status in ['active', 'inactive']) || (
+            isTeacher() &&
+            request.auth.uid in resource.data.teacherIds &&
+            request.resource.data.teacherIds == resource.data.teacherIds &&
+            request.resource.data.currentClassIds == resource.data.currentClassIds &&
+            request.resource.data.parentUids == resource.data.parentUids &&
+            request.resource.data.status in ['active', 'inactive']
+          )
+        );
       allow delete: if false;
     }
 
@@ -200,13 +226,29 @@ service cloud.firestore {
     // students/{id}.currentClassIds (xem services/firestore/enrollments.ts).
 
     match /classes/{classId} {
-      allow read: if isStaff() ||
+      allow read: if isAdmin() || isAssignedTeacherForClass(classId) ||
         (isActive() && currentUser().role == 'viewer' &&
          resource.data.studentIds.hasAny(currentUser().studentIds));
-      allow create: if isStaff() &&
+      allow create: if (
+        isAdmin() ||
+        (
+          isTeacher() &&
+          request.resource.data.teacherIds.size() == 1 &&
+          request.resource.data.teacherIds[0] == request.auth.uid &&
+          request.resource.data.studentIds.size() == 0
+        )
+      ) &&
         request.resource.data.status in ['active', 'completed', 'cancelled'];
-      allow update: if isStaff() &&
-        request.resource.data.status in ['active', 'completed', 'cancelled'];
+      allow update: if keepsImmutable(['createdAt']) &&
+        request.resource.data.status in ['active', 'completed', 'cancelled'] &&
+        (
+          isAdmin() ||
+          (
+            isAssignedTeacherForClass(classId) &&
+            request.resource.data.teacherIds == resource.data.teacherIds &&
+            request.resource.data.studentIds == resource.data.studentIds
+          )
+        );
       allow delete: if false;
     }
 
@@ -215,23 +257,27 @@ service cloud.firestore {
     // Viewer chi doc ghi danh cua hoc sinh minh so huu.
 
     match /enrollments/{enrollmentId} {
-      allow read: if isStaff() || ownsStudent(resource.data.studentId);
-      allow create: if isStaff() &&
+      allow read: if canManageClass(resource.data.classId) || ownsStudent(resource.data.studentId);
+      allow create: if isAdmin() &&
         enrollmentId == request.resource.data.classId + '_' + request.resource.data.studentId &&
         request.resource.data.status in ['active', 'ended'];
-      allow update: if isStaff() &&
-        request.resource.data.status in ['active', 'ended'];
+      allow update: if isAdmin() &&
+        request.resource.data.status in ['active', 'ended'] &&
+        keepsImmutable(['classId', 'courseId', 'studentId', 'joinedAt']);
       allow delete: if false;
     }
 
     match /sessions/{sessionId} {
-      allow read: if isStaff() || (
+      allow read: if canManageClass(resource.data.classId) || (
         isActive() && currentUser().role == 'viewer' &&
         get(/databases/$(database)/documents/classes/$(resource.data.classId)).data.studentIds
           .hasAny(currentUser().studentIds)
       );
-      allow create, update: if isStaff() &&
+      allow create: if canManageClass(request.resource.data.classId) &&
         request.resource.data.status in ['scheduled', 'rescheduled', 'cancelled', 'completed'];
+      allow update: if canManageClass(resource.data.classId) &&
+        request.resource.data.status in ['scheduled', 'rescheduled', 'cancelled', 'completed'] &&
+        keepsImmutable(['classId', 'createdAt']);
       allow delete: if false;
     }
 
@@ -244,96 +290,153 @@ service cloud.firestore {
     }
 
     match /lesson_plans/{lessonPlanId} {
-      allow read: if isStaff();
-      allow create: if isStaff() && request.resource.data.createdBy == request.auth.uid &&
+      allow read: if isAdmin() || (resource.data.classId != null && isAssignedTeacherForClass(resource.data.classId));
+      allow create: if (isAdmin() || (request.resource.data.classId != null && isAssignedTeacherForClass(request.resource.data.classId))) &&
+        request.resource.data.createdBy == request.auth.uid &&
         request.resource.data.status in ['draft', 'published', 'archived'];
-      allow update: if isStaff() && request.resource.data.status in ['draft', 'published', 'archived'];
+      allow update: if (isAdmin() || (resource.data.classId != null && isAssignedTeacherForClass(resource.data.classId))) &&
+        request.resource.data.status in ['draft', 'published', 'archived'] &&
+        keepsImmutable(['classId', 'createdBy', 'createdAt']);
       allow delete: if false;
     }
 
     match /lesson_plan_public/{lessonPlanId} {
-      allow read: if isStaff() || (
+      allow read: if canManageClass(resource.data.classId) || (
         isActive() && currentUser().role == 'viewer' &&
         get(/databases/$(database)/documents/classes/$(resource.data.classId)).data.studentIds
           .hasAny(currentUser().studentIds)
       );
-      allow create, update, delete: if isStaff();
+      allow create: if canManageClass(request.resource.data.classId) && request.resource.data.lessonPlanId == lessonPlanId;
+      allow update: if canManageClass(resource.data.classId) &&
+        request.resource.data.lessonPlanId == lessonPlanId &&
+        keepsImmutable(['lessonPlanId', 'classId']);
+      allow delete: if canManageClass(resource.data.classId);
     }
 
     match /lesson_plan_templates/{templateId} {
-      allow read, create, update: if isStaff();
+      allow read, create: if isStaff();
+      allow update: if isStaff() && keepsImmutable(['createdAt']);
       allow delete: if false;
     }
 
     match /attendance/{attendanceId} {
-      allow read: if isStaff() || ownsStudent(resource.data.studentId);
-      allow create: if isStaff() &&
+      allow read: if canManageClass(resource.data.classId) || ownsStudent(resource.data.studentId);
+      allow create: if canManageClass(request.resource.data.classId) &&
         attendanceId == request.resource.data.sessionId + '_' + request.resource.data.studentId &&
         request.resource.data.status in ['present', 'absent', 'late', 'excused'];
-      allow update: if isStaff() && request.resource.data.status in ['present', 'absent', 'late', 'excused'];
+      allow update: if canManageClass(resource.data.classId) &&
+        request.resource.data.status in ['present', 'absent', 'late', 'excused'] &&
+        keepsImmutable(['sessionId', 'classId', 'studentId']);
       allow delete: if false;
     }
 
     match /attendance_summaries/{sessionId} {
-      allow read: if isStaff() || (
+      allow read: if canManageClass(resource.data.classId) || (
         isActive() && currentUser().role == 'viewer' &&
         get(/databases/$(database)/documents/classes/$(resource.data.classId)).data.studentIds
           .hasAny(currentUser().studentIds)
       );
-      allow create, update: if isStaff() && request.resource.data.sessionId == sessionId;
+      allow create: if canManageClass(request.resource.data.classId) && request.resource.data.sessionId == sessionId;
+      allow update: if canManageClass(resource.data.classId) &&
+        request.resource.data.sessionId == sessionId &&
+        keepsImmutable(['sessionId', 'classId']);
       allow delete: if false;
     }
 
     match /assignments/{assignmentId} {
-      allow read: if isStaff() || (
+      allow read: if canManageClass(resource.data.classId) || (
         isActive() && currentUser().role == 'viewer' && resource.data.status == 'published' &&
         get(/databases/$(database)/documents/classes/$(resource.data.classId)).data.studentIds.hasAny(currentUser().studentIds)
       );
-      allow create, update: if isStaff() && request.resource.data.status in ['draft', 'published', 'closed'];
+      allow create: if canManageClass(request.resource.data.classId) &&
+        request.resource.data.createdBy == request.auth.uid &&
+        request.resource.data.status in ['draft', 'published', 'closed'];
+      allow update: if canManageClass(resource.data.classId) &&
+        request.resource.data.status in ['draft', 'published', 'closed'] &&
+        keepsImmutable(['classId', 'createdBy', 'createdAt']);
       allow delete: if false;
     }
     match /submissions/{submissionId} {
-      allow read: if isStaff() || ownsStudent(resource.data.studentId);
+      allow read: if canManageClass(resource.data.classId) || ownsStudent(resource.data.studentId);
       allow create: if ownsStudent(request.resource.data.studentId) &&
         submissionId == request.resource.data.assignmentId + '_' + request.resource.data.studentId &&
         request.resource.data.status == 'submitted' && request.resource.data.score == null && request.resource.data.teacherComment == '';
-      allow update: if isStaff() || (
-        ownsStudent(resource.data.studentId) && request.resource.data.studentId == resource.data.studentId &&
-        request.resource.data.assignmentId == resource.data.assignmentId &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['submissionUrl', 'submissionText', 'studentNote', 'status', 'submittedAt', 'updatedAt']) &&
-        request.resource.data.status == 'submitted'
-      );
+      allow update: if keepsImmutable(['assignmentId', 'studentId', 'classId']) &&
+        (
+          canManageClass(resource.data.classId) || (
+            ownsStudent(resource.data.studentId) &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['submissionUrl', 'submissionText', 'studentNote', 'status', 'submittedAt', 'updatedAt']) &&
+            request.resource.data.status == 'submitted'
+          )
+        );
       allow delete: if false;
     }
     match /assignment_summaries/{assignmentId} {
       allow read: if isStaff();
-      allow create, update: if isStaff();
+      allow create: if isStaff() && request.resource.data.assignmentId == assignmentId;
+      allow update: if isStaff() &&
+        request.resource.data.assignmentId == assignmentId &&
+        keepsImmutable(['assignmentId']);
       allow delete: if false;
     }
     match /scores/{scoreId} {
-      allow read: if isStaff() || ownsStudent(resource.data.studentId);
-      allow create, update: if isStaff() && request.resource.data.score >= 0 && request.resource.data.score <= request.resource.data.maxScore;
+      allow read: if canManageClass(resource.data.classId) || ownsStudent(resource.data.studentId);
+      allow create: if canManageClass(request.resource.data.classId) &&
+        request.resource.data.score >= 0 && request.resource.data.score <= request.resource.data.maxScore;
+      allow update: if canManageClass(resource.data.classId) &&
+        request.resource.data.score >= 0 && request.resource.data.score <= request.resource.data.maxScore &&
+        keepsImmutable(['studentId', 'classId', 'subjectId', 'assessmentName', 'assessmentType', 'createdBy', 'createdAt']);
       allow delete: if false;
     }
     match /student_summaries/{studentId} {
       allow read: if isStaff() || ownsStudent(studentId);
-      allow create, update: if isStaff();
+      allow create: if isStaff() && request.resource.data.studentId == studentId;
+      allow update: if isStaff() &&
+        request.resource.data.studentId == studentId &&
+        keepsImmutable(['studentId']);
       allow delete: if false;
     }
     match /invoices/{invoiceId} {
       allow read: if isStaff() || ownsStudent(resource.data.studentId);
-      allow create: if isStaff() && request.resource.data.status == 'unpaid' && request.resource.data.amount > 0;
-      allow update: if isStaff() || (
-        ownsStudent(resource.data.studentId) && resource.data.status in ['unpaid', 'rejected'] &&
-        request.resource.data.status == 'pending' &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+      allow create: if isStaff() &&
+        request.resource.data.createdBy == request.auth.uid &&
+        request.resource.data.status == 'unpaid' &&
+        request.resource.data.amount > 0;
+      allow update: if keepsImmutable(
+        ['invoiceCode', 'studentId', 'courseId', 'amount', 'paymentContent', 'bankBin', 'accountNumber', 'accountName', 'createdBy', 'createdAt']
+      ) && (
+        isStaff() || (
+          ownsStudent(resource.data.studentId) && resource.data.status in ['unpaid', 'rejected'] &&
+          request.resource.data.status == 'pending' &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+        )
       );
       allow delete: if false;
     }
     match /payments/{paymentId} {
       allow read: if isStaff() || ownsStudent(resource.data.studentId);
-      allow create: if ownsStudent(request.resource.data.studentId) && request.resource.data.status == 'reported' && request.resource.data.verifiedBy == null;
-      allow update: if isStaff() && request.resource.data.status in ['verified', 'rejected'];
+      allow create: if ownsStudent(request.resource.data.studentId) &&
+        request.resource.data.status == 'reported' &&
+        request.resource.data.reportedBy == request.auth.uid &&
+        request.resource.data.verifiedBy == null;
+      allow update: if (isStaff() &&
+        request.resource.data.status in ['verified', 'rejected'] &&
+        keepsImmutable(['invoiceId', 'studentId', 'amount', 'reportedBy', 'reportedAt'])
+      ) || (
+        ownsStudent(resource.data.studentId) &&
+        resource.data.status == 'rejected' &&
+        resource.data.reportedBy == request.auth.uid &&
+        request.resource.data.status == 'reported' &&
+        request.resource.data.reportedBy == request.auth.uid &&
+        request.resource.data.invoiceId == resource.data.invoiceId &&
+        request.resource.data.studentId == resource.data.studentId &&
+        request.resource.data.amount == resource.data.amount &&
+        request.resource.data.verifiedBy == null &&
+        request.resource.data.verifiedAt == null &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+          ['transactionReference', 'note', 'status', 'verifiedBy', 'verifiedAt', 'reportedAt', 'updatedAt']
+        )
+      );
       allow delete: if false;
     }
   match /viewer_dashboards/{uid} {

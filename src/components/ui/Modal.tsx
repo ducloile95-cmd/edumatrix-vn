@@ -11,7 +11,7 @@ interface ModalProps {
   size?: "sm" | "md" | "lg";
 }
 
-const sizes = { sm: "max-w-md", md: "max-w-2xl", lg: "max-w-4xl" };
+const sizes = { sm: "max-w-md", md: "max-w-2xl", lg: "max-w-[960px]" };
 
 export function Modal({ open, title, description, children, onClose, size = "md" }: ModalProps) {
   const titleId = useId(); const descriptionId = useId(); const panelRef = useRef<HTMLDivElement>(null); const previousFocus = useRef<HTMLElement | null>(null);
@@ -30,10 +30,10 @@ export function Modal({ open, title, description, children, onClose, size = "md"
     return () => { document.body.style.overflow = originalOverflow; document.removeEventListener("keydown", onKeyDown); previousFocus.current?.focus(); };
   }, [open, onClose]);
   if (!open) return null;
-  return createPortal(<div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-neutral-900/50 p-4 backdrop-blur-[3px]" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-    <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={description ? descriptionId : undefined} className={`glass-panel page-enter my-auto max-h-[calc(100dvh-2rem)] w-full overflow-y-auto rounded-2xl border border-white/80 shadow-[var(--shadow-4)] ${sizes[size]}`}>
-      <header className="sticky top-0 z-10 flex items-start justify-between border-b border-neutral-200/70 bg-white/75 px-5 py-4 backdrop-blur-xl"><div><h2 id={titleId} className="text-lg font-semibold">{title}</h2>{description && <p id={descriptionId} className="mt-1 text-sm text-neutral-500">{description}</p>}</div><button type="button" onClick={onClose} aria-label="Đóng hộp thoại" className="icon-button -mr-2 -mt-1 flex"><X size={19} /></button></header>
-      <div className="p-5 sm:p-6">{children}</div>
+  return createPortal(<div className="fixed inset-0 z-50 grid place-items-center overflow-hidden bg-neutral-900/50 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={description ? descriptionId : undefined} className={`page-enter grid max-h-[calc(100dvh-2rem)] w-full grid-rows-[auto_1fr] overflow-hidden rounded-modal border border-neutral-200 bg-neutral-50 shadow-[var(--shadow-4)] ${sizes[size]}`}>
+      <header className="flex items-start justify-between border-b border-neutral-200 bg-white px-5 py-4"><div><h2 id={titleId} className="text-lg font-semibold text-neutral-900">{title}</h2>{description && <p id={descriptionId} className="mt-1 text-sm text-neutral-500">{description}</p>}</div><button type="button" onClick={onClose} aria-label="Đóng hộp thoại" className="icon-button -mr-2 -mt-1 flex"><X size={19} /></button></header>
+      <div className="overflow-y-auto bg-neutral-50 p-5 sm:p-6">{children}</div>
     </div>
   </div>, document.body);
 }

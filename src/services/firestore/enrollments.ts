@@ -3,6 +3,7 @@ import {
   arrayUnion,
   collection,
   doc,
+  getDoc,
   getDocs,
   query,
   serverTimestamp,
@@ -11,7 +12,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/services/firebase/client";
 import { COLLECTIONS } from "@/constants/collections";
-import type { EnrollmentDoc } from "@/types/academic";
+import type { ClassDoc, EnrollmentDoc } from "@/types/academic";
 
 /** ID = {classId}_{studentId} chong ghi trung (A13). */
 function enrollmentId(classId: string, studentId: string): string {
@@ -24,6 +25,8 @@ function enrollmentId(classId: string, studentId: string): string {
  * students/{studentId}.currentClassIds.
  */
 export async function enrollStudent(classId: string, courseId: string, studentId: string): Promise<void> {
+  const classSnap = await getDoc(doc(db, COLLECTIONS.CLASSES, classId));
+  const teacherIds = classSnap.exists() ? (classSnap.data() as ClassDoc).teacherIds : [];
   const batch = writeBatch(db);
   const enrollRef = doc(db, COLLECTIONS.ENROLLMENTS, enrollmentId(classId, studentId));
 
@@ -39,16 +42,35 @@ export async function enrollStudent(classId: string, courseId: string, studentId
     studentIds: arrayUnion(studentId),
     updatedAt: serverTimestamp(),
   });
-  batch.update(doc(db, COLLECTIONS.STUDENTS, studentId), {
+  const studentUpdate: Record<string, unknown> = {
     currentClassIds: arrayUnion(classId),
     updatedAt: serverTimestamp(),
-  });
+  };
+  if (teacherIds.length > 0) studentUpdate.teacherIds = arrayUnion(...teacherIds);
+  batch.update(doc(db, COLLECTIONS.STUDENTS, studentId), studentUpdate);
 
   await batch.commit();
 }
 
 /** Rut hoc sinh khoi lop - giu lai ban ghi enrollment (status=ended) thay vi xoa (A27). */
 export async function unenrollStudent(classId: string, studentId: string): Promise<void> {
+  const activeEnrollments = await getDocs(
+    query(
+      collection(db, COLLECTIONS.ENROLLMENTS),
+      where("studentId", "==", studentId),
+      where("status", "==", "active"),
+    ),
+  );
+  const remainingClassIds = activeEnrollments.docs
+    .map((item) => (item.data() as EnrollmentDoc).classId)
+    .filter((id) => id !== classId);
+  const remainingClasses = await Promise.all(
+    remainingClassIds.map(async (id) => {
+      const classSnap = await getDoc(doc(db, COLLECTIONS.CLASSES, id));
+      return classSnap.exists() ? (classSnap.data() as ClassDoc).teacherIds : [];
+    }),
+  );
+  const remainingTeacherIds = [...new Set(remainingClasses.flat())];
   const batch = writeBatch(db);
   const enrollRef = doc(db, COLLECTIONS.ENROLLMENTS, enrollmentId(classId, studentId));
 
@@ -62,6 +84,7 @@ export async function unenrollStudent(classId: string, studentId: string): Promi
   });
   batch.update(doc(db, COLLECTIONS.STUDENTS, studentId), {
     currentClassIds: arrayRemove(classId),
+    teacherIds: remainingTeacherIds,
     updatedAt: serverTimestamp(),
   });
 

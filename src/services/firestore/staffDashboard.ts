@@ -1,8 +1,8 @@
 import { listSessions } from "@/services/firestore/sessions";
 import { listClasses } from "@/services/firestore/classes";
-import { listInvoices } from "@/services/firestore/invoices";
+import { countPendingInvoices } from "@/services/firestore/invoices";
 import { listAssignmentSummaries } from "@/services/firestore/assignments";
-import { listAttendanceBySession } from "@/services/firestore/attendance";
+import { listAttendanceSummariesBySessionIds } from "@/services/firestore/attendance";
 
 export interface UpcomingSession {
   id: string;
@@ -29,10 +29,10 @@ function dayEnd(now: Date): Date { const d = new Date(now); d.setHours(23, 59, 5
  * nhu Viewer. "Vang hom nay" chi tinh tren cac buoi trong ngay (N nho).
  */
 export async function getStaffDashboard(now: Date = new Date()): Promise<StaffDashboard> {
-  const [sessions, classes, invoices, summaries] = await Promise.all([
+  const [sessions, classes, pendingInvoices, summaries] = await Promise.all([
     listSessions(dayStart(now), dayEnd(now)),
     listClasses(),
-    listInvoices(),
+    countPendingInvoices(),
     listAssignmentSummaries(),
   ]);
 
@@ -48,16 +48,14 @@ export async function getStaffDashboard(now: Date = new Date()): Promise<StaffDa
       startAt: session.startAt.toDate(),
     }));
 
-  const attendanceLists = await Promise.all(active.map((session) => listAttendanceBySession(session.id)));
-  const absentToday = attendanceLists
-    .flat()
-    .filter((entry) => entry.status === "absent" || entry.status === "late").length;
+  const attendanceSummaries = await listAttendanceSummariesBySessionIds(active.map((session) => session.id));
+  const absentToday = attendanceSummaries.reduce((sum, item) => sum + item.absent + item.late, 0);
 
   return {
     today: { total: active.length, done: active.length - upcomingSessions.length, upcoming: upcomingSessions.length },
     absentToday,
     ungraded: summaries.reduce((sum, item) => sum + Math.max(0, item.submittedCount - item.gradedCount), 0),
-    pendingInvoices: invoices.filter((invoice) => invoice.status === "pending").length,
+    pendingInvoices,
     upcomingSessions,
   };
 }

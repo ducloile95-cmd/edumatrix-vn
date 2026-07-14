@@ -41,7 +41,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await testEnv.cleanup();
+  await testEnv?.cleanup();
 });
 
 beforeEach(async () => {
@@ -94,6 +94,7 @@ beforeEach(async () => {
       dateOfBirth: "2012-01-01",
       parentUids: [VIEWER_UID],
       currentClassIds: [],
+      teacherIds: [TEACHER_UID],
       status: "active",
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
@@ -104,6 +105,7 @@ beforeEach(async () => {
       dateOfBirth: "2012-02-02",
       parentUids: [OTHER_VIEWER_UID],
       currentClassIds: [],
+      teacherIds: [],
       status: "active",
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
@@ -181,9 +183,10 @@ describe("subjects", () => {
 });
 
 describe("students - ownership", () => {
-  test("Admin/Teacher doc duoc moi hoc sinh", async () => {
+  test("Admin doc duoc moi hoc sinh, Teacher chi doc hoc sinh duoc gan", async () => {
     await assertSucceeds(getDoc(doc(asAdmin(), "students", STUDENT_OWNED)));
-    await assertSucceeds(getDoc(doc(asTeacher(), "students", STUDENT_OTHER)));
+    await assertSucceeds(getDoc(doc(asTeacher(), "students", STUDENT_OWNED)));
+    await assertFails(getDoc(doc(asTeacher(), "students", STUDENT_OTHER)));
   });
 
   test("Viewer doc duoc hoc sinh cua minh", async () => {
@@ -200,10 +203,16 @@ describe("students - ownership", () => {
     );
   });
 
-  test("Teacher sua duoc ho so hoc sinh", async () => {
+  test("Teacher sua duoc ho so hoc sinh duoc gan", async () => {
     await assertSucceeds(
       updateDoc(doc(asTeacher(), "students", STUDENT_OWNED), {
         fullName: "Tên mới",
+        updatedAt: serverTimestamp(),
+      }),
+    );
+    await assertFails(
+      updateDoc(doc(asTeacher(), "students", STUDENT_OTHER), {
+        fullName: "Khong duoc sua",
         updatedAt: serverTimestamp(),
       }),
     );
@@ -256,6 +265,32 @@ describe("classes - ownership qua studentIds", () => {
     );
   });
 
+  test("Teacher khong tao duoc lop co san hoc sinh", async () => {
+    await assertFails(
+      setDoc(doc(asTeacher(), "classes", "class_004"), {
+        name: "Class with student",
+        courseId: "course_001",
+        subjectIds: [],
+        teacherIds: [TEACHER_UID],
+        studentIds: [STUDENT_OTHER],
+        scheduleText: "",
+        location: "",
+        status: "active",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      }),
+    );
+  });
+
+  test("Teacher khong tu sua danh sach hoc sinh cua lop", async () => {
+    await assertFails(
+      updateDoc(doc(asTeacher(), "classes", "class_001"), {
+        studentIds: [STUDENT_OWNED, STUDENT_OTHER],
+        updatedAt: serverTimestamp(),
+      }),
+    );
+  });
+
   test("Viewer khong tao duoc lop", async () => {
     await assertFails(
       setDoc(doc(asViewer(), "classes", "class_003"), {
@@ -275,7 +310,7 @@ describe("classes - ownership qua studentIds", () => {
 });
 
 describe("enrollments", () => {
-  test("Staff tao enrollment dung ID xac dinh thi thanh cong", async () => {
+  test("Admin tao enrollment dung ID xac dinh thi thanh cong", async () => {
     await assertSucceeds(
       setDoc(doc(asAdmin(), "enrollments", `class_001_${STUDENT_OWNED}`), {
         classId: "class_001",
@@ -288,7 +323,7 @@ describe("enrollments", () => {
     );
   });
 
-  test("Staff tao enrollment sai ID (khong khop classId_studentId) thi bi tu choi", async () => {
+  test("Admin tao enrollment sai ID (khong khop classId_studentId) thi bi tu choi", async () => {
     await assertFails(
       setDoc(doc(asAdmin(), "enrollments", "sai-id"), {
         classId: "class_001",

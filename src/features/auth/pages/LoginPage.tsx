@@ -13,7 +13,7 @@ const WELCOME_KEY = "edumatrix_welcomed";
 const labelCls = "mb-1.5 block text-xs font-semibold text-neutral-700";
 const fieldCls =
   "flex items-center rounded-input border border-neutral-300 px-3 transition focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-100";
-const inputCls = "h-12 w-full bg-transparent text-sm text-neutral-900 outline-none placeholder:text-neutral-400";
+const inputCls = "h-12 w-full bg-transparent text-sm text-neutral-900 outline-none placeholder:text-neutral-400 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0";
 
 function GoogleIcon() {
   return (

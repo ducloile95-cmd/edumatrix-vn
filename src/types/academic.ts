@@ -54,6 +54,9 @@ export interface StudentDoc {
   dateOfBirth: string;
   parentUids: string[];
   currentClassIds: string[];
+  teacherIds: string[];
+  /** Ghi chu noi bo cua Admin/Giao vien ve hoc sinh. */
+  staffNote?: string;
   status: StudentStatus;
   createdAt: Timestamp;
   updatedAt: Timestamp;

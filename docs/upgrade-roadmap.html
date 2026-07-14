@@ -1,0 +1,1411 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Edumatrix VN - Roadmap nang cap</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f8fb;
+      --surface: #ffffff;
+      --surface-soft: #f0f4fb;
+      --line: #d9e2ef;
+      --text: #172033;
+      --muted: #5d6b82;
+      --accent: #2957d8;
+      --accent-soft: #e7efff;
+      --success: #157347;
+      --success-soft: #e6f4ec;
+      --warning: #9a6200;
+      --warning-soft: #fff3d8;
+      --danger: #b42318;
+      --danger-soft: #ffe7e3;
+      --radius: 12px;
+      font-family: "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    button, input, select { font: inherit; }
+    button {
+      min-height: 40px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+    }
+    button:hover { border-color: #9eb2d2; }
+    button:active { transform: translateY(1px); }
+    button[aria-pressed="true"], .primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #ffffff;
+    }
+
+    .app {
+      width: min(1440px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 24px 0 40px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: end;
+      gap: 20px;
+      padding: 22px 0;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(30px, 4vw, 54px);
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    .hero p {
+      max-width: 780px;
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .meta {
+      display: grid;
+      gap: 4px;
+      min-width: 240px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    .meta strong { font-size: 13px; }
+    .meta span { color: var(--muted); font-size: 13px; }
+
+    .toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) auto auto;
+      gap: 10px;
+      padding: 12px;
+      margin: 0 0 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: color-mix(in srgb, var(--surface) 94%, transparent);
+      backdrop-filter: blur(12px);
+    }
+
+    .toolbar input, .toolbar select {
+      width: 100%;
+      min-height: 40px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--text);
+      padding: 0 12px;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .metric {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    .metric b {
+      display: block;
+      font-size: 30px;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .metric span {
+      display: block;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 360px minmax(0, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      overflow: hidden;
+    }
+
+    .panel-head {
+      padding: 16px;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface-soft);
+    }
+
+    .panel-head h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .phase-list {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+    }
+
+    .phase-card {
+      display: grid;
+      gap: 10px;
+      width: 100%;
+      padding: 14px;
+      text-align: left;
+      border-radius: 10px;
+    }
+
+    .phase-card strong { font-size: 15px; }
+    .phase-card small { color: var(--muted); }
+    .progress {
+      height: 8px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #e4ebf5;
+    }
+
+    .bar {
+      height: 100%;
+      width: var(--value);
+      background: var(--accent);
+    }
+
+    .phase-flow {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(150px, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+      overflow-x: auto;
+    }
+
+    .flow-node {
+      min-height: 110px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    .flow-node strong { display: block; margin: 4px 0; }
+    .flow-node small { color: var(--muted); }
+
+    .task-grid {
+      display: grid;
+      gap: 10px;
+    }
+
+    .task {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    .task h3 {
+      margin: 0 0 5px;
+      font-size: 16px;
+    }
+
+    .task p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      min-height: 26px;
+      padding: 0 9px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .todo { background: var(--surface-soft); color: var(--muted); }
+    .active { background: var(--accent-soft); color: var(--accent); }
+    .review { background: var(--warning-soft); color: var(--warning); }
+    .done { background: var(--success-soft); color: var(--success); }
+    .blocked { background: var(--danger-soft); color: var(--danger); }
+    .priority { background: #eef1f6; color: #3d495e; }
+
+    .task-detail {
+      display: grid;
+      gap: 12px;
+      margin-top: 16px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .box {
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fbfcff;
+    }
+
+    .box h4 {
+      margin: 0 0 8px;
+      font-size: 13px;
+    }
+
+    .box p, .box li {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .box p { margin: 0; }
+    ul { margin: 0; padding-left: 18px; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    code {
+      display: block;
+      padding: 10px;
+      border-radius: 8px;
+      background: #111827;
+      color: #f8fafc;
+      overflow-x: auto;
+      white-space: pre;
+      font-family: "Cascadia Mono", Consolas, monospace;
+      font-size: 12px;
+    }
+
+    .history {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+    }
+
+    .history-item {
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fbfcff;
+      font-size: 13px;
+    }
+
+    .history-item span {
+      color: var(--muted);
+      display: block;
+      margin-top: 3px;
+    }
+
+    @media (max-width: 1050px) {
+      .hero, .layout, .detail-grid, .toolbar { grid-template-columns: 1fr; }
+      .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 620px) {
+      .app { width: min(100% - 20px, 1440px); padding-top: 10px; }
+      .summary { grid-template-columns: 1fr; }
+      .task { grid-template-columns: 1fr; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="hero">
+      <div>
+        <h1>Roadmap nâng cấp Edumatrix VN</h1>
+        <p>Kế hoạch theo phase: phân tích, thực hiện, test, ghi evidence và cập nhật roadmap sau khi công việc hoàn thành.</p>
+      </div>
+      <div class="meta" id="roadmapMeta"></div>
+    </section>
+
+    <section class="toolbar" aria-label="Bộ lọc roadmap">
+      <input id="searchInput" type="search" placeholder="Tìm task, phase, file hoặc khu vực">
+      <select id="statusFilter" aria-label="Lọc trạng thái"></select>
+      <select id="phaseFilter" aria-label="Lọc phase"></select>
+    </section>
+
+    <section class="summary" id="summary"></section>
+
+    <section class="phase-flow" id="phaseFlow" aria-label="Diagram phase"></section>
+
+    <section class="layout">
+      <aside class="panel">
+        <div class="panel-head"><h2>Phase</h2></div>
+        <div class="phase-list" id="phaseList"></div>
+      </aside>
+
+      <section>
+        <div class="task-grid" id="taskGrid"></div>
+        <article class="task-detail" id="taskDetail"></article>
+      </section>
+    </section>
+
+    <section class="panel" style="margin-top:16px">
+      <div class="panel-head"><h2>Lịch sử cập nhật</h2></div>
+      <div class="history" id="history"></div>
+    </section>
+  </main>
+
+  <script id="roadmap-state" type="application/json">
+{
+  "project": "Edumatrix VN",
+  "title": "Roadmap nang cap theo phase",
+  "lastUpdatedAt": "2026-07-14T04:49:51.664Z",
+  "owner": "Codex + project owner",
+  "statusLegend": {
+    "todo": "Chua lam",
+    "active": "Dang lam",
+    "review": "Cho test/review",
+    "done": "Hoan thanh",
+    "blocked": "Dang bi chan"
+  },
+  "qualityGates": [
+    "npm run lint",
+    "npm run typecheck",
+    "npm test",
+    "npm run test:rules",
+    "npm run build",
+    "Push-Location workers/messenger; npm test; npm run build; Pop-Location"
+  ],
+  "phases": [
+    {
+      "id": "phase-0",
+      "name": "Thiet lap roadmap dong",
+      "goal": "Co mot bang dieu khien theo doi ke hoach, cong viec, test va trang thai cap nhat tu script.",
+      "status": "done",
+      "window": "Ngay 1",
+      "tasks": [
+        {
+          "id": "R0-001",
+          "title": "Tao state file cho roadmap",
+          "area": "Docs",
+          "priority": "P0",
+          "status": "done",
+          "analysis": "Can tach du lieu roadmap khoi HTML de co the cap nhat bang script sau moi cong viec.",
+          "implementation": "Tao docs/upgrade-roadmap-state.json lam nguon trang thai.",
+          "tests": [
+            "node -e kiem tra JSON parse"
+          ],
+          "links": [
+            "docs/upgrade-roadmap-state.json"
+          ],
+          "evidence": [
+            {
+              "at": "2026-07-14T03:23:47.921Z",
+              "status": "done",
+              "note": "Da tao state file cho roadmap dong",
+              "test": "JSON parse PASS",
+              "link": "docs/upgrade-roadmap-state.json"
+            }
+          ],
+          "updatedAt": "2026-07-14T03:23:47.921Z",
+          "completedAt": "2026-07-14T03:23:47.921Z",
+          "note": "Da tao state file cho roadmap dong"
+        },
+        {
+          "id": "R0-002",
+          "title": "Tao HTML roadmap tuong tac",
+          "area": "Docs",
+          "priority": "P0",
+          "status": "done",
+          "analysis": "Nguoi dung can xem phase, task, lien ket file va tien do trong trinh duyet.",
+          "implementation": "Tao docs/upgrade-roadmap.html voi filter, search, progress, task detail va diagram.",
+          "tests": [
+            "Kiem tra DOM render bang static inspection"
+          ],
+          "links": [
+            "docs/upgrade-roadmap.html"
+          ],
+          "evidence": [
+            {
+              "at": "2026-07-14T03:23:47.953Z",
+              "status": "done",
+              "note": "Da tao HTML roadmap tuong tac",
+              "test": "HTML state embed sync PASS",
+              "link": "docs/upgrade-roadmap.html"
+            }
+          ],
+          "updatedAt": "2026-07-14T03:23:47.953Z",
+          "completedAt": "2026-07-14T03:23:47.953Z",
+          "note": "Da tao HTML roadmap tuong tac"
+        },
+        {
+          "id": "R0-003",
+          "title": "Tao script cap nhat trang thai roadmap",
+          "area": "Automation",
+          "priority": "P0",
+          "status": "done",
+          "analysis": "Browser tinh khong the ghi file truc tiep. Can CLI cap nhat JSON va embed lai vao HTML.",
+          "implementation": "Tao scripts/update-roadmap-status.mjs va npm script roadmap:update.",
+          "tests": [
+            "node scripts/update-roadmap-status.mjs --help",
+            "cap nhat thu task R0-001"
+          ],
+          "links": [
+            "scripts/update-roadmap-status.mjs",
+            "package.json"
+          ],
+          "evidence": [
+            {
+              "at": "2026-07-14T03:23:48.083Z",
+              "status": "done",
+              "note": "Da tao script cap nhat roadmap",
+              "test": "roadmap:update help PASS",
+              "link": "scripts/update-roadmap-status.mjs"
+            },
+            {
+              "at": "2026-07-14T03:25:37.281Z",
+              "status": "done",
+              "note": "Da xac minh script va HTML dong bo dung",
+              "test": "lint/typecheck/unit/build PASS; test:rules blocked port 8090",
+              "link": "docs/upgrade-roadmap.html"
+            }
+          ],
+          "updatedAt": "2026-07-14T03:25:37.281Z",
+          "completedAt": "2026-07-14T03:25:37.281Z",
+          "note": "Da xac minh script va HTML dong bo dung"
+        }
+      ]
+    },
+    {
+      "id": "phase-1",
+      "name": "Production hardening",
+      "goal": "Dong cac rui ro bao mat, thanh toan va deploy truoc khi them tinh nang lon.",
+      "status": "active",
+      "window": "Ngay 2-4",
+      "tasks": [
+        {
+          "id": "P1-001",
+          "title": "Sua payment retry sau khi bi tu choi",
+          "area": "Finance",
+          "priority": "P1",
+          "status": "done",
+          "analysis": "Payment document hien dung ID co dinh theo invoice va uid. Khi bi rejected, viewer co the khong tao lai duoc report moi.",
+          "implementation": "Cho phep multi-attempt hoac whitelist update tu rejected ve reported voi ownership check chat.",
+          "tests": [
+            "Them Firestore Rules test cho rejected -> reported",
+            "npm run test:rules"
+          ],
+          "links": [
+            "src/services/firestore/invoices.ts",
+            "firebase/firestore.rules",
+            "firebase/tests/phase9-rules.test.ts"
+          ],
+          "evidence": [
+            {
+              "at": "2026-07-14T03:26:39.851Z",
+              "status": "active",
+              "note": "Bat dau Phase 1: sua payment retry sau khi bi tu choi",
+              "test": "",
+              "link": "src/services/firestore/invoices.ts"
+            },
+            {
+              "at": "2026-07-14T03:28:43.346Z",
+              "status": "done",
+              "note": "Da cho phep viewer bao lai payment rejected cua chinh minh va khoa reportedBy theo uid",
+              "test": "lint/typecheck/unit/build PASS; test:rules 73/73 PASS",
+              "link": "firebase/tests/phase9-rules.test.ts"
+            }
+          ],
+          "updatedAt": "2026-07-14T03:28:43.346Z",
+          "note": "Da cho phep viewer bao lai payment rejected cua chinh minh va khoa reportedBy theo uid",
+          "completedAt": "2026-07-14T03:28:43.346Z"
+        },
+        {
+          "id": "P1-002",
+          "title": "Gioi han quyen Teacher theo lop phu trach",
+          "area": "Security Rules",
+          "priority": "P1",
+          "status": "done",
+          "analysis": "isStaff() hien cho Teacher quyen rong tren nhieu collection. ClassDoc da co teacherIds nen co the scope theo lop.",
+          "implementation": "Them isAssignedTeacher(classId), tach Admin va Teacher trong rules va service query.",
+          "tests": [
+            "Rules test Teacher doc lop minh",
+            "Rules test Teacher bi chan voi lop khac",
+            "npm run test:rules"
+          ],
+          "links": [
+            "firebase/firestore.rules",
+            "src/types/academic.ts",
+            "src/services/firestore/classes.ts"
+          ],
+          "evidence": [
+            {
+              "at": "2026-07-14T03:31:31.144Z",
+              "status": "active",
+              "note": "Bat dau gioi han quyen Teacher theo lop phu trach",
+              "test": "",
+              "link": "firebase/firestore.rules"
+            },
+            {
+              "at": "2026-07-14T03:37:04.162Z",
+              "status": "review",
+              "note": "Da siết class-scoped collections theo classes.teacherIds; con gap students scope can data model classIds/teacherIds",
+              "test": "lint/typecheck/unit/build PASS; test:rules 78/78 PASS",
+              "link": "firebase/tests/teacher-scope-rules.test.ts"
+            },
+            {
+              "at": "2026-07-14T04:12:14.167Z",
+              "status": "active",
+              "note": "Tiep tuc gap data model: them students.teacherIds de scope Teacher tren hoc sinh",
+              "test": "",
+              "link": "src/services/firestore/students.ts"
+            },
+            {
+              "at": "2026-07-14T04:19:08.888Z",
+              "status": "done",
+              "note": "Siet Teacher scope theo classId va students.teacherIds; khoa Teacher khong tu mo rong teacherIds/studentIds",
+              "test": "lint PASS; typecheck PASS; unit 16/16 PASS; test:rules 80/80 PASS; build PASS",
+              "link": "firebase/firestore.rules"
+            }
+          ],
+          "updatedAt": "2026-07-14T04:19:08.888Z",
+          "note": "Siet Teacher scope theo classId va students.teacherIds; khoa Teacher khong tu mo rong teacherIds/studentIds",
+          "completedAt": "2026-07-14T04:19:08.888Z"
+        },
+        {
+          "id": "P1-003",
+          "title": "Khoa immutable fields trong Firestore Rules",
+          "area": "Security Rules",
+          "priority": "P1",
+          "status": "done",
+          "analysis": "Nhieu update rule chi check status, chua khoa cac field nhu studentId, classId, amount, createdBy.",
+          "implementation": "Dung diff().affectedKeys().hasOnly(...) va validate schema cho tung collection.",
+          "tests": [
+            "Negative tests cho sua studentId/classId/amount",
+            "npm run test:rules"
+          ],
+          "links": [
+            "firebase/firestore.rules",
+            "firebase/tests"
+          ],
+          "evidence": [
+            {
+              "at": "2026-07-14T04:19:28.724Z",
+              "status": "active",
+              "note": "Bat dau khoa immutable fields trong Firestore Rules",
+              "test": "",
+              "link": "firebase/firestore.rules"
+            },
+            {
+              "at": "2026-07-14T04:24:33.357Z",
+              "status": "done",
+              "note": "Da khoa immutable fields cho identity/scope/audit trong Firestore Rules va giu createdBy goc khi sua diem",
+              "test": "lint PASS; typecheck PASS; unit 16/16 PASS; test:rules 86/86 PASS; build PASS",
+              "link": "firebase/tests/immutable-rules.test.ts"
+            }
+          ],
+          "updatedAt": "2026-07-14T04:24:33.357Z",
+          "note": "Da khoa immutable fields cho identity/scope/audit trong Firestore Rules va giu createdBy goc khi sua diem",
+          "completedAt": "2026-07-14T04:24:33.357Z"
+        },
+        {
+          "id": "P1-004",
+          "title": "Chot worker production deploy config",
+          "area": "Messenger Worker",
+          "priority": "P1",
+          "status": "todo",
+          "analysis": "Wrangler canh bao deploy chua chi ro env, production origin van la placeholder.",
+          "implementation": "Them script build:prod/deploy:prod voi --env production va cap nhat ALLOWED_ORIGIN that.",
+          "tests": [
+            "workers/messenger npm test",
+            "workers/messenger npm run build"
+          ],
+          "links": [
+            "workers/messenger/package.json",
+            "workers/messenger/wrangler.jsonc"
+          ],
+          "evidence": [
+            {
+              "at": "2026-07-14T04:27:13.089Z",
+              "status": "todo",
+              "note": "Tam thoi bo qua P1-004 theo yeu cau, chuyen sang Phase 2",
+              "test": "",
+              "link": "docs/upgrade-roadmap-state.json"
+            }
+          ],
+          "updatedAt": "2026-07-14T04:27:13.089Z",
+          "note": "Tam thoi bo qua P1-004 theo yeu cau, chuyen sang Phase 2"
+        }
+      ]
+    },
+    {
+      "id": "phase-2",
+      "name": "UX foundation va code hygiene",
+      "goal": "Lam UI de doc, de scan va giam no ky thuat truoc khi mo rong workflow.",
+      "status": "done",
+      "window": "Ngay 5-8",
+      "tasks": [
+        {
+          "id": "P2-001",
+          "title": "Sua tieng Viet va encoding bi mojibake",
+          "area": "Frontend Copy",
+          "priority": "P1",
+          "status": "done",
+          "analysis": "Mot so source/doc dang hien thi chuoi loi mojibake trong UI va tai lieu.",
+          "implementation": "Chuan hoa UTF-8, sua copy hien thi, them check grep trong review.",
+          "tests": [
+            "rg kiem tra chuoi mojibake",
+            "npm run build"
+          ],
+          "links": [
+            "src/features/dashboard/pages/StaffDashboardPage.tsx",
+            "README.md",
+            "docs"
+          ],
+          "evidence": [
+            {
+              "at": "2026-07-14T04:27:13.106Z",
+              "status": "active",
+              "note": "Bat dau Phase 2: sua tieng Viet va encoding mojibake",
+              "test": "",
+              "link": "src"
+            },
+            {
+              "at": "2026-07-14T04:29:51.366Z",
+              "status": "done",
+              "note": "Da sua/loai bo chuoi mojibake con lai va them npm run check:mojibake",
+              "test": "check:mojibake PASS; lint PASS; typecheck PASS; build PASS",
+              "link": "scripts/check-mojibake.mjs"
+            }
+          ],
+          "updatedAt": "2026-07-14T04:29:51.366Z",
+          "note": "Da sua/loai bo chuoi mojibake con lai va them npm run check:mojibake",
+          "completedAt": "2026-07-14T04:29:51.366Z"
+        },
+        {
+          "id": "P2-002",
+          "title": "Format lai services dang minified",
+          "area": "Maintainability",
+          "priority": "P2",
+          "status": "done",
+          "analysis": "Mot so file service bi nen thanh mot dong, kho review va tang rui ro sua loi.",
+          "implementation": "Format lai invoices, assignments, viewerDashboard va them format:check neu can.",
+          "tests": [
+            "npm run lint",
+            "npm run typecheck",
+            "npm test"
+          ],
+          "links": [
+            "src/services/firestore/invoices.ts",
+            "src/services/firestore/assignments.ts",
+            "src/services/firestore/viewerDashboard.ts"
+          ],
+          "evidence": [
+            {
+              "at": "2026-07-14T04:30:00.418Z",
+              "status": "active",
+              "note": "Bat dau format lai services dang minified",
+              "test": "",
+              "link": "src/services/firestore"
+            },
+            {
+              "at": "2026-07-14T04:32:02.128Z",
+              "status": "done",
+              "note": "Da format lai invoices, assignments, viewerDashboard services khong doi behavior",
+              "test": "lint PASS; typecheck PASS; check:mojibake PASS; unit 16/16 PASS; build PASS",
+              "link": "src/services/firestore/viewerDashboard.ts"
+            }
+          ],
+          "updatedAt": "2026-07-14T04:32:02.128Z",
+          "note": "Da format lai invoices, assignments, viewerDashboard services khong doi behavior",
+          "completedAt": "2026-07-14T04:32:02.128Z"
+        },
+        {
+          "id": "P2-003",
+          "title": "Chuan hoa PageHeader, Button va state components",
+          "area": "UI System",
+          "priority": "P2",
+          "status": "done",
+          "analysis": "Nhieu page con inline form/button/state nen kho giu consistency.",
+          "implementation": "Dung PageHeader contract, Button/IconButton, loading/empty/error chung.",
+          "tests": [
+            "npm run lint",
+            "npm run build",
+            "manual responsive check"
+          ],
+          "links": [
+            "src/components/ui",
+            "src/components/feedback",
+            "src/features"
+          ],
+          "evidence": [
+            {
+              "at": "2026-07-14T04:39:25.037Z",
+              "status": "active",
+              "note": "Bat dau chuan hoa Button/IconButton va PageHeader actions",
+              "test": "",
+              "link": "src/components/ui"
+            },
+            {
+              "at": "2026-07-14T04:42:00.398Z",
+              "status": "done",
+              "note": "Da them Button/IconButton va chuan hoa CTA trong PageHeader/ErrorState",
+              "test": "lint PASS; typecheck PASS; check:mojibake PASS; build PASS",
+              "link": "src/components/ui/Button.tsx"
+            }
+          ],
+          "updatedAt": "2026-07-14T04:42:00.398Z",
+          "note": "Da them Button/IconButton va chuan hoa CTA trong PageHeader/ErrorState",
+          "completedAt": "2026-07-14T04:42:00.398Z"
+        },
+        {
+          "id": "P2-004",
+          "title": "Giam chunk size production",
+          "area": "Performance",
+          "priority": "P2",
+          "status": "done",
+          "analysis": "Build canh bao index chunk hon 1 MB minified.",
+          "implementation": "Cau hinh manualChunks cho Firebase, Recharts va vendor, audit import chart.",
+          "tests": [
+            "npm run build",
+            "so sanh chunk size truoc/sau"
+          ],
+          "links": [
+            "vite.config.ts",
+            "src/features/scores/pages/ScoresPage.tsx"
+          ],
+          "evidence": [
+            {
+              "at": "2026-07-14T04:42:08.580Z",
+              "status": "active",
+              "note": "Bat dau giam chunk size production",
+              "test": "",
+              "link": "vite.config.ts"
+            },
+            {
+              "at": "2026-07-14T04:47:31.762Z",
+              "status": "done",
+              "note": "Da cau hinh manualChunks tren vite.config.js (config Vite thuc te) va dong bo vite.config.ts; tach React, Firebase, Recharts, date, UI vendor ra khoi entry",
+              "test": "lint PASS; typecheck PASS; check:mojibake PASS; build PASS; index 1011.06 kB -> 14.99 kB; Firestore chunk con 568.20 kB (>500) can lazy-load/Firestore Lite neu muon het warning",
+              "link": "vite.config.ts"
+            }
+          ],
+          "updatedAt": "2026-07-14T04:47:31.762Z",
+          "note": "Da cau hinh manualChunks tren vite.config.js (config Vite thuc te) va dong bo vite.config.ts; tach React, Firebase, Recharts, date, UI vendor ra khoi entry",
+          "completedAt": "2026-07-14T04:47:31.762Z"
+        }
+      ]
+    },
+    {
+      "id": "phase-3",
+      "name": "Data surfaces va workflow theo role",
+      "goal": "Hoan thien cac workflow quan trong cho Admin, Teacher va Viewer.",
+      "status": "active",
+      "window": "Ngay 9-14",
+      "tasks": [
+        {
+          "id": "P3-001",
+          "title": "Toi uu dashboard staff bang summary",
+          "area": "Dashboard",
+          "priority": "P2",
+          "status": "done",
+          "analysis": "Staff dashboard hien gom nhieu query va N+1 attendance theo session.",
+          "implementation": "Tao materialized daily summary hoac query giam doc read.",
+          "tests": [
+            "unit/service test",
+            "npm run build",
+            "Firestore read budget review"
+          ],
+          "links": [
+            "src/services/firestore/staffDashboard.ts"
+          ],
+          "evidence": [
+            {
+              "at": "2026-07-14T04:47:42.860Z",
+              "status": "active",
+              "note": "Bat dau Phase 3: audit Staff Dashboard va giam query/read budget",
+              "test": "",
+              "link": "src/features/dashboard/pages/StaffDashboardPage.tsx"
+            },
+            {
+              "at": "2026-07-14T04:49:51.664Z",
+              "status": "done",
+              "note": "Da toi uu Staff Dashboard: dung attendance_summaries thay vi doc tung attendance, dung getCountFromServer cho pending invoices",
+              "test": "lint PASS; typecheck PASS; check:mojibake PASS; unit 16/16 PASS; build PASS; test:rules BLOCKED port 8090 dang bi chiem",
+              "link": "src/services/firestore/invoices.ts"
+            }
+          ],
+          "updatedAt": "2026-07-14T04:49:51.664Z",
+          "note": "Da toi uu Staff Dashboard: dung attendance_summaries thay vi doc tung attendance, dung getCountFromServer cho pending invoices",
+          "completedAt": "2026-07-14T04:49:51.664Z"
+        },
+        {
+          "id": "P3-002",
+          "title": "Hoan thien audit log UI",
+          "area": "Admin",
+          "priority": "P2",
+          "status": "todo",
+          "analysis": "He thong da ghi audit_logs nhung chua co man hinh doc va loc.",
+          "implementation": "Them trang Admin audit log voi filter actor/action/date va pagination.",
+          "tests": [
+            "Rules test read admin only",
+            "npm run typecheck",
+            "npm run build"
+          ],
+          "links": [
+            "src/services/firestore/auditLog.ts",
+            "firebase/firestore.rules"
+          ],
+          "evidence": []
+        },
+        {
+          "id": "P3-003",
+          "title": "Import du lieu hoc sinh/lop tu CSV",
+          "area": "Operations",
+          "priority": "P2",
+          "status": "todo",
+          "analysis": "Nhap tay tung hoc sinh/lop se cham khi trung tam co du lieu lon.",
+          "implementation": "Them import preview, validate, dry-run va batch write.",
+          "tests": [
+            "unit validation",
+            "emulator smoke test"
+          ],
+          "links": [
+            "src/features/students",
+            "src/features/classes",
+            "scripts"
+          ],
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "phase-4",
+      "name": "Tich hop va tu dong hoa",
+      "goal": "Giam thao tac thu cong va tao kenh giao tiep co kiem soat.",
+      "status": "todo",
+      "window": "Ngay 15-20",
+      "tasks": [
+        {
+          "id": "P4-001",
+          "title": "Thong bao va Messenger campaign",
+          "area": "Messaging",
+          "priority": "P2",
+          "status": "todo",
+          "analysis": "Worker da co send/post/webhook, can UI va audit cho chien dich thong bao.",
+          "implementation": "Them templates, recipient preview, rate limit va outbox monitor.",
+          "tests": [
+            "worker tests",
+            "UI smoke test",
+            "manual Meta sandbox test"
+          ],
+          "links": [
+            "workers/messenger/src/index.ts",
+            "src/services/messenger/client.ts",
+            "src/features/announcements"
+          ],
+          "evidence": []
+        },
+        {
+          "id": "P4-002",
+          "title": "Backup/export va runbook van hanh",
+          "area": "Operations",
+          "priority": "P2",
+          "status": "todo",
+          "analysis": "Runbook co canh bao backup thu cong, can quy trinh ro truoc thay doi du lieu lon.",
+          "implementation": "Them export scripts cho emulator/test data va checklist truoc release.",
+          "tests": [
+            "dry-run export",
+            "docs review"
+          ],
+          "links": [
+            "docs/operations-runbook.md",
+            "scripts"
+          ],
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "phase-5",
+      "name": "Release gate va CI",
+      "goal": "Moi thay doi phai co test gate, preview va cap nhat roadmap truoc khi coi la xong.",
+      "status": "todo",
+      "window": "Ngay 21-24",
+      "tasks": [
+        {
+          "id": "P5-001",
+          "title": "Cau hinh CI cho lint typecheck test build",
+          "area": "CI",
+          "priority": "P2",
+          "status": "todo",
+          "analysis": "Kiem tra dang chay thu cong, can bat buoc tren PR.",
+          "implementation": "Them GitHub Actions cho app, rules tests va worker.",
+          "tests": [
+            "gh pr check hoac action run pass"
+          ],
+          "links": [
+            ".github",
+            "package.json",
+            "workers/messenger/package.json"
+          ],
+          "evidence": []
+        },
+        {
+          "id": "P5-002",
+          "title": "Dinh nghia quy tac Definition of Done",
+          "area": "Process",
+          "priority": "P2",
+          "status": "todo",
+          "analysis": "Can mot quy trinh dong: ke hoach, phan tich, lam, test, cap nhat roadmap.",
+          "implementation": "Moi task xong phai ghi evidence, command test va link diff vao roadmap.",
+          "tests": [
+            "roadmap:update task done co history entry"
+          ],
+          "links": [
+            "docs/upgrade-roadmap.html",
+            "scripts/update-roadmap-status.mjs"
+          ],
+          "evidence": []
+        }
+      ]
+    }
+  ],
+  "history": [
+    {
+      "taskId": "P3-001",
+      "at": "2026-07-14T04:49:51.664Z",
+      "status": "done",
+      "note": "Da toi uu Staff Dashboard: dung attendance_summaries thay vi doc tung attendance, dung getCountFromServer cho pending invoices",
+      "test": "lint PASS; typecheck PASS; check:mojibake PASS; unit 16/16 PASS; build PASS; test:rules BLOCKED port 8090 dang bi chiem",
+      "link": "src/services/firestore/invoices.ts"
+    },
+    {
+      "taskId": "P3-001",
+      "at": "2026-07-14T04:47:42.860Z",
+      "status": "active",
+      "note": "Bat dau Phase 3: audit Staff Dashboard va giam query/read budget",
+      "test": "",
+      "link": "src/features/dashboard/pages/StaffDashboardPage.tsx"
+    },
+    {
+      "taskId": "P2-004",
+      "at": "2026-07-14T04:47:31.762Z",
+      "status": "done",
+      "note": "Da cau hinh manualChunks tren vite.config.js (config Vite thuc te) va dong bo vite.config.ts; tach React, Firebase, Recharts, date, UI vendor ra khoi entry",
+      "test": "lint PASS; typecheck PASS; check:mojibake PASS; build PASS; index 1011.06 kB -> 14.99 kB; Firestore chunk con 568.20 kB (>500) can lazy-load/Firestore Lite neu muon het warning",
+      "link": "vite.config.ts"
+    },
+    {
+      "taskId": "P2-004",
+      "at": "2026-07-14T04:42:08.580Z",
+      "status": "active",
+      "note": "Bat dau giam chunk size production",
+      "test": "",
+      "link": "vite.config.ts"
+    },
+    {
+      "taskId": "P2-003",
+      "at": "2026-07-14T04:42:00.398Z",
+      "status": "done",
+      "note": "Da them Button/IconButton va chuan hoa CTA trong PageHeader/ErrorState",
+      "test": "lint PASS; typecheck PASS; check:mojibake PASS; build PASS",
+      "link": "src/components/ui/Button.tsx"
+    },
+    {
+      "taskId": "P2-003",
+      "at": "2026-07-14T04:39:25.037Z",
+      "status": "active",
+      "note": "Bat dau chuan hoa Button/IconButton va PageHeader actions",
+      "test": "",
+      "link": "src/components/ui"
+    },
+    {
+      "taskId": "P2-002",
+      "at": "2026-07-14T04:32:02.128Z",
+      "status": "done",
+      "note": "Da format lai invoices, assignments, viewerDashboard services khong doi behavior",
+      "test": "lint PASS; typecheck PASS; check:mojibake PASS; unit 16/16 PASS; build PASS",
+      "link": "src/services/firestore/viewerDashboard.ts"
+    },
+    {
+      "taskId": "P2-002",
+      "at": "2026-07-14T04:30:00.418Z",
+      "status": "active",
+      "note": "Bat dau format lai services dang minified",
+      "test": "",
+      "link": "src/services/firestore"
+    },
+    {
+      "taskId": "P2-001",
+      "at": "2026-07-14T04:29:51.366Z",
+      "status": "done",
+      "note": "Da sua/loai bo chuoi mojibake con lai va them npm run check:mojibake",
+      "test": "check:mojibake PASS; lint PASS; typecheck PASS; build PASS",
+      "link": "scripts/check-mojibake.mjs"
+    },
+    {
+      "taskId": "P2-001",
+      "at": "2026-07-14T04:27:13.106Z",
+      "status": "active",
+      "note": "Bat dau Phase 2: sua tieng Viet va encoding mojibake",
+      "test": "",
+      "link": "src"
+    },
+    {
+      "taskId": "P1-004",
+      "at": "2026-07-14T04:27:13.089Z",
+      "status": "todo",
+      "note": "Tam thoi bo qua P1-004 theo yeu cau, chuyen sang Phase 2",
+      "test": "",
+      "link": "docs/upgrade-roadmap-state.json"
+    },
+    {
+      "taskId": "P1-003",
+      "at": "2026-07-14T04:24:33.357Z",
+      "status": "done",
+      "note": "Da khoa immutable fields cho identity/scope/audit trong Firestore Rules va giu createdBy goc khi sua diem",
+      "test": "lint PASS; typecheck PASS; unit 16/16 PASS; test:rules 86/86 PASS; build PASS",
+      "link": "firebase/tests/immutable-rules.test.ts"
+    },
+    {
+      "taskId": "P1-003",
+      "at": "2026-07-14T04:19:28.724Z",
+      "status": "active",
+      "note": "Bat dau khoa immutable fields trong Firestore Rules",
+      "test": "",
+      "link": "firebase/firestore.rules"
+    },
+    {
+      "taskId": "P1-002",
+      "at": "2026-07-14T04:19:08.888Z",
+      "status": "done",
+      "note": "Siet Teacher scope theo classId va students.teacherIds; khoa Teacher khong tu mo rong teacherIds/studentIds",
+      "test": "lint PASS; typecheck PASS; unit 16/16 PASS; test:rules 80/80 PASS; build PASS",
+      "link": "firebase/firestore.rules"
+    },
+    {
+      "taskId": "P1-002",
+      "at": "2026-07-14T04:12:14.167Z",
+      "status": "active",
+      "note": "Tiep tuc gap data model: them students.teacherIds de scope Teacher tren hoc sinh",
+      "test": "",
+      "link": "src/services/firestore/students.ts"
+    },
+    {
+      "taskId": "P1-002",
+      "at": "2026-07-14T03:37:04.162Z",
+      "status": "review",
+      "note": "Da siết class-scoped collections theo classes.teacherIds; con gap students scope can data model classIds/teacherIds",
+      "test": "lint/typecheck/unit/build PASS; test:rules 78/78 PASS",
+      "link": "firebase/tests/teacher-scope-rules.test.ts"
+    },
+    {
+      "taskId": "P1-002",
+      "at": "2026-07-14T03:31:31.144Z",
+      "status": "active",
+      "note": "Bat dau gioi han quyen Teacher theo lop phu trach",
+      "test": "",
+      "link": "firebase/firestore.rules"
+    },
+    {
+      "taskId": "P1-001",
+      "at": "2026-07-14T03:28:43.346Z",
+      "status": "done",
+      "note": "Da cho phep viewer bao lai payment rejected cua chinh minh va khoa reportedBy theo uid",
+      "test": "lint/typecheck/unit/build PASS; test:rules 73/73 PASS",
+      "link": "firebase/tests/phase9-rules.test.ts"
+    },
+    {
+      "taskId": "P1-001",
+      "at": "2026-07-14T03:26:39.851Z",
+      "status": "active",
+      "note": "Bat dau Phase 1: sua payment retry sau khi bi tu choi",
+      "test": "",
+      "link": "src/services/firestore/invoices.ts"
+    },
+    {
+      "taskId": "R0-003",
+      "at": "2026-07-14T03:25:37.281Z",
+      "status": "done",
+      "note": "Da xac minh script va HTML dong bo dung",
+      "test": "lint/typecheck/unit/build PASS; test:rules blocked port 8090",
+      "link": "docs/upgrade-roadmap.html"
+    },
+    {
+      "taskId": "R0-003",
+      "at": "2026-07-14T03:23:48.083Z",
+      "status": "done",
+      "note": "Da tao script cap nhat roadmap",
+      "test": "roadmap:update help PASS",
+      "link": "scripts/update-roadmap-status.mjs"
+    },
+    {
+      "taskId": "R0-002",
+      "at": "2026-07-14T03:23:47.953Z",
+      "status": "done",
+      "note": "Da tao HTML roadmap tuong tac",
+      "test": "HTML state embed sync PASS",
+      "link": "docs/upgrade-roadmap.html"
+    },
+    {
+      "taskId": "R0-001",
+      "at": "2026-07-14T03:23:47.921Z",
+      "status": "done",
+      "note": "Da tao state file cho roadmap dong",
+      "test": "JSON parse PASS",
+      "link": "docs/upgrade-roadmap-state.json"
+    },
+    {
+      "at": "2026-07-14T03:20:00.000Z",
+      "taskId": "R0-001",
+      "status": "active",
+      "note": "Khoi tao roadmap dong tu ket qua audit source ngay 14/07/2026.",
+      "test": "",
+      "link": "docs/upgrade-roadmap-state.json"
+    }
+  ]
+}
+  </script>
+  <script>
+    const state = JSON.parse(document.getElementById("roadmap-state").textContent);
+    let activePhaseId = state.phases[0]?.id ?? "";
+    let activeTaskId = state.phases[0]?.tasks[0]?.id ?? "";
+
+    const labels = {
+      todo: "Chưa làm",
+      active: "Đang làm",
+      review: "Chờ test",
+      done: "Hoàn thành",
+      blocked: "Bị chặn"
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const allTasks = () => state.phases.flatMap((phase) => phase.tasks.map((task) => ({ phase, task })));
+    const taskProgress = (phase) => {
+      if (!phase.tasks.length) return 0;
+      return Math.round((phase.tasks.filter((task) => task.status === "done").length / phase.tasks.length) * 100);
+    };
+    const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    }[char]));
+    const repoLink = (file) => {
+      const safe = escapeHtml(file);
+      return `<a href="../${safe}">${safe}</a>`;
+    };
+
+    function updateCommand(taskId, status = "done") {
+      return `npm run roadmap:update -- ${taskId} ${status} --test "COMMAND PASS" --link "PATH"`;
+    }
+
+    function renderMeta() {
+      const updated = new Date(state.lastUpdatedAt).toLocaleString("vi-VN");
+      $("roadmapMeta").innerHTML = `
+        <strong>${escapeHtml(state.project)}</strong>
+        <span>Cập nhật: ${updated}</span>
+        <span>Owner: ${escapeHtml(state.owner)}</span>
+      `;
+    }
+
+    function renderFilters() {
+      $("statusFilter").innerHTML = `
+        <option value="">Tất cả trạng thái</option>
+        ${Object.entries(labels).map(([value, label]) => `<option value="${value}">${label}</option>`).join("")}
+      `;
+      $("phaseFilter").innerHTML = `
+        <option value="">Tất cả phase</option>
+        ${state.phases.map((phase) => `<option value="${phase.id}">${escapeHtml(phase.name)}</option>`).join("")}
+      `;
+    }
+
+    function renderSummary() {
+      const tasks = allTasks();
+      const done = tasks.filter(({ task }) => task.status === "done").length;
+      const active = tasks.filter(({ task }) => task.status === "active").length;
+      const blocked = tasks.filter(({ task }) => task.status === "blocked").length;
+      $("summary").innerHTML = [
+        ["Phase", state.phases.length, "Tổng số giai đoạn"],
+        ["Task", tasks.length, "Tổng số đầu việc"],
+        ["Done", done, `${Math.round((done / Math.max(tasks.length, 1)) * 100)}% hoàn thành`],
+        ["Active", active + blocked, blocked ? `${blocked} task bị chặn` : "Đang triển khai"]
+      ].map(([label, value, hint]) => `
+        <article class="metric">
+          <b>${value}</b>
+          <span>${label}: ${hint}</span>
+        </article>
+      `).join("");
+    }
+
+    function renderPhaseFlow() {
+      $("phaseFlow").innerHTML = state.phases.map((phase) => `
+        <button class="flow-node" aria-pressed="${phase.id === activePhaseId}" data-phase="${phase.id}">
+          <span class="pill ${phase.status}">${labels[phase.status] ?? phase.status}</span>
+          <strong>${escapeHtml(phase.name)}</strong>
+          <small>${taskProgress(phase)}% - ${escapeHtml(phase.window)}</small>
+        </button>
+      `).join("");
+    }
+
+    function renderPhases() {
+      $("phaseList").innerHTML = state.phases.map((phase) => `
+        <button class="phase-card" aria-pressed="${phase.id === activePhaseId}" data-phase="${phase.id}">
+          <span class="pill ${phase.status}">${labels[phase.status] ?? phase.status}</span>
+          <strong>${escapeHtml(phase.name)}</strong>
+          <small>${escapeHtml(phase.goal)}</small>
+          <span class="progress" aria-hidden="true"><span class="bar" style="--value:${taskProgress(phase)}%"></span></span>
+        </button>
+      `).join("");
+    }
+
+    function filteredTasks() {
+      const query = $("searchInput").value.trim().toLowerCase();
+      const status = $("statusFilter").value;
+      const phaseId = $("phaseFilter").value || activePhaseId;
+
+      return allTasks().filter(({ phase, task }) => {
+        const haystack = [phase.name, phase.goal, task.id, task.title, task.area, task.analysis, task.implementation, ...(task.links ?? [])].join(" ").toLowerCase();
+        return (!phaseId || phase.id === phaseId)
+          && (!status || task.status === status)
+          && (!query || haystack.includes(query));
+      });
+    }
+
+    function renderTasks() {
+      const rows = filteredTasks();
+      if (!rows.length) {
+        $("taskGrid").innerHTML = `<article class="task"><p>Không có task khớp bộ lọc.</p></article>`;
+        $("taskDetail").innerHTML = "";
+        return;
+      }
+      if (!rows.some(({ task }) => task.id === activeTaskId)) activeTaskId = rows[0].task.id;
+
+      $("taskGrid").innerHTML = rows.map(({ phase, task }) => `
+        <button class="task" aria-pressed="${task.id === activeTaskId}" data-task="${task.id}">
+          <span class="pill ${task.status}">${labels[task.status] ?? task.status}</span>
+          <span>
+            <h3>${escapeHtml(task.id)} - ${escapeHtml(task.title)}</h3>
+            <p>${escapeHtml(phase.name)} - ${escapeHtml(task.area)}</p>
+          </span>
+          <span class="pill priority">${escapeHtml(task.priority)}</span>
+        </button>
+      `).join("");
+      renderDetail();
+    }
+
+    function renderDetail() {
+      const found = allTasks().find(({ task }) => task.id === activeTaskId);
+      if (!found) return;
+      const { phase, task } = found;
+      $("taskDetail").innerHTML = `
+        <div>
+          <span class="pill ${task.status}">${labels[task.status] ?? task.status}</span>
+          <h2>${escapeHtml(task.id)} - ${escapeHtml(task.title)}</h2>
+          <p>${escapeHtml(phase.name)} - ${escapeHtml(task.area)} - ${escapeHtml(task.priority)}</p>
+        </div>
+        <div class="detail-grid">
+          <section class="box"><h4>Phân tích</h4><p>${escapeHtml(task.analysis)}</p></section>
+          <section class="box"><h4>Thực hiện</h4><p>${escapeHtml(task.implementation)}</p></section>
+          <section class="box"><h4>Test bắt buộc</h4><ul>${(task.tests ?? []).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></section>
+          <section class="box"><h4>Link công việc</h4><ul>${(task.links ?? []).map((item) => `<li>${repoLink(item)}</li>`).join("")}</ul></section>
+        </div>
+        <section class="box">
+          <h4>Command cập nhật khi hoàn thành</h4>
+          <code>${escapeHtml(updateCommand(task.id, "done"))}</code>
+        </section>
+        <section class="box">
+          <h4>Evidence</h4>
+          ${(task.evidence ?? []).length
+            ? `<ul>${task.evidence.map((item) => `<li>${escapeHtml(item.at)} - ${escapeHtml(item.status)} - ${escapeHtml(item.note || item.test || "Đã cập nhật")}</li>`).join("")}</ul>`
+            : "<p>Chưa có evidence.</p>"
+          }
+        </section>
+      `;
+    }
+
+    function renderHistory() {
+      $("history").innerHTML = (state.history ?? []).slice(0, 20).map((item) => `
+        <article class="history-item">
+          <strong>${escapeHtml(item.taskId)} -> ${escapeHtml(item.status)}</strong>
+          <span>${escapeHtml(item.at)} ${item.note ? "- " + escapeHtml(item.note) : ""}</span>
+          ${item.test ? `<span>Test: ${escapeHtml(item.test)}</span>` : ""}
+          ${item.link ? `<span>Link: ${escapeHtml(item.link)}</span>` : ""}
+        </article>
+      `).join("") || `<article class="history-item">Chưa có lịch sử.</article>`;
+    }
+
+    function renderAll() {
+      renderMeta();
+      renderSummary();
+      renderPhaseFlow();
+      renderPhases();
+      renderTasks();
+      renderHistory();
+    }
+
+    document.addEventListener("click", (event) => {
+      const phaseButton = event.target.closest("[data-phase]");
+      if (phaseButton) {
+        activePhaseId = phaseButton.dataset.phase;
+        $("phaseFilter").value = activePhaseId;
+        activeTaskId = state.phases.find((phase) => phase.id === activePhaseId)?.tasks[0]?.id ?? activeTaskId;
+        renderAll();
+      }
+      const taskButton = event.target.closest("[data-task]");
+      if (taskButton) {
+        activeTaskId = taskButton.dataset.task;
+        renderTasks();
+      }
+    });
+
+    ["input", "change"].forEach((eventName) => {
+      $("searchInput").addEventListener(eventName, renderTasks);
+      $("statusFilter").addEventListener(eventName, renderTasks);
+      $("phaseFilter").addEventListener(eventName, () => {
+        activePhaseId = $("phaseFilter").value || activePhaseId;
+        renderTasks();
+      });
+    });
+
+    renderFilters();
+    renderAll();
+  </script>
+</body>
+</html>

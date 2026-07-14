@@ -1,7 +1,7 @@
-import { type ComponentType } from "react";
+import { type ComponentType, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { format } from "date-fns";
+import { eachDayOfInterval, format, isSameDay, subDays } from "date-fns";
 import {
   CalendarDays,
   ChevronRight,
@@ -10,6 +10,7 @@ import {
   Wallet,
   type LucideProps,
 } from "lucide-react";
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { AppShell } from "@/components/layouts/AppShell";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
@@ -17,6 +18,10 @@ import { ErrorState } from "@/components/feedback/ErrorState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ROUTES } from "@/constants/routes";
 import { getStaffDashboard } from "@/services/firestore/staffDashboard";
+import { listSessions } from "@/services/firestore/sessions";
+import { listAttendanceSummariesBySessionIds } from "@/services/firestore/attendance";
+import { listInvoices } from "@/services/firestore/invoices";
+import type { InvoiceStatus } from "@/types/academic";
 
 type Tone = "primary" | "warning" | "accent" | "danger";
 
@@ -25,6 +30,13 @@ const TONE_CHIP: Record<Tone, string> = {
   warning: "bg-warning-50 text-warning-700",
   accent: "bg-accent-50 text-accent-700",
   danger: "bg-danger-50 text-danger-700",
+};
+const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = {
+  paid: "Đã thanh toán",
+  pending: "Chờ xác nhận",
+  unpaid: "Chưa thanh toán",
+  overdue: "Quá hạn",
+  rejected: "Từ chối",
 };
 
 function StatCard({ icon: Icon, tone, value, label, hint }: { icon: ComponentType<LucideProps>; tone: Tone; value: number; label: string; hint: string; }) {
@@ -59,6 +71,39 @@ export default function StaffDashboardPage() {
     queryKey: ["staff-dashboard"],
     queryFn: () => getStaffDashboard(),
   });
+
+  const rangeStart = useMemo(() => subDays(new Date(), 13), []);
+  const sessions14 = useQuery({ queryKey: ["dashboard-sessions-14"], queryFn: () => listSessions(rangeStart, new Date()) });
+  const sessionIds14 = useMemo(() => sessions14.data?.map((item) => item.id) ?? [], [sessions14.data]);
+  const summaries14 = useQuery({
+    queryKey: ["dashboard-attendance-summaries", sessionIds14],
+    queryFn: () => listAttendanceSummariesBySessionIds(sessionIds14),
+    enabled: sessionIds14.length > 0,
+  });
+  const invoicesAll = useQuery({ queryKey: ["dashboard-invoices"], queryFn: listInvoices });
+
+  const attendanceTrend = useMemo(() => {
+    const days = eachDayOfInterval({ start: rangeStart, end: new Date() });
+    const sessionById = new Map((sessions14.data ?? []).map((item) => [item.id, item]));
+    return days.map((day) => {
+      let present = 0;
+      let total = 0;
+      summaries14.data?.forEach((summary) => {
+        const session = sessionById.get(summary.sessionId);
+        if (session && isSameDay(session.startAt.toDate(), day)) {
+          present += summary.present;
+          total += summary.total;
+        }
+      });
+      return { date: format(day, "dd/MM"), rate: total > 0 ? Math.round((present / total) * 100) : 0 };
+    });
+  }, [rangeStart, sessions14.data, summaries14.data]);
+
+  const invoiceStatusData = useMemo(() => {
+    const counts: Record<InvoiceStatus, number> = { unpaid: 0, pending: 0, paid: 0, overdue: 0, rejected: 0 };
+    invoicesAll.data?.forEach((invoice) => { counts[invoice.status] += 1; });
+    return (Object.keys(counts) as InvoiceStatus[]).map((status) => ({ status: INVOICE_STATUS_LABEL[status], count: counts[status] }));
+  }, [invoicesAll.data]);
 
   const actions: { to: string; tone: Tone; title: string; hint: string }[] = [];
   if (data) {
@@ -121,6 +166,36 @@ export default function StaffDashboardPage() {
                   ))}
                 </div>
               )}
+            </section>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-[1.4fr_1fr]">
+            <section className="rounded-card border border-neutral-200 bg-neutral-0 p-4">
+              <h2 className="mb-2 text-base">Xu hướng chuyên cần 14 ngày</h2>
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={attendanceTrend} aria-label="Biểu đồ tỉ lệ có mặt theo ngày trong 14 ngày gần đây">
+                    <XAxis dataKey="date" />
+                    <YAxis unit="%" domain={[0, 100]} />
+                    <Tooltip formatter={(value: number) => [`${value}%`, "Tỉ lệ có mặt"]} />
+                    <Line type="monotone" dataKey="rate" stroke="#3366F0" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
+
+            <section className="rounded-card border border-neutral-200 bg-neutral-0 p-4">
+              <h2 className="mb-2 text-base">Hóa đơn theo trạng thái</h2>
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={invoiceStatusData} layout="vertical" aria-label="Biểu đồ số lượng hóa đơn theo trạng thái">
+                    <XAxis type="number" allowDecimals={false} />
+                    <YAxis type="category" dataKey="status" width={100} />
+                    <Tooltip formatter={(value: number) => [`${value} hóa đơn`, "Số lượng"]} />
+                    <Bar dataKey="count" fill="#3366F0" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </section>
           </div>
         </div>

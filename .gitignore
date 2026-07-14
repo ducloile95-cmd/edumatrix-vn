@@ -13,4 +13,5 @@ ui-debug.log*
 !.vscode/extensions.json
 .DS_Store
 *.log
+.fuse_hidden*
 coverage/

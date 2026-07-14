@@ -42,7 +42,7 @@
 @layer components {
   .glass-panel { background: rgba(255, 255, 255, .74); backdrop-filter: blur(14px) saturate(150%); box-shadow: inset 0 1px rgba(255,255,255,.85); }
   .icon-button { @apply min-h-touch min-w-touch items-center justify-center rounded-xl text-neutral-600 transition hover:bg-white/80 hover:text-primary-700 active:scale-95; transition-duration: var(--motion-duration); }
-  .page-enter { animation: page-enter 380ms cubic-bezier(.16, 1, .3, 1) both; }
+  .page-enter { animation: page-enter var(--motion-duration) cubic-bezier(.16, 1, .3, 1) both; }
 
   /* Đồng bộ toàn bộ form popup (Modal) với màu hệ thống — redesign-preserve (design-taste-frontend). */
   [role="dialog"] :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {

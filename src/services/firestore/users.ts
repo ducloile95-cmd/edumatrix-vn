@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  documentId,
   getDoc,
   getDocs,
   limit,
@@ -21,6 +22,13 @@ import type { InviteDoc, UserDoc, UserRole, UserStatus } from "@/types/user";
 export type ClaimFailureReason = "email_not_verified" | "no_invite" | "error";
 
 export type ClaimResult = { claimed: true } | { claimed: false; reason: ClaimFailureReason };
+
+export interface ParentProfileInput {
+  displayName?: string;
+  address?: string;
+  phone?: string;
+  facebookUrl?: string;
+}
 
 /**
  * Thu claim tai khoan dua tren invite dang active (A16.4, Section 7).
@@ -81,6 +89,31 @@ export async function listUsers(): Promise<(UserDoc & { uid: string })[]> {
   const q = query(collection(db, COLLECTIONS.USERS), orderBy("createdAt", "desc"), limit(100));
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ uid: d.id, ...(d.data() as UserDoc) }));
+}
+
+export async function listUsersByIds(uids: string[]): Promise<(UserDoc & { uid: string })[]> {
+  const uniqueIds = [...new Set(uids)].filter(Boolean);
+  const groups: (UserDoc & { uid: string })[][] = [];
+
+  for (let offset = 0; offset < uniqueIds.length; offset += 30) {
+    const chunk = uniqueIds.slice(offset, offset + 30);
+    if (chunk.length === 0) continue;
+    const snap = await getDocs(query(collection(db, COLLECTIONS.USERS), where(documentId(), "in", chunk)));
+    groups.push(snap.docs.map((d) => ({ uid: d.id, ...(d.data() as UserDoc) })));
+  }
+
+  return groups.flat();
+}
+
+export async function updateParentProfile(uid: string, input: ParentProfileInput): Promise<void> {
+  const payload: Record<string, string | ReturnType<typeof serverTimestamp>> = {
+    updatedAt: serverTimestamp(),
+  };
+  if (input.displayName !== undefined) payload.displayName = input.displayName;
+  if (input.address !== undefined) payload.address = input.address;
+  if (input.phone !== undefined) payload.phone = input.phone;
+  if (input.facebookUrl !== undefined) payload.facebookUrl = input.facebookUrl;
+  await updateDoc(doc(db, COLLECTIONS.USERS, uid), payload);
 }
 
 /** Chi Admin duoc goi (Rules enforce). Khoa/mo tai khoan (A11, A26). */

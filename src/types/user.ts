@@ -7,6 +7,9 @@ export type UserStatus = "active" | "disabled";
 export interface UserDoc {
   email: string;
   displayName: string;
+  address?: string;
+  phone?: string;
+  facebookUrl?: string;
   photoURL: string | null;
   role: UserRole;
   studentIds: string[];

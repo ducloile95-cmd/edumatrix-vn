@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { ViewerShell } from "@/components/layouts/ViewerShell";
+import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { ErrorState } from "@/components/feedback/ErrorState";
@@ -14,7 +15,15 @@ export default function ViewerDashboardPage() {
   const data = dashboard.data;
 
   return <ViewerShell>
-    <PageHeader title="Tổng quan" description="Lịch học, bài tập, điểm số và học phí cần theo dõi." actions={<button type="button" onClick={() => dashboard.refetch()} disabled={dashboard.isFetching} className="min-h-touch rounded-input border border-neutral-300 bg-white px-3 text-sm font-medium text-neutral-700 transition hover:border-primary-300 hover:text-primary-700 disabled:cursor-wait disabled:opacity-60" style={{ transitionDuration: "var(--motion-duration)" }}>{dashboard.isFetching ? "Đang cập nhật" : "Làm mới"}</button>} />
+    <PageHeader
+      title="Tổng quan"
+      description="Lịch học, bài tập, điểm số và học phí cần theo dõi."
+      actions={(
+        <Button onClick={() => dashboard.refetch()} disabled={dashboard.isFetching}>
+          {dashboard.isFetching ? "Đang cập nhật" : "Làm mới"}
+        </Button>
+      )}
+    />
     {dashboard.isLoading && <LoadingSkeleton rows={5} />}
     {dashboard.error && <ErrorState message="Không thể tải dữ liệu tổng quan. Vui lòng kiểm tra kết nối và thử lại." onRetry={() => dashboard.refetch()} />}
     {!dashboard.isLoading && !dashboard.error && !data && <EmptyState title="Chưa có dữ liệu tổng quan" description="Khi có lịch học, bài tập hoặc học phí, thông tin sẽ hiển thị ở đây." />}
