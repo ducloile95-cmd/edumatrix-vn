@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from "recharts";
@@ -8,6 +8,8 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { createInvoice, listInvoices, listPayments, reconcilePayment } from "@/services/firestore/invoices";
 import { listStudents } from "@/services/firestore/students";
+import { listClasses } from "@/services/firestore/classes";
+import { listCourses } from "@/services/firestore/courses";
 import type { InvoiceStatus, PaymentStatus } from "@/types/academic";
 
 const INVOICE_STATUS_TONE: Record<InvoiceStatus, "success" | "warning" | "danger" | "info" | "neutral"> = {
@@ -44,11 +46,41 @@ export default function InvoicesPage() {
   const students = useQuery({ queryKey: ["students"], queryFn: listStudents });
   const invoices = useQuery({ queryKey: ["invoices"], queryFn: listInvoices });
   const payments = useQuery({ queryKey: ["payments"], queryFn: listPayments });
+  const classes = useQuery({ queryKey: ["classes"], queryFn: listClasses });
+  const courses = useQuery({ queryKey: ["courses"], queryFn: listCourses });
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<InvoiceStatus | "all">("all");
-  const [form, setForm] = useState({ studentId: "", title: "Học phí", amount: 0, dueAt: "", bankBin: "970436", accountNumber: "", accountName: "EDUMATRIX" });
+  const [form, setForm] = useState({ studentId: "", classId: "", sessionCount: 1, title: "Học phí", amount: 0, dueAt: "", bankBin: "970436", accountNumber: "", accountName: "EDUMATRIX" });
+  const [amountTouched, setAmountTouched] = useState(false);
+
+  const classById = useMemo(() => new Map((classes.data ?? []).map((klass) => [klass.id, klass])), [classes.data]);
+  const courseById = useMemo(() => new Map((courses.data ?? []).map((course) => [course.id, course])), [courses.data]);
+  const selectedClass = form.classId ? classById.get(form.classId) : undefined;
+  const selectedCourse = selectedClass ? courseById.get(selectedClass.courseId) : undefined;
+  // Hoc phi tinh tren 1 buoi - khong tinh ca khoa (ke hoach 15/07/2026).
+  const computedAmount = selectedCourse
+    ? (selectedCourse.pricePerSession ?? Math.round(selectedCourse.tuitionFee / selectedCourse.totalSessions)) * form.sessionCount
+    : null;
+
+  useEffect(() => {
+    if (computedAmount !== null && !amountTouched) {
+      setForm((current) => ({ ...current, amount: computedAmount }));
+    }
+  }, [computedAmount, amountTouched]);
+
   const create = useMutation({
-    mutationFn: () => createInvoice({ ...form, courseId: null, amount: Number(form.amount), dueAt: new Date(form.dueAt), actorUid: firebaseUser?.uid ?? "unknown" }),
+    mutationFn: () =>
+      createInvoice({
+        studentId: form.studentId,
+        courseId: selectedCourse?.id ?? null,
+        title: form.title,
+        amount: Number(form.amount),
+        dueAt: new Date(form.dueAt),
+        bankBin: form.bankBin,
+        accountNumber: form.accountNumber,
+        accountName: form.accountName,
+        actorUid: firebaseUser?.uid ?? "unknown",
+      }),
     onSuccess: () => { client.invalidateQueries({ queryKey: ["invoices"] }); },
   });
   const reconcile = useMutation({
@@ -96,7 +128,7 @@ export default function InvoicesPage() {
           event.preventDefault();
           if (!create.isPending) create.mutate();
         }}
-        className="mt-5 grid gap-3 border-y py-5 md:grid-cols-3"
+        className="grid gap-3 border-y py-4 md:grid-cols-3"
       >
         <select aria-label="Học sinh" required value={form.studentId} onChange={(event) => setField("studentId", event.target.value)} className="min-h-touch rounded-input border px-3">
           <option value="">Chọn học sinh</option>
@@ -106,8 +138,17 @@ export default function InvoicesPage() {
             </option>
           ))}
         </select>
+        <select aria-label="Lớp học" value={form.classId} onChange={(event) => setField("classId", event.target.value)} className="min-h-touch rounded-input border px-3">
+          <option value="">-- Không gắn lớp (nhập tay) --</option>
+          {classes.data?.map((klass) => (
+            <option key={klass.id} value={klass.id}>
+              {klass.name}
+            </option>
+          ))}
+        </select>
+        <input aria-label="Số buổi" type="number" min={1} step={1} placeholder="Số buổi" value={form.sessionCount} onChange={(event) => setField("sessionCount", Number(event.target.value))} className="min-h-touch rounded-input border px-3" />
         <input aria-label="Tiêu đề hóa đơn" value={form.title} onChange={(event) => setField("title", event.target.value)} className="min-h-touch rounded-input border px-3" />
-        <input aria-label="Số tiền" required type="number" min={1} placeholder="Số tiền" value={form.amount || ""} onChange={(event) => setField("amount", Number(event.target.value))} className="min-h-touch rounded-input border px-3" />
+        <input aria-label="Số tiền" required type="number" min={1} placeholder="Số tiền" value={form.amount || ""} onChange={(event) => { setAmountTouched(true); setField("amount", Number(event.target.value)); }} className="min-h-touch rounded-input border px-3" />
         <input aria-label="Hạn thanh toán" required type="date" value={form.dueAt} onChange={(event) => setField("dueAt", event.target.value)} className="min-h-touch rounded-input border px-3" />
         <input aria-label="Mã ngân hàng" placeholder="Bank BIN" value={form.bankBin} onChange={(event) => setField("bankBin", event.target.value)} className="min-h-touch rounded-input border px-3" />
         <input aria-label="Số tài khoản" required placeholder="Số tài khoản" value={form.accountNumber} onChange={(event) => setField("accountNumber", event.target.value)} className="min-h-touch rounded-input border px-3" />
@@ -122,7 +163,7 @@ export default function InvoicesPage() {
         )}
       </form>
 
-      <section className="mt-6">
+      <section className="mt-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2>Công nợ</h2>
           <div className="flex flex-wrap gap-2">
@@ -157,7 +198,7 @@ export default function InvoicesPage() {
         )}
       </section>
 
-      <section className="mt-7 grid gap-5 lg:grid-cols-2">
+      <section className="mt-5 grid gap-4 lg:grid-cols-2">
         <div>
           <h2>Dự kiến và thực thu theo tháng</h2>
           <div className="mt-3 h-64">
@@ -188,7 +229,7 @@ export default function InvoicesPage() {
         </div>
       </section>
 
-      <section className="mt-7">
+      <section className="mt-5">
         <h2>Thanh toán chờ đối soát</h2>
         <ul className="divide-y">
           {payments.data?.map((payment) => (

@@ -35,7 +35,7 @@ beforeAll(async () => {
     firestore: {
       rules: fs.readFileSync(path.resolve(__dirname, "../firestore.rules"), "utf8"),
       host: "localhost",
-      port: 8090,
+      port: Number(process.env.FIRESTORE_EMULATOR_PORT ?? 8090),
     },
   });
 });
@@ -179,6 +179,43 @@ describe("subjects", () => {
       });
     });
     await assertSucceeds(getDoc(doc(asViewer(), "subjects", "TOEIC")));
+  });
+});
+
+describe("courses", () => {
+  const validCourse = {
+    name: "IELTS Foundation",
+    subjectIds: ["IELTS"],
+    pricePerSession: 62500,
+    tuitionFee: 1500000,
+    totalSessions: 24,
+    startDate: Timestamp.fromDate(new Date("2026-01-01T00:00:00")),
+    endDate: Timestamp.fromDate(new Date("2026-03-01T00:00:00")),
+    status: "active",
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+
+  test("Admin tao duoc khoa hoc hop le", async () => {
+    await assertSucceeds(setDoc(doc(asAdmin(), "courses", "course_001"), validCourse));
+  });
+
+  test("Rules chan khoa hoc co hoc phi am", async () => {
+    await assertFails(setDoc(doc(asAdmin(), "courses", "course_bad_fee"), { ...validCourse, tuitionFee: -1 }));
+  });
+
+  test("Rules chan khoa hoc khong gan mon hoc", async () => {
+    await assertFails(setDoc(doc(asAdmin(), "courses", "course_no_subject"), { ...validCourse, subjectIds: [] }));
+  });
+
+  test("Rules chan khoa hoc co ngay ket thuc truoc ngay bat dau", async () => {
+    await assertFails(
+      setDoc(doc(asAdmin(), "courses", "course_bad_dates"), {
+        ...validCourse,
+        startDate: Timestamp.fromDate(new Date("2026-03-01T00:00:00")),
+        endDate: Timestamp.fromDate(new Date("2026-01-01T00:00:00")),
+      }),
+    );
   });
 });
 

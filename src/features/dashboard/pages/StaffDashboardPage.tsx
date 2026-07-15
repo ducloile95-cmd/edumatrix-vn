@@ -1,21 +1,15 @@
-import { type ComponentType, useMemo } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { eachDayOfInterval, format, isSameDay, subDays } from "date-fns";
-import {
-  CalendarDays,
-  ChevronRight,
-  ClipboardCheck,
-  UserX,
-  Wallet,
-  type LucideProps,
-} from "lucide-react";
+import { CalendarDays, ChevronRight, ClipboardCheck, UserX, Wallet } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { AppShell } from "@/components/layouts/AppShell";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { StatCard } from "@/components/ui/StatCard";
 import { ROUTES } from "@/constants/routes";
 import { getStaffDashboard } from "@/services/firestore/staffDashboard";
 import { listSessions } from "@/services/firestore/sessions";
@@ -25,12 +19,6 @@ import type { InvoiceStatus } from "@/types/academic";
 
 type Tone = "primary" | "warning" | "accent" | "danger";
 
-const TONE_CHIP: Record<Tone, string> = {
-  primary: "bg-primary-50 text-primary-500",
-  warning: "bg-warning-50 text-warning-700",
-  accent: "bg-accent-50 text-accent-700",
-  danger: "bg-danger-50 text-danger-700",
-};
 const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = {
   paid: "Đã thanh toán",
   pending: "Chờ xác nhận",
@@ -38,19 +26,6 @@ const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = {
   overdue: "Quá hạn",
   rejected: "Từ chối",
 };
-
-function StatCard({ icon: Icon, tone, value, label, hint }: { icon: ComponentType<LucideProps>; tone: Tone; value: number; label: string; hint: string; }) {
-  return (
-    <div className="rounded-card border border-neutral-200 bg-neutral-0 p-4">
-      <span className={`mb-2 flex h-9 w-9 items-center justify-center rounded-input ${TONE_CHIP[tone]}`}>
-        <Icon size={18} aria-hidden="true" />
-      </span>
-      <p className="text-2xl font-bold tabular-nums text-neutral-900">{value}</p>
-      <p className="text-sm font-semibold text-neutral-700">{label}</p>
-      <p className="text-xs text-neutral-500">{hint}</p>
-    </div>
-  );
-}
 
 function ActionRow({ to, tone, title, hint }: { to: string; tone: Tone; title: string; hint: string; }) {
   const dot = { primary: "bg-primary-500", warning: "bg-warning-500", accent: "bg-accent-500", danger: "bg-danger-500" }[tone];
@@ -115,11 +90,11 @@ export default function StaffDashboardPage() {
   return (
     <AppShell>
       <PageHeader title="Tổng quan" description="Những việc cần chú ý hôm nay, lịch lớp sắp tới và tiến độ học tập." />
-      {isLoading && <div className="mt-5"><LoadingSkeleton rows={4} /></div>}
-      {isError && <div className="mt-5"><ErrorState message="Không tải được dữ liệu tổng quan." onRetry={() => refetch()} /></div>}
+      {isLoading && <div><LoadingSkeleton rows={4} /></div>}
+      {isError && <div><ErrorState message="Không tải được dữ liệu tổng quan." onRetry={() => refetch()} /></div>}
 
       {data && (
-        <div className="mt-5 flex flex-col gap-4">
+        <div className="flex flex-col gap-4">
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <StatCard icon={CalendarDays} tone="primary" value={data.today.total} label="Lớp hôm nay" hint={`${data.today.done} đã xong · ${data.today.upcoming} sắp tới`} />
             <StatCard icon={UserX} tone="warning" value={data.absentToday} label="Vắng/muộn hôm nay" hint="trên các buổi đã điểm danh" />
@@ -129,7 +104,7 @@ export default function StaffDashboardPage() {
 
           <div className="grid gap-4 md:grid-cols-[1.4fr_1fr]">
             <section className="rounded-card border border-neutral-200 bg-neutral-0 p-4">
-              <h2 className="mb-2 text-base">Lớp sắp diễn ra hôm nay</h2>
+              <h2 className="mb-2 text-xl font-semibold text-neutral-900">Lớp sắp diễn ra hôm nay</h2>
               {data.upcomingSessions.length === 0 ? (
                 <EmptyState title="Hôm nay không còn lớp nào" description="Các buổi hôm nay đã kết thúc hoặc chưa có lịch." />
               ) : (
@@ -156,7 +131,7 @@ export default function StaffDashboardPage() {
             </section>
 
             <section className="rounded-card border border-neutral-200 bg-neutral-0 p-4">
-              <h2 className="mb-2 text-base">Cần xử lý</h2>
+              <h2 className="mb-2 text-xl font-semibold text-neutral-900">Cần xử lý</h2>
               {actions.length === 0 ? (
                 <EmptyState title="Không có việc cần xử lý" description="Bạn đã chấm bài, đối soát hóa đơn và điểm danh xong." />
               ) : (
@@ -171,7 +146,7 @@ export default function StaffDashboardPage() {
 
           <div className="grid gap-4 md:grid-cols-[1.4fr_1fr]">
             <section className="rounded-card border border-neutral-200 bg-neutral-0 p-4">
-              <h2 className="mb-2 text-base">Xu hướng chuyên cần 14 ngày</h2>
+              <h2 className="mb-2 text-xl font-semibold text-neutral-900">Xu hướng chuyên cần 14 ngày</h2>
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={attendanceTrend} aria-label="Biểu đồ tỉ lệ có mặt theo ngày trong 14 ngày gần đây">
@@ -185,7 +160,7 @@ export default function StaffDashboardPage() {
             </section>
 
             <section className="rounded-card border border-neutral-200 bg-neutral-0 p-4">
-              <h2 className="mb-2 text-base">Hóa đơn theo trạng thái</h2>
+              <h2 className="mb-2 text-xl font-semibold text-neutral-900">Hóa đơn theo trạng thái</h2>
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={invoiceStatusData} layout="vertical" aria-label="Biểu đồ số lượng hóa đơn theo trạng thái">

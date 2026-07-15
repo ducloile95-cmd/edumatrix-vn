@@ -13,10 +13,11 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import type { User } from "firebase/auth";
-import { db } from "@/services/firebase/client";
+import { db } from "@/services/firebase/firestoreClient";
 import { COLLECTIONS } from "@/constants/collections";
 import { normalizeEmail } from "@/utils/email";
 import { writeAuditLog } from "@/services/firestore/auditLog";
+import { getCurrentUserDoc, isAdminUser, isTeacherUser } from "@/services/firestore/authz";
 import type { InviteDoc, UserDoc, UserRole, UserStatus } from "@/types/user";
 
 export type ClaimFailureReason = "email_not_verified" | "no_invite" | "error";
@@ -125,6 +126,16 @@ export async function setUserStatus(actor: User, uid: string, status: UserStatus
 
 /** Danh sach tai khoan active theo role - dung de chon Giao vien khi tao/sua lop (Phase 3). */
 export async function listUsersByRole(role: UserRole): Promise<(UserDoc & { uid: string })[]> {
+  const currentUser = await getCurrentUserDoc();
+  if (!currentUser) return [];
+
+  if (!isAdminUser(currentUser)) {
+    if (isTeacherUser(currentUser) && role === currentUser.role && currentUser.status === "active") {
+      return [currentUser];
+    }
+    return [];
+  }
+
   const q = query(
     collection(db, COLLECTIONS.USERS),
     where("role", "==", role),

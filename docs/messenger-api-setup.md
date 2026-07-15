@@ -83,7 +83,7 @@ Meta (webhook) ──sự kiện referral──▶  /webhook  ──service acco
 
 > `ALLOWED_ORIGIN` phải khớp origin thật của webapp (vd `https://edumatrix-vn.web.app`), nếu không trình duyệt sẽ chặn CORS. Lúc dev để `http://localhost:5173`.
 
-Production dùng environment `production`: thay `REPLACE_WITH_HOSTING_DOMAIN` bằng domain Hosting thật và deploy bằng `wrangler deploy --env production`. Không deploy cấu hình mặc định local lên production.
+Production dùng environment `production`: `ALLOWED_ORIGIN` đã trỏ tới `https://edumatrix-vn-576b1.web.app` và deploy bằng `npm run deploy:prod`. Không deploy cấu hình mặc định local lên production.
 
 ### 4.2. Secret (KHÔNG commit — dùng `wrangler secret put`)
 
@@ -113,7 +113,8 @@ wrangler secret put FIREBASE_PRIVATE_KEY        # từ service account JSON: "pr
 ```bash
 cd workers/messenger
 npm install
-wrangler deploy
+npm run build:prod
+npm run deploy:prod
 ```
 
 Lấy URL Worker sau khi deploy, ví dụ: `https://edumatrix-messenger.<account>.workers.dev`.
@@ -195,7 +196,11 @@ try {
 }
 ```
 
-**Chính sách Meta:** `messaging_type: "RESPONSE"` chỉ hợp lệ trong **24 giờ** kể từ tin cuối của người dùng. Gửi chủ động ngoài 24h phải dùng **message tag** hợp lệ (vd `ACCOUNT_UPDATE`) — cần chỉnh `sendGraph()` để thêm `tag`.
+**Chính sách Meta:** `messaging_type: "RESPONSE"` chỉ hợp lệ trong **24 giờ** kể từ tin cuối của người dùng. Gửi chủ động ngoài 24h phải dùng **message tag** hợp lệ theo chính sách Meta/App Review. Worker đã hỗ trợ trường tuỳ chọn `tag`; khi có `tag`, payload gửi Meta dùng `messaging_type: "MESSAGE_TAG"` và ghi `messageTag` vào `message_outbox`.
+
+```json
+{ "studentId": "hs001", "text": "Cập nhật tài khoản học phí.", "tag": "ACCOUNT_UPDATE" }
+```
 
 ---
 
@@ -249,7 +254,7 @@ curl -X POST https://<worker>/api/messenger/send \
 
 ## 10. Log & Firestore Rules
 
-- **`message_outbox/{id}`** — nhật ký mọi lần gửi/đăng: `type`, `recipientPsid` (post = `"page"`), `content`, `status`, `metaMessageId`, `actorUid`, `createdAt`.
+- **`message_outbox/{id}`** — nhật ký mọi lần gửi/đăng: `type`, `recipientPsid` (post = `"page"`), `content`, `status`, `messageTag`, `metaMessageId`, `actorUid`, `createdAt`.
   Rules: `read` nếu là Staff; `create` nếu Staff & `actorUid == uid` & `status ∈ {sent,failed}`; `update/delete` = cấm.
 - **`messenger_connections/{uid}`** — PSID phụ huynh: `read` nếu Admin hoặc chính chủ; `write` = cấm (chỉ Worker qua service account ghi).
 
@@ -264,7 +269,7 @@ curl -X POST https://<worker>/api/messenger/send \
 | `firebase_keys_unavailable` | Không tải được x509 của Google | Lỗi mạng tạm thời, thử lại |
 | `service_auth_failed` | Sai `FIREBASE_CLIENT_EMAIL`/`FIREBASE_PRIVATE_KEY` | Đặt lại secret từ service account JSON |
 | `meta_...` (502) | Meta từ chối (token hết hạn, thiếu quyền, ngoài 24h) | Xem chi tiết mã lỗi Meta; kiểm tra token/quyền/App Review |
-| Bị chặn CORS | `ALLOWED_ORIGIN` sai | Đặt đúng origin webapp rồi `wrangler deploy` lại |
+| Bị chặn CORS | `ALLOWED_ORIGIN` sai | Đặt đúng origin webapp rồi chạy `npm run deploy:prod` lại |
 
 ---
 
@@ -273,7 +278,8 @@ curl -X POST https://<worker>/api/messenger/send \
 - [ ] App Meta chuyển sang **Live**; đã submit App Review cho `pages_messaging` (+ `pages_manage_posts` nếu dùng post).
 - [ ] `META_PAGE_ACCESS_TOKEN` là **System User token** (không hết hạn).
 - [ ] Tất cả secret đã `wrangler secret put` (không nằm trong repo).
-- [ ] `ALLOWED_ORIGIN` = domain production.
+- [x] `ALLOWED_ORIGIN` = domain production.
 - [ ] Webhook đã verify (nút *Verify and Save* xanh) và subscribe đủ field.
 - [ ] `VITE_MESSENGER_WORKER_URL` trỏ đúng Worker production.
+- [x] Worker hỗ trợ `tag` cho luồng Messenger ngoài cửa sổ phản hồi.
 - [ ] Gửi thử 1 chat + 1 post, kiểm tra `message_outbox` ghi `status: sent`.

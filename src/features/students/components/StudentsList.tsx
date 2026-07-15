@@ -228,7 +228,7 @@ export function StudentsList() {
                 const summary = summaryByStudent.get(student.id);
                 const assessmentPercent = getAssessmentPercent(summary);
                 const grade = assessmentPercent === null ? null : getGradeLetter(assessmentPercent);
-                const progress = getLearningProgress(student, attendance);
+                const progress = getLearningProgress(student, attendance, primaryCourse?.totalSessions);
 
                 return (
                   <li key={student.id} className="px-4 py-3 transition hover:bg-neutral-50">
@@ -350,10 +350,11 @@ function getGradeLetter(percent: number): GradeLetter {
   return "D";
 }
 
-function getLearningProgress(student: StudentDoc, attendance: CountMetric) {
+function getLearningProgress(student: StudentDoc, attendance: CountMetric, totalSessions = TOTAL_SESSIONS_FALLBACK) {
+  const plannedSessions = Math.max(1, totalSessions);
   const completed = attendance.total;
-  const remaining = Math.max(0, TOTAL_SESSIONS_FALLBACK - completed);
-  const percent = Math.min(100, Math.round((completed / TOTAL_SESSIONS_FALLBACK) * 100));
+  const remaining = Math.max(0, plannedSessions - completed);
+  const percent = Math.min(100, Math.round((completed / plannedSessions) * 100));
   return {
     completed,
     percent,

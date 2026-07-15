@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Edumatrix VN | Demo Timetable khong scroll-down</title>
+<style>
+  :root {
+    --primary-50:#EFF4FF; --primary-100:#DBE6FE; --primary-500:#3366F0; --primary-700:#1D39AC;
+    --success-50:#ECFDF3; --success-500:#16A34A; --success-700:#0F7A37;
+    --warning-50:#FFFBEB; --warning-500:#F59E0B; --warning-700:#B45309;
+    --danger-50:#FEF2F2; --danger-500:#E4453A; --danger-700:#B91C1C;
+    --info-50:#F0F9FF; --info-500:#0EA5E9; --info-700:#0369A1;
+    --n0:#fff; --n50:#FAFAF9; --n100:#F4F3F1; --n200:#E7E5E2; --n300:#D3D0CB;
+    --n400:#A6A29C; --n500:#78746D; --n600:#57534D; --n700:#403D39; --n800:#2B2926; --n900:#1C1A15;
+    --radius:8px;
+    font-family:"Be Vietnam Pro","Segoe UI",Arial,sans-serif;
+  }
+  * { box-sizing:border-box; }
+  html, body { width:100%; height:100%; margin:0; overflow:hidden; background:var(--n50); color:var(--n900); }
+  body { min-width:1100px; font-size:13px; line-height:1.35; }
+  button { font:inherit; cursor:pointer; }
+  .app { height:100vh; display:grid; grid-template-columns:218px minmax(0,1fr); }
+  .sidebar { background:#fff; border-right:1px solid var(--n200); padding:14px 10px; }
+  .brand { display:flex; align-items:center; gap:10px; padding:4px 8px 14px; border-bottom:1px solid var(--n200); margin-bottom:10px; }
+  .logo { width:34px; height:34px; display:grid; place-items:center; border-radius:8px; background:var(--primary-500); color:#fff; font-weight:800; }
+  .brand strong { display:block; font-size:14px; }
+  .brand span { display:block; font-size:11px; color:var(--n500); }
+  .nav { display:grid; gap:3px; }
+  .nav a { min-height:38px; display:flex; align-items:center; gap:9px; border-radius:8px; padding:0 10px; text-decoration:none; color:var(--n600); }
+  .nav a.active { background:var(--primary-500); color:#fff; font-weight:700; }
+  .nav i { width:6px; height:6px; border-radius:99px; background:currentColor; opacity:.55; }
+
+  .main { min-width:0; height:100vh; display:grid; grid-template-rows:56px minmax(0,1fr); }
+  .topbar { display:flex; align-items:center; justify-content:space-between; padding:0 22px; background:#fff; border-bottom:1px solid var(--n200); }
+  .crumb { color:var(--n500); }
+  .crumb b { color:var(--n900); }
+  .demo-chip { border-radius:999px; background:var(--warning-50); color:var(--warning-700); padding:5px 10px; font-size:11px; font-weight:800; }
+  .page { min-height:0; padding:16px 20px 18px; display:grid; grid-template-rows:auto auto minmax(0,1fr); gap:12px; }
+  .page-head { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; }
+  h1 { margin:0; font-size:23px; line-height:1.1; }
+  .sub { margin:4px 0 0; color:var(--n500); max-width:76ch; }
+  .btn { min-height:40px; border:1px solid var(--n300); background:#fff; border-radius:8px; padding:0 12px; font-weight:700; color:var(--n700); }
+  .btn.primary { border-color:transparent; background:var(--primary-500); color:#fff; }
+  .toolbar { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:12px; }
+  .left-tools { display:flex; align-items:center; gap:8px; min-width:0; }
+  .period { min-width:150px; font-weight:800; color:var(--n900); }
+  .icon-btn { width:36px; height:36px; border:1px solid var(--n300); background:#fff; border-radius:8px; font-size:18px; line-height:1; }
+  .segmented { display:grid; grid-auto-flow:column; gap:3px; padding:3px; border:1px solid var(--n300); background:var(--n100); border-radius:8px; }
+  .segmented button { min-height:32px; border:0; border-radius:6px; background:transparent; padding:0 12px; font-weight:800; color:var(--n600); }
+  .segmented button.active { background:var(--primary-500); color:#fff; box-shadow:0 5px 14px rgb(51 102 240 / 20%); }
+  .kpis { display:grid; grid-template-columns:repeat(3, minmax(150px,1fr)); gap:8px; }
+  .kpi { background:#fff; border:1px solid var(--n200); border-radius:8px; padding:9px 11px; display:grid; grid-template-columns:30px minmax(0,1fr); align-items:center; gap:9px; }
+  .kpi-icon { width:30px; height:30px; display:grid; place-items:center; border-radius:7px; background:var(--primary-50); color:var(--primary-700); font-weight:900; }
+  .kpi strong { display:block; font-size:18px; line-height:1; }
+  .kpi span { display:block; margin-top:2px; color:var(--n500); font-size:11px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+  .board { min-height:0; display:grid; grid-template-rows:auto minmax(0,1fr); background:#fff; border:1px solid var(--n200); border-radius:10px; overflow:hidden; }
+  .board-head { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); border-bottom:1px solid var(--n200); background:var(--n50); }
+  .day-head { padding:9px 10px; border-right:1px solid var(--n200); min-width:0; }
+  .day-head:last-child { border-right:0; }
+  .dow { color:var(--n500); font-size:10px; font-weight:900; text-transform:uppercase; }
+  .date { margin-top:1px; font-size:15px; font-weight:900; }
+  .day-head.today { background:var(--primary-50); }
+  .day-head.today .date { color:var(--primary-700); }
+  .week { min-height:0; display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); }
+  .day { min-height:0; border-right:1px solid var(--n200); display:grid; grid-template-rows:0.9fr 1.1fr 1.15fr; background:#fff; }
+  .day:last-child { border-right:0; }
+  .day.today { background:linear-gradient(180deg, rgb(239 244 255 / .72), #fff 42%); }
+  .band { min-height:0; padding:7px 7px 6px; border-bottom:1px dashed var(--n200); display:flex; flex-direction:column; gap:5px; }
+  .band:last-child { border-bottom:0; }
+  .band-title { display:flex; align-items:center; justify-content:space-between; gap:4px; color:var(--n500); font-size:10px; font-weight:900; text-transform:uppercase; }
+  .band-title em { font-style:normal; color:var(--n400); font-weight:800; }
+  .cards { min-height:0; display:grid; gap:5px; align-content:start; }
+  .cards.two { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .class-card { border:1px solid var(--n200); border-left:4px solid var(--info-500); border-radius:8px; background:#fff; padding:6px 7px; min-height:74px; overflow:hidden; box-shadow:0 1px 2px rgb(28 26 21 / 5%); }
+  .class-card.warning { border-left-color:var(--warning-500); background:var(--warning-50); }
+  .class-card.success { border-left-color:var(--success-500); background:var(--success-50); }
+  .class-card.danger { border-left-color:var(--danger-500); background:var(--danger-50); }
+  .line1 { display:flex; align-items:center; gap:5px; min-width:0; }
+  .name { min-width:0; flex:1; font-weight:900; color:var(--n900); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .status { flex:none; border-radius:999px; padding:1px 6px; font-size:9px; font-weight:900; color:#fff; background:var(--info-700); }
+  .status.warn { background:var(--warning-700); }
+  .status.done { background:var(--success-700); }
+  .status.cancel { background:var(--danger-700); }
+  .meta { margin-top:3px; color:var(--n600); font-size:10.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .time { margin-top:4px; display:flex; align-items:center; gap:5px; font-size:11px; font-weight:900; color:var(--n900); }
+  .pill { border-radius:5px; background:var(--n100); padding:1px 5px; color:var(--n700); }
+  .room { margin-top:3px; color:var(--n500); font-size:10.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .empty { min-height:52px; display:grid; place-items:center; border:1px dashed var(--n200); border-radius:8px; color:var(--n400); font-size:11px; font-weight:800; }
+
+  .note { position:absolute; right:20px; bottom:14px; background:var(--n900); color:#fff; border-radius:8px; padding:8px 10px; font-size:11px; font-weight:700; box-shadow:0 12px 28px rgb(28 26 21 / 22%); }
+  @media (max-height:760px) {
+    .page { padding-top:12px; gap:9px; }
+    .sub { display:none; }
+    .kpi { padding:7px 9px; }
+    .class-card { min-height:64px; padding:5px 6px; }
+    .meta, .room { font-size:10px; }
+    .time { font-size:10.5px; }
+    .band { padding:5px 6px; gap:4px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">E</div>
+      <div><strong>Edumatrix-vn</strong><span>Quan ly lop hoc</span></div>
+    </div>
+    <nav class="nav">
+      <a href="#"><i></i>Tong quan</a>
+      <a href="#"><i></i>Mon hoc & khoa hoc</a>
+      <a href="#"><i></i>Hoc sinh</a>
+      <a href="#"><i></i>Lop hoc</a>
+      <a class="active" href="#"><i></i>Lich hoc</a>
+      <a href="#"><i></i>Giao an</a>
+      <a href="#"><i></i>Diem danh</a>
+      <a href="#"><i></i>Hoc phi</a>
+    </nav>
+  </aside>
+  <main class="main">
+    <div class="topbar">
+      <div class="crumb">Lich hoc / <b>Nhánh 1 - Timetable Fit week</b></div>
+      <div class="demo-chip">Demo tinh - khong scroll-down noi bo</div>
+    </div>
+    <section class="page">
+      <div class="page-head">
+        <div>
+          <h1>Timetable Fit week</h1>
+          <p class="sub">Bien the toi uu de hien du thong tin lop hoc trong mot man hinh: lop, mon/khoa, gio, giao vien, phong, si so va trang thai.</p>
+        </div>
+        <button class="btn primary">+ Tao buoi hoc</button>
+      </div>
+      <div class="toolbar">
+        <div class="left-tools">
+          <button class="icon-btn" aria-label="Tuan truoc">‹</button>
+          <button class="icon-btn" aria-label="Tuan sau">›</button>
+          <div class="period">13 - 19/07/2026</div>
+          <button class="btn">Hom nay</button>
+        </div>
+        <div class="segmented" aria-label="Che do xem">
+          <button class="active">Fit week</button>
+          <button>Time-grid</button>
+          <button>Thang</button>
+        </div>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><div class="kpi-icon">3</div><div><strong>3</strong><span>Lop hom nay - Thu 4, 15/07</span></div></div>
+        <div class="kpi"><div class="kpi-icon">✓</div><div><strong>5</strong><span>Lop dang hoat dong</span></div></div>
+        <div class="kpi"><div class="kpi-icon">★</div><div><strong>1</strong><span>Lop moi sap toi trong 30 ngay</span></div></div>
+      </div>
+      <section class="board" aria-label="Timetable Fit week">
+        <div class="board-head">
+          <div class="day-head"><div class="dow">Thu 2</div><div class="date">13/07</div></div>
+          <div class="day-head"><div class="dow">Thu 3</div><div class="date">14/07</div></div>
+          <div class="day-head today"><div class="dow">Thu 4</div><div class="date">15/07</div></div>
+          <div class="day-head"><div class="dow">Thu 5</div><div class="date">16/07</div></div>
+          <div class="day-head"><div class="dow">Thu 6</div><div class="date">17/07</div></div>
+          <div class="day-head"><div class="dow">Thu 7</div><div class="date">18/07</div></div>
+          <div class="day-head"><div class="dow">CN</div><div class="date">19/07</div></div>
+        </div>
+        <div class="week">
+          <div class="day">
+            <div class="band"><div class="band-title">Sang <em>06-12</em></div><div class="empty">Trong</div></div>
+            <div class="band"><div class="band-title">Chieu <em>12-18</em></div><div class="empty">Trong</div></div>
+            <div class="band"><div class="band-title">Toi <em>18-23</em></div><div class="cards">
+              <article class="class-card success"><div class="line1"><div class="name">HN53 Essentials</div><span class="status done">Da hoc</span></div><div class="meta">Tieng Anh giao tiep</div><div class="time"><span class="pill">18:00-19:30</span> Co Lan</div><div class="room">Phong 305 · 18 hoc sinh</div></article>
+              <article class="class-card success"><div class="line1"><div class="name">Van on thi 10 - A</div><span class="status done">Da hoc</span></div><div class="meta">Ngu van on thi vao 10</div><div class="time"><span class="pill">19:30-21:00</span> Thay Long</div><div class="room">Phong 102 · 21 hoc sinh</div></article>
+            </div></div>
+          </div>
+          <div class="day">
+            <div class="band"><div class="band-title">Sang <em>06-12</em></div><div class="empty">Trong</div></div>
+            <div class="band"><div class="band-title">Chieu <em>12-18</em></div><div class="cards">
+              <article class="class-card success"><div class="line1"><div class="name">Toan tu duy K1</div><span class="status done">Da hoc</span></div><div class="meta">Toan tu duy tieu hoc</div><div class="time"><span class="pill">17:00-18:30</span> Co Hoa</div><div class="room">Phong 201 · 16 hoc sinh</div></article>
+            </div></div>
+            <div class="band"><div class="band-title">Toi <em>18-23</em></div><div class="empty">Trong</div></div>
+          </div>
+          <div class="day today">
+            <div class="band"><div class="band-title">Sang <em>06-12</em></div><div class="cards">
+              <article class="class-card danger"><div class="line1"><div class="name">Buoi cu bi huy</div><span class="status cancel">Huy</span></div><div class="meta">Tieng Anh · bao nghi</div><div class="time"><span class="pill">09:00-10:00</span> Co Lan</div><div class="room">Phong 108 · da tao buoi bu</div></article>
+            </div></div>
+            <div class="band"><div class="band-title">Chieu <em>12-18</em></div><div class="empty">Trong</div></div>
+            <div class="band"><div class="band-title">Toi <em>18-23</em></div><div class="cards two">
+              <article class="class-card"><div class="line1"><div class="name">HN53 Essentials</div><span class="status">Len lich</span></div><div class="meta">Tieng Anh giao tiep</div><div class="time"><span class="pill">18:00-19:30</span> Co Lan</div><div class="room">Phong 305 · 18 hoc sinh</div></article>
+              <article class="class-card warning"><div class="line1"><div class="name">Toan K1 hoc bu</div><span class="status warn">Hoc bu</span></div><div class="meta">Toan tu duy tieu hoc</div><div class="time"><span class="pill">18:30-19:30</span> Co Hoa</div><div class="room">Phong 201 · 16 hoc sinh</div></article>
+              <article class="class-card"><div class="line1"><div class="name">Van on thi 10 - A</div><span class="status">Len lich</span></div><div class="meta">Ngu van on thi vao 10</div><div class="time"><span class="pill">19:30-21:00</span> Thay Long</div><div class="room">Phong 102 · 21 hoc sinh</div></article>
+            </div></div>
+          </div>
+          <div class="day">
+            <div class="band"><div class="band-title">Sang <em>06-12</em></div><div class="empty">Trong</div></div>
+            <div class="band"><div class="band-title">Chieu <em>12-18</em></div><div class="cards">
+              <article class="class-card"><div class="line1"><div class="name">Toan tu duy K1</div><span class="status">Len lich</span></div><div class="meta">Toan tu duy tieu hoc</div><div class="time"><span class="pill">17:00-18:30</span> Co Hoa</div><div class="room">Phong 201 · 16 hoc sinh</div></article>
+            </div></div>
+            <div class="band"><div class="band-title">Toi <em>18-23</em></div><div class="empty">Trong</div></div>
+          </div>
+          <div class="day">
+            <div class="band"><div class="band-title">Sang <em>06-12</em></div><div class="empty">Trong</div></div>
+            <div class="band"><div class="band-title">Chieu <em>12-18</em></div><div class="empty">Trong</div></div>
+            <div class="band"><div class="band-title">Toi <em>18-23</em></div><div class="cards">
+              <article class="class-card"><div class="line1"><div class="name">HN53 Essentials</div><span class="status">Len lich</span></div><div class="meta">Tieng Anh giao tiep</div><div class="time"><span class="pill">18:00-19:30</span> Co Lan</div><div class="room">Phong 305 · 18 hoc sinh</div></article>
+              <article class="class-card"><div class="line1"><div class="name">Tin hoc VP toi</div><span class="status">Moi</span></div><div class="meta">Tin hoc van phong</div><div class="time"><span class="pill">20:00-21:30</span> Co Mai</div><div class="room">Phong 104 · 12 hoc sinh</div></article>
+            </div></div>
+          </div>
+          <div class="day">
+            <div class="band"><div class="band-title">Sang <em>06-12</em></div><div class="cards">
+              <article class="class-card"><div class="line1"><div class="name">IELTS Sang T7</div><span class="status">Len lich</span></div><div class="meta">IELTS Foundation</div><div class="time"><span class="pill">08:00-10:00</span> Thay Minh</div><div class="room">Phong 301 · 14 hoc sinh</div></article>
+            </div></div>
+            <div class="band"><div class="band-title">Chieu <em>12-18</em></div><div class="empty">Trong</div></div>
+            <div class="band"><div class="band-title">Toi <em>18-23</em></div><div class="empty">Trong</div></div>
+          </div>
+          <div class="day">
+            <div class="band"><div class="band-title">Sang <em>06-12</em></div><div class="empty">Trong</div></div>
+            <div class="band"><div class="band-title">Chieu <em>12-18</em></div><div class="empty">Trong</div></div>
+            <div class="band"><div class="band-title">Toi <em>18-23</em></div><div class="empty">Trong</div></div>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+</div>
+<div class="note">Nguyen tac: Fit week la mode xem nhanh khong scroll. Time-grid chinh xac van giu lai khi can canh theo phut.</div>
+</body>
+</html>

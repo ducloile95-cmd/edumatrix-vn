@@ -7,7 +7,7 @@ import path from "node:path";
 let env: RulesTestEnvironment;
 const session = { classId: "class-1", title: "Buoi 1", startAt: Timestamp.now(), endAt: Timestamp.now(), location: "P1", status: "scheduled", note: "", makeUpForSessionId: null, createdAt: Timestamp.now(), updatedAt: Timestamp.now() };
 
-beforeAll(async () => { env = await initializeTestEnvironment({ projectId: "phase4-rules", firestore: { rules: fs.readFileSync(path.resolve(__dirname, "../firestore.rules"), "utf8"), host: "localhost", port: 8090 } }); });
+beforeAll(async () => { env = await initializeTestEnvironment({ projectId: "phase4-rules", firestore: { rules: fs.readFileSync(path.resolve(__dirname, "../firestore.rules"), "utf8"), host: "localhost", port: Number(process.env.FIRESTORE_EMULATOR_PORT ?? 8090) } }); });
 afterAll(async () => env.cleanup());
 beforeEach(async () => {
   await env.clearFirestore();

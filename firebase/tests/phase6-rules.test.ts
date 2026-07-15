@@ -6,7 +6,7 @@ import path from "node:path";
 
 let env: RulesTestEnvironment;
 const attendance = { sessionId: "session-1", classId: "class-1", studentId: "student-1", status: "present", note: "", markedBy: "admin", markedAt: Timestamp.now(), updatedAt: Timestamp.now() };
-beforeAll(async () => { env = await initializeTestEnvironment({ projectId: "phase6-rules", firestore: { rules: fs.readFileSync(path.resolve(__dirname, "../firestore.rules"), "utf8"), host: "localhost", port: 8090 } }); });
+beforeAll(async () => { env = await initializeTestEnvironment({ projectId: "phase6-rules", firestore: { rules: fs.readFileSync(path.resolve(__dirname, "../firestore.rules"), "utf8"), host: "localhost", port: Number(process.env.FIRESTORE_EMULATOR_PORT ?? 8090) } }); });
 afterAll(async () => env.cleanup());
 beforeEach(async () => { await env.clearFirestore(); await env.withSecurityRulesDisabled(async (ctx) => { const db = ctx.firestore(); await setDoc(doc(db, "users", "admin"), { role: "admin", status: "active", studentIds: [] }); await setDoc(doc(db, "users", "viewer"), { role: "viewer", status: "active", studentIds: ["student-1"] }); await setDoc(doc(db, "users", "other"), { role: "viewer", status: "active", studentIds: ["student-2"] }); await setDoc(doc(db, "classes", "class-1"), { studentIds: ["student-1"] }); await setDoc(doc(db, "attendance", "session-1_student-1"), attendance); await setDoc(doc(db, "attendance_summaries", "session-1"), { sessionId: "session-1", classId: "class-1", total: 1, present: 1, absent: 0, late: 0, excused: 0, updatedAt: Timestamp.now() }); }); });
 

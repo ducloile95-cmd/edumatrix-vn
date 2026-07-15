@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EduMatrix VN - Spark Client Roadmap</title>
+<script>
+  (() => {
+    const saved = localStorage.getItem("edumatrix-spark-roadmap-theme");
+    const dark = saved ? saved === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    document.documentElement.classList.toggle("dark", dark);
+  })();
+</script>
+<style>
+  :root {
+    --bg: #f7f8fb;
+    --surface: #ffffff;
+    --surface-2: #eef2f7;
+    --surface-3: #f8fafc;
+    --ink: #172033;
+    --body: #4a5568;
+    --muted: #7a8496;
+    --line: #ccd6e5;
+    --line-soft: #e5ebf3;
+    --blue: #3366f0;
+    --blue-soft: #eaf0ff;
+    --green: #16a34a;
+    --green-soft: #eaf8ef;
+    --orange: #e07b2d;
+    --orange-soft: #fff0e3;
+    --red: #dc4437;
+    --red-soft: #feeceb;
+    --purple: #7758d7;
+    --purple-soft: #f0edff;
+    --shadow: 0 18px 48px rgba(22, 34, 66, .14);
+    --sans: "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif;
+    --mono: "Cascadia Code", Consolas, ui-monospace, monospace;
+  }
+  html.dark {
+    --bg: #0d1321;
+    --surface: #151e2e;
+    --surface-2: #1e2a40;
+    --surface-3: #101828;
+    --ink: #f3f7ff;
+    --body: #c3cada;
+    --muted: #8d99ad;
+    --line: #34425c;
+    --line-soft: #26344d;
+    --blue: #7fa1ff;
+    --blue-soft: #1b2d61;
+    --green: #5bd17f;
+    --green-soft: #173b29;
+    --orange: #f2a062;
+    --orange-soft: #432b1b;
+    --red: #ff766e;
+    --red-soft: #44201f;
+    --purple: #a792f3;
+    --purple-soft: #302650;
+    --shadow: 0 20px 54px rgba(0, 0, 0, .38);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--body);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font: inherit; }
+  .bar {
+    height: 72px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 18px;
+    border-bottom: 1px solid var(--line-soft);
+    background: color-mix(in srgb, var(--bg) 92%, transparent);
+    position: relative;
+    z-index: 8;
+  }
+  .brand h1 {
+    margin: 0;
+    color: var(--ink);
+    font-size: 18px;
+    line-height: 1.2;
+    letter-spacing: -.01em;
+  }
+  .brand p {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font: 10px var(--mono);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+  .spacer { flex: 1; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .chip, .tool {
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--body);
+    border-radius: 999px;
+    padding: 7px 11px;
+    cursor: pointer;
+    font: 11px var(--mono);
+    transition: background .16s ease, border-color .16s ease, color .16s ease, transform .16s ease;
+  }
+  .chip:hover, .tool:hover { border-color: var(--blue); color: var(--blue); }
+  .chip.on { background: var(--blue); border-color: var(--blue); color: var(--surface); }
+  .tool { border-radius: 9px; padding: 7px 10px; }
+  .stage { position: relative; height: calc(100% - 72px); overflow: hidden; }
+  .stage svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    cursor: grab;
+    touch-action: none;
+  }
+  .stage svg.dragging { cursor: grabbing; }
+  .zone rect {
+    fill: color-mix(in srgb, var(--surface) 42%, transparent);
+    stroke: var(--line);
+    stroke-width: 1.2;
+    stroke-dasharray: 8 7;
+  }
+  .ztitle {
+    fill: var(--ink);
+    font: 700 13px var(--sans);
+    letter-spacing: .06em;
+  }
+  .zsub { fill: var(--muted); font: 11px var(--mono); }
+  .node { cursor: pointer; transition: opacity .2s ease; }
+  .node rect {
+    fill: var(--surface);
+    stroke: var(--line);
+    stroke-width: 1.5;
+    filter: drop-shadow(0 8px 14px color-mix(in srgb, var(--ink) 9%, transparent));
+    transition: stroke .18s ease, stroke-width .18s ease, fill .18s ease;
+  }
+  .node:hover rect, .node.sel rect { stroke: var(--blue); stroke-width: 2.4; }
+  .node.core rect { fill: var(--blue-soft); stroke: var(--blue); }
+  .node.sec rect { fill: var(--green-soft); stroke: var(--green); }
+  .node.ext rect { fill: var(--orange-soft); stroke: var(--orange); stroke-dasharray: 6 4; }
+  .node.gate rect { fill: var(--purple-soft); stroke: var(--purple); }
+  .node.risk rect { fill: var(--red-soft); stroke: var(--red); }
+  .nt {
+    fill: var(--ink);
+    font: 700 14px var(--sans);
+    pointer-events: none;
+  }
+  .nm {
+    fill: var(--muted);
+    font: 10.5px var(--mono);
+    pointer-events: none;
+  }
+  .status {
+    fill: var(--surface);
+    font: 700 9.5px var(--mono);
+    letter-spacing: .04em;
+    pointer-events: none;
+  }
+  .pill-done { fill: var(--green); }
+  .pill-now { fill: var(--blue); }
+  .pill-risk { fill: var(--red); }
+  .pill-next { fill: var(--orange); }
+  .pill-wait { fill: var(--muted); }
+  .edge {
+    fill: none;
+    stroke: var(--muted);
+    stroke-width: 1.8;
+    marker-end: url(#arrow);
+    transition: opacity .2s ease, stroke .2s ease;
+  }
+  .edge.dash { stroke-dasharray: 7 6; }
+  .elbl {
+    fill: var(--muted);
+    font: 10.5px var(--mono);
+    transition: opacity .2s ease, fill .2s ease;
+  }
+  .stage.flowing .edge, .stage.flowing .node, .stage.flowing .elbl { opacity: .14; }
+  .stage.flowing .zone { opacity: .38; }
+  .stage.flowing .edge.lit {
+    opacity: 1;
+    stroke: var(--blue);
+    marker-end: url(#arrow-lit);
+    stroke-dasharray: 9 6;
+    animation: march .85s linear infinite;
+  }
+  .stage.flowing .node.lit, .stage.flowing .elbl.lit { opacity: 1; }
+  .stage.flowing .node.lit rect { stroke: var(--blue); stroke-width: 2.6; }
+  @keyframes march { to { stroke-dashoffset: -15; } }
+  @media (prefers-reduced-motion: reduce) { .stage.flowing .edge.lit { animation: none; } }
+  .card {
+    position: absolute;
+    z-index: 6;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    padding: 15px;
+  }
+  .card h2 { margin: 0 34px 6px 0; color: var(--ink); font-size: 16px; }
+  .card p { margin: 0; font-size: 12px; line-height: 1.55; }
+  .meta {
+    margin-bottom: 9px;
+    color: var(--blue);
+    font: 10px var(--mono);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+  .close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--surface-2);
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .close:hover { color: var(--ink); }
+  #detail { right: 16px; bottom: 16px; width: min(380px, calc(100% - 32px)); }
+  #progress { left: 16px; bottom: 16px; width: min(430px, calc(100% - 32px)); }
+  #progress.hidden, #detail.hidden { display: none; }
+  .progress-row {
+    display: grid;
+    grid-template-columns: 72px 1fr 42px;
+    gap: 10px;
+    align-items: center;
+    margin: 9px 0;
+  }
+  .phase-code {
+    color: var(--ink);
+    font: 700 11px var(--mono);
+  }
+  .barline {
+    height: 8px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    overflow: hidden;
+  }
+  .barfill {
+    height: 100%;
+    border-radius: inherit;
+    background: var(--blue);
+    width: var(--pct);
+  }
+  .pct { color: var(--muted); font: 10px var(--mono); text-align: right; }
+  .zoom {
+    position: absolute;
+    left: 16px;
+    top: 14px;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+  }
+  #zoomLevel {
+    min-width: 44px;
+    text-align: center;
+    color: var(--muted);
+    font: 10px var(--mono);
+  }
+  .legend {
+    position: absolute;
+    right: 16px;
+    top: 16px;
+    z-index: 4;
+    color: var(--muted);
+    font: 10px var(--mono);
+    pointer-events: none;
+  }
+  .reopen {
+    position: absolute;
+    left: 16px;
+    top: 68px;
+    z-index: 5;
+    display: flex;
+    gap: 6px;
+  }
+  @media (max-width: 1080px) {
+    .bar { height: auto; min-height: 72px; align-items: flex-start; }
+    .brand p { display: none; }
+    .chips { max-width: 68%; }
+    .stage { height: calc(100% - 72px); }
+  }
+  @media (max-width: 760px) {
+    .bar { display: block; }
+    .chips { margin-top: 10px; max-width: none; justify-content: flex-start; }
+    .spacer { display: none; }
+    .legend { display: none; }
+    #progress { top: 124px; bottom: auto; }
+  }
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="brand">
+    <h1>EduMatrix VN - Roadmap Spark/client-side + Messenger ngoài</h1>
+    <p>Firebase Spark core · Cloudflare Worker optional · no secret in browser</p>
+  </div>
+  <div class="spacer"></div>
+  <nav class="chips" aria-label="Luồng kiểm tra">
+    <button class="chip on" data-flow="all">Toàn cảnh</button>
+    <button class="chip" data-flow="core">Core Spark</button>
+    <button class="chip" data-flow="gate">Production gate</button>
+    <button class="chip" data-flow="messenger">Messenger ngoài</button>
+    <button class="chip" data-flow="fallback">Fallback thủ công</button>
+    <button class="chip" data-flow="release">Release</button>
+  </nav>
+  <button class="tool" id="themeToggle" type="button">Theme</button>
+</header>
+
+<main class="stage" id="stage">
+  <div class="zoom">
+    <button class="tool" id="zoomOut" type="button">-</button>
+    <span id="zoomLevel">100%</span>
+    <button class="tool" id="zoomIn" type="button">+</button>
+    <button class="tool" id="resetView" type="button">Reset</button>
+  </div>
+  <div class="reopen">
+    <button class="tool" id="showProgress" type="button">Progress</button>
+    <button class="tool" id="showDetail" type="button">Detail</button>
+  </div>
+  <div class="legend">Kéo để pan · lăn chuột để zoom · bấm node để xem trạng thái</div>
+
+  <svg id="diagram" viewBox="0 0 1780 1020" role="img" aria-label="Roadmap động Spark client-side và Messenger ngoài">
+    <defs>
+      <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0 0L10 5L0 10Z" style="fill:var(--muted)"></path>
+      </marker>
+      <marker id="arrow-lit" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0 0L10 5L0 10Z" style="fill:var(--blue)"></path>
+      </marker>
+    </defs>
+
+    <g id="svg-content">
+      <g class="zone"><rect x="45" y="80" width="360" height="820" rx="18"></rect><text class="ztitle" x="70" y="114">01 · Core Spark</text><text class="zsub" x="70" y="134">Client-side production surface</text></g>
+      <g class="zone"><rect x="450" y="80" width="390" height="820" rx="18"></rect><text class="ztitle" x="475" y="114">02 · Gates</text><text class="zsub" x="475" y="134">Quality, security, quota</text></g>
+      <g class="zone"><rect x="885" y="80" width="390" height="820" rx="18"></rect><text class="ztitle" x="910" y="114">03 · Messenger outside</text><text class="zsub" x="910" y="134">External Worker integration</text></g>
+      <g class="zone"><rect x="1320" y="80" width="410" height="820" rx="18"></rect><text class="ztitle" x="1345" y="114">04 · Release control</text><text class="zsub" x="1345" y="134">Go / No-Go and fallback</text></g>
+
+      <path class="edge" id="e-core-1" d="M350 210H505"></path>
+      <path class="edge" id="e-core-2" d="M350 340H505"></path>
+      <path class="edge" id="e-core-3" d="M350 470H505"></path>
+      <path class="edge" id="e-gate-1" d="M770 210H940"></path>
+      <path class="edge" id="e-gate-2" d="M770 340H940"></path>
+      <path class="edge" id="e-gate-3" d="M770 470H940"></path>
+      <path class="edge dash" id="e-msg-1" d="M1175 210H1385"></path>
+      <path class="edge dash" id="e-msg-2" d="M1175 340H1385"></path>
+      <path class="edge dash" id="e-msg-3" d="M1175 470H1385"></path>
+      <path class="edge" id="e-release-1" d="M715 660C900 760 1180 760 1385 660"></path>
+      <path class="edge dash" id="e-fallback-1" d="M1175 610C1260 610 1300 610 1385 610"></path>
+      <path class="edge dash" id="e-fallback-2" d="M1535 610C1595 610 1610 710 1525 760C1280 895 680 865 230 735"></path>
+
+      <text class="elbl" data-e="e-core-1" x="386" y="198">auth + app check</text>
+      <text class="elbl" data-e="e-core-2" x="394" y="328">rules tests</text>
+      <text class="elbl" data-e="e-gate-1" x="800" y="198">pass before release</text>
+      <text class="elbl" data-e="e-msg-1" x="1210" y="198">ID token only</text>
+      <text class="elbl" data-e="e-fallback-1" x="1215" y="598">no API mode</text>
+      <text class="elbl" data-e="e-release-1" x="982" y="738">go/no-go loop</text>
+
+      <g class="node core" data-k="spark"><rect x="90" y="165" width="260" height="92" rx="14"></rect><text class="nt" x="112" y="196">Firebase Spark core</text><text class="nm" x="112" y="218">Hosting · Auth · Firestore</text><text class="nm" x="112" y="236">App Check · Security Rules</text><rect class="pill-done" x="260" y="178" width="66" height="19" rx="9"></rect><text class="status" x="293" y="191" text-anchor="middle">KEEP</text></g>
+      <g class="node sec" data-k="rules"><rect x="90" y="295" width="260" height="92" rx="14"></rect><text class="nt" x="112" y="326">Rules-first security</text><text class="nm" x="112" y="348">deny-by-default</text><text class="nm" x="112" y="366">role + ownership checks</text><rect class="pill-now" x="260" y="308" width="66" height="19" rx="9"></rect><text class="status" x="293" y="321" text-anchor="middle">VERIFY</text></g>
+      <g class="node core" data-k="quota"><rect x="90" y="425" width="260" height="92" rx="14"></rect><text class="nt" x="112" y="456">Spark quota discipline</text><text class="nm" x="112" y="478">limit · pagination · cache</text><text class="nm" x="112" y="496">no broad realtime listener</text><rect class="pill-done" x="260" y="438" width="66" height="19" rx="9"></rect><text class="status" x="293" y="451" text-anchor="middle">DONE</text></g>
+      <g class="node gate" data-k="ui"><rect x="90" y="685" width="260" height="92" rx="14"></rect><text class="nt" x="112" y="716">Frontend design gate</text><text class="nm" x="112" y="738">one h1 · 220ms motion</text><text class="nm" x="112" y="756">mobile + keyboard QA</text><rect class="pill-done" x="260" y="698" width="66" height="19" rx="9"></rect><text class="status" x="293" y="711" text-anchor="middle">DONE</text></g>
+
+      <g class="node gate" data-k="quality"><rect x="505" y="165" width="265" height="92" rx="14"></rect><text class="nt" x="527" y="196">Code quality gate</text><text class="nm" x="527" y="218">lint · typecheck · unit tests</text><text class="nm" x="527" y="236">production build</text><rect class="pill-done" x="672" y="178" width="70" height="19" rx="9"></rect><text class="status" x="707" y="191" text-anchor="middle">PASS</text></g>
+      <g class="node sec" data-k="rulesTest"><rect x="505" y="295" width="265" height="92" rx="14"></rect><text class="nt" x="527" y="326">Firestore rules tests</text><text class="nm" x="527" y="348">emulator must pass</text><text class="nm" x="527" y="366">viewer/teacher/admin matrix</text><rect class="pill-done" x="672" y="308" width="70" height="19" rx="9"></rect><text class="status" x="707" y="321" text-anchor="middle">PASS</text></g>
+      <g class="node gate" data-k="env"><rect x="505" y="425" width="265" height="92" rx="14"></rect><text class="nt" x="527" y="456">Production env gate</text><text class="nm" x="527" y="478">App Check site key</text><text class="nm" x="527" y="496">no committed secrets</text><rect class="pill-next" x="672" y="438" width="70" height="19" rx="9"></rect><text class="status" x="707" y="451" text-anchor="middle">NEXT</text></g>
+      <g class="node sec" data-k="fallbackCore"><rect x="505" y="620" width="265" height="92" rx="14"></rect><text class="nt" x="527" y="651">Core independent</text><text class="nm" x="527" y="673">app works without Worker</text><text class="nm" x="527" y="691">announcements are primary</text><rect class="pill-now" x="672" y="633" width="70" height="19" rx="9"></rect><text class="status" x="707" y="646" text-anchor="middle">MUST</text></g>
+
+      <g class="node ext" data-k="worker"><rect x="940" y="165" width="235" height="92" rx="14"></rect><text class="nt" x="962" y="196">Cloudflare Worker</text><text class="nm" x="962" y="218">external integration</text><text class="nm" x="962" y="236">Meta token in secret</text><rect class="pill-now" x="1072" y="178" width="76" height="19" rx="9"></rect><text class="status" x="1110" y="191" text-anchor="middle">READY</text></g>
+      <g class="node ext" data-k="meta"><rect x="940" y="295" width="235" height="92" rx="14"></rect><text class="nt" x="962" y="326">Meta setup</text><text class="nm" x="962" y="348">tag payload ready</text><text class="nm" x="962" y="366">Live/App Review wait</text><rect class="pill-next" x="1072" y="308" width="76" height="19" rx="9"></rect><text class="status" x="1110" y="321" text-anchor="middle">PREP</text></g>
+      <g class="node ext" data-k="messageLog"><rect x="940" y="425" width="235" height="92" rx="14"></rect><text class="nt" x="962" y="456">message_outbox</text><text class="nm" x="962" y="478">sent · failed · tag</text><text class="nm" x="962" y="496">no secret in log</text><rect class="pill-now" x="1072" y="438" width="76" height="19" rx="9"></rect><text class="status" x="1110" y="451" text-anchor="middle">READY</text></g>
+      <g class="node ext" data-k="manual"><rect x="940" y="565" width="235" height="92" rx="14"></rect><text class="nt" x="962" y="596">Manual fallback</text><text class="nm" x="962" y="618">open m.me link</text><text class="nm" x="962" y="636">copy message template</text><rect class="pill-done" x="1072" y="578" width="76" height="19" rx="9"></rect><text class="status" x="1110" y="591" text-anchor="middle">SAFE</text></g>
+
+      <g class="node gate" data-k="featureFlag"><rect x="1385" y="165" width="260" height="92" rx="14"></rect><text class="nt" x="1407" y="196">Messenger UI status</text><text class="nm" x="1407" y="218">Worker · parent state</text><text class="nm" x="1407" y="236">RESPONSE · MESSAGE_TAG</text><rect class="pill-now" x="1547" y="178" width="72" height="19" rx="9"></rect><text class="status" x="1583" y="191" text-anchor="middle">READY</text></g>
+      <g class="node gate" data-k="origin"><rect x="1385" y="295" width="260" height="92" rx="14"></rect><text class="nt" x="1407" y="326">Worker production config</text><text class="nm" x="1407" y="348">--env production</text><text class="nm" x="1407" y="366">real ALLOWED_ORIGIN</text><rect class="pill-now" x="1547" y="308" width="72" height="19" rx="9"></rect><text class="status" x="1583" y="321" text-anchor="middle">READY</text></g>
+      <g class="node gate" data-k="smoke"><rect x="1385" y="425" width="260" height="92" rx="14"></rect><text class="nt" x="1407" y="456">Smoke test</text><text class="nm" x="1407" y="478">core without Worker</text><text class="nm" x="1407" y="496">one real Messenger send</text><rect class="pill-next" x="1547" y="438" width="72" height="19" rx="9"></rect><text class="status" x="1583" y="451" text-anchor="middle">NEXT</text></g>
+      <g class="node core" data-k="release"><rect x="1385" y="620" width="260" height="92" rx="14"></rect><text class="nt" x="1407" y="651">Release decision</text><text class="nm" x="1407" y="673">Spark core first</text><text class="nm" x="1407" y="691">Messenger optional after</text><rect class="pill-next" x="1547" y="633" width="72" height="19" rx="9"></rect><text class="status" x="1583" y="646" text-anchor="middle">GO</text></g>
+      <g class="node risk" data-k="rollback"><rect x="1385" y="750" width="260" height="92" rx="14"></rect><text class="nt" x="1407" y="781">Rollback/tắt Messenger</text><text class="nm" x="1407" y="803">unset Worker URL</text><text class="nm" x="1407" y="821">keep internal notifications</text><rect class="pill-done" x="1547" y="763" width="72" height="19" rx="9"></rect><text class="status" x="1583" y="776" text-anchor="middle">SAFE</text></g>
+    </g>
+  </svg>
+
+  <section class="card" id="progress">
+    <button class="close" type="button" aria-label="Đóng tiến trình">×</button>
+    <h2>Tiến trình kiểm tra trước triển khai</h2>
+    <div class="meta">verified state · updated 2026-07-15 11:49 ICT</div>
+    <div class="progress-row"><div class="phase-code">P0 Scope</div><div class="barline"><div class="barfill" style="--pct:100%"></div></div><div class="pct">100%</div></div>
+    <div class="progress-row"><div class="phase-code">P1 Gates</div><div class="barline"><div class="barfill" style="--pct:100%"></div></div><div class="pct">100%</div></div>
+    <div class="progress-row"><div class="phase-code">P2 Quota</div><div class="barline"><div class="barfill" style="--pct:100%"></div></div><div class="pct">100%</div></div>
+    <div class="progress-row"><div class="phase-code">P3 Worker</div><div class="barline"><div class="barfill" style="--pct:85%"></div></div><div class="pct">85%</div></div>
+    <div class="progress-row"><div class="phase-code">P4 Meta</div><div class="barline"><div class="barfill" style="--pct:45%"></div></div><div class="pct">45%</div></div>
+    <div class="progress-row"><div class="phase-code">P5 UI</div><div class="barline"><div class="barfill" style="--pct:70%"></div></div><div class="pct">70%</div></div>
+  </section>
+
+  <aside class="card" id="detail">
+    <button class="close" type="button" aria-label="Đóng chi tiết">×</button>
+    <h2 id="detailTitle">Roadmap động</h2>
+    <div class="meta" id="detailMeta">Click node hoặc chọn flow</div>
+    <p id="detailBody">Core app giữ Firebase Spark/client-side. Messenger là nhánh ngoài qua Worker, có fallback thủ công và không được làm core app phụ thuộc.</p>
+  </aside>
+</main>
+
+<script>
+const $ = (selector) => document.querySelector(selector);
+const $$ = (selector) => [...document.querySelectorAll(selector)];
+
+const DETAILS = {
+  spark: ["Firebase Spark core", "Core · giữ nguyên", "Chỉ dùng Hosting, Authentication, Firestore, App Check và Security Rules. Không thêm Cloud Functions hoặc backend Firebase trả phí vào luồng chính."],
+  rules: ["Rules-first security", "P1 · cần xác minh", "Route guard chỉ là UX. Firestore Rules phải chặn Viewer đọc chéo, Teacher sửa trường quản trị và mọi ghi trái scope."],
+  quota: ["Spark quota discipline", "Done · verified", "Auth/login không preload Firestore, dashboard preview dùng limit nhỏ hơn, full Firestore được giữ làm async chunk có ngân sách 650 kB để bảo toàn cache/offline và realtime profile."],
+  ui: ["Frontend design gate", "Done · verified", "PageHeader đã render h1 từ title. Cần tiếp tục kiểm tra trực quan mobile 375px, keyboard và reduced motion khi chạy QA giao diện."],
+  quality: ["Code quality gate", "Pass · verified", "Lint, typecheck, unit test và production build đã chạy sạch. Firestore là async chunk có ngân sách 650 kB, không nằm trong preload ban đầu."],
+  rulesTest: ["Firestore rules tests", "Pass · verified", "npm run test:rules đã chạy qua 11 files / 86 tests. Runner tự chọn port Firestore trống nếu 8090 đang bị chiếm."],
+  env: ["Production env gate", "P3 · next", "Production cần App Check site key, Firebase env public đúng project và không commit secret."],
+  fallbackCore: ["Core independent", "P0 · must", "Nếu không có Worker URL hoặc Worker lỗi, app vẫn dùng được quản lý lớp, học phí và announcements nội bộ."],
+  worker: ["Cloudflare Worker", "P3 · local-ready", "Worker tests pass 11/11, typecheck pass, production scripts đã dùng --env production. Còn cần phê duyệt Cloudflare dry-run/deploy vì thao tác này gửi bundle/config ra bên ngoài."],
+  meta: ["Meta setup", "Local-prep · external waiting", "Worker/client đã hỗ trợ tag để gửi MESSAGE_TAG. Còn cần Meta App Live, App Review, webhook production và gửi thử thật."],
+  messageLog: ["message_outbox", "Audit · ready", "Mỗi lần gửi log actor, loại tin, trạng thái, messageTag nếu có và lỗi rút gọn. Không log token hoặc dữ liệu bí mật."],
+  manual: ["Manual fallback", "Client-side safe", "Nếu muốn thuần client-side, chỉ mở link m.me hoặc copy template để Staff gửi thủ công. Không gọi Meta API từ browser."],
+  featureFlag: ["Messenger UI status", "P5 · local-ready", "StaffAnnouncementsPage đã hiển thị Worker missing/ready, học sinh đang tải/lỗi, chưa chọn học sinh, chưa gắn phụ huynh, RESPONSE/MESSAGE_TAG, đang gửi, lỗi và thành công."],
+  origin: ["Worker production config", "Ready · verified locally", "ALLOWED_ORIGIN production là https://edumatrix-vn-576b1.web.app. Script check:prod-config chặn localhost/placeholder trước build:prod/deploy:prod."],
+  smoke: ["Smoke test", "Next", "Test core app khi Worker tắt, sau đó test một tin Messenger thật và kiểm tra message_outbox."],
+  release: ["Release decision", "Go path", "Release core Spark trước. Bật Messenger sau khi Worker/Meta/Smoke test đạt yêu cầu."],
+  rollback: ["Rollback/tắt Messenger", "Safe path", "Khi Meta/Worker lỗi, unset Worker URL hoặc disable feature. Không rollback toàn app nếu core vẫn ổn."]
+};
+
+const FLOWS = {
+  core: {
+    title: "Core Spark/client-side",
+    meta: "Browser -> Firebase only",
+    body: "Luồng chính dùng Firebase Web SDK và Security Rules. Messenger không nằm trong đường găng của core app.",
+    edges: ["e-core-1", "e-core-2", "e-core-3"],
+    nodes: ["spark", "rules", "quota", "quality", "rulesTest", "env"]
+  },
+  gate: {
+    title: "Production gate",
+    meta: "No green build, no release",
+    body: "PageHeader/h1, lint, typecheck, unit test, production build và Firestore rules tests đã qua. P1 production gates đã hoàn thành; bước tiếp theo là P2 quota/bundle.",
+    edges: ["e-core-2", "e-core-3", "e-gate-1", "e-gate-2", "e-gate-3", "e-release-1"],
+    nodes: ["rules", "quota", "ui", "quality", "rulesTest", "env", "release"]
+  },
+  messenger: {
+    title: "Messenger ngoài Firebase",
+    meta: "External Worker path",
+    body: "Frontend không giữ Meta token. Worker xác minh Firebase ID token, kiểm tra Staff, gọi Meta Graph API, hỗ trợ tag cho MESSAGE_TAG và ghi log.",
+    edges: ["e-gate-1", "e-gate-2", "e-gate-3", "e-msg-1", "e-msg-2", "e-msg-3"],
+    nodes: ["quality", "rulesTest", "env", "worker", "meta", "messageLog", "featureFlag", "origin", "smoke"]
+  },
+  fallback: {
+    title: "Fallback thủ công",
+    meta: "100% client-side option",
+    body: "Nếu chưa bật Worker hoặc muốn giữ thuần client-side, dùng link m.me/copy template. Đây là đường an toàn nhất nhưng không tự động gửi.",
+    edges: ["e-fallback-1", "e-fallback-2"],
+    nodes: ["manual", "release", "rollback", "fallbackCore"]
+  },
+  release: {
+    title: "Release sequence",
+    meta: "Core first, Messenger after",
+    body: "Đưa core Spark lên trước. Messenger chỉ bật khi production Worker, Meta setup và smoke test đạt.",
+    edges: ["e-release-1", "e-msg-3", "e-fallback-2"],
+    nodes: ["fallbackCore", "smoke", "release", "rollback", "messageLog"]
+  }
+};
+
+const stage = $("#stage");
+const detail = $("#detail");
+const progress = $("#progress");
+
+function setDetail(title, meta, body) {
+  $("#detailTitle").textContent = title;
+  $("#detailMeta").textContent = meta;
+  $("#detailBody").textContent = body;
+  detail.classList.remove("hidden");
+}
+
+function setFlow(key) {
+  $$(".chip").forEach((chip) => chip.classList.toggle("on", chip.dataset.flow === key));
+  $$(".edge,.node,.elbl").forEach((item) => item.classList.remove("lit"));
+  if (key === "all") {
+    stage.classList.remove("flowing");
+    setDetail("Toàn cảnh", "Spark core + Messenger optional", "Roadmap giữ core app trên Firebase Spark/client-side. Messenger là nhánh ngoài có thể bật/tắt độc lập.");
+    return;
+  }
+  const flow = FLOWS[key];
+  stage.classList.add("flowing");
+  flow.edges.forEach((id) => $("#" + id)?.classList.add("lit"));
+  $$(".elbl").forEach((label) => {
+    if (flow.edges.includes(label.dataset.e)) label.classList.add("lit");
+  });
+  flow.nodes.forEach((nodeKey) => $(`.node[data-k="${nodeKey}"]`)?.classList.add("lit"));
+  setDetail(flow.title, flow.meta, flow.body);
+}
+
+$$(".chip").forEach((chip) => chip.addEventListener("click", () => setFlow(chip.dataset.flow)));
+$$(".node").forEach((node) => node.addEventListener("click", () => {
+  if (dragged) return;
+  $$(".node").forEach((item) => item.classList.remove("sel"));
+  node.classList.add("sel");
+  const data = DETAILS[node.dataset.k];
+  setDetail(data[0], data[1], data[2]);
+}));
+$$(".close").forEach((button) => button.addEventListener("click", () => button.parentElement.classList.add("hidden")));
+$("#showProgress").addEventListener("click", () => progress.classList.remove("hidden"));
+$("#showDetail").addEventListener("click", () => detail.classList.remove("hidden"));
+$("#themeToggle").addEventListener("click", () => {
+  const dark = !document.documentElement.classList.contains("dark");
+  document.documentElement.classList.toggle("dark", dark);
+  localStorage.setItem("edumatrix-spark-roadmap-theme", dark ? "dark" : "light");
+});
+
+const svg = $("#diagram");
+const content = $("#svg-content");
+let scale = 1;
+let tx = 0;
+let ty = 0;
+let down = false;
+let startX = 0;
+let startY = 0;
+let baseX = 0;
+let baseY = 0;
+let moved = 0;
+let dragged = false;
+
+function applyTransform() {
+  content.setAttribute("transform", `translate(${tx} ${ty}) scale(${scale})`);
+  $("#zoomLevel").textContent = Math.round(scale * 100) + "%";
+}
+function svgPoint(event) {
+  const point = svg.createSVGPoint();
+  point.x = event.clientX;
+  point.y = event.clientY;
+  return point.matrixTransform(svg.getScreenCTM().inverse());
+}
+function zoomAt(factor, cx, cy) {
+  const old = scale;
+  scale = Math.min(2.6, Math.max(.42, scale * factor));
+  tx = cx - (cx - tx) * (scale / old);
+  ty = cy - (cy - ty) * (scale / old);
+  applyTransform();
+}
+
+svg.addEventListener("wheel", (event) => {
+  event.preventDefault();
+  const point = svgPoint(event);
+  zoomAt(event.deltaY < 0 ? 1.1 : .9, point.x, point.y);
+}, { passive: false });
+svg.addEventListener("pointerdown", (event) => {
+  down = true;
+  dragged = false;
+  moved = 0;
+  const point = svgPoint(event);
+  startX = point.x;
+  startY = point.y;
+  baseX = tx;
+  baseY = ty;
+  svg.setPointerCapture(event.pointerId);
+  svg.classList.add("dragging");
+});
+svg.addEventListener("pointermove", (event) => {
+  if (!down) return;
+  const point = svgPoint(event);
+  const dx = point.x - startX;
+  const dy = point.y - startY;
+  moved = Math.max(moved, Math.hypot(dx, dy));
+  if (moved > 5) dragged = true;
+  tx = baseX + dx;
+  ty = baseY + dy;
+  applyTransform();
+});
+svg.addEventListener("pointerup", () => {
+  down = false;
+  svg.classList.remove("dragging");
+  setTimeout(() => { dragged = false; }, 0);
+});
+svg.addEventListener("click", (event) => {
+  if (moved > 5) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+}, true);
+$("#zoomIn").addEventListener("click", () => zoomAt(1.15, 890, 510));
+$("#zoomOut").addEventListener("click", () => zoomAt(.87, 890, 510));
+$("#resetView").addEventListener("click", () => {
+  scale = 1;
+  tx = 0;
+  ty = 0;
+  applyTransform();
+});
+applyTransform();
+</script>
+</body>
+</html>

@@ -86,6 +86,100 @@ service cloud.firestore {
       return role in ['admin', 'teacher', 'viewer'];
     }
 
+    function hasTimestamps(data) {
+      return data.createdAt is timestamp && data.updatedAt is timestamp;
+    }
+
+    function isStringList(value) {
+      return value is list;
+    }
+
+    function validSubjectData(subjectId, data) {
+      return data.keys().hasAll(['name', 'code', 'description', 'status', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['name', 'code', 'description', 'status', 'createdAt', 'updatedAt']) &&
+        data.name is string &&
+        data.code == subjectId &&
+        data.description is string &&
+        data.status in ['active', 'archived'] &&
+        hasTimestamps(data);
+    }
+
+    function validCourseData(data) {
+      return data.keys().hasAll(['name', 'subjectIds', 'pricePerSession', 'tuitionFee', 'totalSessions', 'startDate', 'endDate', 'status', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['name', 'subjectIds', 'pricePerSession', 'tuitionFee', 'totalSessions', 'startDate', 'endDate', 'status', 'createdAt', 'updatedAt']) &&
+        data.name is string &&
+        isStringList(data.subjectIds) &&
+        data.subjectIds.size() > 0 &&
+        data.pricePerSession is int &&
+        data.pricePerSession >= 0 &&
+        data.tuitionFee is int &&
+        data.tuitionFee >= 0 &&
+        data.totalSessions is int &&
+        data.totalSessions > 0 &&
+        data.startDate is timestamp &&
+        data.endDate is timestamp &&
+        data.endDate >= data.startDate &&
+        data.status in ['draft', 'active', 'completed'] &&
+        hasTimestamps(data);
+    }
+
+    function validStudentData(studentId, data) {
+      return data.keys().hasAll(['studentCode', 'fullName', 'dateOfBirth', 'parentUids', 'currentClassIds', 'teacherIds', 'status', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['studentCode', 'fullName', 'dateOfBirth', 'parentUids', 'currentClassIds', 'teacherIds', 'staffNote', 'status', 'createdAt', 'updatedAt']) &&
+        data.studentCode == studentId &&
+        data.fullName is string &&
+        data.dateOfBirth is string &&
+        isStringList(data.parentUids) &&
+        isStringList(data.currentClassIds) &&
+        isStringList(data.teacherIds) &&
+        (!data.keys().hasAny(['staffNote']) || data.staffNote is string) &&
+        data.status in ['active', 'inactive'] &&
+        hasTimestamps(data);
+    }
+
+    function validRecurrence(data) {
+      return data.keys().hasAll(['daysOfWeek', 'startTime', 'endTime', 'startDate', 'endDate', 'sessionCount']) &&
+        data.keys().hasOnly(['daysOfWeek', 'startTime', 'endTime', 'startDate', 'endDate', 'sessionCount']) &&
+        data.daysOfWeek is list &&
+        data.daysOfWeek.size() > 0 &&
+        data.startTime is string &&
+        data.endTime is string &&
+        data.startDate is timestamp &&
+        data.endDate is timestamp &&
+        data.endDate >= data.startDate &&
+        data.sessionCount is int &&
+        data.sessionCount > 0;
+    }
+
+    function validClassData(data) {
+      return data.keys().hasAll(['name', 'courseId', 'subjectIds', 'teacherIds', 'studentIds', 'scheduleText', 'location', 'status', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['name', 'courseId', 'subjectIds', 'teacherIds', 'studentIds', 'scheduleText', 'location', 'status', 'recurrence', 'createdAt', 'updatedAt']) &&
+        data.name is string &&
+        data.courseId is string &&
+        isStringList(data.subjectIds) &&
+        isStringList(data.teacherIds) &&
+        isStringList(data.studentIds) &&
+        data.scheduleText is string &&
+        data.location is string &&
+        data.status in ['active', 'completed', 'cancelled'] &&
+        (!data.keys().hasAny(['recurrence']) || data.recurrence == null || validRecurrence(data.recurrence)) &&
+        hasTimestamps(data);
+    }
+
+    function validSessionData(data) {
+      return data.keys().hasAll(['classId', 'title', 'startAt', 'endAt', 'location', 'status', 'note', 'makeUpForSessionId', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['classId', 'title', 'startAt', 'endAt', 'location', 'status', 'note', 'makeUpForSessionId', 'createdAt', 'updatedAt']) &&
+        data.classId is string &&
+        data.title is string &&
+        data.startAt is timestamp &&
+        data.endAt is timestamp &&
+        data.location is string &&
+        data.status in ['scheduled', 'rescheduled', 'cancelled', 'completed'] &&
+        data.note is string &&
+        (data.makeUpForSessionId == null || data.makeUpForSessionId is string) &&
+        hasTimestamps(data);
+    }
+
     // ---------- users/{uid} ----------
     // Chi Admin duoc doi role/studentIds/status. Tao ho so lan dau (claim invite)
     // phai khop dung role/studentIds lay tu invite - nguoi dung khong tu chon (A16.4).
@@ -174,9 +268,10 @@ service cloud.firestore {
     match /subjects/{subjectId} {
       allow read: if isActive();
       allow create: if isStaff() &&
-        request.resource.data.status == 'active';
+        request.resource.data.status == 'active' &&
+        validSubjectData(subjectId, request.resource.data);
       allow update: if isStaff() &&
-        request.resource.data.status in ['active', 'archived'] &&
+        validSubjectData(subjectId, request.resource.data) &&
         keepsImmutable(['code', 'createdAt']);
       allow delete: if false;
     }
@@ -188,9 +283,9 @@ service cloud.firestore {
     match /courses/{courseId} {
       allow read: if isActive();
       allow create: if isStaff() &&
-        request.resource.data.status in ['draft', 'active', 'completed'];
+        validCourseData(request.resource.data);
       allow update: if isStaff() &&
-        request.resource.data.status in ['draft', 'active', 'completed'] &&
+        validCourseData(request.resource.data) &&
         keepsImmutable(['createdAt']);
       allow delete: if false;
     }
@@ -204,16 +299,16 @@ service cloud.firestore {
       allow read: if isAdmin() || ownsStudent(studentId) ||
         (isTeacher() && request.auth.uid in resource.data.teacherIds);
       allow create: if isAdmin() &&
-        request.resource.data.status in ['active', 'inactive'];
+        validStudentData(studentId, request.resource.data);
       allow update: if keepsImmutable(['studentCode', 'createdAt']) &&
+        validStudentData(studentId, request.resource.data) &&
         (
-          (isAdmin() && request.resource.data.status in ['active', 'inactive']) || (
+          isAdmin() || (
             isTeacher() &&
             request.auth.uid in resource.data.teacherIds &&
             request.resource.data.teacherIds == resource.data.teacherIds &&
             request.resource.data.currentClassIds == resource.data.currentClassIds &&
-            request.resource.data.parentUids == resource.data.parentUids &&
-            request.resource.data.status in ['active', 'inactive']
+            request.resource.data.parentUids == resource.data.parentUids
           )
         );
       allow delete: if false;
@@ -238,9 +333,9 @@ service cloud.firestore {
           request.resource.data.studentIds.size() == 0
         )
       ) &&
-        request.resource.data.status in ['active', 'completed', 'cancelled'];
+        validClassData(request.resource.data);
       allow update: if keepsImmutable(['createdAt']) &&
-        request.resource.data.status in ['active', 'completed', 'cancelled'] &&
+        validClassData(request.resource.data) &&
         (
           isAdmin() ||
           (
@@ -274,9 +369,9 @@ service cloud.firestore {
           .hasAny(currentUser().studentIds)
       );
       allow create: if canManageClass(request.resource.data.classId) &&
-        request.resource.data.status in ['scheduled', 'rescheduled', 'cancelled', 'completed'];
+        validSessionData(request.resource.data);
       allow update: if canManageClass(resource.data.classId) &&
-        request.resource.data.status in ['scheduled', 'rescheduled', 'cancelled', 'completed'] &&
+        validSessionData(request.resource.data) &&
         keepsImmutable(['classId', 'createdAt']);
       allow delete: if false;
     }
@@ -449,22 +544,4 @@ service cloud.firestore {
     match /message_outbox/{messageId} {
       allow read: if isStaff();
       allow create: if isStaff() && request.resource.data.actorUid == request.auth.uid &&
-        request.resource.data.status in ['sent', 'failed'];
-      allow update, delete: if false;
-    }
-    match /messenger_connections/{uid} {
-      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
-      allow write: if false;
-    }
-
-    // ---------- Mac dinh: tu choi tat ca ----------
-    // Cac collection khac (sessions, lesson_plans, attendance, assignments,
-    // submissions, scores, invoices, payments, announcements...) se duoc mo
-    // dan theo Phase 4-11, kem Emulator test cho tung quyen truoc khi
-    // enable (A28).
-
-    match /{document=**} {
-      allow read, write: if false;
-    }
-  }
-}
+        requ

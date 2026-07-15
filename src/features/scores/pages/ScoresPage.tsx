@@ -59,7 +59,7 @@ export default function ScoresPage() {
 
   return (
     <AppShell>
-      <div className="mt-5 flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2">
         <select aria-label="Chọn lớp" value={classId} onChange={(e) => setClassId(e.target.value)} className="min-h-touch rounded-input border px-3">
           <option value="">Chọn lớp</option>
           {classes.data?.map((item) => (
@@ -115,7 +115,7 @@ export default function ScoresPage() {
       )}
       {save.isSuccess && <p className="mt-2 text-sm text-success-700">Đã lưu điểm cả lớp.</p>}
 
-      <section className="mt-7">
+      <section className="mt-5">
         <h2>Lịch sử và tiến bộ</h2>
         <div className="mt-3 h-64">
           <ResponsiveContainer width="100%" height="100%">
@@ -129,7 +129,7 @@ export default function ScoresPage() {
         </div>
       </section>
 
-      <section className="mt-7">
+      <section className="mt-5">
         <h2>Phân phối điểm</h2>
         <p className="mt-1 text-sm text-neutral-500">Số học sinh theo từng khoảng điểm, tính trên toàn bộ bài đánh giá của lớp.</p>
         <div className="mt-3 h-64">

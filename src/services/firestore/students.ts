@@ -13,7 +13,8 @@ import {
   where,
   writeBatch,
 } from "firebase/firestore";
-import { auth, db } from "@/services/firebase/client";
+import { auth } from "@/services/firebase/authClient";
+import { db } from "@/services/firebase/firestoreClient";
 import { COLLECTIONS } from "@/constants/collections";
 import { normalizeEmail } from "@/utils/email";
 import type { StudentDoc, StudentStatus } from "@/types/academic";

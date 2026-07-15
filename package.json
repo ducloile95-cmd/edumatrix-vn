@@ -10,7 +10,7 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "test": "vitest run src",
-    "test:rules": "firebase emulators:exec --only firestore \"vitest run firebase/tests --maxWorkers=1\"",
+    "test:rules": "node scripts/run-rules-tests.mjs",
     "check:mojibake": "node scripts/check-mojibake.mjs",
     "roadmap:update": "node scripts/update-roadmap-status.mjs",
     "emulators": "firebase emulators:start --only auth,firestore --project demo-edumatrix",

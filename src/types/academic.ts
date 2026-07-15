@@ -18,7 +18,9 @@ export type CourseStatus = "draft" | "active" | "completed";
 export interface CourseDoc {
   name: string;
   subjectIds: string[];
-  /** So nguyen VND - khong dung float (A7.4). */
+  /** Don gia 1 buoi/1 hoc sinh - so nguyen VND, khong dung float (A7.4). Truong nguon chinh cho hoc phi. */
+  pricePerSession: number;
+  /** Tong hoc phi du kien = pricePerSession * totalSessions - tu tinh khi luu, khong nhap tay. */
   tuitionFee: number;
   totalSessions: number;
   startDate: Timestamp;
@@ -31,6 +33,21 @@ export interface CourseDoc {
 /** classes/{classId} - ID auto (A13, Section 10.4). */
 export type ClassStatus = "active" | "completed" | "cancelled";
 
+/** Lich lap theo tuan dung de sinh buoi hoc tu dong. Chi co khi lop duoc tao bang "Lich hoc thong minh". */
+export interface ClassRecurrence {
+  /** 0=CN..6=T7, cung quy uoc voi DOW_LABEL trong TimetableGrid/MonthGrid. */
+  daysOfWeek: number[];
+  /** "HH:mm" 24h. */
+  startTime: string;
+  /** "HH:mm" 24h. */
+  endTime: string;
+  /** Ngay khai giang. */
+  startDate: Timestamp;
+  /** Ngay be giang - tu tinh tu buoi cuoi cung. */
+  endDate: Timestamp;
+  sessionCount: number;
+}
+
 export interface ClassDoc {
   name: string;
   courseId: string;
@@ -40,6 +57,8 @@ export interface ClassDoc {
   scheduleText: string;
   location: string;
   status: ClassStatus;
+  /** Lop cu/lop tao thu cong = undefined. */
+  recurrence?: ClassRecurrence | null;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

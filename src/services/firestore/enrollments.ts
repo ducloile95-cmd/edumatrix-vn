@@ -10,7 +10,7 @@ import {
   where,
   writeBatch,
 } from "firebase/firestore";
-import { db } from "@/services/firebase/client";
+import { db } from "@/services/firebase/firestoreClient";
 import { COLLECTIONS } from "@/constants/collections";
 import type { ClassDoc, EnrollmentDoc } from "@/types/academic";
 

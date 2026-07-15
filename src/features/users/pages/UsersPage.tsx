@@ -23,12 +23,12 @@ export default function UsersPage() {
         )}
       />
 
-      <div className="mt-5 rounded-card border border-neutral-200 bg-white p-4 sm:p-5">
+      <div className="rounded-card border border-neutral-200 bg-white p-4 sm:p-5">
         <h2 className="mb-1">Lời mời</h2>
         <InvitesList />
       </div>
 
-      <div className="mt-6 rounded-card border border-neutral-200 bg-white p-4 sm:p-5">
+      <div className="mt-4 rounded-card border border-neutral-200 bg-white p-4 sm:p-5">
         <h2 className="mb-1">Tài khoản</h2>
         <UsersList />
       </div>

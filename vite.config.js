@@ -21,6 +21,9 @@ function manualChunks(id) {
 export default defineConfig({
     plugins: [react()],
     build: {
+        // Firestore full SDK is intentionally kept as an async chunk for offline
+        // persistence/realtime profile reads. Keep a tight budget so growth is visible.
+        chunkSizeWarningLimit: 650,
         rollupOptions: {
             output: {
                 manualChunks,

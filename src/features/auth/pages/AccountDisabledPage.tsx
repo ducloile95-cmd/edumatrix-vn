@@ -1,5 +1,5 @@
 import { signOut } from "firebase/auth";
-import { auth } from "@/services/firebase/client";
+import { auth } from "@/services/firebase/authClient";
 
 export default function AccountDisabledPage() {
   return (

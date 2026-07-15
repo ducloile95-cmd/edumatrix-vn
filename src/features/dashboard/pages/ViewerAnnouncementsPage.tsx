@@ -3,7 +3,7 @@ import { collection, getDocs, limit, query, where } from "firebase/firestore";
 import { ViewerShell } from "@/components/layouts/ViewerShell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { db } from "@/services/firebase/client";
+import { db } from "@/services/firebase/firestoreClient";
 import { COLLECTIONS } from "@/constants/collections";
 
 export default function ViewerAnnouncementsPage() {

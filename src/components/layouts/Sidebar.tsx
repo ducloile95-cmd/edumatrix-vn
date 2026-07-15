@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { signOut } from "firebase/auth";
-import { auth } from "@/services/firebase/client";
+import { auth } from "@/services/firebase/authClient";
 import { NAVIGATION_BY_ROLE, isNavGroup, type NavGroup, type NavLeaf, type NavNode } from "@/constants/navigation";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { ROLE_LABELS } from "@/constants/roles";
@@ -194,7 +194,7 @@ function Group({
 
 export function Sidebar({ collapsed, mobileOpen, onClose, onToggle }: SidebarProps) {
   const { role, userDoc } = useAuth();
-  const nodes = role ? NAVIGATION_BY_ROLE[role] : [];
+  const nodes = useMemo(() => (role ? NAVIGATION_BY_ROLE[role] : []), [role]);
   const [query, setQuery] = useState("");
   const visibleNodes = useMemo(() => filterNavigation(nodes, query), [nodes, query]);
   const [closedGroups, setClosedGroups] = useState<Set<string>>(() => {

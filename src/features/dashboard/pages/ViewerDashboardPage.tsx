@@ -37,5 +37,5 @@ export default function ViewerDashboardPage() {
 }
 
 function DashboardSection({ title, items, label }: { title: string; items: Record<string, unknown>[]; label: string }) {
-  return <section className="rounded-card border border-neutral-200 bg-neutral-0 p-4 shadow-[var(--shadow-1)]"><h2 className="text-base">{title}</h2>{items.length === 0 ? <p className="mt-3 text-sm text-neutral-500">Chưa có thông tin cần hiển thị.</p> : <ul className="mt-2 divide-y divide-neutral-100">{items.slice(0, 5).map((item, index) => <li key={String(item.id ?? index)} className="py-3 text-sm text-neutral-700">{String(item[label] ?? "Chưa có nội dung")}</li>)}</ul>}</section>;
+  return <section className="rounded-card border border-neutral-200 bg-neutral-0 p-4 shadow-[var(--shadow-1)]"><h2 className="text-xl font-semibold text-neutral-900">{title}</h2>{items.length === 0 ? <p className="mt-3 text-sm text-neutral-500">Chưa có thông tin cần hiển thị.</p> : <ul className="mt-2 divide-y divide-neutral-100">{items.slice(0, 5).map((item, index) => <li key={String(item.id ?? index)} className="py-3 text-sm text-neutral-700">{String(item[label] ?? "Chưa có nội dung")}</li>)}</ul>}</section>;
 }

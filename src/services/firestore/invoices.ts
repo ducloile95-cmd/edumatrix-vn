@@ -15,7 +15,7 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { COLLECTIONS } from "@/constants/collections";
-import { db } from "@/services/firebase/client";
+import { db } from "@/services/firebase/firestoreClient";
 import { stableDocumentId } from "@/utils/idempotency";
 import { createInvoiceCode, createPaymentContent } from "@/utils/payment";
 import type { InvoiceDoc, PaymentDoc, PaymentStatus } from "@/types/academic";
@@ -76,11 +76,11 @@ export async function listInvoicesPage(pageSize = 50, cursor?: QueryDocumentSnap
   };
 }
 
-export async function listInvoicesByStudents(ids: string[]): Promise<(InvoiceDoc & { id: string })[]> {
+export async function listInvoicesByStudents(ids: string[], pageSize = 100): Promise<(InvoiceDoc & { id: string })[]> {
   const groups = await Promise.all(
     ids.map(async (studentId) => {
       const snap = await getDocs(
-        query(collection(db, COLLECTIONS.INVOICES), where("studentId", "==", studentId), limit(100)),
+        query(collection(db, COLLECTIONS.INVOICES), where("studentId", "==", studentId), limit(pageSize)),
       );
       return snap.docs.map((item) => ({ id: item.id, ...(item.data() as InvoiceDoc) }));
     }),

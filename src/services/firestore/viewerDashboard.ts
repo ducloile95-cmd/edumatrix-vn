@@ -1,7 +1,7 @@
 import { addDays, subDays } from "date-fns";
 import { collection, doc, getDoc, getDocs, limit, query, where } from "firebase/firestore";
 import { COLLECTIONS } from "@/constants/collections";
-import { db } from "@/services/firebase/client";
+import { db } from "@/services/firebase/firestoreClient";
 import { listAssignmentsByClass, listSubmissionsByStudents } from "@/services/firestore/assignments";
 import { listAttendanceByStudents } from "@/services/firestore/attendance";
 import { listInvoicesByStudents } from "@/services/firestore/invoices";
@@ -22,6 +22,17 @@ export interface ViewerDashboardData {
   updatedAt: unknown;
 }
 
+const DASHBOARD_LIMITS = {
+  announcementsPerStudent: 10,
+  assignmentsPerClass: 25,
+  attendance: 50,
+  invoicesPerStudent: 30,
+  lessonPlansPerClass: 12,
+  scoresPerStudent: 10,
+  sessionsPerClass: 12,
+  submissions: 100,
+} as const;
+
 export async function getViewerDashboard(uid: string): Promise<ViewerDashboardData | null> {
   const snap = await getDoc(doc(db, COLLECTIONS.VIEWER_DASHBOARDS, uid));
   return snap.exists() ? (snap.data() as ViewerDashboardData) : null;
@@ -41,17 +52,17 @@ export async function buildViewerDashboard(studentIds: string[]): Promise<Viewer
     invoices,
     announcementGroups,
   ] = await Promise.all([
-    Promise.all(classIds.map((id) => listSessionsByClass(id, subDays(new Date(), 1), addDays(new Date(), 30)))),
-    Promise.all(classIds.map(listPublicLessonPlansByClass)),
-    Promise.all(classIds.map(listAssignmentsByClass)),
-    listSubmissionsByStudents(studentIds),
-    Promise.all(studentIds.map(listScoresByStudent)),
-    listAttendanceByStudents(studentIds),
-    listInvoicesByStudents(studentIds),
+    Promise.all(classIds.map((id) => listSessionsByClass(id, subDays(new Date(), 1), addDays(new Date(), 30), DASHBOARD_LIMITS.sessionsPerClass))),
+    Promise.all(classIds.map((id) => listPublicLessonPlansByClass(id, DASHBOARD_LIMITS.lessonPlansPerClass))),
+    Promise.all(classIds.map((id) => listAssignmentsByClass(id, DASHBOARD_LIMITS.assignmentsPerClass))),
+    listSubmissionsByStudents(studentIds, DASHBOARD_LIMITS.submissions),
+    Promise.all(studentIds.map((id) => listScoresByStudent(id, DASHBOARD_LIMITS.scoresPerStudent))),
+    listAttendanceByStudents(studentIds, DASHBOARD_LIMITS.attendance),
+    listInvoicesByStudents(studentIds, DASHBOARD_LIMITS.invoicesPerStudent),
     Promise.all(
       studentIds.map(async (studentId) => {
         const snap = await getDocs(
-          query(collection(db, COLLECTIONS.ANNOUNCEMENTS), where("studentId", "==", studentId), limit(50)),
+          query(collection(db, COLLECTIONS.ANNOUNCEMENTS), where("studentId", "==", studentId), limit(DASHBOARD_LIMITS.announcementsPerStudent)),
         );
         return snap.docs.map((item) => ({ id: item.id, ...item.data() }));
       }),

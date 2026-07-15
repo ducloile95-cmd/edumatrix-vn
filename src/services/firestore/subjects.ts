@@ -9,7 +9,7 @@ import {
   setDoc,
   updateDoc,
 } from "firebase/firestore";
-import { db } from "@/services/firebase/client";
+import { db } from "@/services/firebase/firestoreClient";
 import { COLLECTIONS } from "@/constants/collections";
 import type { SubjectDoc, SubjectStatus } from "@/types/academic";
 
@@ -32,6 +32,24 @@ export async function createSubject(input: CreateSubjectInput): Promise<void> {
     description: input.description,
     status: "active",
     createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export interface UpdateSubjectInput {
+  name: string;
+  description: string;
+}
+
+/**
+ * Sua mon hoc - CHI sua name/description, khong cho doi code vi code chinh la
+ * document ID (A13) da duoc CourseDoc.subjectIds/ClassDoc.subjectIds tham chieu toi;
+ * doi code se can migrate ID rieng, ngoai pham vi ban sua nay.
+ */
+export async function updateSubject(subjectDocId: string, input: UpdateSubjectInput): Promise<void> {
+  await updateDoc(doc(db, COLLECTIONS.SUBJECTS, subjectDocId), {
+    name: input.name,
+    description: input.description,
     updatedAt: serverTimestamp(),
   });
 }

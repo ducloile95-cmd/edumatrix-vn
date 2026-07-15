@@ -10,14 +10,15 @@ import {
   Timestamp,
   updateDoc,
 } from "firebase/firestore";
-import { db } from "@/services/firebase/client";
+import { db } from "@/services/firebase/firestoreClient";
 import { COLLECTIONS } from "@/constants/collections";
 import type { CourseDoc, CourseStatus } from "@/types/academic";
 
 export interface CreateCourseInput {
   name: string;
   subjectIds: string[];
-  tuitionFee: number;
+  /** Don gia 1 buoi/1 hoc sinh - VND. */
+  pricePerSession: number;
   totalSessions: number;
   /** "YYYY-MM-DD" tu input type=date. */
   startDate: string;
@@ -34,12 +35,28 @@ export async function createCourse(input: CreateCourseInput): Promise<void> {
   await addDoc(collection(db, COLLECTIONS.COURSES), {
     name: input.name,
     subjectIds: input.subjectIds,
-    tuitionFee: input.tuitionFee,
+    pricePerSession: input.pricePerSession,
+    tuitionFee: input.pricePerSession * input.totalSessions,
     totalSessions: input.totalSessions,
     startDate: toTimestamp(input.startDate),
     endDate: toTimestamp(input.endDate),
     status: input.status,
     createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/** Sua khoa hoc - giu nguyen ID, khong dong subjectIds cua ClassDoc (Lop hoc tu chon rieng). */
+export async function updateCourse(courseId: string, input: CreateCourseInput): Promise<void> {
+  await updateDoc(doc(db, COLLECTIONS.COURSES, courseId), {
+    name: input.name,
+    subjectIds: input.subjectIds,
+    pricePerSession: input.pricePerSession,
+    tuitionFee: input.pricePerSession * input.totalSessions,
+    totalSessions: input.totalSessions,
+    startDate: toTimestamp(input.startDate),
+    endDate: toTimestamp(input.endDate),
+    status: input.status,
     updatedAt: serverTimestamp(),
   });
 }

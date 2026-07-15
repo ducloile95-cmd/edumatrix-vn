@@ -16,7 +16,7 @@
       "vars": {
         "FIREBASE_PROJECT_ID": "edumatrix-vn-576b1",
         "META_GRAPH_VERSION": "v22.0",
-        "ALLOWED_ORIGIN": "https://REPLACE_WITH_HOSTING_DOMAIN"
+        "ALLOWED_ORIGIN": "https://edumatrix-vn-576b1.web.app"
       }
     }
   }

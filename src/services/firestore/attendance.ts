@@ -10,8 +10,10 @@ import {
   where,
   writeBatch,
 } from "firebase/firestore";
-import { db } from "@/services/firebase/client";
+import { db } from "@/services/firebase/firestoreClient";
 import { COLLECTIONS } from "@/constants/collections";
+import { getCurrentUserDoc, isTeacherUser } from "@/services/firestore/authz";
+import { listClasses } from "@/services/firestore/classes";
 import type { AttendanceDoc, AttendanceStatus, AttendanceSummaryDoc } from "@/types/academic";
 
 export interface AttendanceEntry { studentId: string; status: AttendanceStatus; note: string; }
@@ -59,8 +61,27 @@ export async function listAttendanceSummariesBySessionIds(
   return groups.flat();
 }
 
-export async function listAttendanceByStudents(studentIds: string[]): Promise<(AttendanceDoc & { id: string })[]> {
+export async function listAttendanceByStudents(studentIds: string[], pageSize = 500): Promise<(AttendanceDoc & { id: string })[]> {
   const uniqueIds = [...new Set(studentIds)].filter(Boolean);
+  if (uniqueIds.length === 0) return [];
+
+  const currentUser = await getCurrentUserDoc();
+  if (isTeacherUser(currentUser)) {
+    const studentSet = new Set(uniqueIds);
+    const classes = await listClasses();
+    const groups = await Promise.all(
+      classes.map(async (klass) => {
+        const snapshot = await getDocs(
+          query(collection(db, COLLECTIONS.ATTENDANCE), where("classId", "==", klass.id), limit(pageSize)),
+        );
+        return snapshot.docs
+          .map((item) => ({ id: item.id, ...(item.data() as AttendanceDoc) }))
+          .filter((item) => studentSet.has(item.studentId));
+      }),
+    );
+    return groups.flat().sort((a, b) => b.markedAt.toMillis() - a.markedAt.toMillis());
+  }
+
   const chunks = uniqueIds.reduce<string[][]>((acc, studentId, index) => {
     if (index % 30 === 0) acc.push([]);
     acc[acc.length - 1].push(studentId);
@@ -68,7 +89,7 @@ export async function listAttendanceByStudents(studentIds: string[]): Promise<(A
   }, []);
 
   const groups = await Promise.all(chunks.map(async (chunk) => {
-    const snapshot = await getDocs(query(collection(db, COLLECTIONS.ATTENDANCE), where("studentId", "in", chunk), limit(500)));
+    const snapshot = await getDocs(query(collection(db, COLLECTIONS.ATTENDANCE), where("studentId", "in", chunk), limit(pageSize)));
     return snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as AttendanceDoc) }));
   }));
   return groups.flat().sort((a, b) => b.markedAt.toMillis() - a.markedAt.toMillis());

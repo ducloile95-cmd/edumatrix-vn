@@ -1,11 +1,22 @@
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { subjectFormSchema, type SubjectFormValues } from "@/schemas/subject";
-import { createSubject } from "@/services/firestore/subjects";
+import { createSubject, updateSubject } from "@/services/firestore/subjects";
+import type { SubjectDoc } from "@/types/academic";
 
-export function SubjectForm({ onDone }: { onDone?: () => void }) {
+interface SubjectFormProps {
+  /** Neu co gia tri => form o che do sua. */
+  editingSubject?: (SubjectDoc & { id: string }) | null;
+  onDone?: () => void;
+}
+
+const DEFAULT_VALUES: SubjectFormValues = { name: "", code: "", description: "" };
+
+export function SubjectForm({ editingSubject, onDone }: SubjectFormProps) {
   const queryClient = useQueryClient();
+  const isEditing = !!editingSubject;
 
   const {
     register,
@@ -14,26 +25,38 @@ export function SubjectForm({ onDone }: { onDone?: () => void }) {
     formState: { errors },
   } = useForm<SubjectFormValues>({
     resolver: zodResolver(subjectFormSchema),
-    defaultValues: { name: "", code: "", description: "" },
+    defaultValues: DEFAULT_VALUES,
   });
 
+  useEffect(() => {
+    if (editingSubject) {
+      reset({ name: editingSubject.name, code: editingSubject.code, description: editingSubject.description });
+    } else {
+      reset(DEFAULT_VALUES);
+    }
+  }, [editingSubject, reset]);
+
   const mutation = useMutation({
-    mutationFn: (values: SubjectFormValues) => createSubject(values),
+    mutationFn: async (values: SubjectFormValues): Promise<void> => {
+      if (editingSubject) {
+        await updateSubject(editingSubject.id, { name: values.name, description: values.description ?? "" });
+        return;
+      }
+      await createSubject(values);
+    },
     onSuccess: () => {
-      reset();
+      reset(DEFAULT_VALUES);
       queryClient.invalidateQueries({ queryKey: ["subjects"] });
       onDone?.();
     },
   });
 
   return (
-    <form
-      onSubmit={handleSubmit((values) => mutation.mutate(values))}
-    >
+    <form onSubmit={handleSubmit((values) => mutation.mutate(values))}>
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <label htmlFor="subject-name" className="mb-1 block text-sm font-medium text-neutral-700">
-            Tên môn học
+            Tên môn học<span className="ml-0.5 text-danger-500">*</span>
           </label>
           <input
             id="subject-name"
@@ -51,19 +74,24 @@ export function SubjectForm({ onDone }: { onDone?: () => void }) {
 
         <div>
           <label htmlFor="subject-code" className="mb-1 block text-sm font-medium text-neutral-700">
-            Mã môn học
+            Mã môn học<span className="ml-0.5 text-danger-500">*</span>
           </label>
           <input
             id="subject-code"
             type="text"
             placeholder="IELTS-SPK"
-            className="min-h-touch w-full rounded-input border border-neutral-300 px-3 text-sm focus:border-primary-500"
+            disabled={isEditing}
+            className="min-h-touch w-full rounded-input border border-neutral-300 px-3 text-sm focus:border-primary-500 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-500"
             {...register("code")}
           />
-          {errors.code && (
-            <p role="alert" className="mt-1 text-xs text-danger-700">
-              {errors.code.message}
-            </p>
+          {isEditing ? (
+            <p className="mt-1 text-xs text-neutral-500">Mã môn học là định danh cố định, không thể đổi sau khi tạo.</p>
+          ) : (
+            errors.code && (
+              <p role="alert" className="mt-1 text-xs text-danger-700">
+                {errors.code.message}
+              </p>
+            )
           )}
         </div>
 
@@ -82,20 +110,29 @@ export function SubjectForm({ onDone }: { onDone?: () => void }) {
 
       {mutation.isError && (
         <p role="alert" className="mt-3 text-sm text-danger-700">
-          Không thể tạo môn học. Mã môn học có thể đã tồn tại.
+          Không thể lưu môn học. Mã môn học có thể đã tồn tại.
         </p>
       )}
-      {mutation.isSuccess && (
-        <p className="mt-3 text-sm text-success-700">Đã tạo môn học.</p>
-      )}
+      {mutation.isSuccess && !isEditing && <p className="mt-3 text-sm text-success-700">Đã tạo môn học.</p>}
 
-      <button
-        type="submit"
-        disabled={mutation.isPending}
-        className="mt-4 min-h-touch rounded-input bg-primary-500 px-5 text-sm font-medium text-white hover:bg-primary-600 disabled:opacity-60"
-      >
-        {mutation.isPending ? "Đang tạo..." : "Thêm môn học"}
-      </button>
+      <div className="mt-4 flex gap-2">
+        <button
+          type="submit"
+          disabled={mutation.isPending}
+          className="min-h-touch rounded-input bg-primary-500 px-5 text-sm font-medium text-white hover:bg-primary-600 disabled:opacity-60"
+        >
+          {mutation.isPending ? "Đang lưu..." : isEditing ? "Lưu thay đổi" : "Thêm môn học"}
+        </button>
+        {isEditing && (
+          <button
+            type="button"
+            onClick={() => onDone?.()}
+            className="min-h-touch rounded-input border border-neutral-300 px-5 text-sm font-medium text-neutral-600 hover:bg-neutral-50"
+          >
+            Hủy
+          </button>
+        )}
+      </div>
     </form>
   );
 }

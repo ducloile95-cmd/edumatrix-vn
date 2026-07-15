@@ -5,10 +5,10 @@ import { useQuery } from "@tanstack/react-query";
 import { collection, getDocs, limit, query, where, type Timestamp } from "firebase/firestore";
 import { format } from "date-fns";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { db } from "@/services/firebase/client";
+import { db } from "@/services/firebase/firestoreClient";
 import { COLLECTIONS } from "@/constants/collections";
 import { ROUTES } from "@/constants/routes";
-import { findPageTitle } from "@/constants/navigation";
+import { findPageDescription, findPageTitle } from "@/constants/navigation";
 
 const WEATHER_KEY = "edumatrix-weather-hanoi";
 type WeatherData = { temperature: number; code: number; cachedAt: number };
@@ -110,13 +110,15 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const { isStaff } = useAuth();
   const now = useClock();
   const weather = useWeather();
-  const title = findPageTitle(useLocation().pathname);
+  const { pathname } = useLocation();
+  const title = findPageTitle(pathname);
+  const description = findPageDescription(pathname);
   const seeAllHref = isStaff ? ROUTES.STAFF_ANNOUNCEMENTS : ROUTES.VIEWER_ANNOUNCEMENTS;
 
-  return <header className="glass-panel sticky top-0 z-20 flex h-[72px] items-center justify-between border-b border-white/70 px-4 sm:px-6">
+  return <header className="glass-panel sticky top-0 z-20 flex h-16 items-center justify-between border-b border-white/70 px-4 sm:px-6">
     <div className="flex min-w-0 items-center gap-3">
       {onMenuClick && <button type="button" onClick={onMenuClick} aria-label="Mở menu điều hướng" className="icon-button lg:hidden"><Menu size={20} /></button>}
-      <div className="min-w-0"><h1 className="truncate text-lg font-semibold text-neutral-900 sm:text-xl">{title}</h1><p className="hidden text-xs text-neutral-500 sm:block">Edumatrix-vn · Quản lý lớp học thông minh</p></div>
+      <div className="min-w-0"><h1 className="truncate text-lg font-semibold text-neutral-900">{title}</h1><p className="hidden max-w-[78ch] truncate text-xs text-neutral-500 sm:block">{description}</p></div>
     </div>
     <div className="flex items-center gap-2 sm:gap-3">
       <div className="hidden text-right md:block"><p className="text-sm font-semibold tabular-nums text-neutral-800">{now.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}</p><p className="text-[11px] text-neutral-500">{now.toLocaleDateString("vi-VN", { weekday: "short", day: "2-digit", month: "2-digit" })}</p></div>

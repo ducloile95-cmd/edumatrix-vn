@@ -1,0 +1,799 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Edumatrix VN | Demo thiết kế lại — Môn học & Khóa học</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --primary-50:#EFF4FF; --primary-100:#DBE6FE; --primary-500:#3366F0; --primary-600:#2348D6; --primary-700:#1D39AC;
+    --success-50:#ECFDF3; --success-500:#16A34A; --success-700:#0F7A37;
+    --warning-50:#FFFBEB; --warning-500:#F59E0B; --warning-700:#B45309;
+    --danger-50:#FEF2F2; --danger-500:#E4453A; --danger-700:#B91C1C;
+    --info-50:#F0F9FF; --info-500:#0EA5E9; --info-700:#0369A1;
+    --n0:#FFFFFF; --n50:#FAFAF9; --n100:#F4F3F1; --n200:#E7E5E2; --n300:#D3D0CB;
+    --n400:#A6A29C; --n500:#78746D; --n600:#57534D; --n700:#403D39; --n800:#2B2926; --n900:#1C1A15;
+    --r-input:8px; --r-card:12px; --r-modal:16px;
+    --motion:220ms;
+    font-family:"Be Vietnam Pro","Segoe UI",system-ui,sans-serif;
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; background:var(--n50); color:var(--n900); }
+  body { min-width:360px; font-size:14px; line-height:1.55; }
+  button, input, select, textarea { font:inherit; color:inherit; }
+  button { cursor:pointer; }
+  .tabular { font-variant-numeric:tabular-nums; }
+  button:focus-visible, input:focus-visible, a:focus-visible {
+    outline:3px solid rgb(51 102 240 / 30%); outline-offset:2px;
+  }
+  h1,h2,h3,p { margin:0; }
+
+  .demo-banner {
+    position:sticky; top:0; z-index:50; background:var(--n900); color:#fff;
+    font-size:12px; font-weight:600; text-align:center; padding:8px 12px;
+  }
+  .demo-banner span { color:#FCD34D; }
+
+  .shell { display:grid; grid-template-columns:230px minmax(0,1fr); min-height:100vh; }
+  .sidebar { background:#fff; border-right:1px solid var(--n200); padding:16px 10px; }
+  .brand { display:flex; align-items:center; gap:10px; padding:4px 8px 16px; border-bottom:1px solid var(--n200); margin-bottom:10px; }
+  .brand .mark { width:34px; height:34px; border-radius:var(--r-input); background:var(--primary-500); color:#fff; display:grid; place-items:center; font-weight:800; }
+  .brand strong { display:block; font-size:14px; }
+  .brand span { display:block; font-size:11px; color:var(--n500); }
+  .side-nav { display:grid; gap:3px; }
+  .side-nav a { display:flex; align-items:center; gap:10px; min-height:40px; padding:0 10px; border-radius:var(--r-input);
+    font-size:13px; color:var(--n600); text-decoration:none; transition:background var(--motion), color var(--motion); }
+  .side-nav a:hover { background:var(--primary-50); color:var(--primary-700); }
+  .side-nav a.active { background:var(--primary-500); color:#fff; font-weight:600; }
+  .side-nav .dot { width:6px; height:6px; border-radius:999px; background:currentColor; opacity:.5; }
+
+  .main { min-width:0; }
+  .topbar { height:60px; display:flex; align-items:center; justify-content:space-between; padding:0 24px;
+    border-bottom:1px solid var(--n200); background:#fff; }
+  .breadcrumb { font-size:13px; color:var(--n500); }
+  .breadcrumb b { color:var(--n900); font-weight:600; }
+  .top-icon { width:36px; height:36px; border-radius:var(--r-input); border:1px solid var(--n200); background:#fff;
+    display:grid; place-items:center; color:var(--n500); }
+
+  .page { padding:24px 28px 64px; max-width:1440px; }
+  .page-header { display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:14px; margin-bottom:16px; }
+  .page-header h1 { font-size:24px; font-weight:700; }
+  .page-header p { margin-top:4px; font-size:13px; color:var(--n500); max-width:60ch; }
+
+  .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:44px;
+    border-radius:var(--r-input); padding:0 16px; font-size:13px; font-weight:600; border:1px solid transparent;
+    transition:transform var(--motion), background var(--motion), border-color var(--motion), box-shadow var(--motion); white-space:nowrap; }
+  .btn:active { transform:scale(.98); }
+  .btn-primary { background:linear-gradient(135deg,var(--primary-500),var(--primary-700)); color:#fff;
+    box-shadow:0 8px 20px rgb(35 72 214 / 25%); }
+  .btn-primary:hover { filter:brightness(1.05); transform:translateY(-1px); }
+  .btn-secondary { background:#fff; border-color:var(--n300); color:var(--n700); }
+  .btn-secondary:hover { background:var(--n50); border-color:var(--primary-300,#93B4FD); color:var(--primary-700); }
+  .btn-sm { min-height:36px; padding:0 12px; font-size:12px; }
+  .icon { width:18px; height:18px; display:inline-block; flex:none; }
+
+  .tabs { display:flex; gap:6px; border-bottom:1px solid var(--n200); margin-bottom:20px; }
+  .tab-btn { border:0; background:transparent; padding:10px 4px; margin-right:20px; font-size:14px; font-weight:600;
+    color:var(--n500); border-bottom:2px solid transparent; margin-bottom:-1px; transition:all var(--motion); }
+  .tab-btn:hover { color:var(--primary-700); }
+  .tab-btn.active { color:var(--primary-700); border-bottom-color:var(--primary-500); }
+  .view { display:none; }
+  .view.active { display:block; }
+
+  .kpi-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:18px; }
+  .kpi-card { background:#fff; border:1px solid var(--n200); border-radius:var(--r-card); padding:16px; }
+  .kpi-chip { width:36px; height:36px; border-radius:var(--r-input); display:grid; place-items:center; margin-bottom:10px; }
+  .kpi-chip.tone-primary { background:var(--primary-50); color:var(--primary-500); }
+  .kpi-chip.tone-success { background:var(--success-50); color:var(--success-700); }
+  .kpi-chip.tone-info { background:var(--info-50); color:var(--info-700); }
+  .kpi-chip.tone-warning { background:var(--warning-50); color:var(--warning-700); }
+  .kpi-value { font-size:24px; font-weight:700; }
+  .kpi-label { font-size:13px; font-weight:600; color:var(--n700); margin-top:2px; }
+  .kpi-hint { font-size:12px; color:var(--n500); margin-top:2px; }
+
+  .surface { background:#fff; border:1px solid var(--n200); border-radius:var(--r-card); overflow:hidden; }
+  .surface-pad { padding:16px 20px; }
+  .surface-head { padding:16px 20px; border-bottom:1px solid var(--n200); }
+  .surface-head h2 { font-size:15px; font-weight:700; }
+  .surface-head p { font-size:12px; color:var(--n500); margin-top:2px; }
+
+  .charts-grid { display:grid; grid-template-columns:1.1fr 1fr; gap:16px; margin-bottom:16px; }
+  .charts-grid-2 { display:grid; grid-template-columns:1.4fr 1fr; gap:16px; }
+  @media (max-width:900px) { .charts-grid, .charts-grid-2 { grid-template-columns:1fr; } }
+
+  /* hbar chart */
+  .hbar-row { display:grid; grid-template-columns:120px 1fr 56px; align-items:center; gap:10px; margin-bottom:12px; }
+  .hbar-row:last-child { margin-bottom:0; }
+  .hbar-label { font-size:12px; font-weight:600; color:var(--n700); text-align:right; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .hbar-track { height:16px; border-radius:999px; background:var(--n100); overflow:hidden; }
+  .hbar-fill { height:100%; border-radius:999px; transition:width var(--motion); }
+  .hbar-value { font-size:12px; font-weight:700; color:var(--n900); }
+
+  /* vbar histogram */
+  .vbar-chart { display:flex; align-items:flex-end; gap:10px; height:180px; padding:0 6px; }
+  .vbar-col { flex:1; display:flex; flex-direction:column; align-items:center; gap:8px; height:100%; justify-content:flex-end; }
+  .vbar-fill { width:100%; max-width:44px; border-radius:6px 6px 0 0; background:var(--primary-500); transition:height var(--motion); position:relative; }
+  .vbar-fill .vbar-count { position:absolute; top:-20px; left:50%; transform:translateX(-50%); font-size:11px; font-weight:700; color:var(--n900); }
+  .vbar-tick { font-size:10px; color:var(--n500); text-align:center; line-height:1.3; }
+
+  .warn-list { display:flex; flex-direction:column; gap:8px; }
+  .warn-row { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 12px;
+    border:1px solid var(--warning-100,#FEF3C7); background:var(--warning-50); border-radius:var(--r-input); }
+  .warn-row .name { font-size:13px; font-weight:600; color:var(--n900); }
+  .warn-row .btn { min-height:32px; padding:0 10px; font-size:11px; }
+
+  /* toolbar */
+  .toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end; margin-bottom:14px; }
+  .field-label { display:block; font-size:12px; font-weight:600; color:var(--n500); margin-bottom:6px; }
+  .search { position:relative; min-width:240px; flex:1; }
+  .search input { width:100%; min-height:44px; border-radius:var(--r-input); border:1px solid var(--n300);
+    padding:0 14px 0 38px; font-size:13px; }
+  .search input:focus { border-color:var(--primary-500); }
+  .search svg { position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--n400); }
+  .search-sm input { min-height:38px; padding-left:34px; font-size:12px; }
+  .search-sm svg { left:10px; }
+  .segmented { display:grid; grid-auto-flow:column; gap:3px; padding:3px; border:1px solid var(--n300);
+    border-radius:var(--r-input); background:var(--n50); }
+  .segmented button { border:0; background:transparent; min-height:38px; padding:0 12px; border-radius:6px;
+    font-size:12px; font-weight:600; color:var(--n600); transition:all var(--motion); white-space:nowrap; }
+  .segmented button.active { background:var(--primary-500); color:#fff; box-shadow:0 4px 12px rgb(51 102 240 / 18%); }
+
+  .filter-chip { display:inline-flex; align-items:center; gap:6px; background:var(--primary-500); color:#fff;
+    border-radius:999px; padding:6px 8px 6px 12px; font-size:12px; font-weight:700; margin-bottom:12px; }
+  .filter-chip button { background:rgba(255,255,255,.25); border:0; color:#fff; width:18px; height:18px; border-radius:999px;
+    display:grid; place-items:center; }
+
+  .catalog-grid { display:grid; grid-template-columns:1.6fr 1fr; gap:16px; align-items:start; }
+  @media (max-width:1100px) { .catalog-grid { grid-template-columns:1fr; } }
+
+  .ctable { width:100%; border-collapse:collapse; }
+  .ctable thead th { position:sticky; top:0; background:var(--n50); text-align:left; font-size:11px;
+    font-weight:700; text-transform:uppercase; letter-spacing:.02em; color:var(--n500); padding:11px 16px;
+    border-bottom:1px solid var(--n200); white-space:nowrap; }
+  .ctable tbody td { padding:13px 16px; border-bottom:1px solid var(--n100); vertical-align:middle; font-size:13px; }
+  .ctable tbody tr:hover { background:var(--n50); }
+  .ctable tbody tr.dimmed { opacity:.35; }
+  .ctable tbody tr:last-child td { border-bottom:0; }
+  .cell-main { font-weight:600; color:var(--n900); }
+  .subject-chip { display:inline-block; background:var(--primary-50); color:var(--primary-700); border-radius:999px;
+    padding:2px 8px; font-size:10px; font-weight:700; margin:3px 4px 0 0; }
+  .subject-chip.muted { background:var(--n100); color:var(--n500); }
+  .row-actions { display:flex; gap:8px; justify-content:flex-end; }
+  .row-actions .btn { min-height:34px; padding:0 12px; font-size:11px; }
+
+  .badge { display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700; }
+  .badge.tone-success { background:var(--success-50); color:var(--success-700); }
+  .badge.tone-neutral { background:var(--n100); color:var(--n600); }
+  .badge.tone-warning { background:var(--warning-50); color:var(--warning-700); }
+
+  /* subject side panel */
+  .panel-head { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:16px 18px; border-bottom:1px solid var(--n200); }
+  .panel-head h2 { font-size:15px; font-weight:700; }
+  .subject-row { width:100%; text-align:left; display:flex; align-items:center; gap:10px; padding:11px 16px;
+    border:0; border-bottom:1px solid var(--n100); background:#fff; transition:background var(--motion); }
+  .subject-row:last-child { border-bottom:0; }
+  .subject-row:hover { background:var(--primary-50); }
+  .subject-row.selected { background:var(--primary-50); box-shadow:inset 3px 0 0 var(--primary-500); }
+  .subject-row .info { flex:1; min-width:0; }
+  .subject-row .name { font-size:13px; font-weight:600; color:var(--n900); }
+  .subject-row .code { font-size:10px; font-family:monospace; color:var(--n500); }
+  .subject-count { font-size:11px; font-weight:700; color:var(--primary-700); background:var(--primary-50);
+    border-radius:999px; padding:2px 8px; flex:none; }
+  .subject-edit { width:30px; height:30px; border-radius:var(--r-input); border:1px solid var(--n200); background:#fff;
+    color:var(--n500); display:grid; place-items:center; flex:none; }
+  .subject-edit:hover { border-color:var(--primary-300,#93B4FD); color:var(--primary-700); }
+
+  .empty-note { text-align:center; padding:24px 12px; color:var(--n500); font-size:13px; }
+
+  /* modal */
+  .overlay { position:fixed; inset:0; background:rgb(28 26 21 / 55%); display:none; align-items:flex-start;
+    justify-content:center; padding:40px 16px; z-index:100; overflow-y:auto; }
+  .overlay.open { display:flex; animation:fade-in var(--motion) ease-out both; }
+  @keyframes fade-in { from { opacity:0; } to { opacity:1; } }
+  .modal { background:#fff; border-radius:var(--r-modal); width:100%; max-width:640px; box-shadow:0 24px 60px rgb(28 26 21 / 24%);
+    animation:pop-in var(--motion) ease-out both; max-height:calc(100dvh - 80px); display:flex; flex-direction:column; }
+  .modal.modal-sm { max-width:460px; }
+  @keyframes pop-in { from { opacity:0; transform:translateY(8px) scale(.98); } to { opacity:1; transform:none; } }
+  .modal-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:20px 24px; border-bottom:1px solid var(--n200); }
+  .modal-head h3 { font-size:17px; font-weight:700; }
+  .modal-head p { font-size:12px; color:var(--n500); margin-top:3px; }
+  .modal-close { width:32px; height:32px; border-radius:var(--r-input); border:1px solid var(--n200); background:#fff; color:var(--n500); flex:none; }
+  .modal-body { padding:20px 24px; overflow-y:auto; }
+  .modal-foot { padding:16px 24px; border-top:1px solid var(--n200); display:flex; gap:10px; }
+  .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .form-grid .full { grid-column:1 / -1; }
+  .field label { display:block; font-size:13px; font-weight:600; color:var(--n700); margin-bottom:6px; }
+  .field label .req { color:var(--danger-500); margin-left:2px; }
+  .field input, .field select, .field textarea {
+    width:100%; min-height:44px; border-radius:var(--r-input); border:1px solid var(--n300); padding:0 12px; font-size:13px; }
+  .field textarea { min-height:72px; padding:10px 12px; resize:vertical; }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color:var(--primary-500); }
+  .chip-picker { display:flex; flex-wrap:wrap; gap:8px; }
+  .chip-toggle { min-height:38px; padding:0 14px; border-radius:999px; border:1px solid var(--n300); background:#fff;
+    font-size:12px; font-weight:600; color:var(--n600); transition:all var(--motion); }
+  .chip-toggle[aria-pressed="true"] { background:var(--primary-500); border-color:var(--primary-500); color:#fff; }
+
+  .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; }
+</style>
+</head>
+<body>
+
+<div class="demo-banner">DEMO TĨNH — chờ duyệt · <span>chưa áp dụng vào code thật</span> · Module Môn học &amp; Khóa học · 15/07/2026</div>
+
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="mark">E</div>
+      <div><strong>Edumatrix-vn</strong><span>Quản lý lớp học</span></div>
+    </div>
+    <nav class="side-nav">
+      <a href="#"><span class="dot"></span>Tổng quan</a>
+      <a href="#" class="active"><span class="dot"></span>Môn học &amp; khóa học</a>
+      <a href="#"><span class="dot"></span>Học sinh</a>
+      <a href="#"><span class="dot"></span>Lớp học</a>
+      <a href="#"><span class="dot"></span>Lịch học</a>
+      <a href="#"><span class="dot"></span>Giáo án</a>
+      <a href="#"><span class="dot"></span>Điểm danh</a>
+      <a href="#"><span class="dot"></span>Bài tập</a>
+      <a href="#"><span class="dot"></span>Điểm học tập</a>
+      <a href="#"><span class="dot"></span>Học phí</a>
+      <a href="#"><span class="dot"></span>Thông báo</a>
+      <a href="#"><span class="dot"></span>Người dùng</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="breadcrumb">Môn học &amp; khóa học › <b id="crumb-tab">Tổng quan</b></div>
+      <button class="top-icon" aria-label="Thông báo">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      </button>
+    </div>
+
+    <div class="page">
+      <div class="page-header">
+        <div>
+          <h1>Môn học &amp; khóa học</h1>
+          <p>Tổng quan chỉ số danh mục và quản lý khóa học gắn với môn học dùng để tạo lớp.</p>
+        </div>
+        <button class="btn btn-primary" onclick="openCourseModal('create')">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          Thêm khóa học
+        </button>
+      </div>
+
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="dashboard" onclick="showTab('dashboard', this)">Tổng quan</button>
+        <button class="tab-btn" data-tab="catalog" onclick="showTab('catalog', this)">Danh mục</button>
+      </div>
+
+      <!-- ============ NHÁNH 1: DASHBOARD ============ -->
+      <section class="view active" id="view-dashboard">
+        <div class="kpi-row">
+          <div class="kpi-card">
+            <div class="kpi-chip tone-primary"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M8 4v4M16 4v4"/></svg></div>
+            <div class="kpi-value tabular">8</div>
+            <div class="kpi-label">Tổng số khóa học</div>
+            <div class="kpi-hint">Tất cả trạng thái</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-chip tone-success"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg></div>
+            <div class="kpi-value tabular">5</div>
+            <div class="kpi-label">Đang mở</div>
+            <div class="kpi-hint">2 nháp · 1 đã kết thúc</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-chip tone-info"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div>
+            <div class="kpi-value tabular">5</div>
+            <div class="kpi-label">Môn học đang dùng</div>
+            <div class="kpi-hint">1 môn đã lưu trữ</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-chip tone-warning"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg></div>
+            <div class="kpi-value tabular">1</div>
+            <div class="kpi-label">Môn học chưa có khóa học</div>
+            <div class="kpi-hint">Cần tạo khóa học cho môn này</div>
+          </div>
+        </div>
+
+        <div class="charts-grid">
+          <div class="surface">
+            <div class="surface-head"><h2>Khóa học theo trạng thái</h2><p>Tổng 8 khóa học</p></div>
+            <div class="surface-pad">
+              <div class="hbar-row">
+                <span class="hbar-label">Đang mở</span>
+                <div class="hbar-track"><div class="hbar-fill" style="width:100%; background:var(--success-500);"></div></div>
+                <span class="hbar-value tabular">5</span>
+              </div>
+              <div class="hbar-row">
+                <span class="hbar-label">Nháp</span>
+                <div class="hbar-track"><div class="hbar-fill" style="width:40%; background:var(--warning-500);"></div></div>
+                <span class="hbar-value tabular">2</span>
+              </div>
+              <div class="hbar-row">
+                <span class="hbar-label">Đã kết thúc</span>
+                <div class="hbar-track"><div class="hbar-fill" style="width:20%; background:var(--n400);"></div></div>
+                <span class="hbar-value tabular">1</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="surface">
+            <div class="surface-head"><h2>Khóa học theo môn học</h2><p>Đếm theo môn được gắn</p></div>
+            <div class="surface-pad">
+              <div class="hbar-row">
+                <span class="hbar-label">Tiếng Anh</span>
+                <div class="hbar-track"><div class="hbar-fill" style="width:100%; background:var(--primary-500);"></div></div>
+                <span class="hbar-value tabular">3</span>
+              </div>
+              <div class="hbar-row">
+                <span class="hbar-label">IELTS</span>
+                <div class="hbar-track"><div class="hbar-fill" style="width:66%; background:var(--primary-500);"></div></div>
+                <span class="hbar-value tabular">2</span>
+              </div>
+              <div class="hbar-row">
+                <span class="hbar-label">Toán</span>
+                <div class="hbar-track"><div class="hbar-fill" style="width:66%; background:var(--primary-500);"></div></div>
+                <span class="hbar-value tabular">2</span>
+              </div>
+              <div class="hbar-row">
+                <span class="hbar-label">Ngữ văn</span>
+                <div class="hbar-track"><div class="hbar-fill" style="width:33%; background:var(--primary-500);"></div></div>
+                <span class="hbar-value tabular">1</span>
+              </div>
+              <div class="hbar-row">
+                <span class="hbar-label">Tin học</span>
+                <div class="hbar-track"><div class="hbar-fill" style="width:33%; background:var(--primary-500);"></div></div>
+                <span class="hbar-value tabular">1</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="charts-grid-2">
+          <div class="surface">
+            <div class="surface-head"><h2>Phân bố học phí</h2><p>Số khóa học theo khoảng học phí (triệu VNĐ)</p></div>
+            <div class="surface-pad">
+              <div class="vbar-chart">
+                <div class="vbar-col">
+                  <div class="vbar-fill" style="height:100%; background:var(--primary-500);"><span class="vbar-count">5</span></div>
+                  <span class="vbar-tick">2-4tr</span>
+                </div>
+                <div class="vbar-col">
+                  <div class="vbar-fill" style="height:20%; background:var(--primary-400,#6090FA);"><span class="vbar-count">1</span></div>
+                  <span class="vbar-tick">4-6tr</span>
+                </div>
+                <div class="vbar-col">
+                  <div class="vbar-fill" style="height:20%; background:var(--primary-400,#6090FA);"><span class="vbar-count">1</span></div>
+                  <span class="vbar-tick">6-8tr</span>
+                </div>
+                <div class="vbar-col">
+                  <div class="vbar-fill" style="height:20%; background:var(--primary-400,#6090FA);"><span class="vbar-count">1</span></div>
+                  <span class="vbar-tick">8-10tr</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="surface">
+            <div class="surface-head"><h2>Cần xử lý</h2><p>Môn học chưa có khóa học</p></div>
+            <div class="surface-pad">
+              <div class="warn-list">
+                <div class="warn-row">
+                  <span class="name">Âm nhạc <span style="font-weight:400;color:var(--n500)">(NHAC)</span></span>
+                  <button class="btn btn-secondary" onclick="showTab('catalog', document.querySelector('[data-tab=catalog]')); openCourseModal('create')">
+                    Thêm khóa học
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ NHÁNH 2: DANH MỤC (GỘP) ============ -->
+      <section class="view" id="view-catalog">
+        <div class="toolbar">
+          <div class="search">
+            <label class="field-label sr-only" for="course-search">Tìm khóa học</label>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            <input id="course-search" type="text" placeholder="Tìm theo tên khóa học" oninput="filterCourses()" />
+          </div>
+          <div>
+            <span class="field-label">Trạng thái</span>
+            <div class="segmented" role="group" aria-label="Lọc theo trạng thái">
+              <button class="active" onclick="filterStatus('all', this)">Tất cả</button>
+              <button onclick="filterStatus('draft', this)">Nháp</button>
+              <button onclick="filterStatus('active', this)">Đang mở</button>
+              <button onclick="filterStatus('completed', this)">Đã kết thúc</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="catalog-grid">
+          <div class="surface">
+            <div class="surface-head" style="display:flex;align-items:center;justify-content:space-between;">
+              <div>
+                <h2>Danh sách khóa học</h2>
+                <p id="course-count-label">8 khóa học</p>
+              </div>
+            </div>
+            <div class="surface-pad" style="padding-bottom:0;">
+              <div id="subject-filter-chip" style="display:none;">
+                <span class="filter-chip">
+                  Đang lọc theo môn: <span id="subject-filter-name"></span>
+                  <button type="button" aria-label="Xóa bộ lọc môn học" onclick="clearSubjectFilter()">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                  </button>
+                </span>
+              </div>
+            </div>
+            <div style="overflow-x:auto;">
+              <table class="ctable" id="courses-table">
+                <thead>
+                  <tr>
+                    <th>Khóa học</th><th>Học phí</th><th>Số buổi</th><th>Thời lượng</th><th>Trạng thái</th><th style="text-align:right">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr data-status="active" data-subjects="Tiếng Anh" data-name="tiếng anh giao tiếp cơ bản">
+                    <td><span class="cell-main">Tiếng Anh giao tiếp cơ bản</span><br><span class="subject-chip">Tiếng Anh</span></td>
+                    <td class="tabular">3.500.000 đ</td>
+                    <td class="tabular">24 buổi</td>
+                    <td>01/03 → 30/06/2026</td>
+                    <td><span class="badge tone-success">Đang mở</span></td>
+                    <td><div class="row-actions"><button class="btn btn-secondary" onclick="openCourseModal('edit','Tiếng Anh giao tiếp cơ bản')">Sửa</button></div></td>
+                  </tr>
+                  <tr data-status="active" data-subjects="Tiếng Anh" data-name="tiếng anh giao tiếp nâng cao">
+                    <td><span class="cell-main">Tiếng Anh giao tiếp nâng cao</span><br><span class="subject-chip">Tiếng Anh</span></td>
+                    <td class="tabular">4.200.000 đ</td>
+                    <td class="tabular">24 buổi</td>
+                    <td>01/03 → 30/06/2026</td>
+                    <td><span class="badge tone-success">Đang mở</span></td>
+                    <td><div class="row-actions"><button class="btn btn-secondary" onclick="openCourseModal('edit','Tiếng Anh giao tiếp nâng cao')">Sửa</button></div></td>
+                  </tr>
+                  <tr data-status="active" data-subjects="Tiếng Anh|IELTS" data-name="ielts foundation">
+                    <td><span class="cell-main">IELTS Foundation</span><br><span class="subject-chip">Tiếng Anh</span><span class="subject-chip">IELTS</span></td>
+                    <td class="tabular">6.500.000 đ</td>
+                    <td class="tabular">30 buổi</td>
+                    <td>15/03 → 15/08/2026</td>
+                    <td><span class="badge tone-success">Đang mở</span></td>
+                    <td><div class="row-actions"><button class="btn btn-secondary" onclick="openCourseModal('edit','IELTS Foundation')">Sửa</button></div></td>
+                  </tr>
+                  <tr data-status="active" data-subjects="IELTS" data-name="ielts 5.0-6.0">
+                    <td><span class="cell-main">IELTS 5.0–6.0</span><br><span class="subject-chip">IELTS</span></td>
+                    <td class="tabular">8.900.000 đ</td>
+                    <td class="tabular">36 buổi</td>
+                    <td>01/04 → 30/09/2026</td>
+                    <td><span class="badge tone-success">Đang mở</span></td>
+                    <td><div class="row-actions"><button class="btn btn-secondary" onclick="openCourseModal('edit','IELTS 5.0-6.0')">Sửa</button></div></td>
+                  </tr>
+                  <tr data-status="active" data-subjects="Toán" data-name="toán tư duy tiểu học">
+                    <td><span class="cell-main">Toán tư duy tiểu học</span><br><span class="subject-chip">Toán</span></td>
+                    <td class="tabular">2.800.000 đ</td>
+                    <td class="tabular">20 buổi</td>
+                    <td>10/03 → 20/06/2026</td>
+                    <td><span class="badge tone-success">Đang mở</span></td>
+                    <td><div class="row-actions"><button class="btn btn-secondary" onclick="openCourseModal('edit','Toán tư duy tiểu học')">Sửa</button></div></td>
+                  </tr>
+                  <tr data-status="draft" data-subjects="Toán" data-name="toán nâng cao thcs">
+                    <td><span class="cell-main">Toán nâng cao THCS</span><br><span class="subject-chip">Toán</span></td>
+                    <td class="tabular">3.200.000 đ</td>
+                    <td class="tabular">24 buổi</td>
+                    <td>Chưa mở lớp</td>
+                    <td><span class="badge tone-warning">Nháp</span></td>
+                    <td><div class="row-actions"><button class="btn btn-secondary" onclick="openCourseModal('edit','Toán nâng cao THCS')">Sửa</button></div></td>
+                  </tr>
+                  <tr data-status="completed" data-subjects="Ngữ văn" data-name="ngữ văn ôn thi vào 10">
+                    <td><span class="cell-main">Ngữ văn ôn thi vào 10</span><br><span class="subject-chip">Ngữ văn</span></td>
+                    <td class="tabular">3.000.000 đ</td>
+                    <td class="tabular">20 buổi</td>
+                    <td>05/01 → 20/05/2026</td>
+                    <td><span class="badge tone-neutral">Đã kết thúc</span></td>
+                    <td><div class="row-actions"><button class="btn btn-secondary" onclick="openCourseModal('edit','Ngữ văn ôn thi vào 10')">Sửa</button></div></td>
+                  </tr>
+                  <tr data-status="draft" data-subjects="Tin học" data-name="tin học văn phòng">
+                    <td><span class="cell-main">Tin học văn phòng</span><br><span class="subject-chip">Tin học</span></td>
+                    <td class="tabular">2.500.000 đ</td>
+                    <td class="tabular">16 buổi</td>
+                    <td>Chưa mở lớp</td>
+                    <td><span class="badge tone-warning">Nháp</span></td>
+                    <td><div class="row-actions"><button class="btn btn-secondary" onclick="openCourseModal('edit','Tin học văn phòng')">Sửa</button></div></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="surface">
+            <div class="panel-head">
+              <h2>Môn học</h2>
+              <button class="btn btn-secondary btn-sm" onclick="openSubjectModal('create')">
+                <svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                Thêm môn học
+              </button>
+            </div>
+            <div class="surface-pad" style="padding-bottom:10px;">
+              <div class="search search-sm">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+                <input type="text" placeholder="Tìm môn học" />
+              </div>
+            </div>
+            <div>
+              <button type="button" class="subject-row" onclick="toggleSubjectFilter(this, 'Tiếng Anh')">
+                <div class="info"><div class="name">Tiếng Anh</div><div class="code">ENG</div></div>
+                <span class="subject-count tabular">3 khóa</span>
+                <span class="badge tone-success">Đang dùng</span>
+                <span class="subject-edit" onclick="event.stopPropagation(); openSubjectModal('edit','Tiếng Anh')" role="button" aria-label="Sửa môn Tiếng Anh">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                </span>
+              </button>
+              <button type="button" class="subject-row" onclick="toggleSubjectFilter(this, 'IELTS')">
+                <div class="info"><div class="name">IELTS</div><div class="code">IELTS</div></div>
+                <span class="subject-count tabular">2 khóa</span>
+                <span class="badge tone-success">Đang dùng</span>
+                <span class="subject-edit" onclick="event.stopPropagation(); openSubjectModal('edit','IELTS')" role="button" aria-label="Sửa môn IELTS">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                </span>
+              </button>
+              <button type="button" class="subject-row" onclick="toggleSubjectFilter(this, 'Toán')">
+                <div class="info"><div class="name">Toán</div><div class="code">MATH</div></div>
+                <span class="subject-count tabular">2 khóa</span>
+                <span class="badge tone-success">Đang dùng</span>
+                <span class="subject-edit" onclick="event.stopPropagation(); openSubjectModal('edit','Toán')" role="button" aria-label="Sửa môn Toán">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                </span>
+              </button>
+              <button type="button" class="subject-row" onclick="toggleSubjectFilter(this, 'Ngữ văn')">
+                <div class="info"><div class="name">Ngữ văn</div><div class="code">VAN</div></div>
+                <span class="subject-count tabular">1 khóa</span>
+                <span class="badge tone-success">Đang dùng</span>
+                <span class="subject-edit" onclick="event.stopPropagation(); openSubjectModal('edit','Ngữ văn')" role="button" aria-label="Sửa môn Ngữ văn">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                </span>
+              </button>
+              <button type="button" class="subject-row" onclick="toggleSubjectFilter(this, 'Tin học')">
+                <div class="info"><div class="name">Tin học</div><div class="code">CS</div></div>
+                <span class="subject-count tabular">1 khóa</span>
+                <span class="badge tone-success">Đang dùng</span>
+                <span class="subject-edit" onclick="event.stopPropagation(); openSubjectModal('edit','Tin học')" role="button" aria-label="Sửa môn Tin học">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                </span>
+              </button>
+              <button type="button" class="subject-row" style="opacity:.6;" onclick="toggleSubjectFilter(this, 'Âm nhạc')">
+                <div class="info"><div class="name">Âm nhạc</div><div class="code">NHAC</div></div>
+                <span class="subject-count tabular" style="background:var(--n100);color:var(--n600);">0 khóa</span>
+                <span class="badge tone-neutral">Lưu trữ</span>
+                <span class="subject-edit" onclick="event.stopPropagation(); openSubjectModal('edit','Âm nhạc')" role="button" aria-label="Sửa môn Âm nhạc">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL: KHÓA HỌC ================= -->
+<div class="overlay" id="course-modal-overlay" onclick="if(event.target===this) closeCourseModal()">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="course-modal-title">
+    <div class="modal-head">
+      <div>
+        <h3 id="course-modal-title">Thêm khóa học</h3>
+        <p id="course-modal-desc">Tạo khóa học và gắn môn học liên quan.</p>
+      </div>
+      <button class="modal-close" aria-label="Đóng" onclick="closeCourseModal()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <form onsubmit="return false;">
+        <div class="form-grid">
+          <div class="field full">
+            <label for="c-name">Tên khóa học<span class="req">*</span></label>
+            <input id="c-name" type="text" placeholder="IELTS Foundation" />
+          </div>
+          <div class="field full">
+            <label>Môn học<span class="req">*</span></label>
+            <div class="chip-picker" role="group" aria-label="Chọn môn học">
+              <button type="button" class="chip-toggle" aria-pressed="true" onclick="toggleChip(this)">Tiếng Anh</button>
+              <button type="button" class="chip-toggle" aria-pressed="false" onclick="toggleChip(this)">Toán</button>
+              <button type="button" class="chip-toggle" aria-pressed="false" onclick="toggleChip(this)">Ngữ văn</button>
+              <button type="button" class="chip-toggle" aria-pressed="false" onclick="toggleChip(this)">IELTS</button>
+              <button type="button" class="chip-toggle" aria-pressed="false" onclick="toggleChip(this)">Tin học</button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="c-fee">Học phí (VNĐ)<span class="req">*</span></label>
+            <input id="c-fee" type="number" min="0" step="1" placeholder="6500000" />
+          </div>
+          <div class="field">
+            <label for="c-sessions">Tổng số buổi<span class="req">*</span></label>
+            <input id="c-sessions" type="number" min="1" step="1" placeholder="30" />
+          </div>
+          <div class="field">
+            <label for="c-start">Ngày bắt đầu</label>
+            <input id="c-start" type="date" />
+          </div>
+          <div class="field">
+            <label for="c-end">Ngày kết thúc</label>
+            <input id="c-end" type="date" />
+          </div>
+          <div class="field full">
+            <label for="c-status">Trạng thái</label>
+            <select id="c-status">
+              <option>Nháp</option>
+              <option>Đang mở</option>
+              <option>Đã kết thúc</option>
+            </select>
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" id="course-submit" onclick="alert('Demo: gọi createCourse()/updateCourse() rồi đóng modal.')">Thêm khóa học</button>
+      <button class="btn btn-secondary" onclick="closeCourseModal()">Hủy</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL: MÔN HỌC ================= -->
+<div class="overlay" id="subject-modal-overlay" onclick="if(event.target===this) closeSubjectModal()">
+  <div class="modal modal-sm" role="dialog" aria-modal="true" aria-labelledby="subject-modal-title">
+    <div class="modal-head">
+      <div>
+        <h3 id="subject-modal-title">Thêm môn học</h3>
+        <p id="subject-modal-desc">Tạo môn học mới cho danh mục.</p>
+      </div>
+      <button class="modal-close" aria-label="Đóng" onclick="closeSubjectModal()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <form onsubmit="return false;">
+        <div class="field" style="margin-bottom:14px;">
+          <label for="s-name">Tên môn học<span class="req">*</span></label>
+          <input id="s-name" type="text" placeholder="Âm nhạc" />
+        </div>
+        <div class="field" style="margin-bottom:14px;">
+          <label for="s-code">Mã môn học<span class="req">*</span></label>
+          <input id="s-code" type="text" placeholder="NHAC" />
+        </div>
+        <div class="field">
+          <label for="s-desc">Mô tả</label>
+          <textarea id="s-desc" placeholder="Ghi chú ngắn về môn học (tuỳ chọn)"></textarea>
+        </div>
+      </form>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" id="subject-submit" onclick="alert('Demo: gọi createSubject()/updateSubject() rồi đóng modal.')">Thêm môn học</button>
+      <button class="btn btn-secondary" onclick="closeSubjectModal()">Hủy</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function showTab(name, btn) {
+    document.querySelectorAll('.view').forEach(function (el) { el.classList.remove('active'); });
+    document.getElementById('view-' + name).classList.add('active');
+    document.querySelectorAll('.tab-btn').forEach(function (el) { el.classList.remove('active'); });
+    if (btn) btn.classList.add('active');
+    document.getElementById('crumb-tab').textContent = name === 'dashboard' ? 'Tổng quan' : 'Danh mục';
+    window.scrollTo({ top: 0 });
+  }
+
+  var currentStatus = 'all';
+  var currentSearch = '';
+  var currentSubject = null;
+
+  function applyCourseFilters() {
+    var rows = document.querySelectorAll('#courses-table tbody tr');
+    var visible = 0;
+    rows.forEach(function (row) {
+      var subjects = row.dataset.subjects.split('|');
+      var matchesStatus = currentStatus === 'all' || row.dataset.status === currentStatus;
+      var matchesSearch = !currentSearch || row.dataset.name.indexOf(currentSearch) !== -1;
+      var matchesSubject = !currentSubject || subjects.indexOf(currentSubject) !== -1;
+      var show = matchesStatus && matchesSearch && matchesSubject;
+      row.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+    document.getElementById('course-count-label').textContent = visible + ' khóa học' + (currentSubject ? ' (đã lọc)' : '');
+  }
+
+  function filterCourses() {
+    currentSearch = document.getElementById('course-search').value.trim().toLowerCase();
+    applyCourseFilters();
+  }
+
+  function filterStatus(status, btn) {
+    currentStatus = status;
+    document.querySelectorAll('.segmented button').forEach(function (b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    applyCourseFilters();
+  }
+
+  function toggleSubjectFilter(rowEl, subjectName) {
+    var alreadySelected = rowEl.classList.contains('selected');
+    document.querySelectorAll('.subject-row').forEach(function (r) { r.classList.remove('selected'); });
+    if (alreadySelected) {
+      currentSubject = null;
+      document.getElementById('subject-filter-chip').style.display = 'none';
+    } else {
+      rowEl.classList.add('selected');
+      currentSubject = subjectName;
+      document.getElementById('subject-filter-name').textContent = subjectName;
+      document.getElementById('subject-filter-chip').style.display = 'block';
+    }
+    applyCourseFilters();
+  }
+
+  function clearSubjectFilter() {
+    currentSubject = null;
+    document.querySelectorAll('.subject-row').forEach(function (r) { r.classList.remove('selected'); });
+    document.getElementById('subject-filter-chip').style.display = 'none';
+    applyCourseFilters();
+  }
+
+  function openCourseModal(mode, courseName) {
+    var title = document.getElementById('course-modal-title');
+    var desc = document.getElementById('course-modal-desc');
+    var submit = document.getElementById('course-submit');
+    if (mode === 'edit') {
+      title.textContent = 'Sửa khóa học';
+      desc.textContent = courseName || '';
+      submit.textContent = 'Lưu thay đổi';
+      document.getElementById('c-name').value = courseName || '';
+    } else {
+      title.textContent = 'Thêm khóa học';
+      desc.textContent = 'Tạo khóa học và gắn môn học liên quan.';
+      submit.textContent = 'Thêm khóa học';
+      document.getElementById('c-name').value = '';
+    }
+    document.getElementById('course-modal-overlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeCourseModal() {
+    document.getElementById('course-modal-overlay').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  function openSubjectModal(mode, subjectName) {
+    var title = document.getElementById('subject-modal-title');
+    var desc = document.getElementById('subject-modal-desc');
+    var submit = document.getElementById('subject-submit');
+    if (mode === 'edit') {
+      title.textContent = 'Sửa môn học';
+      desc.textContent = subjectName || '';
+      submit.textContent = 'Lưu thay đổi';
+      document.getElementById('s-name').value = subjectName || '';
+    } else {
+      title.textContent = 'Thêm môn học';
+      desc.textContent = 'Tạo môn học mới cho danh mục.';
+      submit.textContent = 'Thêm môn học';
+      document.getElementById('s-name').value = '';
+    }
+    document.getElementById('subject-modal-overlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeSubjectModal() {
+    document.getElementById('subject-modal-overlay').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  function toggleChip(btn) {
+    var pressed = btn.getAttribute('aria-pressed') === 'true';
+    btn.setAttribute('aria-pressed', String(!pressed));
+  }
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { closeCourseModal(); closeSubjectModal(); }
+  });
+</script>
+</body>
+</html>

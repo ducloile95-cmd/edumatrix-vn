@@ -1,0 +1,627 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Edumatrix Timetable Overflow + Drag Demo</title>
+  <style>
+    :root {
+      --bg: #f7f7f5;
+      --panel: #ffffff;
+      --line: #e7e5e2;
+      --muted: #6f6a62;
+      --text: #1f1d1a;
+      --blue: #2563eb;
+      --blue-soft: #eef5ff;
+      --green: #16a34a;
+      --green-soft: #ecfdf3;
+      --orange: #f59e0b;
+      --orange-soft: #fff7ed;
+      --red: #e4453a;
+      --red-soft: #fff1f0;
+      --shadow: 0 18px 44px rgba(31, 29, 26, .08);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    button, input, select { font: inherit; }
+    .app { min-height: 100vh; padding: 18px; }
+    .shell {
+      max-width: 1480px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 340px;
+      gap: 14px;
+    }
+    .main, .side {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, #fff, #fbfbfa);
+    }
+    .nav { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .icon-btn, .btn, .tab {
+      border: 1px solid #d8d5d0;
+      background: #fff;
+      min-height: 38px;
+      border-radius: 8px;
+      color: #4f4a43;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .icon-btn { width: 38px; display: grid; place-items: center; font-size: 18px; }
+    .btn { padding: 0 14px; }
+    .btn.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+    .btn.danger { background: var(--red); border-color: var(--red); color: #fff; }
+    .range {
+      font-size: 18px;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+    .tabs {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(96px, 1fr));
+      gap: 4px;
+      padding: 4px;
+      border: 1px solid #d8d5d0;
+      border-radius: 10px;
+      background: #f4f3f1;
+    }
+    .tab {
+      border: 0;
+      background: transparent;
+      padding: 0 12px;
+      min-height: 36px;
+    }
+    .tab.active {
+      background: var(--blue);
+      color: #fff;
+      box-shadow: 0 6px 16px rgba(37, 99, 235, .24);
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+    }
+    .dot { width: 9px; height: 9px; border-radius: 3px; display: inline-block; margin-right: 6px; }
+    .viewport-note {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfbfa;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+    }
+    .viewport-note strong { color: var(--text); }
+    .view { display: none; }
+    .view.active { display: block; }
+
+    .timeline-shell {
+      height: min(68vh, 660px);
+      min-height: 510px;
+      overflow: hidden;
+      background: #fff;
+    }
+    .timegrid {
+      height: 100%;
+      display: grid;
+      grid-template-columns: 56px repeat(var(--days), minmax(156px, 1fr));
+      min-width: var(--minw);
+    }
+    .time-head {
+      height: 62px;
+      border-bottom: 1px solid var(--line);
+      border-right: 1px solid var(--line);
+      background: #fff;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .time-head.today { background: #edf3ff; color: #1d4ed8; }
+    .time-head b { display: block; color: var(--text); font-size: 18px; margin-top: 4px; }
+    .time-axis, .day-col {
+      position: relative;
+      height: calc(100% - 62px);
+      border-right: 1px solid #efede9;
+      background-image: repeating-linear-gradient(to bottom, #e7e5e2 0, #e7e5e2 1px, transparent 1px, transparent var(--hour));
+    }
+    .time-axis { background-color: #fff; }
+    .tick {
+      position: absolute;
+      right: 8px;
+      transform: translateY(-50%);
+      background: #fff;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 750;
+      padding: 0 3px;
+    }
+    .day-col.today { background-color: #f6f9ff; }
+    .now-band {
+      position: absolute;
+      left: 0;
+      right: 0;
+      background: rgba(228, 69, 58, .075);
+      border-left: 3px solid var(--red);
+      pointer-events: none;
+    }
+    .event {
+      position: absolute;
+      border: 1px solid transparent;
+      border-left-width: 4px;
+      border-radius: 8px;
+      padding: 9px 9px 7px;
+      overflow: hidden;
+      text-align: left;
+      cursor: pointer;
+      transition: transform .15s ease, box-shadow .15s ease;
+    }
+    .event:hover { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(31, 29, 26, .12); }
+    .event.scheduled { background: var(--blue-soft); border-color: #38a8e8; color: #075985; }
+    .event.completed { background: var(--green-soft); border-color: var(--green); color: #166534; }
+    .event.rescheduled { background: var(--orange-soft); border-color: var(--orange); color: #92400e; }
+    .event.cancelled { background: var(--red-soft); border-color: var(--red); color: #991b1b; }
+    .event h3 {
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.15;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .event p {
+      margin: 4px 0 0;
+      font-size: 11px;
+      line-height: 1.25;
+      font-weight: 750;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .event .more {
+      display: inline-flex;
+      margin-top: 5px;
+      border-radius: 999px;
+      padding: 2px 6px;
+      background: rgba(255,255,255,.72);
+      font-size: 10px;
+      font-weight: 850;
+    }
+
+    .fit-shell {
+      height: min(68vh, 660px);
+      min-height: 510px;
+      display: grid;
+      grid-template-rows: 58px 1fr;
+      overflow: hidden;
+    }
+    .fit-days, .fit-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(130px, 1fr));
+      min-width: 1060px;
+    }
+    .fit-days > div {
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      padding: 8px 10px;
+      background: #fbfbfa;
+      font-size: 11px;
+      font-weight: 850;
+      color: var(--muted);
+    }
+    .fit-days b { display: block; margin-top: 4px; color: var(--text); font-size: 17px; }
+    .fit-day {
+      display: grid;
+      grid-template-rows: .95fr 1.1fr 1.25fr;
+      min-height: 0;
+      border-right: 1px solid var(--line);
+    }
+    .slot {
+      min-height: 0;
+      padding: 7px;
+      border-bottom: 1px dashed var(--line);
+      background: #fff;
+    }
+    .slot.dragover { outline: 2px solid var(--blue); outline-offset: -4px; background: #f1f6ff; }
+    .slot-label {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+    .fit-event {
+      border: 1px solid #d8d5d0;
+      border-left: 4px solid #38a8e8;
+      border-radius: 8px;
+      padding: 8px;
+      background: #fff;
+      cursor: grab;
+      user-select: none;
+      min-height: 76px;
+    }
+    .fit-event:active { cursor: grabbing; }
+    .fit-event h3 { margin: 0; font-size: 12px; line-height: 1.2; }
+    .fit-event p { margin: 4px 0 0; font-size: 11px; color: var(--muted); font-weight: 750; }
+    .fit-event .pill {
+      display: inline-flex;
+      margin-top: 5px;
+      border-radius: 999px;
+      background: var(--blue);
+      color: #fff;
+      padding: 2px 6px;
+      font-size: 9px;
+      font-weight: 900;
+    }
+
+    .side { padding: 14px; align-self: start; }
+    .side h2 { margin: 0; font-size: 16px; }
+    .side p { color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px;
+      margin-top: 12px;
+      background: #fff;
+    }
+    .class-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+      padding: 9px 0;
+      border-top: 1px solid #f0eeea;
+    }
+    .class-row:first-child { border-top: 0; }
+    .class-row b { font-size: 13px; }
+    .class-row span { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; font-weight: 700; }
+    .mini-btn {
+      border: 1px solid #d8d5d0;
+      background: #fff;
+      color: #57524a;
+      border-radius: 7px;
+      min-height: 30px;
+      padding: 0 9px;
+      font-size: 11px;
+      font-weight: 850;
+      cursor: pointer;
+    }
+    .mini-btn.danger { border-color: #f1b7b2; color: #b91c1c; background: #fff6f5; }
+    .payload {
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #171717;
+      color: #d8f3dc;
+      border-radius: 10px;
+      padding: 12px;
+      min-height: 142px;
+      font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    .toast {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      display: none;
+      max-width: 380px;
+      border-radius: 10px;
+      background: #171717;
+      color: #fff;
+      padding: 12px 14px;
+      box-shadow: 0 16px 44px rgba(0,0,0,.25);
+      font-size: 13px;
+      font-weight: 750;
+    }
+    .toast.show { display: block; }
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      display: none;
+      place-items: center;
+      background: rgba(31, 29, 26, .38);
+      padding: 18px;
+    }
+    .modal-backdrop.show { display: grid; }
+    .modal {
+      width: min(460px, 100%);
+      background: #fff;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      box-shadow: 0 28px 80px rgba(0,0,0,.28);
+      padding: 18px;
+    }
+    .modal h2 { margin: 0 0 8px; font-size: 18px; }
+    .modal p { color: var(--muted); line-height: 1.5; }
+    .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+    @media (max-width: 1050px) {
+      .shell { grid-template-columns: 1fr; }
+      .timeline-shell, .fit-shell { overflow-x: auto; }
+    }
+    @media (max-width: 760px) {
+      .topbar { align-items: stretch; flex-direction: column; }
+      .tabs { grid-template-columns: 1fr 1fr 1fr; }
+      .range { font-size: 15px; }
+      .app { padding: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="shell">
+      <main class="main">
+        <div class="topbar">
+          <div class="nav">
+            <button class="icon-btn" aria-label="Kỳ trước">‹</button>
+            <button class="icon-btn" aria-label="Kỳ tiếp">›</button>
+            <div class="range" id="rangeLabel">15/07/2026</div>
+            <button class="btn">Hôm nay</button>
+          </div>
+          <div class="tabs" role="tablist" aria-label="Chuyển demo timetable">
+            <button class="tab active" data-view="fit">Fit week</button>
+            <button class="tab" data-view="day">Ngày</button>
+            <button class="tab" data-view="grid">Time-grid</button>
+          </div>
+        </div>
+        <div class="legend">
+          <span><i class="dot" style="background:#0ea5e9"></i>Đã lên lịch</span>
+          <span><i class="dot" style="background:#f59e0b"></i>Đổi lịch / học bù</span>
+          <span><i class="dot" style="background:#16a34a"></i>Đã học</span>
+          <span><i class="dot" style="background:#e4453a"></i>Đã hủy</span>
+        </div>
+        <div class="viewport-note">
+          <span><strong>Demo fix tràn:</strong> khung timeline cố định, giờ học tự scale theo viewport.</span>
+          <span id="scaleLabel">06:00-23:00 · 34px/giờ</span>
+        </div>
+
+        <section class="view active" id="view-fit"></section>
+        <section class="view" id="view-day"></section>
+        <section class="view" id="view-grid"></section>
+      </main>
+
+      <aside class="side">
+        <h2>Luồng thao tác đề xuất</h2>
+        <p>Xóa lớp dùng soft-delete: đổi `classes.status = cancelled`, đồng thời hủy các session tương lai để giữ lịch sử điểm danh và học phí.</p>
+        <div class="card">
+          <b>Danh sách lớp</b>
+          <div id="classList"></div>
+        </div>
+        <div class="card">
+          <b>Backend payload sau kéo thả</b>
+          <p>Khi thả card trên Fit week, UI gọi `updateSession(sessionId, { startAt, endAt, status: "rescheduled" })` và invalidate cache.</p>
+          <div class="payload" id="payload">{}</div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="deleteModal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="deleteTitle">
+      <h2 id="deleteTitle">Xóa lớp học?</h2>
+      <p id="deleteText"></p>
+      <div class="actions">
+        <button class="btn" id="cancelDelete">Hủy</button>
+        <button class="btn danger" id="confirmDelete">Xóa lớp</button>
+      </div>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const days = [
+      ["T2", "13/07"], ["T3", "14/07"], ["T4", "15/07"], ["T5", "16/07"],
+      ["T6", "17/07"], ["T7", "18/07"], ["CN", "19/07"]
+    ];
+    const classes = [
+      { id: "class-toan-a", name: "Toán A", course: "Toán nền tảng", students: 18, status: "active" },
+      { id: "class-anh-b", name: "Anh B", course: "English Starter", students: 14, status: "active" },
+      { id: "class-toan-c", name: "Toán C", course: "Toán tăng tốc", students: 16, status: "active" }
+    ];
+    let sessions = [
+      { id: "s1", classId: "class-toan-a", day: 0, title: "Toán A", start: "18:00", end: "19:30", status: "completed", room: "ĐA HỌC" },
+      { id: "s2", classId: "class-anh-b", day: 2, title: "Anh B", start: "17:30", end: "22:55", status: "scheduled", room: "Zoom 02" },
+      { id: "s3", classId: "class-toan-c", day: 4, title: "Toán C", start: "18:00", end: "19:30", status: "scheduled", room: "Phòng 201" },
+      { id: "s4", classId: "class-anh-b", day: 5, title: "Anh B", start: "18:00", end: "19:30", status: "scheduled", room: "Zoom 02" }
+    ];
+    let activeView = "fit";
+    let pendingDeleteId = null;
+
+    const START = 6;
+    const END = 23;
+    const TOTAL = END - START;
+    const timelineHeight = 598;
+    const headerHeight = 62;
+    const hour = Math.max(28, Math.min(40, (timelineHeight - headerHeight) / TOTAL));
+
+    function minOf(time) {
+      const [h, m] = time.split(":").map(Number);
+      return h * 60 + m;
+    }
+    function addMinutes(time, delta) {
+      const total = minOf(time) + delta;
+      return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+    }
+    function clampSessionStyle(s) {
+      const top = ((minOf(s.start) - START * 60) / 60) * hour;
+      const h = Math.max(34, ((minOf(s.end) - minOf(s.start)) / 60) * hour - 2);
+      const maxH = timelineHeight - headerHeight - Math.max(0, top) - 6;
+      return { top: Math.max(0, top), height: Math.min(h, maxH) };
+    }
+    function bandOf(time) {
+      const h = Math.floor(minOf(time) / 60);
+      if (h < 12) return "morning";
+      if (h < 18) return "afternoon";
+      return "evening";
+    }
+    function bandStart(band) {
+      return band === "morning" ? "08:00" : band === "afternoon" ? "14:00" : "18:00";
+    }
+    function statusLabel(status) {
+      return status === "completed" ? "Đã học" : status === "rescheduled" ? "Học bù" : status === "cancelled" ? "Đã hủy" : "Lên lịch";
+    }
+    function activeSessions() {
+      const activeClassIds = new Set(classes.filter(c => c.status !== "cancelled").map(c => c.id));
+      return sessions.filter(s => activeClassIds.has(s.classId));
+    }
+    function renderEvent(s, wide) {
+      const style = clampSessionStyle(s);
+      const cls = classes.find(c => c.id === s.classId);
+      const hidden = ((minOf(s.end) - minOf(s.start)) / 60) * hour > style.height + 8;
+      return `<button class="event ${s.status}" style="top:${style.top}px;height:${style.height}px;left:8px;right:8px">
+        <h3>${s.title}</h3>
+        <p>${s.start}-${s.end}${wide ? " · " + (cls?.course ?? "") : ""}</p>
+        ${hidden ? `<span class="more">Nội dung thu gọn</span>` : `<p>${s.room}</p>`}
+      </button>`;
+    }
+    function renderTimeline(target, dayCount) {
+      const view = document.getElementById(target);
+      const shownDays = dayCount === 1 ? [days[2]] : days;
+      const shownIndexes = dayCount === 1 ? [2] : days.map((_, i) => i);
+      view.innerHTML = `<div class="timeline-shell"><div class="timegrid" style="--days:${dayCount};--minw:${dayCount === 1 ? "760px" : "1120px"};--hour:${hour}px">
+        <div class="time-head"></div>
+        ${shownDays.map(d => `<div class="time-head ${d[1] === "15/07" ? "today" : ""}">${d[0]}<b>${d[1]}</b></div>`).join("")}
+        <div class="time-axis">
+          ${Array.from({ length: TOTAL + 1 }, (_, i) => `<span class="tick" style="top:${i * hour}px">${String(START + i).padStart(2, "0")}:00</span>`).join("")}
+        </div>
+        ${shownIndexes.map(idx => `<div class="day-col ${idx === 2 ? "today" : ""}">
+          ${idx === 2 ? `<div class="now-band" style="top:${((15.3 - START) * hour)}px;height:${Math.max(120, 7.6 * hour)}px"></div>` : ""}
+          ${activeSessions().filter(s => s.day === idx).map(s => renderEvent(s, dayCount === 1)).join("")}
+        </div>`).join("")}
+      </div></div>`;
+    }
+    function renderFit() {
+      const view = document.getElementById("view-fit");
+      view.innerHTML = `<div class="fit-shell">
+        <div class="fit-days">${days.map(d => `<div>${d[0]}<b>${d[1]}</b></div>`).join("")}</div>
+        <div class="fit-grid">
+          ${days.map((_, dayIdx) => `<div class="fit-day">
+            ${["morning", "afternoon", "evening"].map(band => `<div class="slot" data-day="${dayIdx}" data-band="${band}">
+              <div class="slot-label"><span>${band === "morning" ? "Sáng" : band === "afternoon" ? "Chiều" : "Tối"}</span><span>${band === "morning" ? "06-12" : band === "afternoon" ? "12-18" : "18-23"}</span></div>
+              ${activeSessions().filter(s => s.day === dayIdx && bandOf(s.start) === band).map(s => `<div class="fit-event" draggable="true" data-id="${s.id}">
+                <h3>${s.title}</h3><p>${s.start}-${s.end} · ${classes.find(c => c.id === s.classId)?.course ?? ""}</p><span class="pill">${statusLabel(s.status)}</span>
+              </div>`).join("")}
+            </div>`).join("")}
+          </div>`).join("")}
+        </div>
+      </div>`;
+      wireDrag();
+    }
+    function renderClasses() {
+      document.getElementById("classList").innerHTML = classes.map(c => `<div class="class-row">
+        <div><b>${c.name}</b><span>${c.course} · ${c.students} học sinh · ${c.status === "cancelled" ? "Đã xóa" : "Đang học"}</span></div>
+        <button class="mini-btn danger" ${c.status === "cancelled" ? "disabled" : ""} onclick="openDelete('${c.id}')">Xóa</button>
+      </div>`).join("");
+    }
+    function renderAll() {
+      renderFit();
+      renderTimeline("view-day", 1);
+      renderTimeline("view-grid", 7);
+      renderClasses();
+      document.getElementById("scaleLabel").textContent = `06:00-23:00 · ${Math.round(hour)}px/giờ · không tràn trang`;
+    }
+    function switchView(view) {
+      activeView = view;
+      document.querySelectorAll(".tab").forEach(btn => btn.classList.toggle("active", btn.dataset.view === view));
+      document.querySelectorAll(".view").forEach(el => el.classList.remove("active"));
+      document.getElementById(`view-${view}`).classList.add("active");
+      document.getElementById("rangeLabel").textContent = view === "day" ? "15/07/2026" : "13/07 - 19/07/2026";
+    }
+    function wireDrag() {
+      document.querySelectorAll(".fit-event").forEach(card => {
+        card.addEventListener("dragstart", e => e.dataTransfer.setData("text/plain", card.dataset.id));
+      });
+      document.querySelectorAll(".slot").forEach(slot => {
+        slot.addEventListener("dragover", e => { e.preventDefault(); slot.classList.add("dragover"); });
+        slot.addEventListener("dragleave", () => slot.classList.remove("dragover"));
+        slot.addEventListener("drop", e => {
+          e.preventDefault();
+          slot.classList.remove("dragover");
+          const id = e.dataTransfer.getData("text/plain");
+          const s = sessions.find(item => item.id === id);
+          if (!s) return;
+          const duration = minOf(s.end) - minOf(s.start);
+          s.day = Number(slot.dataset.day);
+          s.start = bandStart(slot.dataset.band);
+          s.end = addMinutes(s.start, duration);
+          s.status = "rescheduled";
+          const payload = {
+            sessionId: s.id,
+            updateSession: {
+              startAt: `2026-07-${13 + s.day}T${s.start}:00+07:00`,
+              endAt: `2026-07-${13 + s.day}T${s.end}:00+07:00`,
+              status: "rescheduled",
+              note: "Cập nhật bằng kéo thả Fit week"
+            }
+          };
+          document.getElementById("payload").textContent = JSON.stringify(payload, null, 2);
+          toast(`Đã kéo ${s.title} sang ${days[s.day][0]} · ${s.start}-${s.end}`);
+          renderAll();
+          switchView("fit");
+        });
+      });
+    }
+    function openDelete(id) {
+      pendingDeleteId = id;
+      const c = classes.find(item => item.id === id);
+      document.getElementById("deleteText").textContent = `Lớp "${c.name}" sẽ được chuyển trạng thái đã hủy. Các buổi học tương lai của lớp này sẽ bị hủy, dữ liệu lịch sử vẫn được giữ.`;
+      document.getElementById("deleteModal").classList.add("show");
+    }
+    function closeDelete() {
+      document.getElementById("deleteModal").classList.remove("show");
+      pendingDeleteId = null;
+    }
+    function confirmDelete() {
+      const c = classes.find(item => item.id === pendingDeleteId);
+      if (!c) return closeDelete();
+      c.status = "cancelled";
+      sessions = sessions.map(s => s.classId === c.id ? { ...s, status: "cancelled" } : s);
+      document.getElementById("payload").textContent = JSON.stringify({
+        classId: c.id,
+        updateClass: { status: "cancelled", updatedAt: "serverTimestamp()" },
+        cascadeFutureSessions: { status: "cancelled", reason: "class_deleted" }
+      }, null, 2);
+      closeDelete();
+      renderAll();
+      switchView(activeView);
+      toast(`Đã xóa mềm lớp ${c.name}`);
+    }
+    function toast(text) {
+      const el = document.getElementById("toast");
+      el.textContent = text;
+      el.classList.add("show");
+      window.clearTimeout(window.__toastTimer);
+      window.__toastTimer = window.setTimeout(() => el.classList.remove("show"), 2600);
+    }
+    document.querySelectorAll(".tab").forEach(btn => btn.addEventListener("click", () => switchView(btn.dataset.view)));
+    document.getElementById("cancelDelete").addEventListener("click", closeDelete);
+    document.getElementById("confirmDelete").addEventListener("click", confirmDelete);
+    renderAll();
+    switchView("fit");
+  </script>
+</body>
+</html>

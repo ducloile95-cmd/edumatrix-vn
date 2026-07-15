@@ -13,7 +13,9 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { COLLECTIONS } from "@/constants/collections";
-import { db } from "@/services/firebase/client";
+import { db } from "@/services/firebase/firestoreClient";
+import { getCurrentUserDoc, isTeacherUser } from "@/services/firestore/authz";
+import { listClasses } from "@/services/firestore/classes";
 import type { AssignmentDoc, AssignmentSummaryDoc, SubmissionDoc, SubmissionStatus } from "@/types/academic";
 
 export async function createAssignment(
@@ -48,13 +50,13 @@ export async function listAssignmentSummaries(): Promise<(AssignmentSummaryDoc &
   return snap.docs.map((item) => ({ id: item.id, ...(item.data() as AssignmentSummaryDoc) }));
 }
 
-export async function listAssignmentsByClass(classId: string): Promise<(AssignmentDoc & { id: string })[]> {
+export async function listAssignmentsByClass(classId: string, pageSize = 100): Promise<(AssignmentDoc & { id: string })[]> {
   const snap = await getDocs(
     query(
       collection(db, COLLECTIONS.ASSIGNMENTS),
       where("classId", "==", classId),
       where("status", "==", "published"),
-      limit(100),
+      limit(pageSize),
     ),
   );
   return snap.docs.map((item) => ({ id: item.id, ...(item.data() as AssignmentDoc) }));
@@ -91,8 +93,27 @@ export async function listSubmissions(assignmentId: string): Promise<(Submission
   return snap.docs.map((item) => ({ id: item.id, ...(item.data() as SubmissionDoc) }));
 }
 
-export async function listSubmissionsByStudents(studentIds: string[]): Promise<(SubmissionDoc & { id: string })[]> {
+export async function listSubmissionsByStudents(studentIds: string[], pageSize = 300): Promise<(SubmissionDoc & { id: string })[]> {
   const uniqueIds = [...new Set(studentIds)].filter(Boolean);
+  if (uniqueIds.length === 0) return [];
+
+  const currentUser = await getCurrentUserDoc();
+  if (isTeacherUser(currentUser)) {
+    const studentSet = new Set(uniqueIds);
+    const classes = await listClasses();
+    const groups = await Promise.all(
+      classes.map(async (klass) => {
+        const snap = await getDocs(
+          query(collection(db, COLLECTIONS.SUBMISSIONS), where("classId", "==", klass.id), limit(pageSize)),
+        );
+        return snap.docs
+          .map((item) => ({ id: item.id, ...(item.data() as SubmissionDoc) }))
+          .filter((item) => studentSet.has(item.studentId));
+      }),
+    );
+    return groups.flat();
+  }
+
   const chunks = uniqueIds.reduce<string[][]>((acc, studentId, index) => {
     if (index % 30 === 0) acc.push([]);
     acc[acc.length - 1].push(studentId);
@@ -102,7 +123,7 @@ export async function listSubmissionsByStudents(studentIds: string[]): Promise<(
   const groups = await Promise.all(
     chunks.map(async (chunk) => {
       const snap = await getDocs(
-        query(collection(db, COLLECTIONS.SUBMISSIONS), where("studentId", "in", chunk), limit(300)),
+        query(collection(db, COLLECTIONS.SUBMISSIONS), where("studentId", "in", chunk), limit(pageSize)),
       );
       return snap.docs.map((item) => ({ id: item.id, ...(item.data() as SubmissionDoc) }));
     }),

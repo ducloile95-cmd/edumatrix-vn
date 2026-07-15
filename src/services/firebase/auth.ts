@@ -8,7 +8,7 @@ import {
   signInWithEmailAndPassword,
   signInWithPopup,
 } from "firebase/auth";
-import { auth, googleProvider } from "@/services/firebase/client";
+import { auth, googleProvider } from "@/services/firebase/authClient";
 
 /**
  * Cac thao tac Auth chay hoan toan o client SDK (goi Spark, khong Cloud Functions).

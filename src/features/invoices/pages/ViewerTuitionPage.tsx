@@ -29,7 +29,7 @@ export default function ViewerTuitionPage() {
           <article key={invoice.id} className="border-b border-neutral-200 py-4">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <h2 className="text-base">{invoice.title}</h2>
+                <h2 className="text-xl font-semibold text-neutral-900">{invoice.title}</h2>
                 <p className="text-sm">
                   {invoice.amount.toLocaleString("vi-VN")} đ · {invoice.status}
                 </p>

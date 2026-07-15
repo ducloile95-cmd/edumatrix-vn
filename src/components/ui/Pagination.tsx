@@ -7,6 +7,8 @@ interface PaginationProps {
   onPageChange: (page: number) => void;
   onPageSizeChange?: (pageSize: number) => void;
   pageSizeOptions?: number[];
+  /** Danh từ số nhiều hiển thị ở cuối ("trong X học sinh/lớp/..."). Mặc định giữ nguyên "học sinh". */
+  itemLabel?: string;
 }
 
 export function Pagination({
@@ -16,6 +18,7 @@ export function Pagination({
   pageSize,
   pageSizeOptions = [15, 20, 30, 50, 100],
   totalItems,
+  itemLabel = "học sinh",
 }: PaginationProps) {
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const firstItem = totalItems === 0 ? 0 : (page - 1) * pageSize + 1;
@@ -92,7 +95,7 @@ export function Pagination({
           <ChevronsRight aria-hidden="true" size={16} />
         </button>
         <span className="ml-2 text-sm text-neutral-500">
-          {firstItem} - {lastItem} trong {totalItems} học sinh
+          {firstItem} - {lastItem} trong {totalItems} {itemLabel}
         </span>
       </div>
     </nav>

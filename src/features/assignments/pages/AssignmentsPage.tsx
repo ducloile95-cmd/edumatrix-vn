@@ -82,7 +82,7 @@ export default function AssignmentsPage() {
           event.preventDefault();
           if (!create.isPending) create.mutate();
         }}
-        className="mt-5 grid gap-3 border-y border-neutral-200 py-5 md:grid-cols-3"
+        className="grid gap-3 border-y border-neutral-200 py-4 md:grid-cols-3"
       >
         <input aria-label="Tên bài tập" required placeholder="Tên bài tập" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="min-h-touch rounded-input border px-3" />
         <select aria-label="Lớp học" required value={form.classId} onChange={(e) => setForm({ ...form, classId: e.target.value })} className="min-h-touch rounded-input border px-3">
@@ -108,7 +108,7 @@ export default function AssignmentsPage() {
         )}
       </form>
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-[320px_1fr]">
+      <div className="mt-4 grid gap-4 lg:grid-cols-[320px_1fr]">
         <section>
           <h2 className="mb-3">Bài tập</h2>
           <ul className="divide-y">
@@ -143,7 +143,7 @@ export default function AssignmentsPage() {
         </section>
       </div>
 
-      <section className="mt-7 grid gap-5 lg:grid-cols-[1fr_1.4fr]">
+      <section className="mt-5 grid gap-4 lg:grid-cols-[1fr_1.4fr]">
         <div>
           <h2>Phễu Giao → Nộp → Chấm → Làm lại</h2>
           <p className="mt-1 text-sm text-neutral-500">Tổng hợp trên toàn bộ bài tập đang có.</p>

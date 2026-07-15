@@ -90,7 +90,7 @@ export default function AttendancePage() {
         aria-label="Chọn buổi học"
         value={sessionId}
         onChange={(event) => setSessionId(event.target.value)}
-        className="mt-5 min-h-touch w-full max-w-xl rounded-input border border-neutral-300 px-3 text-sm"
+        className="min-h-touch w-full max-w-xl rounded-input border border-neutral-300 px-3 text-sm"
       >
         <option value="">Chọn buổi học</option>
         {sessions.data?.map((session) => (
@@ -106,7 +106,7 @@ export default function AttendancePage() {
       )}
 
       {classStudents.length > 0 && (
-        <div className="mt-5">
+        <div className="mt-4">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h2>
               {klass.data?.name} · {classStudents.length} học sinh

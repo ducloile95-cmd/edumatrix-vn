@@ -10,7 +10,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import type { User } from "firebase/auth";
-import { db } from "@/services/firebase/client";
+import { db } from "@/services/firebase/firestoreClient";
 import { COLLECTIONS } from "@/constants/collections";
 import { normalizeEmail } from "@/utils/email";
 import { writeAuditLog } from "@/services/firestore/auditLog";

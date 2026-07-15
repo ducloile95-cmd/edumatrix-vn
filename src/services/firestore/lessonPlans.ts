@@ -1,5 +1,5 @@
 import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, limit, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
-import { db } from "@/services/firebase/client";
+import { db } from "@/services/firebase/firestoreClient";
 import { COLLECTIONS } from "@/constants/collections";
 import type { LessonPlanDoc, LessonPlanTemplateDoc } from "@/types/academic";
 import type { LessonPlanFormValues } from "@/schemas/lessonPlan";
@@ -36,4 +36,4 @@ export async function listLessonPlanTemplates(): Promise<(LessonPlanTemplateDoc 
 export async function createLessonPlanTemplate(name: string, sections: LessonPlanFormValues["sections"]): Promise<void> {
   await addDoc(collection(db, COLLECTIONS.LESSON_PLAN_TEMPLATES), { name, sections, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
 }
-export async function listPublicLessonPlansByClass(classId:string):Promise<Record<string,unknown>[]>{const snapshot=await getDocs(query(collection(db,COLLECTIONS.LESSON_PLAN_PUBLIC),where("classId","==",classId),limit(100)));return snapshot.docs.map(item=>({id:item.id,...item.data()}));}
+export async function listPublicLessonPlansByClass(classId:string,pageSize=100):Promise<Record<string,unknown>[]>{const snapshot=await getDocs(query(collection(db,COLLECTIONS.LESSON_PLAN_PUBLIC),where("classId","==",classId),limit(pageSize)));return snapshot.docs.map(item=>({id:item.id,...item.data()}));}

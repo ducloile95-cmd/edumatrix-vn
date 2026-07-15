@@ -5,10 +5,8 @@ import {
   type ReactNode,
 } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
-import { doc, onSnapshot } from "firebase/firestore";
-import { auth, db } from "@/services/firebase/client";
+import { auth } from "@/services/firebase/authClient";
 import { COLLECTIONS } from "@/constants/collections";
-import { attemptClaimInvite } from "@/services/firestore/users";
 import type { UserDoc } from "@/types/user";
 import { AuthContext, type AuthContextValue } from "@/features/auth/context/auth-context-value";
 
@@ -43,18 +41,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfileResolved(false);
     // Realtime o day la chap nhan duoc: chi 1 document, can phan quyen
     // (role/status) cap nhat ngay lap tuc khi Admin khoa tai khoan (A14).
-    const unsubscribe = onSnapshot(
-      doc(db, COLLECTIONS.USERS, firebaseUser.uid),
-      (snapshot) => {
-        setUserDoc(snapshot.exists() ? (snapshot.data() as UserDoc) : null);
-        setProfileResolved(true);
-      },
-      () => {
+    let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
+
+    Promise.all([import("firebase/firestore"), import("@/services/firebase/firestoreClient")])
+      .then(([{ doc, onSnapshot }, { db }]) => {
+        if (cancelled) return;
+        unsubscribe = onSnapshot(
+          doc(db, COLLECTIONS.USERS, firebaseUser.uid),
+          (snapshot) => {
+            setUserDoc(snapshot.exists() ? (snapshot.data() as UserDoc) : null);
+            setProfileResolved(true);
+          },
+          () => {
+            setUserDoc(null);
+            setProfileResolved(true);
+          },
+        );
+      })
+      .catch(() => {
+        if (cancelled) return;
         setUserDoc(null);
         setProfileResolved(true);
-      },
-    );
-    return unsubscribe;
+      });
+
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
   }, [firebaseUser]);
 
   // Tu dong thu claim invite khi dang nhap Google lan dau nhung chua co
@@ -67,14 +81,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setClaiming(true);
     setClaimFailureReason(null);
 
-    attemptClaimInvite(firebaseUser).then((result) => {
-      setClaiming(false);
-      if (!result.claimed) {
-        setClaimFailureReason(result.reason);
-      }
-      // Neu claimed thanh cong, onSnapshot users/{uid} o effect tren se tu
-      // dong nhan doc moi va cap nhat userDoc - khong can setUserDoc thu cong.
-    });
+    let cancelled = false;
+
+    import("@/services/firestore/users")
+      .then(({ attemptClaimInvite }) => attemptClaimInvite(firebaseUser))
+      .then((result) => {
+        if (cancelled) return;
+        setClaiming(false);
+        if (!result.claimed) {
+          setClaimFailureReason(result.reason);
+        }
+        // Neu claimed thanh cong, onSnapshot users/{uid} o effect tren se tu
+        // dong nhan doc moi va cap nhat userDoc - khong can setUserDoc thu cong.
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setClaiming(false);
+        setClaimFailureReason("error");
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [firebaseUser, profileResolved, userDoc]);
 
   return (

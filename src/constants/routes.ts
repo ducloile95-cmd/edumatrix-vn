@@ -28,3 +28,8 @@ export const ROUTES = {
 export function classDetailPath(classId: string): string {
   return `/app/classes/${classId}`;
 }
+
+/** Mo Lich hoc (Timetable) da loc san theo 1 lop - dung tu nut "Xem lich" o Danh sach lop. */
+export function sessionsForClassPath(classId: string): string {
+  return `${ROUTES.STAFF_SESSIONS}?classId=${classId}`;
+}
