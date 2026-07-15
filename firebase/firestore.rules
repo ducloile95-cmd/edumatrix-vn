@@ -544,4 +544,22 @@ service cloud.firestore {
     match /message_outbox/{messageId} {
       allow read: if isStaff();
       allow create: if isStaff() && request.resource.data.actorUid == request.auth.uid &&
-        requ
+        request.resource.data.status in ['sent', 'failed'];
+      allow update, delete: if false;
+    }
+    match /messenger_connections/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow write: if false;
+    }
+
+    // ---------- Mac dinh: tu choi tat ca ----------
+    // Cac collection khac (sessions, lesson_plans, attendance, assignments,
+    // submissions, scores, invoices, payments, announcements...) se duoc mo
+    // dan theo Phase 4-11, kem Emulator test cho tung quyen truoc khi
+    // enable (A28).
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
