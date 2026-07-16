@@ -16,7 +16,8 @@ import { COLLECTIONS } from "@/constants/collections";
 import { db } from "@/services/firebase/firestoreClient";
 import { getCurrentUserDoc, isTeacherUser } from "@/services/firestore/authz";
 import { listClasses } from "@/services/firestore/classes";
-import type { AssignmentDoc, AssignmentSummaryDoc, SubmissionDoc, SubmissionStatus } from "@/types/academic";
+import { assignmentScoreId } from "@/utils/idempotency";
+import type { AssignmentDoc, AssignmentSummaryDoc, ScoreDoc, SubmissionDoc, SubmissionStatus } from "@/types/academic";
 
 export async function createAssignment(
   input: Omit<AssignmentDoc, "createdAt" | "updatedAt">,
@@ -134,12 +135,15 @@ export async function listSubmissionsByStudents(studentIds: string[], pageSize =
 
 export async function gradeSubmission(
   id: string,
-  assignmentId: string,
+  assignment: AssignmentDoc & { id: string },
   input: { score: number | null; teacherComment: string; status: SubmissionStatus; checkedBy: string },
 ): Promise<void> {
+  if (input.status === "graded" && (input.score == null || input.score < 0 || input.score > assignment.maxScore)) {
+    throw new Error("SCORE_INVALID");
+  }
   await runTransaction(db, async (transaction) => {
     const submissionRef = doc(db, COLLECTIONS.SUBMISSIONS, id);
-    const summaryRef = doc(db, COLLECTIONS.ASSIGNMENT_SUMMARIES, assignmentId);
+    const summaryRef = doc(db, COLLECTIONS.ASSIGNMENT_SUMMARIES, assignment.id);
     const [submissionSnap, summarySnap] = await Promise.all([
       transaction.get(submissionRef),
       transaction.get(summaryRef),
@@ -148,21 +152,40 @@ export async function gradeSubmission(
     if (!submissionSnap.exists()) throw new Error("SUBMISSION_NOT_FOUND");
 
     const previous = submissionSnap.data() as SubmissionDoc;
+    if (previous.assignmentId !== assignment.id || previous.classId !== assignment.classId) throw new Error("SUBMISSION_MISMATCH");
+    const scoreRef = doc(db, COLLECTIONS.SCORES, assignmentScoreId(assignment.id, previous.studentId));
+    const studentSummaryRef = doc(db, COLLECTIONS.STUDENT_SUMMARIES, previous.studentId);
+    const [scoreSnap, studentSummarySnap] = await Promise.all([
+      transaction.get(scoreRef),
+      transaction.get(studentSummaryRef),
+    ]);
     const summary = summarySnap.data() as Partial<AssignmentSummaryDoc> | undefined;
+    const currentScore = scoreSnap.exists() ? scoreSnap.data() as ScoreDoc : undefined;
     const wasGraded = previous.status === "graded";
     const wasRedo = previous.status === "redo_required";
     const isGraded = input.status === "graded";
     const isRedo = input.status === "redo_required";
+    const resolvedScore = isGraded ? input.score : previous.score;
+    const currentPublished = currentScore ? currentScore.published !== false : false;
+    const nextPublished = isGraded;
+    const studentSummary = studentSummarySnap.data() as { scoreCount?: number; averagePercent?: number; totalPercent?: number } | undefined;
+    const oldCount = studentSummary?.scoreCount ?? 0;
+    const oldTotal = studentSummary?.totalPercent ?? ((studentSummary?.averagePercent ?? 0) * oldCount);
+    const oldPercent = currentScore && currentPublished ? currentScore.score / currentScore.maxScore * 100 : 0;
+    const nextPercent = resolvedScore != null && nextPublished ? resolvedScore / assignment.maxScore * 100 : 0;
+    const count = Math.max(0, oldCount - Number(currentPublished) + Number(nextPublished));
+    const total = Math.max(0, oldTotal - oldPercent + nextPercent);
 
     transaction.update(submissionRef, {
       ...input,
+      score: resolvedScore,
       checkedAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
     transaction.set(
       summaryRef,
       {
-        assignmentId,
+        assignmentId: assignment.id,
         totalStudents: summary?.totalStudents ?? 0,
         submittedCount: summary?.submittedCount ?? 0,
         gradedCount: Math.max(0, (summary?.gradedCount ?? 0) + Number(isGraded) - Number(wasGraded)),
@@ -171,6 +194,34 @@ export async function gradeSubmission(
       },
       { merge: true },
     );
+    if (resolvedScore != null) {
+      transaction.set(scoreRef, {
+        studentId: previous.studentId,
+        classId: assignment.classId,
+        subjectId: assignment.subjectId ?? "",
+        assessmentName: assignment.title,
+        assessmentType: "assignment",
+        score: resolvedScore,
+        maxScore: assignment.maxScore,
+        teacherComment: input.teacherComment,
+        source: "assignment",
+        assignmentId: assignment.id,
+        submissionId: id,
+        published: nextPublished,
+        createdBy: currentScore?.createdBy ?? input.checkedBy,
+        createdAt: currentScore?.createdAt ?? serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      transaction.set(studentSummaryRef, {
+        studentId: previous.studentId,
+        scoreCount: count,
+        totalPercent: total,
+        averagePercent: count ? total / count : 0,
+        latestScore: resolvedScore,
+        latestMaxScore: assignment.maxScore,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+    }
   });
 }
 

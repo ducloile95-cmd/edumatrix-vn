@@ -124,6 +124,31 @@ export async function setUserStatus(actor: User, uid: string, status: UserStatus
   await writeAuditLog(actor, "user_status_changed", "user", uid, { status });
 }
 
+/**
+ * Ghi lai lan dang nhap gan nhat cua chinh minh - goi tu AuthContext moi phien
+ * dang nhap (A16: chi duoc tu sua field cua rieng minh, xem firestore.rules
+ * users/{uid} allow update). Loi khong throw ra ngoai - khong duoc chan luong
+ * dang nhap chi vi ghi lastLoginAt that bai.
+ */
+export async function touchLastLogin(uid: string): Promise<void> {
+  try {
+    await updateDoc(doc(db, COLLECTIONS.USERS, uid), {
+      lastLoginAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  } catch (err) {
+    console.error("touchLastLogin failed", err);
+  }
+}
+
+/** Cap nhat tuy chon thong bao cua chinh minh (Settings > Thong bao). */
+export async function updateNotificationPrefs(uid: string, prefs: Record<string, boolean>): Promise<void> {
+  await updateDoc(doc(db, COLLECTIONS.USERS, uid), {
+    notificationPrefs: prefs,
+    updatedAt: serverTimestamp(),
+  });
+}
+
 /** Danh sach tai khoan active theo role - dung de chon Giao vien khi tao/sua lop (Phase 3). */
 export async function listUsersByRole(role: UserRole): Promise<(UserDoc & { uid: string })[]> {
   const currentUser = await getCurrentUserDoc();

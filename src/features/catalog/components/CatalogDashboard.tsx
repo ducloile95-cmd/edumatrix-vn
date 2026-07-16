@@ -9,7 +9,10 @@ import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { StatCard } from "@/components/ui/StatCard";
+import { ChartPanel } from "@/components/charts/ChartPanel";
+import { CHART_AXIS_TICK, CHART_NEUTRAL, CHART_PRIMARY, CHART_SUCCESS, CHART_TOOLTIP_STYLE, CHART_WARNING } from "@/components/charts/chartTheme";
 import type { CourseStatus } from "@/types/academic";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 interface CatalogDashboardProps {
   /** Bam "Thêm khóa học" tren mon con thieu -> chuyen sang tab Danh muc, mo CourseForm voi mon da chon san. */
@@ -17,7 +20,7 @@ interface CatalogDashboardProps {
 }
 
 const STATUS_LABEL: Record<CourseStatus, string> = { draft: "Nháp", active: "Đang mở", completed: "Đã kết thúc" };
-const STATUS_COLOR: Record<CourseStatus, string> = { draft: "#F59E0B", active: "#16A34A", completed: "#A6A29C" };
+const STATUS_COLOR: Record<CourseStatus, string> = { draft: CHART_WARNING, active: CHART_SUCCESS, completed: CHART_NEUTRAL };
 const TUITION_BUCKET_SIZE = 20_000;
 
 /** Khoa cu chua co pricePerSession (chua duoc Admin mo sua lai) -> tam tinh tu tuitionFee/totalSessions. */
@@ -26,6 +29,7 @@ function pricePerSession(course: { pricePerSession?: number; tuitionFee: number;
 }
 
 export function CatalogDashboard({ onCreateCourseForSubject }: CatalogDashboardProps) {
+  const reducedMotion = useReducedMotion();
   // Tai dung listCourses()/listSubjects() - cung queryKey voi CourseForm/CoursesList/SubjectsList
   // nen chia se cache React Query, khong phat sinh loai truy van Firestore moi (ke hoach muc 3).
   const coursesQuery = useQuery({ queryKey: ["courses"], queryFn: listCourses });
@@ -137,19 +141,17 @@ export function CatalogDashboard({ onCreateCourseForSubject }: CatalogDashboardP
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <section className="rounded-card border border-neutral-200 bg-neutral-0 p-4">
-          <h2 className="mb-2 text-base font-semibold text-neutral-900">Khóa học theo trạng thái</h2>
-          <p className="mb-2 text-sm text-neutral-500">Tổng {kpi.total} khóa học</p>
+        <ChartPanel title="Khóa học theo trạng thái" description={`Tổng ${kpi.total} khóa học`} className="min-h-[300px]">
           {kpi.total === 0 ? (
             <EmptyState title="Chưa có khóa học nào" />
           ) : (
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={statusData} layout="vertical" aria-label="Biểu đồ số lượng khóa học theo trạng thái">
-                  <XAxis type="number" allowDecimals={false} />
-                  <YAxis type="category" dataKey="status" width={90} />
-                  <Tooltip formatter={(value: number) => [`${value} khóa học`, "Số lượng"]} />
-                  <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                  <XAxis type="number" allowDecimals={false} hide />
+                  <YAxis type="category" dataKey="status" width={90} tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number) => [`${value} khóa học`, "Số lượng"]} />
+                  <Bar dataKey="count" radius={[0, 8, 8, 0]} barSize={18} isAnimationActive={!reducedMotion} animationDuration={280}>
                     {statusData.map((entry) => (
                       <Cell key={entry.status} fill={entry.fill} />
                     ))}
@@ -158,47 +160,43 @@ export function CatalogDashboard({ onCreateCourseForSubject }: CatalogDashboardP
               </ResponsiveContainer>
             </div>
           )}
-        </section>
+        </ChartPanel>
 
-        <section className="rounded-card border border-neutral-200 bg-neutral-0 p-4">
-          <h2 className="mb-2 text-base font-semibold text-neutral-900">Khóa học theo môn học</h2>
-          <p className="mb-2 text-sm text-neutral-500">Đếm theo môn được gắn ở khóa học</p>
+        <ChartPanel title="Khóa học theo môn học" description="Đếm theo môn được gắn ở khóa học" className="min-h-[300px]">
           {subjectData.length === 0 ? (
             <EmptyState title="Chưa có môn học nào gắn khóa học" />
           ) : (
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={subjectData} layout="vertical" aria-label="Biểu đồ số lượng khóa học theo môn học">
-                  <XAxis type="number" allowDecimals={false} />
-                  <YAxis type="category" dataKey="name" width={90} />
-                  <Tooltip formatter={(value: number) => [`${value} khóa học`, "Số lượng"]} />
-                  <Bar dataKey="count" fill="#3366F0" radius={[0, 4, 4, 0]} />
+                  <XAxis type="number" allowDecimals={false} hide />
+                  <YAxis type="category" dataKey="name" width={90} tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number) => [`${value} khóa học`, "Số lượng"]} />
+                  <Bar dataKey="count" fill={CHART_PRIMARY} radius={[0, 8, 8, 0]} barSize={18} isAnimationActive={!reducedMotion} animationDuration={280} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           )}
-        </section>
+        </ChartPanel>
       </div>
 
       <div className="grid gap-4 md:grid-cols-[1.4fr_1fr]">
-        <section className="rounded-card border border-neutral-200 bg-neutral-0 p-4">
-          <h2 className="mb-2 text-base font-semibold text-neutral-900">Phân bố học phí/buổi</h2>
-          <p className="mb-2 text-sm text-neutral-500">Số khóa học theo khoảng học phí/buổi (nghìn VNĐ)</p>
+        <ChartPanel title="Phân bố học phí/buổi" description="Số khóa học theo khoảng học phí mỗi buổi" className="min-h-[300px]">
           {tuitionData.length === 0 ? (
             <EmptyState title="Chưa có dữ liệu học phí" />
           ) : (
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={tuitionData} aria-label="Biểu đồ phân bố học phí mỗi buổi theo khoảng 20 nghìn đồng">
-                  <XAxis dataKey="label" />
-                  <YAxis allowDecimals={false} />
-                  <Tooltip formatter={(value: number) => [`${value} khóa học`, "Số lượng"]} />
-                  <Bar dataKey="count" fill="#3366F0" radius={[4, 4, 0, 0]} />
+                  <XAxis dataKey="label" tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} />
+                  <YAxis allowDecimals={false} tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number) => [`${value} khóa học`, "Số lượng"]} />
+                  <Bar dataKey="count" fill={CHART_PRIMARY} radius={[8, 8, 2, 2]} barSize={28} isAnimationActive={!reducedMotion} animationDuration={280} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           )}
-        </section>
+        </ChartPanel>
 
         <section className="rounded-card border border-neutral-200 bg-neutral-0 p-4">
           <h2 className="mb-2 text-base font-semibold text-neutral-900">Cần xử lý</h2>

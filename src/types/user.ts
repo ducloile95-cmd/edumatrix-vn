@@ -14,6 +14,10 @@ export interface UserDoc {
   role: UserRole;
   studentIds: string[];
   status: UserStatus;
+  /** Cập nhật tự động ở AuthContext mỗi khi đăng nhập - dùng để hiển thị ở trang Người dùng. */
+  lastLoginAt?: Timestamp;
+  /** Tuỳ chọn thông báo cá nhân - tự set (Settings > Thông báo), key tự do theo module. */
+  notificationPrefs?: Record<string, boolean>;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

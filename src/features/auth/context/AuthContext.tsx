@@ -20,6 +20,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     AuthContextValue["claimFailureReason"]
   >(null);
   const claimAttemptedForUid = useRef<string | null>(null);
+  const lastLoginTouchedForUid = useRef<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -104,6 +105,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, [firebaseUser, profileResolved, userDoc]);
+
+  // Ghi nhan lan dang nhap gan nhat - 1 lan cho moi uid trong phien (khong ghi
+  // lai moi khi Firestore listener nhan snapshot khac vi ly do khac).
+  useEffect(() => {
+    if (!firebaseUser || !userDoc || userDoc.status !== "active") return;
+    if (lastLoginTouchedForUid.current === firebaseUser.uid) return;
+    lastLoginTouchedForUid.current = firebaseUser.uid;
+
+    import("@/services/firestore/users").then(({ touchLastLogin }) => touchLastLogin(firebaseUser.uid));
+  }, [firebaseUser, userDoc]);
 
   return (
     <AuthContext.Provider

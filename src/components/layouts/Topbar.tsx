@@ -94,12 +94,12 @@ function NotificationBell({ seeAllHref }: { seeAllHref: string }) {
         {unread > 0 && <span aria-live="polite" className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-gradient-to-br from-primary-500 to-primary-700 px-1 text-[10px] font-bold text-white ring-2 ring-white">{unread}</span>}
       </button>
       {open && (
-        <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-[var(--shadow-3)]">
+        <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-modal border border-neutral-200 bg-white shadow-[var(--shadow-3)]">
           <header className="flex items-center justify-between border-b border-neutral-200 px-4 py-3"><b className="text-sm">Thông báo</b></header>
           {notifications.length === 0
             ? <div className="px-4 py-8 text-center text-sm text-neutral-500">Chưa có thông báo mới</div>
             : <ul className="max-h-80 overflow-y-auto">{notifications.map((item) => <li key={item.id} className="border-b border-neutral-100 px-4 py-3 last:border-0"><p className="text-sm font-medium text-neutral-900">{item.title}</p><p className="text-xs text-neutral-400">{item.time}</p></li>)}</ul>}
-          <footer className="border-t border-neutral-200 p-2 text-center"><Link to={seeAllHref} onClick={() => setOpen(false)} className="block rounded-xl px-3 py-2 text-sm font-semibold text-primary-600 hover:bg-neutral-50">Xem tất cả thông báo</Link></footer>
+          <footer className="border-t border-neutral-200 p-2 text-center"><Link to={seeAllHref} onClick={() => setOpen(false)} className="block rounded-card px-3 py-2 text-sm font-semibold text-primary-600 hover:bg-neutral-50">Xem tất cả thông báo</Link></footer>
         </div>
       )}
     </div>
@@ -122,7 +122,7 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
     </div>
     <div className="flex items-center gap-2 sm:gap-3">
       <div className="hidden text-right md:block"><p className="text-sm font-semibold tabular-nums text-neutral-800">{now.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}</p><p className="text-[11px] text-neutral-500">{now.toLocaleDateString("vi-VN", { weekday: "short", day: "2-digit", month: "2-digit" })}</p></div>
-      <div className="flex min-h-touch items-center gap-2 rounded-xl bg-white/60 px-2.5 text-sm text-neutral-700"><CloudSun size={18} className="text-primary-600" /><span className="tabular-nums">{weather ? `${weather.temperature}°C` : "--°"}</span><span className="hidden text-xs text-neutral-500 xl:inline">Hà Nội</span></div>
+      <div className="flex min-h-touch items-center gap-2 rounded-card bg-white/60 px-2.5 text-sm text-neutral-700"><CloudSun size={18} className="text-primary-600" /><span className="tabular-nums">{weather ? `${weather.temperature}°C` : "--°"}</span><span className="hidden text-xs text-neutral-500 xl:inline">Hà Nội</span></div>
       <NotificationBell seeAllHref={seeAllHref} />
     </div>
   </header>;

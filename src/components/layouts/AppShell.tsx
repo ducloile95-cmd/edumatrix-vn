@@ -19,7 +19,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <Sidebar collapsed={collapsed} mobileOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} onToggle={toggleSidebar} />
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
         <Topbar onMenuClick={() => setSidebarOpen(true)} />
-        <main key={pathname} id="main-content" className="page-enter w-full flex-1 px-3 py-3 sm:px-4 lg:px-5 lg:py-4">
+        <main key={pathname} id="main-content" className="route-enter w-full flex-1 px-3 py-3 sm:px-4 lg:px-5 lg:py-4">
           {children}
         </main>
       </div>

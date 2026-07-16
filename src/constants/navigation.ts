@@ -34,8 +34,7 @@ const groupChucNang: NavGroup = {
   children: [
     { to: ROUTES.STAFF_LESSON_PLANS, label: "Giáo án", icon: NotebookPen },
     { to: ROUTES.STAFF_ATTENDANCE, label: "Điểm danh", icon: ClipboardCheck },
-    { to: ROUTES.STAFF_ASSIGNMENTS, label: "Bài tập", icon: FileText },
-    { to: ROUTES.STAFF_SCORES, label: "Điểm học tập", icon: ChartNoAxesCombined },
+    { to: ROUTES.STAFF_LEARNING, label: "Bài tập & Điểm", icon: ChartNoAxesCombined },
   ],
 };
 
@@ -44,6 +43,8 @@ const CHAT_FANPAGE: NavLeaf = { to: "#", label: "Tương tác lớp học", icon
 const MARKETING: NavLeaf = { to: "#", label: "Marketing", icon: Megaphone, disabled: true };
 const TAI_CHINH: NavLeaf = { to: ROUTES.STAFF_INVOICES, label: "Tài chính", icon: Wallet };
 const THONG_BAO: NavLeaf = { to: ROUTES.STAFF_ANNOUNCEMENTS, label: "Thông báo", icon: Bell };
+// Cai dat: Admin thay 4 muc, Giao vien chi thay Thong bao + Giao dien (loc theo role trong SettingsPage).
+const CAI_DAT: NavLeaf = { to: ROUTES.STAFF_SETTINGS, label: "Cài đặt", icon: Settings };
 
 const TONG_QUAN: NavLeaf = { to: ROUTES.STAFF_DASHBOARD, label: "Tổng quan", icon: LayoutDashboard };
 
@@ -52,13 +53,13 @@ export const NAVIGATION_BY_ROLE: Record<UserRole, NavNode[]> = {
     TONG_QUAN,
     groupLopHoc,
     groupChucNang,
-    { label: "Quản lý", icon: Settings, children: [TAI_CHINH, CHAT_FANPAGE, MARKETING, { to: ROUTES.STAFF_USERS, label: "Người dùng", icon: UserCog }, THONG_BAO] },
+    { label: "Quản lý", icon: Settings, children: [TAI_CHINH, CHAT_FANPAGE, MARKETING, { to: ROUTES.STAFF_USERS, label: "Người dùng", icon: UserCog }, THONG_BAO, CAI_DAT] },
   ],
   [USER_ROLES.TEACHER]: [
     TONG_QUAN,
     groupLopHoc,
     groupChucNang,
-    { label: "Quản lý", icon: Settings, children: [TAI_CHINH, CHAT_FANPAGE, THONG_BAO] },
+    { label: "Quản lý", icon: Settings, children: [TAI_CHINH, CHAT_FANPAGE, THONG_BAO, CAI_DAT] },
   ],
   [USER_ROLES.VIEWER]: [
     { to: ROUTES.VIEWER_DASHBOARD, label: "Tổng quan", icon: Home },
@@ -86,11 +87,13 @@ const PAGE_DESCRIPTIONS: Record<string, string> = {
   [ROUTES.STAFF_SESSIONS]: "Xem lịch dạy theo Ngày, Tuần, Tháng và cập nhật lịch học.",
   [ROUTES.STAFF_LESSON_PLANS]: "Soạn giáo án theo phần, lưu nháp, gắn lớp và xuất bản tóm tắt công khai.",
   [ROUTES.STAFF_ATTENDANCE]: "Tải danh sách lớp, điểm danh nhanh và lưu cả lớp trong một lần.",
+  [ROUTES.STAFF_LEARNING]: "Giao bài, chấm và theo dõi kết quả học tập trong cùng một luồng.",
   [ROUTES.STAFF_ASSIGNMENTS]: "Giao bài, theo dõi bài nộp và phản hồi kết quả cho học sinh.",
   [ROUTES.STAFF_SCORES]: "Nhập điểm theo lớp, lưu nhận xét và theo dõi tiến bộ học tập.",
   [ROUTES.STAFF_INVOICES]: "Tạo hóa đơn, theo dõi công nợ và đối soát thanh toán.",
   [ROUTES.STAFF_USERS]: "Mời tài khoản mới, theo dõi lời mời và khóa hoặc mở tài khoản.",
   [ROUTES.STAFF_ANNOUNCEMENTS]: "Đăng thông báo lên Fanpage và nhắn phụ huynh qua Messenger.",
+  [ROUTES.STAFF_SETTINGS]: "Thông tin trường học, vai trò & phân quyền, thông báo và giao diện.",
   [ROUTES.VIEWER_DASHBOARD]: "Lịch học, bài tập, điểm số và học phí cần theo dõi.",
   [ROUTES.VIEWER_SCHEDULE]: "Các buổi học sắp tới của học sinh.",
   [ROUTES.VIEWER_ASSIGNMENTS]: "Theo dõi bài cần nộp và gửi bài làm cho giáo viên.",

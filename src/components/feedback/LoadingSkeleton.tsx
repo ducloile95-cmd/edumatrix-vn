@@ -5,9 +5,9 @@ interface LoadingSkeletonProps {
 
 export function LoadingSkeleton({ rows = 3, className = "" }: LoadingSkeletonProps) {
   return (
-    <div className={`animate-pulse space-y-3 ${className}`} role="status" aria-label="Đang tải">
+    <div className={`space-y-3 ${className}`} role="status" aria-label="Đang tải">
       {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="h-4 rounded bg-neutral-200" />
+        <div key={i} className="skeleton-shimmer h-4 rounded" style={{ animationDelay: `${i * 45}ms` }} />
       ))}
     </div>
   );

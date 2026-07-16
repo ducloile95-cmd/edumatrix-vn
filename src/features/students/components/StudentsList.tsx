@@ -13,6 +13,8 @@ import { ErrorState } from "@/components/feedback/ErrorState";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { Pagination } from "@/components/ui/Pagination";
+import { DataListPanel, DATA_LIST_FOOTER, DATA_LIST_SCROLL } from "@/components/ui/dataListLayout";
+import { CHART_TONE_ACCENT, CHART_TONE_BG } from "@/components/charts/chartTheme";
 import { usePagination } from "@/hooks/usePagination";
 import { StudentInfoDialog } from "@/features/students/components/StudentInfoDialog";
 import { TimeRangeFilter } from "@/features/students/components/TimeRangeFilter";
@@ -190,8 +192,8 @@ export function StudentsList() {
         </div>
       </div>
 
-      <section className="overflow-hidden rounded-card border border-neutral-200 bg-white">
-        <div className="border-b border-neutral-200 px-4 py-4 sm:px-5">
+      <DataListPanel className="rounded-card border border-neutral-200 bg-white">
+        <div className="shrink-0 border-b border-neutral-200 px-4 py-4 sm:px-5">
           <h2 className="text-xl font-semibold text-neutral-900">Danh sách học sinh</h2>
           <p className="mt-1 text-sm text-neutral-500">
             Theo dõi lớp học, tiến độ, điểm danh, bài tập và đánh giá trong một bảng.
@@ -204,10 +206,10 @@ export function StudentsList() {
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            <div className={DATA_LIST_SCROLL}>
               <div style={{ minWidth: STUDENT_TABLE_MIN_WIDTH }}>
                 <div
-                  className="grid gap-3 border-b border-neutral-200 bg-neutral-50 px-4 py-3 text-xs font-semibold text-neutral-500"
+                  className="sticky top-0 z-10 grid gap-3 border-b border-neutral-200 bg-neutral-50 px-4 py-3 text-xs font-semibold text-neutral-500"
                   style={{ gridTemplateColumns: STUDENT_TABLE_COLUMNS }}
                 >
                   <div>Tên học sinh</div>
@@ -260,7 +262,7 @@ export function StudentsList() {
 
                       <ProgressCell progress={progress} />
 
-                      <div className="grid min-w-0 grid-cols-1 gap-2 rounded-lg bg-primary-50 p-2 ring-1 ring-primary-200 sm:grid-cols-3 xl:grid-cols-3">
+                      <div className="grid min-w-0 grid-cols-1 gap-2 rounded-input bg-primary-50 p-2 ring-1 ring-primary-200 sm:grid-cols-3 xl:grid-cols-3">
                         <ScoreRing label="Điểm danh" value={attendance.percent} total={attendance.total} />
                         <ScoreRing label="Bài tập" value={homework.percent} total={homework.total} />
                         <ScoreRing label="Đánh giá" value={assessmentPercent} total={summary?.scoreCount ?? 0} grade={grade} />
@@ -282,7 +284,7 @@ export function StudentsList() {
                 </ul>
               </div>
             </div>
-            <div className="px-4 pb-4 sm:px-5">
+            <div className={DATA_LIST_FOOTER}>
               <Pagination
                 page={page}
                 pageSize={pageSize}
@@ -297,7 +299,7 @@ export function StudentsList() {
             </div>
           </>
         )}
-      </section>
+      </DataListPanel>
 
       <StudentInfoDialog
         canManageLinks={role === USER_ROLES.ADMIN}
@@ -399,13 +401,18 @@ function ScoreRing({
   value: MetricValue;
 }) {
   const tone = getMetricTone(value, grade);
+  const textClassByTone = {
+    success: "text-success-700",
+    primary: "text-primary-700",
+    warning: "text-warning-700",
+    danger: "text-danger-700",
+    neutral: "text-neutral-500",
+  } as const;
   const palette = {
-    success: { accent: "#16A34A", bg: "#ECFDF3", text: "text-success-700" },
-    primary: { accent: "#3366F0", bg: "#EFF4FF", text: "text-primary-700" },
-    warning: { accent: "#F59E0B", bg: "#FFFBEB", text: "text-warning-700" },
-    danger: { accent: "#E4453A", bg: "#FEF2F2", text: "text-danger-700" },
-    neutral: { accent: "#A6A29C", bg: "#F4F3F1", text: "text-neutral-500" },
-  }[tone];
+    accent: CHART_TONE_ACCENT[tone],
+    bg: CHART_TONE_BG[tone],
+    text: textClassByTone[tone],
+  };
 
   return (
     <div className="flex min-w-0 items-center gap-2 rounded-input border border-neutral-200 bg-white px-2 py-1.5">

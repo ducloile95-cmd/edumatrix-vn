@@ -4,6 +4,7 @@ import { AppShell } from "@/components/layouts/AppShell";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Modal } from "@/components/ui/Modal";
+import { MotionTabPanel } from "@/components/motion/MotionTabPanel";
 import { SubjectForm } from "@/features/catalog/components/SubjectForm";
 import { SubjectsList } from "@/features/catalog/components/SubjectsList";
 import { CourseForm } from "@/features/catalog/components/CourseForm";
@@ -104,10 +105,11 @@ export default function CatalogPage() {
         </button>
       </div>
 
-      {tab === "dashboard" ? (
-        <CatalogDashboard onCreateCourseForSubject={handleCreateCourseForSubject} />
-      ) : (
-        <div className="grid items-start gap-4 lg:grid-cols-[1.6fr_1fr]">
+      <MotionTabPanel motionKey={tab}>
+        {tab === "dashboard" ? (
+          <CatalogDashboard onCreateCourseForSubject={handleCreateCourseForSubject} />
+        ) : (
+          <div className="grid items-start gap-4 lg:grid-cols-[1.6fr_1fr]">
           <CoursesList
             onEdit={openEditCourse}
             subjectFilter={subjectFilter}
@@ -119,8 +121,9 @@ export default function CatalogPage() {
             selectedSubjectId={subjectFilter}
             onSelect={handleSelectSubject}
           />
-        </div>
-      )}
+          </div>
+        )}
+      </MotionTabPanel>
 
       <Modal
         open={subjectModalOpen}

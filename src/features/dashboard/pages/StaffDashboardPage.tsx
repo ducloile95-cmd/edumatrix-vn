@@ -10,12 +10,15 @@ import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
+import { ChartPanel } from "@/components/charts/ChartPanel";
+import { CHART_AXIS_TICK, CHART_PRIMARY, CHART_TOOLTIP_STYLE } from "@/components/charts/chartTheme";
 import { ROUTES } from "@/constants/routes";
 import { getStaffDashboard } from "@/services/firestore/staffDashboard";
 import { listSessions } from "@/services/firestore/sessions";
 import { listAttendanceSummariesBySessionIds } from "@/services/firestore/attendance";
 import { listInvoices } from "@/services/firestore/invoices";
 import type { InvoiceStatus } from "@/types/academic";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 type Tone = "primary" | "warning" | "accent" | "danger";
 
@@ -42,6 +45,7 @@ function ActionRow({ to, tone, title, hint }: { to: string; tone: Tone; title: s
 }
 
 export default function StaffDashboardPage() {
+  const reducedMotion = useReducedMotion();
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["staff-dashboard"],
     queryFn: () => getStaffDashboard(),
@@ -145,33 +149,31 @@ export default function StaffDashboardPage() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-[1.4fr_1fr]">
-            <section className="rounded-card border border-neutral-200 bg-neutral-0 p-4">
-              <h2 className="mb-2 text-xl font-semibold text-neutral-900">Xu hướng chuyên cần 14 ngày</h2>
+            <ChartPanel title="Xu hướng chuyên cần 14 ngày" description="Tỉ lệ có mặt theo ngày" className="min-h-[280px]">
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={attendanceTrend} aria-label="Biểu đồ tỉ lệ có mặt theo ngày trong 14 ngày gần đây">
-                    <XAxis dataKey="date" />
-                    <YAxis unit="%" domain={[0, 100]} />
-                    <Tooltip formatter={(value: number) => [`${value}%`, "Tỉ lệ có mặt"]} />
-                    <Line type="monotone" dataKey="rate" stroke="#3366F0" strokeWidth={2} dot={false} />
+                    <XAxis dataKey="date" tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} />
+                    <YAxis unit="%" domain={[0, 100]} tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number) => [`${value}%`, "Tỉ lệ có mặt"]} />
+                    <Line type="monotone" dataKey="rate" stroke={CHART_PRIMARY} strokeWidth={3} dot={false} activeDot={{ r: 5, fill: "#fff", stroke: CHART_PRIMARY, strokeWidth: 3 }} isAnimationActive={!reducedMotion} animationDuration={280} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
-            </section>
+            </ChartPanel>
 
-            <section className="rounded-card border border-neutral-200 bg-neutral-0 p-4">
-              <h2 className="mb-2 text-xl font-semibold text-neutral-900">Hóa đơn theo trạng thái</h2>
+            <ChartPanel title="Hóa đơn theo trạng thái" description="Khối lượng hóa đơn cần theo dõi" className="min-h-[280px]">
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={invoiceStatusData} layout="vertical" aria-label="Biểu đồ số lượng hóa đơn theo trạng thái">
-                    <XAxis type="number" allowDecimals={false} />
-                    <YAxis type="category" dataKey="status" width={100} />
-                    <Tooltip formatter={(value: number) => [`${value} hóa đơn`, "Số lượng"]} />
-                    <Bar dataKey="count" fill="#3366F0" radius={[0, 4, 4, 0]} />
+                    <XAxis type="number" allowDecimals={false} hide />
+                    <YAxis type="category" dataKey="status" width={100} tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number) => [`${value} hóa đơn`, "Số lượng"]} />
+                    <Bar dataKey="count" fill={CHART_PRIMARY} radius={[0, 8, 8, 0]} barSize={18} isAnimationActive={!reducedMotion} animationDuration={280} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-            </section>
+            </ChartPanel>
           </div>
         </div>
       )}

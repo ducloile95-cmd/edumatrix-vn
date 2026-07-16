@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/feedback/EmptyState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { Pagination } from "@/components/ui/Pagination";
+import { DataListPanel, DATA_LIST_FOOTER, DATA_LIST_SCROLL } from "@/components/ui/dataListLayout";
 import { usePagination } from "@/hooks/usePagination";
 import type { SubjectDoc } from "@/types/academic";
 
@@ -21,8 +22,6 @@ interface SubjectsListProps {
 }
 
 /** Chieu cao co dinh, khoa cung CoursesList de 2 bang luon bang nhau (khong lech do so dong khac nhau). */
-const PANEL_HEIGHT = "h-[640px]";
-
 export function SubjectsList({ onEdit, onAdd, selectedSubjectId, onSelect }: SubjectsListProps) {
   const [search, setSearch] = useState("");
   const queryClient = useQueryClient();
@@ -61,7 +60,7 @@ export function SubjectsList({ onEdit, onAdd, selectedSubjectId, onSelect }: Sub
   const hasRows = !isLoading && !isError && filtered.length > 0;
 
   return (
-    <section className={`flex ${PANEL_HEIGHT} flex-col overflow-hidden rounded-card border border-neutral-200 bg-white`}>
+    <DataListPanel className="rounded-card border border-neutral-200 bg-white">
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-neutral-200 px-4 py-4 sm:px-5">
         <h2 className="text-base font-semibold text-neutral-900">Môn học</h2>
         <button
@@ -85,7 +84,7 @@ export function SubjectsList({ onEdit, onAdd, selectedSubjectId, onSelect }: Sub
         />
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 pt-3 sm:p-5 sm:pt-3">
+      <div className={`${DATA_LIST_SCROLL} p-4 pt-3 sm:p-5 sm:pt-3`}>
         {isLoading && <LoadingSkeleton rows={4} />}
         {isError && <ErrorState message="Không tải được danh sách môn học." onRetry={() => refetch()} />}
         {!isLoading && !isError && (!subjects || subjects.length === 0) && (
@@ -151,7 +150,7 @@ export function SubjectsList({ onEdit, onAdd, selectedSubjectId, onSelect }: Sub
       </div>
 
       {hasRows && (
-        <div className="shrink-0 border-t border-neutral-100 px-4 py-3 sm:px-5">
+        <div className={DATA_LIST_FOOTER}>
           <Pagination
             page={page}
             pageSize={pageSize}
@@ -161,6 +160,6 @@ export function SubjectsList({ onEdit, onAdd, selectedSubjectId, onSelect }: Sub
           />
         </div>
       )}
-    </section>
+    </DataListPanel>
   );
 }

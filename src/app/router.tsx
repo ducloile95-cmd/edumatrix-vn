@@ -6,6 +6,7 @@ import { RoleRedirect } from "@/app/RoleRedirect";
 import { USER_ROLES } from "@/constants/roles";
 import { ROUTES } from "@/constants/routes";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
+import { useDelayedPending } from "@/hooks/useDelayedPending";
 
 // Lazy load tung page de tach bundle theo route (React.lazy + Suspense).
 const LoginPage = lazy(() => import("@/features/auth/pages/LoginPage"));
@@ -21,18 +22,20 @@ const ClassDetailPage = lazy(() => import("@/features/classes/pages/ClassDetailP
 const SessionsPage = lazy(() => import("@/features/sessions/pages/SessionsPage"));
 const LessonPlansPage = lazy(() => import("@/features/lesson-plans/pages/LessonPlansPage"));
 const AttendancePage = lazy(() => import("@/features/attendance/pages/AttendancePage"));
-const AssignmentsPage = lazy(() => import("@/features/assignments/pages/AssignmentsPage"));
+const LearningPage = lazy(() => import("@/features/learning/pages/LearningPage"));
 const ViewerAssignmentsPage = lazy(() => import("@/features/assignments/pages/ViewerAssignmentsPage"));
-const ScoresPage = lazy(() => import("@/features/scores/pages/ScoresPage"));
 const InvoicesPage = lazy(() => import("@/features/invoices/pages/InvoicesPage"));
 const StaffAnnouncementsPage = lazy(() => import("@/features/announcements/pages/StaffAnnouncementsPage"));
+const SettingsPage = lazy(() => import("@/features/settings/pages/SettingsPage"));
 const ViewerTuitionPage = lazy(() => import("@/features/invoices/pages/ViewerTuitionPage"));
 const ViewerSchedulePage = lazy(() => import("@/features/dashboard/pages/ViewerSchedulePage"));
 const ViewerAnnouncementsPage = lazy(() => import("@/features/dashboard/pages/ViewerAnnouncementsPage"));
 
 function RouteFallback() {
+  const visible = useDelayedPending(true);
+  if (!visible) return null;
   return (
-    <div className="p-6">
+    <div className="motion-content-enter p-6">
       <LoadingSkeleton rows={4} />
     </div>
   );
@@ -129,13 +132,18 @@ export function AppRouter() {
           />
 
           <Route
+            path={ROUTES.STAFF_LEARNING}
+            element={<RequireAuth><RequireRole roles={[USER_ROLES.ADMIN, USER_ROLES.TEACHER]}><LearningPage /></RequireRole></RequireAuth>}
+          />
+
+          <Route
             path={ROUTES.STAFF_ASSIGNMENTS}
-            element={<RequireAuth><RequireRole roles={[USER_ROLES.ADMIN, USER_ROLES.TEACHER]}><AssignmentsPage /></RequireRole></RequireAuth>}
+            element={<Navigate to={`${ROUTES.STAFF_LEARNING}?tab=assignments`} replace />}
           />
 
           <Route
             path={ROUTES.STAFF_SCORES}
-            element={<RequireAuth><RequireRole roles={[USER_ROLES.ADMIN, USER_ROLES.TEACHER]}><ScoresPage /></RequireRole></RequireAuth>}
+            element={<Navigate to={`${ROUTES.STAFF_LEARNING}?tab=gradebook`} replace />}
           />
 
           <Route
@@ -146,6 +154,11 @@ export function AppRouter() {
           <Route
             path={ROUTES.STAFF_ANNOUNCEMENTS}
             element={<RequireAuth><RequireRole roles={[USER_ROLES.ADMIN, USER_ROLES.TEACHER]}><StaffAnnouncementsPage /></RequireRole></RequireAuth>}
+          />
+
+          <Route
+            path={ROUTES.STAFF_SETTINGS}
+            element={<RequireAuth><RequireRole roles={[USER_ROLES.ADMIN, USER_ROLES.TEACHER]}><SettingsPage /></RequireRole></RequireAuth>}
           />
 
           <Route

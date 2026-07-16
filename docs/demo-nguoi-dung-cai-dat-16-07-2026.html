@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Edumatrix — Demo: Người dùng (thiết kế lại) & Cài đặt (module mới)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --primary-50:#EFF4FF; --primary-100:#DBE6FE; --primary-500:#3366F0; --primary-600:#2348D6; --primary-700:#1D39AC; --primary-800:#1C3389;
+    --accent-500:#FF8A3D;
+    --success-50:#ECFDF3; --success-500:#16A34A; --success-700:#0F7A37;
+    --warning-50:#FFFBEB; --warning-500:#F59E0B; --warning-700:#B45309;
+    --danger-50:#FEF2F2; --danger-500:#E4453A; --danger-700:#B91C1C;
+    --info-50:#F0F9FF; --info-500:#0EA5E9; --info-700:#0369A1;
+    --n0:#FFFFFF; --n50:#FAFAF9; --n100:#F4F3F1; --n200:#E7E5E2; --n300:#D3D0CB; --n400:#A6A29C; --n500:#78746D; --n600:#57534D; --n700:#403D39; --n800:#2B2926; --n900:#1C1A15;
+    --radius-input:8px; --radius-card:12px; --radius-modal:16px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:"Be Vietnam Pro",ui-sans-serif,system-ui,sans-serif;
+    background:radial-gradient(circle at 12% 5%, rgba(147,180,253,.24), transparent 30rem),
+               radial-gradient(circle at 92% 18%, rgba(209,250,223,.30), transparent 28rem), var(--n50);
+    color:var(--n800); line-height:1.55;
+  }
+  .wrap{max-width:1180px; margin:0 auto; padding:28px 20px 64px;}
+  .banner{border:1px solid var(--primary-100); background:var(--primary-50); color:var(--primary-800); border-radius:var(--radius-card); padding:14px 18px; font-size:13px; margin-bottom:24px;}
+  .banner b{color:var(--primary-700);}
+  .banner code{background:rgba(255,255,255,.6); padding:1px 5px; border-radius:4px; font-size:12px;}
+  h1{font-size:22px; font-weight:700; color:var(--n900); margin:0 0 4px;}
+  .sub{color:var(--n500); font-size:13px; margin:0;}
+  h2{font-size:16px; font-weight:600; color:var(--n900); margin:0 0 4px;}
+  .screen-title{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:16px;}
+  .btn{display:inline-flex; align-items:center; gap:6px; height:38px; padding:0 16px; border-radius:var(--radius-input); font-size:13px; font-weight:500; border:none; cursor:pointer;}
+  .btn-primary{background:linear-gradient(135deg,var(--primary-500),var(--primary-700)); color:#fff; box-shadow:0 8px 20px rgba(35,72,214,.25);}
+  .btn-secondary{background:#fff; border:1px solid var(--n300); color:var(--n700);}
+  .btn-danger{background:var(--danger-500); color:#fff;}
+  .btn:active{transform:scale(.98);}
+  .panel{background:var(--n0); border:1px solid var(--n200); border-radius:var(--radius-card); padding:16px; margin-bottom:36px;}
+
+  /* Users toolbar */
+  .toolbar{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;}
+  .search{flex:1; min-width:180px; height:38px; border:1px solid var(--n300); border-radius:var(--radius-input); padding:0 12px; font-size:13px; font-family:inherit; color:var(--n800);}
+  .search:focus{outline:none; border-color:var(--primary-500); box-shadow:0 0 0 3px rgba(51,102,240,.16);}
+  select.filter{height:38px; border:1px solid var(--n300); border-radius:var(--radius-input); padding:0 10px; font-size:13px; font-family:inherit; color:var(--n700); background:#fff;}
+
+  /* bulk bar */
+  .bulk-bar{display:none; align-items:center; gap:10px; background:var(--primary-50); border:1px solid var(--primary-100); border-radius:var(--radius-input); padding:8px 12px; margin-bottom:10px; font-size:13px; color:var(--primary-800);}
+  .bulk-bar.show{display:flex;}
+  .bulk-bar .spacer{flex:1;}
+  .bulk-bar button{height:30px; padding:0 12px; font-size:12px;}
+
+  /* table */
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  thead th{text-align:left; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.03em; color:var(--n500); padding:8px 10px; border-bottom:1px solid var(--n200);}
+  tbody tr{border-bottom:1px solid var(--n100); cursor:pointer;}
+  tbody tr:hover{background:var(--n50);}
+  tbody tr.selected{background:var(--primary-50);}
+  tbody td{padding:10px; vertical-align:middle;}
+  .who{display:flex; align-items:center; gap:10px;}
+  .avatar{width:34px; height:34px; border-radius:999px; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:600; font-size:12px; flex:none;}
+  .who .name{font-size:13px; font-weight:500; color:var(--n800);}
+  .who .self{color:var(--n400); font-weight:400;}
+  .email{color:var(--n500);}
+  .badge{display:inline-block; border-radius:999px; padding:2px 10px; font-size:11px; font-weight:600;}
+  .badge-admin{background:var(--info-50); color:var(--info-700);}
+  .badge-teacher{background:var(--primary-50); color:var(--primary-700);}
+  .badge-viewer{background:var(--n100); color:var(--n600);}
+  .badge-success{background:var(--success-50); color:var(--success-700);}
+  .badge-danger{background:var(--danger-50); color:var(--danger-700);}
+  .lastlogin{color:var(--n500); font-variant-numeric:tabular-nums;}
+  .chev{color:var(--n300); text-align:right;}
+  input[type="checkbox"]{width:16px; height:16px; accent-color:var(--primary-500);}
+
+  /* modal */
+  .modal-scrim{display:none; position:relative; min-height:1px;}
+  .modal-scrim.open{display:flex; align-items:center; justify-content:center; min-height:520px; background:rgba(28,26,21,.5); border-radius:var(--radius-card); padding:24px; margin-bottom:36px;}
+  .modal{width:100%; max-width:420px; background:var(--n50); border:1px solid var(--n200); border-radius:var(--radius-modal); overflow:hidden; box-shadow:0 28px 70px rgba(28,51,137,.22);}
+  .modal header{background:#fff; padding:16px 20px; border-bottom:1px solid var(--n200); display:flex; align-items:center; justify-content:space-between;}
+  .modal header h3{margin:0; font-size:15px; font-weight:600; color:var(--n900);}
+  .modal-close{background:none; border:none; color:var(--n500); font-size:16px; cursor:pointer; width:28px; height:28px; border-radius:var(--radius-input);}
+  .modal-close:hover{background:var(--n100);}
+  .modal-body{padding:20px;}
+  .modal-avatar{width:56px; height:56px; border-radius:999px; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:18px; margin:0 auto 12px;}
+  .modal-body .name{text-align:center; font-size:15px; font-weight:600; color:var(--n900);}
+  .modal-body .email{text-align:center; font-size:12px; margin-bottom:16px;}
+  .kv{display:flex; justify-content:space-between; padding:8px 0; border-top:1px solid var(--n100); font-size:12.5px;}
+  .kv:first-of-type{border-top:none;}
+  .kv .k{color:var(--n500);}
+  .kv .v{color:var(--n800); font-weight:500;}
+  .modal-actions{display:flex; gap:8px; margin-top:16px;}
+  .modal-actions .btn{flex:1; justify-content:center;}
+
+  /* Settings tabs */
+  .tabs{display:flex; gap:4px; border-bottom:1px solid var(--n200); margin-bottom:18px; flex-wrap:wrap;}
+  .tab{background:none; border:none; padding:10px 14px; font-size:13px; font-weight:500; color:var(--n500); cursor:pointer; border-bottom:2px solid transparent; font-family:inherit;}
+  .tab.active{color:var(--primary-700); border-bottom-color:var(--primary-500);}
+  .tabpane{display:none;}
+  .tabpane.active{display:block;}
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:12px; font-weight:600; color:var(--n600); margin-bottom:5px;}
+  .field input, .field select{width:100%; height:38px; border:1px solid var(--n300); border-radius:var(--radius-input); padding:0 12px; font-size:13px; font-family:inherit; color:var(--n800);}
+  .field input:focus, .field select:focus{outline:none; border-color:var(--primary-500); box-shadow:0 0 0 3px rgba(51,102,240,.16);}
+  .field-row{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+  .perm-table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  .perm-table th, .perm-table td{padding:9px 10px; text-align:center; border-bottom:1px solid var(--n100);}
+  .perm-table th:first-child, .perm-table td:first-child{text-align:left;}
+  .perm-table thead th{color:var(--n500); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.02em;}
+  .perm-yes{color:var(--success-500); font-size:15px;}
+  .perm-no{color:var(--n300); font-size:15px;}
+  .toggle-row{display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-top:1px solid var(--n100);}
+  .toggle-row:first-of-type{border-top:none;}
+  .toggle-row .t{font-size:13px; font-weight:500; color:var(--n800);}
+  .toggle-row .d{font-size:11.5px; color:var(--n500);}
+  .switch{position:relative; width:40px; height:22px; border-radius:999px; background:var(--n300); flex:none; cursor:pointer; border:none;}
+  .switch.on{background:var(--primary-500);}
+  .switch::after{content:""; position:absolute; top:2px; left:2px; width:18px; height:18px; border-radius:999px; background:#fff; transition:transform .15s;}
+  .switch.on::after{transform:translateX(18px);}
+  .theme-cards{display:grid; grid-template-columns:repeat(3,1fr); gap:10px;}
+  .theme-card{border:1.5px solid var(--n200); border-radius:var(--radius-card); padding:12px; cursor:pointer; text-align:center; font-size:12.5px; font-weight:500; color:var(--n600);}
+  .theme-card.active{border-color:var(--primary-500); background:var(--primary-50); color:var(--primary-700);}
+  .theme-swatch{height:44px; border-radius:8px; margin-bottom:8px;}
+  .role-note{font-size:11.5px; color:var(--n500); margin-top:10px;}
+
+  @media (max-width:820px){
+    thead{display:none;}
+    tbody td{display:block; padding:4px 10px;}
+    tbody tr{padding:8px 0;}
+    .field-row, .theme-cards{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="banner">
+    <b>Demo để duyệt trước khi code.</b> Màn 1: thiết kế lại <code>Người dùng</code> — bảng dễ quét, lọc/tìm kiếm, thao tác hàng loạt, popup chi tiết. Màn 2: module <code>Cài đặt</code> mới — Admin thấy đủ 4 mục, Giáo viên chỉ thấy phần liên quan (xem ghi chú dưới tab). Có thể bấm thử: chọn dòng, mở popup, đổi tab.
+  </div>
+
+  <!-- ================= SCREEN 1: USERS ================= -->
+  <div class="screen-title">
+    <div><h1>Người dùng</h1><p class="sub">Mời tài khoản mới, theo dõi lời mời và khóa/mở tài khoản. Chỉ Admin và Giáo viên xem được trang này.</p></div>
+    <button class="btn btn-primary">+ Mời tài khoản</button>
+  </div>
+
+  <div class="panel">
+    <div class="toolbar">
+      <input class="search" placeholder="Tìm theo tên hoặc email...">
+      <select class="filter"><option>Tất cả vai trò</option><option>Quản trị viên</option><option>Giáo viên</option><option>Phụ huynh/Học sinh</option></select>
+      <select class="filter"><option>Tất cả trạng thái</option><option>Đang hoạt động</option><option>Đã khóa</option></select>
+    </div>
+
+    <div class="bulk-bar" id="bulkBar">
+      <span id="bulkCount">Đã chọn 0 tài khoản</span>
+      <span class="spacer"></span>
+      <button class="btn btn-secondary" type="button">Khóa</button>
+      <button class="btn btn-secondary" type="button">Mở khóa</button>
+      <button class="btn btn-secondary" type="button" onclick="clearSelection()">Bỏ chọn</button>
+    </div>
+
+    <table>
+      <thead>
+        <tr><th style="width:32px"><input type="checkbox" id="selectAll" onclick="toggleAll(this)"></th><th>Tài khoản</th><th>Email</th><th>Vai trò</th><th>Đăng nhập cuối</th><th>Trạng thái</th><th></th></tr>
+      </thead>
+      <tbody id="userRows">
+        <tr onclick="openDetail(event,'Nguyễn Thị Lan Anh','lananh.nguyen@edumatrix.vn','Quản trị viên','badge-admin','Hôm nay, 08:12','Đang hoạt động','success','#3366F0')">
+          <td onclick="event.stopPropagation()"><input type="checkbox" class="row-check" onchange="updateBulk()"></td>
+          <td><div class="who"><span class="avatar" style="background:#3366F0">LA</span><span class="name">Nguyễn Thị Lan Anh <span class="self">(bạn)</span></span></div></td>
+          <td class="email">lananh.nguyen@edumatrix.vn</td>
+          <td><span class="badge badge-admin">Quản trị viên</span></td>
+          <td class="lastlogin">Hôm nay, 08:12</td>
+          <td><span class="badge badge-success">Đang hoạt động</span></td>
+          <td class="chev">›</td>
+        </tr>
+        <tr onclick="openDetail(event,'Trần Văn Minh','minh.tran@edumatrix.vn','Giáo viên','badge-teacher','Hôm nay, 07:40','Đang hoạt động','success','#16A34A')">
+          <td onclick="event.stopPropagation()"><input type="checkbox" class="row-check" onchange="updateBulk()"></td>
+          <td><div class="who"><span class="avatar" style="background:#16A34A">TM</span><span class="name">Trần Văn Minh</span></div></td>
+          <td class="email">minh.tran@edumatrix.vn</td>
+          <td><span class="badge badge-teacher">Giáo viên</span></td>
+          <td class="lastlogin">Hôm nay, 07:40</td>
+          <td><span class="badge badge-success">Đang hoạt động</span></td>
+          <td class="chev">›</td>
+        </tr>
+        <tr onclick="openDetail(event,'Phạm Thu Hương','huong.pham@edumatrix.vn','Giáo viên','badge-teacher','Hôm qua, 16:55','Đang hoạt động','success','#F59E0B')">
+          <td onclick="event.stopPropagation()"><input type="checkbox" class="row-check" onchange="updateBulk()"></td>
+          <td><div class="who"><span class="avatar" style="background:#F59E0B">PH</span><span class="name">Phạm Thu Hương</span></div></td>
+          <td class="email">huong.pham@edumatrix.vn</td>
+          <td><span class="badge badge-teacher">Giáo viên</span></td>
+          <td class="lastlogin">Hôm qua, 16:55</td>
+          <td><span class="badge badge-success">Đang hoạt động</span></td>
+          <td class="chev">›</td>
+        </tr>
+        <tr onclick="openDetail(event,'Đỗ Quang Huy','huy.do@gmail.com','Phụ huynh/Học sinh','badge-viewer','3 ngày trước','Đã khóa','danger','#A6A29C')">
+          <td onclick="event.stopPropagation()"><input type="checkbox" class="row-check" onchange="updateBulk()"></td>
+          <td><div class="who"><span class="avatar" style="background:#A6A29C">ĐH</span><span class="name">Đỗ Quang Huy</span></div></td>
+          <td class="email">huy.do@gmail.com</td>
+          <td><span class="badge badge-viewer">Phụ huynh/Học sinh</span></td>
+          <td class="lastlogin">3 ngày trước</td>
+          <td><span class="badge badge-danger">Đã khóa</span></td>
+          <td class="chev">›</td>
+        </tr>
+        <tr onclick="openDetail(event,'Vũ Ngọc Bích','bich.vu@gmail.com','Phụ huynh/Học sinh','badge-viewer','12 ngày trước','Đang hoạt động','success','#78746D')">
+          <td onclick="event.stopPropagation()"><input type="checkbox" class="row-check" onchange="updateBulk()"></td>
+          <td><div class="who"><span class="avatar" style="background:#78746D">VB</span><span class="name">Vũ Ngọc Bích</span></div></td>
+          <td class="email">bich.vu@gmail.com</td>
+          <td><span class="badge badge-viewer">Phụ huynh/Học sinh</span></td>
+          <td class="lastlogin">12 ngày trước</td>
+          <td><span class="badge badge-success">Đang hoạt động</span></td>
+          <td class="chev">›</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="modal-scrim" id="modalScrim">
+    <div class="modal">
+      <header><h3>Chi tiết tài khoản</h3><button class="modal-close" onclick="closeDetail()">✕</button></header>
+      <div class="modal-body">
+        <div class="modal-avatar" id="mAvatar">LA</div>
+        <p class="name" id="mName">Nguyễn Thị Lan Anh</p>
+        <p class="email" id="mEmail" style="color:var(--n500)">lananh.nguyen@edumatrix.vn</p>
+        <div class="kv"><span class="k">Vai trò</span><span class="v" id="mRole">Quản trị viên</span></div>
+        <div class="kv"><span class="k">Trạng thái</span><span class="v" id="mStatus">Đang hoạt động</span></div>
+        <div class="kv"><span class="k">Đăng nhập cuối</span><span class="v" id="mLastLogin">Hôm nay, 08:12</span></div>
+        <div class="kv"><span class="k">Ngày tạo tài khoản</span><span class="v">14/03/2025</span></div>
+        <div class="modal-actions">
+          <button class="btn btn-secondary" type="button" onclick="closeDetail()">Đóng</button>
+          <button class="btn btn-danger" type="button" id="mActionBtn">Khóa tài khoản</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= SCREEN 2: SETTINGS ================= -->
+  <div class="screen-title">
+    <div><h1>Cài đặt</h1><p class="sub">Đang xem với quyền Quản trị viên — Giáo viên sẽ chỉ thấy tab "Thông báo" và "Giao diện".</p></div>
+  </div>
+
+  <div class="panel">
+    <div class="tabs">
+      <button class="tab active" data-tab="school" onclick="switchTab('school',this)">Thông tin trường học</button>
+      <button class="tab" data-tab="roles" onclick="switchTab('roles',this)">Vai trò & phân quyền</button>
+      <button class="tab" data-tab="notif" onclick="switchTab('notif',this)">Thông báo</button>
+      <button class="tab" data-tab="theme" onclick="switchTab('theme',this)">Giao diện</button>
+    </div>
+
+    <div class="tabpane active" id="pane-school">
+      <div class="field-row">
+        <div class="field"><label>Tên trường</label><input value="Trường Edumatrix"></div>
+        <div class="field"><label>Năm học</label><input value="2026 - 2027"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Địa chỉ</label><input value="12 Nguyễn Trãi, Q. Thanh Xuân, Hà Nội"></div>
+        <div class="field"><label>Số điện thoại liên hệ</label><input value="024 3773 0000"></div>
+      </div>
+      <div class="field"><label>Logo trường</label><input type="file"></div>
+      <button class="btn btn-primary" type="button">Lưu thay đổi</button>
+    </div>
+
+    <div class="tabpane" id="pane-roles">
+      <table class="perm-table">
+        <thead><tr><th>Quyền</th><th>Quản trị viên</th><th>Giáo viên</th><th>Phụ huynh/Học sinh</th></tr></thead>
+        <tbody>
+          <tr><td>Xem điểm</td><td><span class="perm-yes">✓</span></td><td><span class="perm-yes">✓</span></td><td><span class="perm-yes">✓</span></td></tr>
+          <tr><td>Sửa điểm</td><td><span class="perm-yes">✓</span></td><td><span class="perm-yes">✓</span></td><td><span class="perm-no">–</span></td></tr>
+          <tr><td>Điểm danh</td><td><span class="perm-yes">✓</span></td><td><span class="perm-yes">✓</span></td><td><span class="perm-no">–</span></td></tr>
+          <tr><td>Quản lý hóa đơn</td><td><span class="perm-yes">✓</span></td><td><span class="perm-no">–</span></td><td><span class="perm-no">–</span></td></tr>
+          <tr><td>Quản lý người dùng</td><td><span class="perm-yes">✓</span></td><td><span class="perm-no">–</span></td><td><span class="perm-no">–</span></td></tr>
+        </tbody>
+      </table>
+      <p class="role-note">Ma trận quyền theo vai trò cố định (3 vai trò hệ thống). Chưa hỗ trợ tạo vai trò tuỳ chỉnh ở bản demo này.</p>
+    </div>
+
+    <div class="tabpane" id="pane-notif">
+      <div class="toggle-row"><div><div class="t">Email khi có hóa đơn mới</div><div class="d">Gửi cho phụ huynh ngay khi hóa đơn được tạo</div></div><button class="switch on" onclick="this.classList.toggle('on')"></button></div>
+      <div class="toggle-row"><div><div class="t">Email khi học sinh vắng không phép</div><div class="d">Gửi cho phụ huynh trong ngày</div></div><button class="switch on" onclick="this.classList.toggle('on')"></button></div>
+      <div class="toggle-row"><div><div class="t">Nhắc lịch dạy trước 30 phút</div><div class="d">Thông báo đẩy cho giáo viên</div></div><button class="switch" onclick="this.classList.toggle('on')"></button></div>
+      <div class="toggle-row"><div><div class="t">Tóm tắt tuần qua email</div><div class="d">Gửi mỗi sáng thứ Hai cho Admin</div></div><button class="switch" onclick="this.classList.toggle('on')"></button></div>
+    </div>
+
+    <div class="tabpane" id="pane-theme">
+      <div class="field"><label style="margin-bottom:8px">Giao diện</label>
+        <div class="theme-cards">
+          <div class="theme-card active" onclick="pickTheme(this)"><div class="theme-swatch" style="background:linear-gradient(135deg,#fff,#EFF4FF)"></div>Sáng</div>
+          <div class="theme-card" onclick="pickTheme(this)"><div class="theme-swatch" style="background:linear-gradient(135deg,#2B2926,#1C1A15)"></div>Tối</div>
+          <div class="theme-card" onclick="pickTheme(this)"><div class="theme-swatch" style="background:linear-gradient(135deg,#fff 50%,#1C1A15 50%)"></div>Theo hệ thống</div>
+        </div>
+      </div>
+      <div class="field" style="max-width:240px"><label>Ngôn ngữ</label><select><option>Tiếng Việt</option><option>English</option></select></div>
+      <button class="btn btn-primary" type="button">Lưu thay đổi</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleAll(cb){
+  document.querySelectorAll('.row-check').forEach(c=>{c.checked=cb.checked; c.closest('tr').classList.toggle('selected',cb.checked);});
+  updateBulk();
+}
+function updateBulk(){
+  const checks=[...document.querySelectorAll('.row-check')];
+  const n=checks.filter(c=>c.checked).length;
+  checks.forEach(c=>c.closest('tr').classList.toggle('selected',c.checked));
+  document.getElementById('bulkBar').classList.toggle('show', n>0);
+  document.getElementById('bulkCount').textContent = 'Đã chọn ' + n + ' tài khoản';
+}
+function clearSelection(){
+  document.querySelectorAll('.row-check').forEach(c=>{c.checked=false; c.closest('tr').classList.remove('selected');});
+  document.getElementById('selectAll').checked=false;
+  updateBulk();
+}
+function openDetail(e,name,email,role,badgeClass,lastLogin,status,statusTone,color){
+  document.getElementById('mAvatar').textContent = name.split(' ').slice(-2).map(w=>w[0]).join('').toUpperCase();
+  document.getElementById('mAvatar').style.background = color;
+  document.getElementById('mName').textContent = name;
+  document.getElementById('mEmail').textContent = email;
+  document.getElementById('mRole').textContent = role;
+  document.getElementById('mStatus').textContent = status;
+  document.getElementById('mLastLogin').textContent = lastLogin;
+  document.getElementById('mActionBtn').textContent = statusTone==='success' ? 'Khóa tài khoản' : 'Mở khóa tài khoản';
+  document.getElementById('mActionBtn').className = 'btn ' + (statusTone==='success' ? 'btn-danger' : 'btn-primary');
+  document.getElementById('modalScrim').classList.add('open');
+}
+function closeDetail(){ document.getElementById('modalScrim').classList.remove('open'); }
+function switchTab(id,btn){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tabpane').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('pane-'+id).classList.add('active');
+}
+function pickTheme(el){
+  el.parentElement.querySelectorAll('.theme-card').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+}
+</script>
+</body>
+</html>

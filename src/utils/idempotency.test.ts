@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { chunk, stableDocumentId } from "./idempotency";
+import { assignmentScoreId, chunk, stableDocumentId } from "./idempotency";
 
 describe("idempotency helpers", () => {
   test("creates a deterministic Firestore-safe document id", () => {
@@ -14,5 +14,10 @@ describe("idempotency helpers", () => {
 
   test("rejects an invalid batch size", () => {
     expect(() => chunk([1], 0)).toThrow("CHUNK_SIZE_INVALID");
+  });
+
+  test("uses one deterministic score id per assignment and student", () => {
+    expect(assignmentScoreId("assignment/1", "student 1")).toBe("assignment_assignment-1_student-1");
+    expect(assignmentScoreId("assignment/1", "student 1")).toBe(assignmentScoreId("assignment/1", "student 1"));
   });
 });

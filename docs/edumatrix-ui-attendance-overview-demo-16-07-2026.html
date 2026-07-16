@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Edumatrix VN | Demo — Tổng quan Điểm danh</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --primary-50:#EFF4FF; --primary-100:#DBE6FE; --primary-300:#93B4FD; --primary-500:#3366F0; --primary-600:#2348D6; --primary-700:#1D39AC;
+    --success-50:#ECFDF3; --success-500:#16A34A; --success-700:#0F7A37;
+    --warning-50:#FFFBEB; --warning-100:#FEF3C7; --warning-500:#F59E0B; --warning-700:#B45309;
+    --danger-50:#FEF2F2; --danger-100:#FEE2E2; --danger-500:#E4453A; --danger-700:#B91C1C;
+    --info-50:#F0F9FF; --info-500:#0EA5E9; --info-700:#0369A1;
+    --n0:#FFFFFF; --n50:#FAFAF9; --n100:#F4F3F1; --n200:#E7E5E2; --n300:#D3D0CB;
+    --n400:#A6A29C; --n500:#78746D; --n600:#57534D; --n700:#403D39; --n800:#2B2926; --n900:#1C1A15;
+    --r-input:8px; --r-card:12px; --r-modal:16px;
+    --motion:220ms;
+    font-family:"Be Vietnam Pro","Segoe UI",system-ui,sans-serif;
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; background:var(--n50); color:var(--n900); }
+  body { min-width:360px; font-size:14px; line-height:1.55; }
+  button, input, select { font:inherit; color:inherit; }
+  button { cursor:pointer; }
+  .tabular { font-variant-numeric:tabular-nums; }
+  button:focus-visible, a:focus-visible, select:focus-visible { outline:3px solid rgb(51 102 240 / 30%); outline-offset:2px; }
+  h1,h2,h3,p { margin:0; }
+
+  .demo-banner { position:sticky; top:0; z-index:80; background:var(--n900); color:#fff; font-size:12px; font-weight:600; text-align:center; padding:8px 12px; }
+  .demo-banner span { color:#FCD34D; }
+
+  .shell { display:grid; grid-template-columns:230px minmax(0,1fr); min-height:100vh; }
+  .sidebar { background:#fff; border-right:1px solid var(--n200); padding:16px 10px; }
+  .brand { display:flex; align-items:center; gap:10px; padding:4px 8px 16px; border-bottom:1px solid var(--n200); margin-bottom:10px; }
+  .brand .mark { width:34px; height:34px; border-radius:var(--r-input); background:var(--primary-500); color:#fff; display:grid; place-items:center; font-weight:800; }
+  .brand strong { display:block; font-size:14px; }
+  .brand span { display:block; font-size:11px; color:var(--n500); }
+  .side-nav { display:grid; gap:3px; }
+  .side-nav a { display:flex; align-items:center; gap:10px; min-height:40px; padding:0 10px; border-radius:var(--r-input); font-size:13px; color:var(--n600); text-decoration:none; transition:background var(--motion), color var(--motion); }
+  .side-nav a:hover { background:var(--primary-50); color:var(--primary-700); }
+  .side-nav a.active { background:var(--primary-500); color:#fff; font-weight:600; }
+  .side-nav .dot { width:6px; height:6px; border-radius:999px; background:currentColor; opacity:.5; }
+
+  .main { min-width:0; }
+  .topbar { height:60px; display:flex; align-items:center; justify-content:space-between; padding:0 24px; border-bottom:1px solid var(--n200); background:#fff; }
+  .breadcrumb { font-size:13px; color:var(--n500); }
+  .top-icon { width:36px; height:36px; border-radius:var(--r-input); border:1px solid var(--n200); background:#fff; display:grid; place-items:center; color:var(--n500); }
+
+  .page { padding:24px 28px 64px; max-width:1440px; }
+  .page-header { display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:14px; margin-bottom:16px; }
+  .page-header h1 { font-size:24px; font-weight:700; }
+  .page-header p { margin-top:4px; font-size:13px; color:var(--n500); max-width:62ch; }
+
+  .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:40px; border-radius:var(--r-input); padding:0 14px; font-size:13px; font-weight:600; border:1px solid transparent; transition:transform var(--motion), background var(--motion); white-space:nowrap; }
+  .btn:active { transform:scale(.98); }
+  .btn-primary { background:linear-gradient(135deg,var(--primary-500),var(--primary-700)); color:#fff; box-shadow:0 8px 20px rgb(35 72 214 / 22%); }
+  .btn-secondary { background:#fff; border-color:var(--n300); color:var(--n700); }
+  .btn-secondary:hover { background:var(--n50); border-color:var(--primary-300); color:var(--primary-700); }
+  .btn-sm { min-height:32px; padding:0 11px; font-size:11.5px; }
+
+  .tabs { display:flex; gap:1px; border-bottom:1px solid var(--n200); margin-bottom:18px; }
+  .tabs button { border:0; background:transparent; min-height:42px; padding:0 4px; margin-right:20px; font-size:13.5px; font-weight:600; color:var(--n500); border-bottom:2px solid transparent; transition:all var(--motion); }
+  .tabs button:hover { color:var(--primary-700); }
+  .tabs button.active { color:var(--primary-700); border-bottom-color:var(--primary-500); }
+
+  .kpi-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px; }
+  .kpi-card { background:#fff; border:1px solid var(--n200); border-radius:var(--r-card); padding:16px; }
+  .kpi-card.tone-alert { border-color:var(--warning-100); background:linear-gradient(180deg,var(--warning-50),#fff); }
+  .kpi-card.tone-alert-danger { border-color:var(--danger-100); background:linear-gradient(180deg,var(--danger-50),#fff); }
+  .kpi-chip { width:36px; height:36px; border-radius:var(--r-input); display:grid; place-items:center; margin-bottom:10px; }
+  .kpi-chip.tone-primary { background:var(--primary-50); color:var(--primary-500); }
+  .kpi-chip.tone-success { background:var(--success-50); color:var(--success-700); }
+  .kpi-chip.tone-warning { background:var(--warning-50); color:var(--warning-700); }
+  .kpi-chip.tone-danger { background:var(--danger-50); color:var(--danger-700); }
+  .kpi-value { font-size:24px; font-weight:700; }
+  .kpi-label { font-size:13px; font-weight:600; color:var(--n700); margin-top:2px; }
+  .kpi-hint { font-size:12px; color:var(--n500); margin-top:2px; }
+
+  .warn-box { border:1px solid var(--warning-100); background:var(--warning-50); border-radius:var(--r-card); padding:14px 16px; margin-bottom:16px; }
+  .warn-box-head { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; color:var(--warning-700); margin-bottom:10px; }
+  .warn-list { display:flex; flex-direction:column; gap:8px; }
+  .warn-row { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 12px; border:1px solid var(--warning-100); background:#fff; border-radius:var(--r-input); }
+  .warn-row .name { font-size:13px; font-weight:600; color:var(--n900); }
+  .warn-row .meta { font-size:12px; color:var(--n500); }
+
+  .grid-2 { display:grid; grid-template-columns:1.4fr 1fr; gap:14px; margin-bottom:16px; }
+  @media (max-width:1000px) { .grid-2 { grid-template-columns:1fr; } }
+  .panel { background:#fff; border:1px solid var(--n200); border-radius:var(--r-card); padding:16px 18px; }
+  .panel h2 { font-size:15px; font-weight:700; margin-bottom:2px; }
+  .panel .sub { font-size:12px; color:var(--n500); margin-bottom:14px; }
+
+  /* Bieu do cot chong (CSS thuan, khong dung thu vien - demo tinh) */
+  .bar-chart { display:flex; align-items:flex-end; gap:10px; height:180px; padding-top:8px; }
+  .bar-col { flex:1; display:flex; flex-direction:column; align-items:center; gap:6px; }
+  .bar-stack { width:100%; max-width:34px; height:150px; border-radius:6px 6px 0 0; overflow:hidden; display:flex; flex-direction:column-reverse; background:var(--n100); }
+  .bar-seg.present { background:var(--success-500); }
+  .bar-seg.late { background:var(--warning-500); }
+  .bar-seg.absent { background:var(--danger-500); }
+  .bar-seg.excused { background:var(--info-500); }
+  .bar-col .lbl { font-size:10.5px; color:var(--n500); }
+  .legend { display:flex; flex-wrap:wrap; gap:12px; margin-top:12px; font-size:11px; color:var(--n600); }
+  .legend span { display:inline-flex; align-items:center; gap:5px; }
+  .legend i { width:8px; height:8px; border-radius:999px; display:inline-block; }
+
+  .donut-wrap { display:flex; align-items:center; gap:20px; justify-content:center; padding:10px 0; }
+  .donut { width:150px; height:150px; border-radius:999px; flex:none; display:grid; place-items:center; background: conic-gradient(var(--success-500) 0% 74%, var(--warning-500) 74% 84%, var(--danger-500) 84% 93%, var(--info-500) 93% 100%); }
+  .donut-hole { width:88px; height:88px; border-radius:999px; background:#fff; display:grid; place-items:center; text-align:center; }
+  .donut-hole b { font-size:20px; display:block; }
+  .donut-hole span { font-size:10px; color:var(--n500); }
+  .donut-legend { display:flex; flex-direction:column; gap:8px; font-size:12.5px; }
+  .donut-legend .row { display:flex; align-items:center; gap:8px; }
+  .donut-legend i { width:9px; height:9px; border-radius:999px; flex:none; }
+  .donut-legend b { margin-left:auto; font-variant-numeric:tabular-nums; }
+
+  .class-rate-row { display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--n100); }
+  .class-rate-row:last-child { border-bottom:0; }
+  .class-rate-row .cname { width:180px; flex:none; font-size:12.5px; font-weight:600; color:var(--n900); }
+  .class-rate-row .track { flex:1; height:8px; border-radius:999px; background:var(--n100); overflow:hidden; }
+  .class-rate-row .fill { height:100%; border-radius:999px; }
+  .class-rate-row .pct { width:44px; flex:none; text-align:right; font-size:12px; font-weight:700; font-variant-numeric:tabular-nums; }
+
+  .student-row { display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--n200); border-radius:var(--r-input); margin-bottom:8px; }
+  .student-row:last-child { margin-bottom:0; }
+  .student-avatar { width:34px; height:34px; border-radius:999px; background:var(--danger-50); color:var(--danger-700); display:grid; place-items:center; font-size:12px; font-weight:700; flex:none; }
+  .student-row .info { flex:1; min-width:0; }
+  .student-row .info .n { font-size:13px; font-weight:600; color:var(--n900); }
+  .student-row .info .m { font-size:11.5px; color:var(--n500); }
+  .student-row .stat { text-align:right; flex:none; }
+  .student-row .stat b { display:block; font-size:14px; color:var(--danger-700); }
+  .student-row .stat span { font-size:10.5px; color:var(--n500); }
+
+  .badge { display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700; }
+  .badge.tone-success { background:var(--success-50); color:var(--success-700); }
+  .badge.tone-warning { background:var(--warning-50); color:var(--warning-700); }
+
+  /* Popup dang ky nghi hoc (single-action - popup, khong lam tab, dung pattern da chot o Module Giao an) */
+  .overlay { position:fixed; inset:0; background:rgb(28 26 21 / 55%); display:none; align-items:center; justify-content:center; padding:24px 16px; z-index:100; }
+  .overlay.open { display:flex; }
+  .leave-modal { background:#fff; border-radius:var(--r-modal); width:100%; max-width:480px; box-shadow:0 24px 60px rgb(28 26 21 / 24%); overflow:hidden; }
+  .leave-modal-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:16px 20px; border-bottom:1px solid var(--n200); }
+  .leave-modal-head h3 { font-size:16px; font-weight:700; }
+  .leave-modal-head p { font-size:12px; color:var(--n500); margin-top:3px; }
+  .leave-modal-close { width:32px; height:32px; border-radius:var(--r-input); border:1px solid var(--n200); background:#fff; color:var(--n500); flex:none; }
+  .leave-modal-body { padding:18px 20px; display:flex; flex-direction:column; gap:12px; }
+  .leave-modal-foot { display:flex; justify-content:flex-end; gap:8px; padding:14px 20px; border-top:1px solid var(--n200); }
+  .field-label { display:block; font-size:12px; font-weight:600; color:var(--n700); margin-bottom:5px; }
+  .field-input { width:100%; min-height:40px; border-radius:var(--r-input); border:1px solid var(--n300); padding:0 11px; font-size:13px; background:#fff; }
+  textarea.field-input { min-height:64px; padding:9px 11px; resize:vertical; }
+  .leave-type-toggle { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .leave-type-toggle button { min-height:40px; border-radius:var(--r-input); border:1px solid var(--n300); background:#fff; font-size:12.5px; font-weight:600; color:var(--n600); }
+  .leave-type-toggle button.excused.active { border-color:var(--info-500); background:var(--info-50); color:var(--info-700); }
+  .leave-type-toggle button.absent.active { border-color:var(--danger-500); background:var(--danger-50); color:var(--danger-700); }
+
+  .leave-row { display:flex; align-items:center; gap:10px; padding:9px 12px; border:1px solid var(--n200); border-radius:var(--r-input); margin-bottom:8px; }
+  .leave-row:last-child { margin-bottom:0; }
+  .leave-row .info { flex:1; min-width:0; }
+  .leave-row .info .n { font-size:12.5px; font-weight:600; color:var(--n900); }
+  .leave-row .info .m { font-size:11px; color:var(--n500); }
+
+  .mark-preview { background:#fff; border:1px solid var(--n200); border-radius:var(--r-card); padding:18px; }
+  .mark-preview .note { font-size:12px; color:var(--n500); margin-bottom:14px; padding:10px 12px; border:1px dashed var(--n300); border-radius:var(--r-input); }
+  .select-sm { min-height:40px; border-radius:var(--r-input); border:1px solid var(--n300); padding:0 12px; font-size:13px; background:#fff; width:100%; max-width:480px; }
+  .roster-row { display:grid; grid-template-columns:1fr 160px 1fr; gap:10px; align-items:center; padding:11px 0; border-bottom:1px solid var(--n100); }
+  .roster-row .n { font-size:13px; font-weight:600; }
+  .roster-row .c { font-size:11px; color:var(--n500); }
+
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+
+<div class="demo-banner">DEMO — chờ duyệt · <span>chưa áp dụng vào code thật</span> · Module Điểm danh: thêm tab Tổng quan (dashboard) · 16/07/2026</div>
+
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="mark">E</div>
+      <div><strong>Edumatrix-vn</strong><span>Quản lý lớp học</span></div>
+    </div>
+    <nav class="side-nav">
+      <a href="#"><span class="dot"></span>Tổng quan</a>
+      <a href="#"><span class="dot"></span>Môn học &amp; khóa học</a>
+      <a href="#"><span class="dot"></span>Học sinh</a>
+      <a href="#"><span class="dot"></span>Lớp học</a>
+      <a href="#"><span class="dot"></span>Lịch học</a>
+      <a href="#"><span class="dot"></span>Giáo án</a>
+      <a href="#" class="active"><span class="dot"></span>Điểm danh</a>
+      <a href="#"><span class="dot"></span>Bài tập</a>
+      <a href="#"><span class="dot"></span>Điểm học tập</a>
+      <a href="#"><span class="dot"></span>Học phí</a>
+      <a href="#"><span class="dot"></span>Thông báo</a>
+      <a href="#"><span class="dot"></span>Người dùng</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="breadcrumb">Điểm danh</div>
+      <button class="top-icon" aria-label="Thông báo">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      </button>
+    </div>
+
+    <div class="page">
+      <div class="page-header">
+        <div>
+          <h1>Điểm danh</h1>
+          <p>Tổng quan chuyên cần toàn hệ thống, cảnh báo buổi chưa điểm danh và học sinh nghỉ không phép nhiều — cộng với luồng điểm danh theo buổi như hiện tại.</p>
+        </div>
+        <button class="btn btn-primary" onclick="openLeaveModal()">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          Đăng ký nghỉ học
+        </button>
+      </div>
+
+      <div class="tabs">
+        <button class="active" onclick="showTab('overview')">Tổng quan</button>
+        <button onclick="showTab('mark')">Điểm danh theo buổi</button>
+      </div>
+
+      <!-- ============ TAB: TỔNG QUAN ============ -->
+      <div id="tab-overview">
+        <div class="kpi-row">
+          <div class="kpi-card">
+            <div class="kpi-chip tone-primary"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/></svg></div>
+            <div class="kpi-value tabular">92%</div>
+            <div class="kpi-label">Tỷ lệ chuyên cần TB</div>
+            <div class="kpi-hint">30 ngày gần nhất</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-chip tone-success"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
+            <div class="kpi-value tabular">146</div>
+            <div class="kpi-label">Buổi đã điểm danh</div>
+            <div class="kpi-hint">30 ngày gần nhất</div>
+          </div>
+          <div class="kpi-card tone-alert">
+            <div class="kpi-chip tone-warning"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg></div>
+            <div class="kpi-value tabular">4</div>
+            <div class="kpi-label">Buổi chưa điểm danh</div>
+            <div class="kpi-hint">14 ngày gần nhất</div>
+          </div>
+          <div class="kpi-card tone-alert-danger">
+            <div class="kpi-chip tone-danger"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-6 8-6s8 2 8 6"/><path d="M2 2l20 20" stroke-width="2"/></svg></div>
+            <div class="kpi-value tabular">3</div>
+            <div class="kpi-label">Nghỉ không phép nhiều</div>
+            <div class="kpi-hint">≥ 20% buổi trong 30 ngày, không tính nghỉ có phép</div>
+          </div>
+        </div>
+
+        <div class="warn-box">
+          <div class="warn-box-head">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+            Buổi học chưa điểm danh
+          </div>
+          <div class="warn-list">
+            <div class="warn-row">
+              <div><span class="name">HN53 Essentials · Thứ 3, 14/07 · 18:00–19:30</span><br><span class="meta">Đã kết thúc 2 ngày trước</span></div>
+              <button class="btn btn-secondary btn-sm" onclick="showTab('mark')">Điểm danh ngay</button>
+            </div>
+            <div class="warn-row">
+              <div><span class="name">IELTS Foundation 04 · Thứ 4, 15/07 · 19:00–20:30</span><br><span class="meta">Đã kết thúc 1 ngày trước</span></div>
+              <button class="btn btn-secondary btn-sm" onclick="showTab('mark')">Điểm danh ngay</button>
+            </div>
+            <div class="warn-row">
+              <div><span class="name">Toán nâng cao 7A · Thứ 4, 15/07 · 17:30–19:00</span><br><span class="meta">Đã kết thúc 1 ngày trước</span></div>
+              <button class="btn btn-secondary btn-sm" onclick="showTab('mark')">Điểm danh ngay</button>
+            </div>
+            <div class="warn-row">
+              <div><span class="name">HN53 Essentials · Thứ 5, 16/07 · 18:00–19:30</span><br><span class="meta">Vừa kết thúc</span></div>
+              <button class="btn btn-secondary btn-sm" onclick="showTab('mark')">Điểm danh ngay</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-bottom:16px;">
+          <h2>Nghỉ học đã đăng ký trước</h2>
+          <p class="sub">Buổi sắp tới đã có học sinh báo nghỉ — staff đăng ký qua nút "Đăng ký nghỉ học" hoặc ngay lúc điểm danh.</p>
+          <div class="leave-row">
+            <div class="info"><div class="n">Nguyễn Hoài Bảo · HN53 Essentials</div><div class="m">Thứ 3, 21/07 · 18:00 — Xin nghỉ vì ốm, có giấy bác sĩ</div></div>
+            <span class="badge tone-success">Có phép</span>
+          </div>
+          <div class="leave-row">
+            <div class="info"><div class="n">Trần Minh Anh · IELTS Foundation 04</div><div class="m">Thứ 4, 22/07 · 19:00 — Không báo lý do</div></div>
+            <span class="badge" style="background:var(--danger-50); color:var(--danger-700);">Không phép</span>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="panel">
+            <h2>Xu hướng chuyên cần theo tuần</h2>
+            <p class="sub">Tổng hợp trên các buổi đã điểm danh trong 8 tuần gần đây.</p>
+            <div class="bar-chart">
+              <div class="bar-col"><div class="bar-stack"><div class="bar-seg absent" style="height:6%"></div><div class="bar-seg late" style="height:8%"></div><div class="bar-seg present" style="height:86%"></div></div><span class="lbl">21/05</span></div>
+              <div class="bar-col"><div class="bar-stack"><div class="bar-seg absent" style="height:10%"></div><div class="bar-seg late" style="height:6%"></div><div class="bar-seg present" style="height:84%"></div></div><span class="lbl">28/05</span></div>
+              <div class="bar-col"><div class="bar-stack"><div class="bar-seg absent" style="height:4%"></div><div class="bar-seg late" style="height:9%"></div><div class="bar-seg present" style="height:87%"></div></div><span class="lbl">04/06</span></div>
+              <div class="bar-col"><div class="bar-stack"><div class="bar-seg absent" style="height:14%"></div><div class="bar-seg late" style="height:7%"></div><div class="bar-seg present" style="height:79%"></div></div><span class="lbl">11/06</span></div>
+              <div class="bar-col"><div class="bar-stack"><div class="bar-seg absent" style="height:8%"></div><div class="bar-seg late" style="height:5%"></div><div class="bar-seg present" style="height:87%"></div></div><span class="lbl">18/06</span></div>
+              <div class="bar-col"><div class="bar-stack"><div class="bar-seg absent" style="height:5%"></div><div class="bar-seg late" style="height:4%"></div><div class="bar-seg present" style="height:91%"></div></div><span class="lbl">25/06</span></div>
+              <div class="bar-col"><div class="bar-stack"><div class="bar-seg absent" style="height:7%"></div><div class="bar-seg late" style="height:6%"></div><div class="bar-seg present" style="height:87%"></div></div><span class="lbl">02/07</span></div>
+              <div class="bar-col"><div class="bar-stack"><div class="bar-seg absent" style="height:6%"></div><div class="bar-seg late" style="height:8%"></div><div class="bar-seg present" style="height:86%"></div></div><span class="lbl">09/07</span></div>
+            </div>
+            <div class="legend">
+              <span><i style="background:var(--success-500)"></i>Có mặt</span>
+              <span><i style="background:var(--warning-500)"></i>Đi muộn</span>
+              <span><i style="background:var(--danger-500)"></i>Vắng không phép</span>
+              <span><i style="background:var(--info-500)"></i>Vắng có phép</span>
+            </div>
+          </div>
+
+          <div class="panel">
+            <h2>Tổng hợp trạng thái</h2>
+            <p class="sub">Toàn hệ thống, 30 ngày gần đây.</p>
+            <div class="donut-wrap">
+              <div class="donut"><div class="donut-hole"><b>92%</b><span>chuyên cần</span></div></div>
+              <div class="donut-legend">
+                <div class="row"><i style="background:var(--success-500)"></i>Có mặt<b>74%</b></div>
+                <div class="row"><i style="background:var(--warning-500)"></i>Đi muộn<b>10%</b></div>
+                <div class="row"><i style="background:var(--danger-500)"></i>Vắng không phép<b>9%</b></div>
+                <div class="row"><i style="background:var(--info-500)"></i>Vắng có phép<b>7%</b></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="panel">
+            <h2>Theo lớp</h2>
+            <p class="sub">Tỷ lệ chuyên cần từng lớp, 30 ngày gần đây.</p>
+            <div class="class-rate-row"><span class="cname">HN53 Essentials</span><div class="track"><div class="fill" style="width:96%; background:var(--success-500)"></div></div><span class="pct">96%</span></div>
+            <div class="class-rate-row"><span class="cname">IELTS Foundation 04</span><div class="track"><div class="fill" style="width:90%; background:var(--success-500)"></div></div><span class="pct">90%</span></div>
+            <div class="class-rate-row"><span class="cname">Toán nâng cao 7A</span><div class="track"><div class="fill" style="width:83%; background:var(--warning-500)"></div></div><span class="pct">83%</span></div>
+            <div class="class-rate-row"><span class="cname">Văn 9B</span><div class="track"><div class="fill" style="width:71%; background:var(--danger-500)"></div></div><span class="pct">71%</span></div>
+            <div class="class-rate-row"><span class="cname">Tiếng Anh thiếu niên 02</span><div class="track"><div class="fill" style="width:94%; background:var(--success-500)"></div></div><span class="pct">94%</span></div>
+          </div>
+
+          <div class="panel">
+            <h2>Học sinh nghỉ không phép nhiều</h2>
+            <p class="sub">Vắng không phép ≥ 20% trong 30 ngày, tối thiểu 3 buổi đã điểm danh — không tính nghỉ có phép.</p>
+            <div class="student-row">
+              <div class="student-avatar">PA</div>
+              <div class="info"><div class="n">Phạm Anh Khoa</div><div class="m">Văn 9B · 5/12 buổi vắng</div></div>
+              <div class="stat"><b>42%</b><span>vắng</span></div>
+            </div>
+            <div class="student-row">
+              <div class="student-avatar">LT</div>
+              <div class="info"><div class="n">Lê Thảo Vy</div><div class="m">Toán nâng cao 7A · 3/10 buổi vắng</div></div>
+              <div class="stat"><b>30%</b><span>vắng</span></div>
+            </div>
+            <div class="student-row">
+              <div class="student-avatar">NH</div>
+              <div class="info"><div class="n">Nguyễn Hoài Bảo</div><div class="m">HN53 Essentials · 2/9 buổi vắng</div></div>
+              <div class="stat"><b>22%</b><span>vắng</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ TAB: ĐIỂM DANH THEO BUỔI (giữ nguyên luồng hiện có — thu gọn trong demo) ============ -->
+      <div id="tab-mark" class="hidden">
+        <div class="mark-preview">
+          <div class="note">Tab này giữ nguyên đúng luồng điểm danh hiện tại (chọn buổi → đánh dấu nhanh → lưu cả lớp) — chỉ chuyển vị trí vào đây, không đổi logic. Riêng nhãn trạng thái đổi cho rõ nghĩa: "Vắng" → "Vắng không phép", "Có phép" → "Vắng có phép" (giá trị lưu trong hệ thống không đổi). Bản demo rút gọn để tập trung vào tab Tổng quan theo đúng yêu cầu.</div>
+          <label class="lbl" style="display:block; font-size:12px; font-weight:600; color:var(--n500); margin-bottom:6px;">Chọn buổi học</label>
+          <select class="select-sm">
+            <option>Thứ 5, 16/07/2026 18:00 - HN53 Essentials</option>
+            <option>Thứ 4, 15/07/2026 19:00 - IELTS Foundation 04</option>
+          </select>
+
+          <div style="margin-top:18px; display:flex; align-items:center; justify-content:space-between;">
+            <h2 style="font-size:15px; font-weight:700;">HN53 Essentials · 12 học sinh</h2>
+            <button class="btn btn-primary">Lưu điểm danh</button>
+          </div>
+          <div style="margin-top:8px;">
+            <div class="roster-row"><div><div class="n">Nguyễn Hoài Bảo</div><div class="c">HS0231</div></div><span class="badge tone-success">Có mặt</span><input class="select-sm" placeholder="Ghi chú" /></div>
+            <div class="roster-row"><div><div class="n">Trần Minh Anh</div><div class="c">HS0198</div></div><span class="badge tone-success">Có mặt</span><input class="select-sm" placeholder="Ghi chú" /></div>
+            <div class="roster-row"><div><div class="n">Đỗ Gia Hân</div><div class="c">HS0205</div></div><span class="badge tone-warning">Đi muộn</span><input class="select-sm" placeholder="Ghi chú" value="Trễ 10 phút" /></div>
+            <div class="roster-row"><div><div class="n">Nguyễn Hoài Bảo</div><div class="c">HS0231</div></div><span class="badge" style="background:var(--info-50); color:var(--info-700);">Vắng có phép</span><input class="select-sm" placeholder="Ghi chú" value="Đã đăng ký nghỉ trước — xin nghỉ vì ốm" /></div>
+            <div class="roster-row"><div><div class="n">Vũ Đăng Khoa</div><div class="c">HS0177</div></div><span class="badge" style="background:var(--danger-50); color:var(--danger-700);">Vắng không phép</span><input class="select-sm" placeholder="Ghi chú" /></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ POPUP: Đăng ký nghỉ học (single-action, không làm tab) ============ -->
+<div class="overlay" id="leaveOverlay">
+  <div class="leave-modal">
+    <div class="leave-modal-head">
+      <div>
+        <h3>Đăng ký nghỉ học</h3>
+        <p>Ghi nhận trước cho 1 học sinh — không ảnh hưởng các bạn cùng lớp, tự hiện đúng khi điểm danh buổi đó.</p>
+      </div>
+      <button class="leave-modal-close" aria-label="Đóng" onclick="closeLeaveModal()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="leave-modal-body">
+      <div>
+        <label class="field-label">Học sinh<span style="color:var(--danger-500)">*</span></label>
+        <select class="field-input">
+          <option>-- Chọn học sinh --</option>
+          <option selected>Nguyễn Hoài Bảo · HN53 Essentials</option>
+          <option>Trần Minh Anh · IELTS Foundation 04</option>
+        </select>
+      </div>
+      <div>
+        <label class="field-label">Buổi học<span style="color:var(--danger-500)">*</span> <span style="font-weight:400; color:var(--n500);">— lọc theo lớp học sinh đang học</span></label>
+        <select class="field-input">
+          <option>-- Chọn buổi học sắp tới --</option>
+          <option selected>Thứ 3, 21/07/2026 · 18:00–19:30</option>
+          <option>Thứ 5, 23/07/2026 · 18:00–19:30</option>
+        </select>
+      </div>
+      <div>
+        <label class="field-label">Loại nghỉ</label>
+        <div class="leave-type-toggle">
+          <button type="button" class="excused active" onclick="selectLeaveType(this,'excused')">Có phép</button>
+          <button type="button" class="absent" onclick="selectLeaveType(this,'absent')">Không phép</button>
+        </div>
+      </div>
+      <div>
+        <label class="field-label">Lý do</label>
+        <textarea class="field-input" placeholder="VD: Xin nghỉ vì ốm, có giấy bác sĩ">Xin nghỉ vì ốm, có giấy bác sĩ</textarea>
+      </div>
+    </div>
+    <div class="leave-modal-foot">
+      <button class="btn btn-secondary" onclick="closeLeaveModal()">Hủy</button>
+      <button class="btn btn-primary" onclick="closeLeaveModal()">Lưu đăng ký</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function showTab(tab) {
+    document.getElementById('tab-overview').classList.toggle('hidden', tab !== 'overview');
+    document.getElementById('tab-mark').classList.toggle('hidden', tab !== 'mark');
+    document.querySelectorAll('.tabs button').forEach((btn, i) => {
+      btn.classList.toggle('active', (tab === 'overview' && i === 0) || (tab === 'mark' && i === 1));
+    });
+  }
+  function openLeaveModal() { document.getElementById('leaveOverlay').classList.add('open'); }
+  function closeLeaveModal() { document.getElementById('leaveOverlay').classList.remove('open'); }
+  function selectLeaveType(btn, type) {
+    document.querySelectorAll('.leave-type-toggle button').forEach((b) => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  document.getElementById('leaveOverlay').addEventListener('click', (e) => {
+    if (e.target.id === 'leaveOverlay') closeLeaveModal();
+  });
+</script>
+
+</body>
+</html>

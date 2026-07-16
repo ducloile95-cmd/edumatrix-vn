@@ -13,5 +13,6 @@ describe("Phase 7 assignments", () => {
  test("viewer submits with deterministic id",async()=>assertSucceeds(setDoc(doc(env.authenticatedContext("viewer").firestore(),"submissions","assignment-2_student-1"),{...submission,assignmentId:"assignment-2"})));
  test("viewer cannot submit for another student",async()=>assertFails(setDoc(doc(env.authenticatedContext("viewer").firestore(),"submissions","assignment-1_student-2"),{...submission,studentId:"student-2"})));
  test("viewer cannot grade own submission",async()=>assertFails(updateDoc(doc(env.authenticatedContext("viewer").firestore(),"submissions","assignment-1_student-1"),{score:10,status:"graded",teacherComment:"ok"})));
- test("staff grades submission",async()=>assertSucceeds(updateDoc(doc(env.authenticatedContext("admin").firestore(),"submissions","assignment-1_student-1"),{score:9,status:"graded",teacherComment:"good"})));
+ test("staff grades submission",async()=>assertSucceeds(updateDoc(doc(env.authenticatedContext("admin").firestore(),"submissions","assignment-1_student-1"),{score:9,status:"graded",teacherComment:"good",checkedBy:"admin"})));
+ test("staff cannot grade above assignment max",async()=>assertFails(updateDoc(doc(env.authenticatedContext("admin").firestore(),"submissions","assignment-1_student-1"),{score:11,status:"graded",teacherComment:"bad",checkedBy:"admin"})));
 });

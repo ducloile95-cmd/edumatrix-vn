@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/feedback/EmptyState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { Pagination } from "@/components/ui/Pagination";
+import { DataListPanel, DATA_LIST_FOOTER, DATA_LIST_SCROLL } from "@/components/ui/dataListLayout";
 import { usePagination } from "@/hooks/usePagination";
 import type { ClassStatus, SessionDoc } from "@/types/academic";
 
@@ -95,8 +96,8 @@ export function ClassScheduleList({ onViewOnTimetable, loadedSessions }: ClassSc
   }
 
   return (
-    <section className="overflow-hidden rounded-card border border-neutral-200 bg-white">
-      <div className="border-b border-neutral-200 px-4 py-4 sm:px-5">
+    <DataListPanel className="rounded-card border border-neutral-200 bg-white">
+      <div className="shrink-0 border-b border-neutral-200 px-4 py-4 sm:px-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-base font-semibold text-neutral-900">Danh sách lớp học</h2>
@@ -149,9 +150,9 @@ export function ClassScheduleList({ onViewOnTimetable, loadedSessions }: ClassSc
         </div>
       ) : (
         <>
-          <div className="overflow-x-auto">
+          <div className={DATA_LIST_SCROLL}>
             <table className="w-full min-w-[960px] border-collapse text-sm">
-              <thead>
+              <thead className="sticky top-0 z-10 bg-neutral-50">
                 <tr className="border-b border-neutral-200 bg-neutral-50 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
                   <th scope="col" className="px-4 py-3">Lớp học</th>
                   <th scope="col" className="px-4 py-3">Khóa học</th>
@@ -212,11 +213,11 @@ export function ClassScheduleList({ onViewOnTimetable, loadedSessions }: ClassSc
               </tbody>
             </table>
           </div>
-          <div className="px-4 pb-4 sm:px-5">
+          <div className={DATA_LIST_FOOTER}>
             <Pagination page={page} pageSize={pageSize} totalItems={filtered.length} onPageChange={setPage} itemLabel="lớp" />
           </div>
         </>
       )}
-    </section>
+    </DataListPanel>
   );
 }

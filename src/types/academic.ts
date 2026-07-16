@@ -109,14 +109,25 @@ export interface SessionDoc {
 }
 
 export type LessonPlanStatus = "draft" | "published" | "archived";
+/** Kieu section tu do cu - chi con dung de doc/chuan hoa giao an cu, khong dung khi tao moi (A: xem normalizeLessonPlan). */
 export interface LessonPlanSection { title: string; content: string; }
+export interface LessonPlanObjectives { knowledge: string; skills: string; attitude: string; }
+export interface LessonPlanPreparation { teacher: string; student: string; }
+export interface LessonPlanActivity { name: string; durationMinutes: number; content: string; expectedOutcome: string; }
 export interface LessonPlanDoc {
   title: string;
   classId: string | null;
   courseId: string | null;
   subjectId: string | null;
   sessionId: string | null;
-  sections: LessonPlanSection[];
+  objectives: LessonPlanObjectives;
+  preparation: LessonPlanPreparation;
+  activities: LessonPlanActivity[];
+  homework: string;
+  notesAfterTeaching: string;
+  /** Link tai lieu dinh kem (Drive/OneDrive da chia se) - KHONG dung Firebase Storage (A: Spark plan da bo Storage tu 03/02/2026). */
+  attachmentUrl: string | null;
+  attachmentLabel: string;
   publicSummary: string;
   status: LessonPlanStatus;
   createdBy: string;
@@ -126,7 +137,10 @@ export interface LessonPlanDoc {
 
 export interface LessonPlanTemplateDoc {
   name: string;
-  sections: LessonPlanSection[];
+  objectives: LessonPlanObjectives;
+  preparation: LessonPlanPreparation;
+  activities: LessonPlanActivity[];
+  homework: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -155,11 +169,12 @@ export interface AttendanceSummaryDoc {
 
 export type AssignmentStatus = "draft" | "published" | "closed";
 export type SubmissionStatus = "submitted" | "reviewing" | "graded" | "redo_required";
-export interface AssignmentDoc { title: string; description: string; classId: string; lessonPlanId: string | null; sessionId: string | null; dueAt: Timestamp; submissionType: "link" | "text"; maxScore: number; status: AssignmentStatus; createdBy: string; createdAt: Timestamp; updatedAt: Timestamp; }
+export interface AssignmentDoc { title: string; description: string; classId: string; subjectId?: string; lessonPlanId: string | null; sessionId: string | null; dueAt: Timestamp; submissionType: "link" | "text"; maxScore: number; status: AssignmentStatus; createdBy: string; createdAt: Timestamp; updatedAt: Timestamp; }
 export interface SubmissionDoc { assignmentId: string; studentId: string; classId: string; submissionUrl: string; submissionText: string; studentNote: string; status: SubmissionStatus; score: number | null; teacherComment: string; checkedBy: string | null; submittedAt: Timestamp; checkedAt: Timestamp | null; updatedAt: Timestamp; }
 export interface AssignmentSummaryDoc { assignmentId: string; totalStudents: number; submittedCount: number; gradedCount: number; redoCount: number; updatedAt: Timestamp; }
 export type AssessmentType = "quiz" | "midterm" | "final" | "assignment";
-export interface ScoreDoc { studentId: string; classId: string; subjectId: string; assessmentName: string; assessmentType: AssessmentType; score: number; maxScore: number; teacherComment: string; createdBy: string; createdAt: Timestamp; updatedAt: Timestamp; }
+export type ScoreSource = "manual" | "assignment";
+export interface ScoreDoc { studentId: string; classId: string; subjectId: string; assessmentName: string; assessmentType: AssessmentType; score: number; maxScore: number; teacherComment: string; source?: ScoreSource; assignmentId?: string | null; submissionId?: string | null; published?: boolean; createdBy: string; createdAt: Timestamp; updatedAt: Timestamp; }
 export interface StudentSummaryDoc { studentId: string; scoreCount: number; averagePercent: number; latestScore: number; latestMaxScore: number; updatedAt: Timestamp; }
 export type InvoiceStatus = "unpaid" | "pending" | "paid" | "overdue" | "rejected";
 export interface InvoiceDoc { invoiceCode:string;studentId:string;courseId:string|null;title:string;amount:number;dueAt:Timestamp;paymentContent:string;bankBin:string;accountNumber:string;accountName:string;status:InvoiceStatus;createdBy:string;createdAt:Timestamp;updatedAt:Timestamp; }

@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/feedback/EmptyState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { Pagination } from "@/components/ui/Pagination";
+import { DataListPanel, DATA_LIST_FOOTER, DATA_LIST_SCROLL } from "@/components/ui/dataListLayout";
 import { usePagination } from "@/hooks/usePagination";
 import type { CourseDoc, CourseStatus } from "@/types/academic";
 
@@ -39,8 +40,6 @@ const STATUS_FILTERS: { value: CourseStatus | "all"; label: string }[] = [
 ];
 
 /** Chieu cao co dinh, khoa cung SubjectsList de 2 bang luon bang nhau (khong lech do so dong khac nhau). */
-const PANEL_HEIGHT = "h-[640px]";
-
 export function CoursesList({ onEdit, subjectFilter, onClearSubjectFilter }: CoursesListProps) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<CourseStatus | "all">("all");
@@ -79,7 +78,7 @@ export function CoursesList({ onEdit, subjectFilter, onClearSubjectFilter }: Cou
   const hasRows = !isLoading && !isError && filtered.length > 0;
 
   return (
-    <section className={`flex ${PANEL_HEIGHT} flex-col overflow-hidden rounded-card border border-neutral-200 bg-white`}>
+    <DataListPanel className="rounded-card border border-neutral-200 bg-white">
       <div className="shrink-0 border-b border-neutral-200 px-4 py-4 sm:px-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
@@ -144,7 +143,7 @@ export function CoursesList({ onEdit, subjectFilter, onClearSubjectFilter }: Cou
         )}
       </div>
 
-      <div className="flex-1 overflow-auto">
+      <div className={DATA_LIST_SCROLL}>
         {isLoading && (
           <div className="p-4 sm:p-5">
             <LoadingSkeleton rows={5} />
@@ -255,7 +254,7 @@ export function CoursesList({ onEdit, subjectFilter, onClearSubjectFilter }: Cou
       </div>
 
       {hasRows && (
-        <div className="shrink-0 border-t border-neutral-100 px-4 py-3 sm:px-5">
+        <div className={DATA_LIST_FOOTER}>
           <Pagination
             page={page}
             pageSize={pageSize}
@@ -265,6 +264,6 @@ export function CoursesList({ onEdit, subjectFilter, onClearSubjectFilter }: Cou
           />
         </div>
       )}
-    </section>
+    </DataListPanel>
   );
 }

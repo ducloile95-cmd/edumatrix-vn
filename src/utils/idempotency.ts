@@ -2,6 +2,10 @@ export function stableDocumentId(parts: string[]): string {
   return parts.join("_").replace(/[^A-Za-z0-9_-]/g, "-").slice(0, 140);
 }
 
+export function assignmentScoreId(assignmentId: string, studentId: string): string {
+  return stableDocumentId(["assignment", assignmentId, studentId]);
+}
+
 export function chunk<T>(items: T[], size: number): T[][] {
   if (!Number.isInteger(size) || size <= 0) throw new Error("CHUNK_SIZE_INVALID");
   const result: T[][] = [];

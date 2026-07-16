@@ -1,1 +1,60 @@
-import {afterAll,beforeAll,beforeEach,describe,test}from"vitest";import{assertFails,assertSucceeds,initializeTestEnvironment,type RulesTestEnvironment}from"@firebase/rules-unit-testing";import{doc,getDoc,setDoc,Timestamp,updateDoc}from"firebase/firestore";import fs from"node:fs";import path from"node:path";let env:RulesTestEnvironment;const score={studentId:"student-1",classId:"class-1",subjectId:"sub-1",assessmentName:"Quiz",assessmentType:"quiz",score:8,maxScore:10,teacherComment:"ok",createdBy:"admin",createdAt:Timestamp.now(),updatedAt:Timestamp.now()};beforeAll(async()=>{env=await initializeTestEnvironment({projectId:"phase8-rules",firestore:{rules:fs.readFileSync(path.resolve(__dirname,"../firestore.rules"),"utf8"),host:"localhost",port:Number(process.env.FIRESTORE_EMULATOR_PORT??8090)}})});afterAll(async()=>env.cleanup());beforeEach(async()=>{await env.clearFirestore();await env.withSecurityRulesDisabled(async(ctx)=>{const db=ctx.firestore();await setDoc(doc(db,"users","admin"),{role:"admin",status:"active",studentIds:[]});await setDoc(doc(db,"users","viewer"),{role:"viewer",status:"active",studentIds:["student-1"]});await setDoc(doc(db,"users","other"),{role:"viewer",status:"active",studentIds:["student-2"]});await setDoc(doc(db,"scores","score-1"),score);await setDoc(doc(db,"student_summaries","student-1"),{studentId:"student-1",scoreCount:1,averagePercent:80,latestScore:8,latestMaxScore:10,updatedAt:Timestamp.now()})})});describe("Phase 8 scores",()=>{test("owner reads score",async()=>assertSucceeds(getDoc(doc(env.authenticatedContext("viewer").firestore(),"scores","score-1"))));test("other viewer denied",async()=>assertFails(getDoc(doc(env.authenticatedContext("other").firestore(),"scores","score-1"))));test("viewer cannot edit score",async()=>assertFails(updateDoc(doc(env.authenticatedContext("viewer").firestore(),"scores","score-1"),{score:10})));test("staff creates valid score",async()=>assertSucceeds(setDoc(doc(env.authenticatedContext("admin").firestore(),"scores","score-2"),score)));test("score above max rejected",async()=>assertFails(setDoc(doc(env.authenticatedContext("admin").firestore(),"scores","bad"),{...score,score:11})));});
+import { afterAll, beforeAll, beforeEach, describe, test } from "vitest";
+import { assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment } from "@firebase/rules-unit-testing";
+import { doc, getDoc, setDoc, Timestamp, updateDoc } from "firebase/firestore";
+import fs from "node:fs";
+import path from "node:path";
+
+let env: RulesTestEnvironment;
+const score = {
+  studentId: "student-1",
+  classId: "class-1",
+  subjectId: "sub-1",
+  assessmentName: "Quiz",
+  assessmentType: "quiz",
+  score: 8,
+  maxScore: 10,
+  teacherComment: "ok",
+  source: "manual",
+  assignmentId: null,
+  submissionId: null,
+  published: true,
+  createdBy: "admin",
+  createdAt: Timestamp.now(),
+  updatedAt: Timestamp.now(),
+};
+
+beforeAll(async () => {
+  env = await initializeTestEnvironment({
+    projectId: "phase8-rules",
+    firestore: {
+      rules: fs.readFileSync(path.resolve(__dirname, "../firestore.rules"), "utf8"),
+      host: "localhost",
+      port: Number(process.env.FIRESTORE_EMULATOR_PORT ?? 8090),
+    },
+  });
+});
+
+afterAll(async () => env.cleanup());
+
+beforeEach(async () => {
+  await env.clearFirestore();
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    const db = ctx.firestore();
+    await setDoc(doc(db, "users", "admin"), { role: "admin", status: "active", studentIds: [] });
+    await setDoc(doc(db, "users", "viewer"), { role: "viewer", status: "active", studentIds: ["student-1"] });
+    await setDoc(doc(db, "users", "other"), { role: "viewer", status: "active", studentIds: ["student-2"] });
+    await setDoc(doc(db, "scores", "score-1"), score);
+    await setDoc(doc(db, "student_summaries", "student-1"), { studentId: "student-1", scoreCount: 1, averagePercent: 80, latestScore: 8, latestMaxScore: 10, updatedAt: Timestamp.now() });
+  });
+});
+
+describe("Phase 8 scores", () => {
+  test("owner reads score", async () => assertSucceeds(getDoc(doc(env.authenticatedContext("viewer").firestore(), "scores", "score-1"))));
+  test("other viewer denied", async () => assertFails(getDoc(doc(env.authenticatedContext("other").firestore(), "scores", "score-1"))));
+  test("viewer cannot edit score", async () => assertFails(updateDoc(doc(env.authenticatedContext("viewer").firestore(), "scores", "score-1"), { score: 10 })));
+  test("staff creates valid manual score", async () => assertSucceeds(setDoc(doc(env.authenticatedContext("admin").firestore(), "scores", "score-2"), score)));
+  test("score above max rejected", async () => assertFails(setDoc(doc(env.authenticatedContext("admin").firestore(), "scores", "bad"), { ...score, score: 11 })));
+  test("manual score cannot carry assignment references", async () => assertFails(setDoc(doc(env.authenticatedContext("admin").firestore(), "scores", "bad-source"), { ...score, assignmentId: "assignment-1" })));
+  test("staff cannot change score provenance after creation", async () => assertFails(updateDoc(doc(env.authenticatedContext("admin").firestore(), "scores", "score-1"), { source: "assignment", assignmentId: "assignment-1", submissionId: "submission-1", assessmentType: "assignment" })));
+  test("staff cannot attach a manual score to an assignment", async () => assertFails(updateDoc(doc(env.authenticatedContext("admin").firestore(), "scores", "score-1"), { assignmentId: "assignment-1" })));
+});

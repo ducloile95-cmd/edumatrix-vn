@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "composite": true,
+    "outDir": "./.tsc-out/node",
     "skipLibCheck": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
