@@ -35,14 +35,13 @@ const groupChucNang: NavGroup = {
     { to: ROUTES.STAFF_LESSON_PLANS, label: "Giáo án", icon: NotebookPen },
     { to: ROUTES.STAFF_ATTENDANCE, label: "Điểm danh", icon: ClipboardCheck },
     { to: ROUTES.STAFF_LEARNING, label: "Bài tập & Điểm", icon: ChartNoAxesCombined },
+    { to: ROUTES.STAFF_CHAT, label: "Chat", icon: MessagesSquare },
   ],
 };
 
-// Mục "Tương tác lớp học" & "Marketing" là module tương lai (cần Cloudflare Worker + Facebook Graph API) → disabled.
-const CHAT_FANPAGE: NavLeaf = { to: "#", label: "Tương tác lớp học", icon: MessagesSquare, disabled: true };
+// Marketing là module tương lai nên chưa mở điều hướng.
 const MARKETING: NavLeaf = { to: "#", label: "Marketing", icon: Megaphone, disabled: true };
 const TAI_CHINH: NavLeaf = { to: ROUTES.STAFF_INVOICES, label: "Tài chính", icon: Wallet };
-const THONG_BAO: NavLeaf = { to: ROUTES.STAFF_ANNOUNCEMENTS, label: "Thông báo", icon: Bell };
 // Cai dat: Admin thay 4 muc, Giao vien chi thay Thong bao + Giao dien (loc theo role trong SettingsPage).
 const CAI_DAT: NavLeaf = { to: ROUTES.STAFF_SETTINGS, label: "Cài đặt", icon: Settings };
 
@@ -53,13 +52,13 @@ export const NAVIGATION_BY_ROLE: Record<UserRole, NavNode[]> = {
     TONG_QUAN,
     groupLopHoc,
     groupChucNang,
-    { label: "Quản lý", icon: Settings, children: [TAI_CHINH, CHAT_FANPAGE, MARKETING, { to: ROUTES.STAFF_USERS, label: "Người dùng", icon: UserCog }, THONG_BAO, CAI_DAT] },
+    { label: "Quản lý", icon: Settings, children: [TAI_CHINH, MARKETING, { to: ROUTES.STAFF_USERS, label: "Người dùng", icon: UserCog }, CAI_DAT] },
   ],
   [USER_ROLES.TEACHER]: [
     TONG_QUAN,
     groupLopHoc,
     groupChucNang,
-    { label: "Quản lý", icon: Settings, children: [TAI_CHINH, CHAT_FANPAGE, THONG_BAO, CAI_DAT] },
+    { label: "Quản lý", icon: Settings, children: [TAI_CHINH, CAI_DAT] },
   ],
   [USER_ROLES.VIEWER]: [
     { to: ROUTES.VIEWER_DASHBOARD, label: "Tổng quan", icon: Home },
@@ -71,13 +70,17 @@ export const NAVIGATION_BY_ROLE: Record<UserRole, NavNode[]> = {
 };
 
 // Bảng tra tiêu đề theo route (dồn từ mọi role) — dùng cho tiêu đề động trên Topbar.
-const PAGE_TITLES: Record<string, string> = Object.fromEntries(
-  Object.values(NAVIGATION_BY_ROLE)
-    .flat()
-    .flatMap((node) => (isNavGroup(node) ? node.children : [node]))
-    .filter((leaf) => !leaf.disabled && leaf.to !== "#")
-    .map((leaf) => [leaf.to, leaf.label]),
-);
+const PAGE_TITLES: Record<string, string> = {
+  ...Object.fromEntries(
+    Object.values(NAVIGATION_BY_ROLE)
+      .flat()
+      .flatMap((node) => (isNavGroup(node) ? node.children : [node]))
+      .filter((leaf) => !leaf.disabled && leaf.to !== "#")
+      .map((leaf) => [leaf.to, leaf.label]),
+  ),
+  [ROUTES.STAFF_SETTINGS_DEMO]: "Demo Cài đặt Admin",
+  [ROUTES.STAFF_CHAT_DEMO]: "Demo Chat",
+};
 
 const PAGE_DESCRIPTIONS: Record<string, string> = {
   [ROUTES.STAFF_DASHBOARD]: "Những việc cần chú ý hôm nay, lịch lớp sắp tới và tiến độ học tập.",
@@ -93,7 +96,10 @@ const PAGE_DESCRIPTIONS: Record<string, string> = {
   [ROUTES.STAFF_INVOICES]: "Tạo hóa đơn, theo dõi công nợ và đối soát thanh toán.",
   [ROUTES.STAFF_USERS]: "Mời tài khoản mới, theo dõi lời mời và khóa hoặc mở tài khoản.",
   [ROUTES.STAFF_ANNOUNCEMENTS]: "Đăng thông báo lên Fanpage và nhắn phụ huynh qua Messenger.",
-  [ROUTES.STAFF_SETTINGS]: "Thông tin trường học, vai trò & phân quyền, thông báo và giao diện.",
+  [ROUTES.STAFF_CHAT]: "Hội thoại Messenger với phụ huynh, nhật ký gửi và quản lý kết nối.",
+  [ROUTES.STAFF_CHAT_DEMO]: "Bản duyệt giao diện Chat hai chiều, nhật ký gửi và đăng Fanpage.",
+  [ROUTES.STAFF_SETTINGS]: "Theo dõi Firebase Spark, cấu hình trường học, tích hợp, VietQR và giao diện.",
+  [ROUTES.STAFF_SETTINGS_DEMO]: "Bản duyệt cấu trúc Cài đặt, theo dõi Spark, tích hợp và thanh toán QR.",
   [ROUTES.VIEWER_DASHBOARD]: "Lịch học, bài tập, điểm số và học phí cần theo dõi.",
   [ROUTES.VIEWER_SCHEDULE]: "Các buổi học sắp tới của học sinh.",
   [ROUTES.VIEWER_ASSIGNMENTS]: "Theo dõi bài cần nộp và gửi bài làm cho giáo viên.",

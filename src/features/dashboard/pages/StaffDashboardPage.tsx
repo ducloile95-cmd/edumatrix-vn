@@ -11,6 +11,7 @@ import { ErrorState } from "@/components/feedback/ErrorState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { ChartPanel } from "@/components/charts/ChartPanel";
+import { ChartGradientDefs, CHART_DEPTH_FILTER, CHART_GLOW_FILTER, CHART_GRADIENT } from "@/components/charts/ChartGradientDefs";
 import { CHART_AXIS_TICK, CHART_PRIMARY, CHART_TOOLTIP_STYLE } from "@/components/charts/chartTheme";
 import { ROUTES } from "@/constants/routes";
 import { getStaffDashboard } from "@/services/firestore/staffDashboard";
@@ -153,10 +154,11 @@ export default function StaffDashboardPage() {
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={attendanceTrend} aria-label="Biểu đồ tỉ lệ có mặt theo ngày trong 14 ngày gần đây">
+                    {ChartGradientDefs()}
                     <XAxis dataKey="date" tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} />
                     <YAxis unit="%" domain={[0, 100]} tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} />
                     <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number) => [`${value}%`, "Tỉ lệ có mặt"]} />
-                    <Line type="monotone" dataKey="rate" stroke={CHART_PRIMARY} strokeWidth={3} dot={false} activeDot={{ r: 5, fill: "#fff", stroke: CHART_PRIMARY, strokeWidth: 3 }} isAnimationActive={!reducedMotion} animationDuration={280} />
+                    <Line type="monotone" dataKey="rate" stroke={CHART_GRADIENT.primary} strokeWidth={4} dot={false} activeDot={{ r: 6, fill: "#fff", stroke: CHART_PRIMARY, strokeWidth: 3, filter: CHART_GLOW_FILTER }} filter={CHART_GLOW_FILTER} isAnimationActive={!reducedMotion} animationDuration={280} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -166,10 +168,11 @@ export default function StaffDashboardPage() {
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={invoiceStatusData} layout="vertical" aria-label="Biểu đồ số lượng hóa đơn theo trạng thái">
+                    {ChartGradientDefs()}
                     <XAxis type="number" allowDecimals={false} hide />
                     <YAxis type="category" dataKey="status" width={100} tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} />
                     <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number) => [`${value} hóa đơn`, "Số lượng"]} />
-                    <Bar dataKey="count" fill={CHART_PRIMARY} radius={[0, 8, 8, 0]} barSize={18} isAnimationActive={!reducedMotion} animationDuration={280} />
+                    <Bar dataKey="count" fill={CHART_GRADIENT.primary} filter={CHART_DEPTH_FILTER} radius={[0, 10, 10, 0]} barSize={18} isAnimationActive={!reducedMotion} animationDuration={280} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

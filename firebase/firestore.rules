@@ -39,6 +39,35 @@ service cloud.firestore {
       return isAdmin() || isTeacher();
     }
 
+    function validGeneralSettings(data) {
+      return data.keys().hasOnly(['name', 'schoolYear', 'address', 'phone', 'logoUrl', 'updatedAt']) &&
+        data.keys().hasAll(['name', 'schoolYear', 'address', 'phone', 'logoUrl', 'updatedAt']) &&
+        data.name is string && data.name.size() <= 120 &&
+        data.schoolYear is string && data.schoolYear.size() <= 30 &&
+        data.address is string && data.address.size() <= 300 &&
+        data.phone is string && data.phone.size() <= 30 &&
+        data.logoUrl is string && data.logoUrl.size() <= 500;
+    }
+
+    function validIntegrationSettings(data) {
+      return data.keys().hasOnly(['facebookPageId', 'driveFolderId', 'webhookUrl', 'updatedAt']) &&
+        data.keys().hasAll(['facebookPageId', 'driveFolderId', 'webhookUrl', 'updatedAt']) &&
+        data.facebookPageId is string && data.facebookPageId.size() <= 100 &&
+        data.driveFolderId is string && data.driveFolderId.size() <= 200 &&
+        data.webhookUrl is string && data.webhookUrl.size() <= 500;
+    }
+
+    function validPaymentSettings(data) {
+      return data.keys().hasOnly(['bankBin', 'bankName', 'accountNumber', 'accountName', 'contentTemplate', 'vietQrTemplate', 'updatedAt']) &&
+        data.keys().hasAll(['bankBin', 'bankName', 'accountNumber', 'accountName', 'contentTemplate', 'vietQrTemplate', 'updatedAt']) &&
+        data.bankBin is string && data.bankBin.matches('^[0-9]{6}$') &&
+        data.bankName is string && data.bankName.size() <= 100 &&
+        data.accountNumber is string && data.accountNumber.matches('^[A-Za-z0-9]{6,19}$') &&
+        data.accountName is string && data.accountName.size() >= 5 && data.accountName.size() <= 50 &&
+        data.contentTemplate is string && data.contentTemplate.size() <= 50 &&
+        data.vietQrTemplate is string && data.vietQrTemplate.size() >= 2 && data.vietQrTemplate.size() <= 60;
+    }
+
     function isAssignedTeacherForClass(classId) {
       return isTeacher() &&
         exists(/databases/$(database)/documents/classes/$(classId)) &&
@@ -302,12 +331,70 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // ---------- settings/* ----------
-    // Chi Admin doc/ghi cau hinh nhay cam (A16.5). Cac module doc settings.payment
-    // cong khai (thong tin ngan hang) se duoc mo rieng khi trien khai module hoc phi.
+    // ---------- account_activity/{uid_yyyy-MM-dd} ----------
+    // Daily client-side rollup for usage analytics. It never grants access.
+    match /account_activity/{activityId} {
+      allow read: if isAdmin() || (
+        signedIn() && resource.data.uid == request.auth.uid
+      );
 
+      allow create: if isActive() &&
+        request.resource.data.uid == request.auth.uid &&
+        activityId == request.auth.uid + '_' + request.resource.data.dateKey &&
+        request.resource.data.activeMinutes >= 0 &&
+        request.resource.data.activeMinutes <= 5 &&
+        request.resource.data.keys().hasOnly(
+          ['uid', 'dateKey', 'activeMinutes', 'lastSeenAt', 'createdAt', 'updatedAt']
+        );
+
+      allow update: if isActive() &&
+        resource.data.uid == request.auth.uid &&
+        request.resource.data.uid == resource.data.uid &&
+        request.resource.data.dateKey == resource.data.dateKey &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['activeMinutes', 'lastSeenAt', 'updatedAt']) &&
+        request.resource.data.activeMinutes >= resource.data.activeMinutes &&
+        request.resource.data.activeMinutes <= resource.data.activeMinutes + 5;
+
+      allow delete: if false;
+    }
+
+    // ---------- settings/* ----------
+    // Chi Admin doc/ghi. Khong co token, API secret hay OAuth refresh token trong collection nay.
     match /settings/{docId} {
-      allow read, write: if isAdmin();
+      allow read: if isAdmin();
+      allow create, update: if isAdmin() && (
+        (docId == 'general' && validGeneralSettings(request.resource.data)) ||
+        (docId == 'integrations' && validIntegrationSettings(request.resource.data)) ||
+        (docId == 'payment' && validPaymentSettings(request.resource.data))
+      );
+      allow delete: if false;
+    }
+
+    // ---------- usage_events/{uid_yyyy-MM-dd_collection} ----------
+    // App-level estimate only. It never grants access and is not a billing source.
+    match /usage_events/{usageId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
+      allow create: if isActive() &&
+        request.resource.data.uid == request.auth.uid &&
+        usageId == request.auth.uid + '_' + request.resource.data.dateKey + '_' + request.resource.data.collectionId &&
+        request.resource.data.keys().hasOnly(['uid', 'dateKey', 'collectionId', 'reads', 'writes', 'deletes', 'lastLatencyMs', 'createdAt', 'updatedAt']) &&
+        request.resource.data.reads >= 0 && request.resource.data.reads <= 500 &&
+        request.resource.data.writes >= 0 && request.resource.data.writes <= 200 &&
+        request.resource.data.deletes >= 0 && request.resource.data.deletes <= 100 &&
+        request.resource.data.lastLatencyMs >= 0 && request.resource.data.lastLatencyMs <= 60000;
+      allow update: if isActive() &&
+        resource.data.uid == request.auth.uid &&
+        request.resource.data.uid == resource.data.uid &&
+        request.resource.data.dateKey == resource.data.dateKey &&
+        request.resource.data.collectionId == resource.data.collectionId &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reads', 'writes', 'deletes', 'lastLatencyMs', 'updatedAt']) &&
+        request.resource.data.reads >= resource.data.reads && request.resource.data.reads <= resource.data.reads + 500 &&
+        request.resource.data.writes >= resource.data.writes && request.resource.data.writes <= resource.data.writes + 200 &&
+        request.resource.data.deletes >= resource.data.deletes && request.resource.data.deletes <= resource.data.deletes + 100 &&
+        request.resource.data.lastLatencyMs >= 0 && request.resource.data.lastLatencyMs <= 60000;
+      allow delete: if false;
     }
 
     // ---------- audit_logs/{logId} ----------
@@ -636,15 +723,47 @@ service cloud.firestore {
     allow create, update: if false;
     allow delete: if false;
   }
+    match /chat_threads/{threadId} {
+      allow read: if isAdmin() || (
+        isTeacher() && request.auth.uid in resource.data.assignedTeacherIds
+      );
+      allow create, update, delete: if false;
+
+      match /messages/{messageId} {
+        allow read: if isAdmin() || (
+          isTeacher() && request.auth.uid in
+            get(/databases/$(database)/documents/chat_threads/$(threadId)).data.assignedTeacherIds
+        );
+        allow create, update, delete: if false;
+      }
+    }
+
     match /message_outbox/{messageId} {
-      allow read: if isStaff();
-      allow create: if isStaff() && request.resource.data.actorUid == request.auth.uid &&
-        request.resource.data.status in ['sent', 'failed'];
-      allow update, delete: if false;
+      allow read: if isAdmin() || (
+        isTeacher() && resource.data.actorUid == request.auth.uid
+      );
+      allow create, update, delete: if false;
     }
     match /messenger_connections/{uid} {
       allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
       allow write: if false;
+    }
+
+    // fanpage_posts: lich su + hang cho dang bai Fanpage - client ghi truc tiep (Admin-only,
+    // Worker khong co endpoint ghi log). imageUrls chi la chuoi URL cong khai, khong co file.
+    match /fanpage_posts/{postId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() &&
+        request.resource.data.actorUid == request.auth.uid &&
+        request.resource.data.message is string && request.resource.data.message.size() > 0 &&
+        request.resource.data.status in ['sent', 'failed', 'scheduled'] &&
+        (request.resource.data.imageUrls == null ||
+          (request.resource.data.imageUrls is list && request.resource.data.imageUrls.size() <= 4));
+      allow update: if isAdmin() &&
+        resource.data.status == 'scheduled' &&
+        request.resource.data.status in ['sent', 'failed', 'canceled'] &&
+        keepsImmutable(['message', 'link', 'imageUrls', 'actorUid', 'actorName', 'createdAt', 'scheduledFor']);
+      allow delete: if false;
     }
 
     // ---------- Mac dinh: tu choi tat ca ----------

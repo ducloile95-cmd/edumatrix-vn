@@ -21,6 +21,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   >(null);
   const claimAttemptedForUid = useRef<string | null>(null);
   const lastLoginTouchedForUid = useRef<string | null>(null);
+  const activityStartedForUid = useRef<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -114,6 +115,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     lastLoginTouchedForUid.current = firebaseUser.uid;
 
     import("@/services/firestore/users").then(({ touchLastLogin }) => touchLastLogin(firebaseUser.uid));
+  }, [firebaseUser, userDoc]);
+
+  useEffect(() => {
+    if (!firebaseUser || !userDoc || userDoc.status !== "active") return;
+    if (activityStartedForUid.current === firebaseUser.uid) return;
+    activityStartedForUid.current = firebaseUser.uid;
+
+    let cancelled = false;
+    let intervalId: number | undefined;
+    import("@/services/firestore/users").then(({ recordAccountActivity }) => {
+      if (cancelled) return;
+      recordAccountActivity(firebaseUser.uid, 1).catch(() => undefined);
+      intervalId = window.setInterval(() => {
+        if (document.visibilityState === "visible") {
+          recordAccountActivity(firebaseUser.uid, 5).catch(() => undefined);
+        }
+      }, 5 * 60 * 1000);
+    });
+
+    return () => {
+      cancelled = true;
+      if (intervalId !== undefined) window.clearInterval(intervalId);
+    };
   }, [firebaseUser, userDoc]);
 
   return (

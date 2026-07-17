@@ -44,7 +44,7 @@ export function AppearanceTab() {
   return (
     <div>
       <p className="mb-4 rounded-input border border-warning-100 bg-warning-50 px-3 py-2 text-xs text-warning-700">
-        Lựa chọn được lưu trên trình duyệt này, nhưng chưa áp dụng lên toàn bộ giao diện — giao diện tối và tiếng Anh sẽ có ở bản sau.
+        Lựa chọn được lưu trên trình duyệt này, nhưng chưa áp dụng lên toàn bộ giao diện. Giao diện tối và tiếng Anh sẽ có ở bản sau.
       </p>
 
       <div className="mb-5">

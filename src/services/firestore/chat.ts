@@ -1,0 +1,42 @@
+import {
+  collection, getDocs, limit, onSnapshot, orderBy, query, where, type Unsubscribe,
+} from "firebase/firestore";
+import { COLLECTIONS } from "@/constants/collections";
+import { db } from "@/services/firebase/firestoreClient";
+import { recordFirestoreUsage } from "@/services/firestore/usage";
+import type { ChatMessageDoc, ChatThreadDoc, MessageOutboxDoc } from "@/types/chat";
+import type { UserRole } from "@/types/user";
+
+export async function listChatThreads(role: UserRole, uid: string): Promise<Array<ChatThreadDoc & { id: string }>> {
+  const source = collection(db, COLLECTIONS.CHAT_THREADS);
+  const q = role === "admin"
+    ? query(source, orderBy("lastMessageAt", "desc"), limit(30))
+    : query(source, where("assignedTeacherIds", "array-contains", uid), orderBy("lastMessageAt", "desc"), limit(30));
+  const snapshot = await getDocs(q);
+  recordFirestoreUsage({ collectionId: COLLECTIONS.CHAT_THREADS, reads: snapshot.size });
+  return snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as ChatThreadDoc) }));
+}
+
+export function subscribeChatMessages(threadId: string, listener: (items: Array<ChatMessageDoc & { id: string }>) => void, onError: (error: Error) => void): Unsubscribe {
+  const q = query(collection(db, COLLECTIONS.CHAT_THREADS, threadId, "messages"), orderBy("createdAt", "desc"), limit(50));
+  return onSnapshot(q, (snapshot) => {
+    recordFirestoreUsage({ collectionId: "chat_messages", reads: snapshot.size });
+    listener(snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as ChatMessageDoc) })).reverse());
+  }, onError);
+}
+
+export async function listMessageOutbox(role: UserRole, uid: string): Promise<Array<MessageOutboxDoc & { id: string }>> {
+  const source = collection(db, COLLECTIONS.MESSAGE_OUTBOX);
+  const q = role === "admin"
+    ? query(source, orderBy("createdAt", "desc"), limit(50))
+    : query(source, where("actorUid", "==", uid), limit(50));
+  const snapshot = await getDocs(q);
+  recordFirestoreUsage({ collectionId: COLLECTIONS.MESSAGE_OUTBOX, reads: snapshot.size });
+  return snapshot.docs
+    .map((item) => ({ id: item.id, ...(item.data() as MessageOutboxDoc) }))
+    .sort((a, b) => timestampMillis(b.createdAt) - timestampMillis(a.createdAt));
+}
+
+function timestampMillis(value: MessageOutboxDoc["createdAt"]): number {
+  return typeof value === "string" ? Date.parse(value) || 0 : value?.toMillis?.() ?? 0;
+}

@@ -5,7 +5,8 @@ import { Bar, BarChart, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } fro
 import { CircleDollarSign, Clock3, Plus, ReceiptText, ShieldCheck, WalletCards } from "lucide-react";
 import { AppShell } from "@/components/layouts/AppShell";
 import { ChartEmpty, ChartPanel } from "@/components/charts/ChartPanel";
-import { CHART_AXIS_TICK, CHART_PRIMARY, CHART_PRIMARY_SOFT, CHART_SUCCESS, CHART_TOOLTIP_STYLE } from "@/components/charts/chartTheme";
+import { ChartGradientDefs, CHART_DEPTH_FILTER, CHART_GRADIENT } from "@/components/charts/ChartGradientDefs";
+import { CHART_AXIS_TICK, CHART_TOOLTIP_STYLE } from "@/components/charts/chartTheme";
 import { Button } from "@/components/ui/Button";
 import { DataListPanel, DATA_LIST_FOOTER, DATA_LIST_SCROLL } from "@/components/ui/dataListLayout";
 import { EmptyState } from "@/components/feedback/EmptyState";
@@ -18,6 +19,7 @@ import { StatCard } from "@/components/ui/StatCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { createInvoice, listInvoices, listPayments, reconcilePayment } from "@/services/firestore/invoices";
+import { getPaymentSettings } from "@/services/firestore/settings";
 import { listStudents } from "@/services/firestore/students";
 import { listClasses } from "@/services/firestore/classes";
 import { listCourses } from "@/services/firestore/courses";
@@ -79,6 +81,7 @@ export default function InvoicesPage() {
   const payments = useQuery({ queryKey: ["payments"], queryFn: listPayments });
   const classes = useQuery({ queryKey: ["classes"], queryFn: listClasses });
   const courses = useQuery({ queryKey: ["courses"], queryFn: listCourses });
+  const paymentSettings = useQuery({ queryKey: ["settings", "payment"], queryFn: getPaymentSettings });
   const [activeTab, setActiveTab] = useState<FinanceTab>("overview");
   const [createOpen, setCreateOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -102,6 +105,17 @@ export default function InvoicesPage() {
       setForm((current) => ({ ...current, amount: computedAmount }));
     }
   }, [computedAmount, amountTouched]);
+
+  useEffect(() => {
+    const payment = paymentSettings.data;
+    if (!payment) return;
+    setForm((current) => ({
+      ...current,
+      bankBin: payment.bankBin,
+      accountNumber: payment.accountNumber,
+      accountName: payment.accountName,
+    }));
+  }, [paymentSettings.data]);
 
   const create = useMutation({
     mutationFn: () => createInvoice({
@@ -222,12 +236,13 @@ export default function InvoicesPage() {
                 <div className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={monthlyChart} barGap={8} aria-label="Biểu đồ phải thu và thực thu theo tháng">
+                      {ChartGradientDefs()}
                       <XAxis dataKey="month" tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} />
                       <YAxis tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} tickFormatter={(value: number) => formatAxisVnd(value)} />
                       <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number) => formatVnd(value)} />
                       <Legend />
-                      <Bar dataKey="duKien" name="Phải thu" fill={CHART_PRIMARY_SOFT} radius={[7, 7, 2, 2]} isAnimationActive={!reducedMotion} animationDuration={280} />
-                      <Bar dataKey="thucThu" name="Đã thu" fill={CHART_SUCCESS} radius={[7, 7, 2, 2]} isAnimationActive={!reducedMotion} animationDuration={280} />
+                      <Bar dataKey="duKien" name="Phải thu" fill={CHART_GRADIENT.primarySoft} filter={CHART_DEPTH_FILTER} radius={[9, 9, 2, 2]} isAnimationActive={!reducedMotion} animationDuration={280} />
+                      <Bar dataKey="thucThu" name="Đã thu" fill={CHART_GRADIENT.success} filter={CHART_DEPTH_FILTER} radius={[9, 9, 2, 2]} isAnimationActive={!reducedMotion} animationDuration={280} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -239,10 +254,11 @@ export default function InvoicesPage() {
                 <div className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={statusChart} layout="vertical" margin={{ left: 12 }} aria-label="Biểu đồ hóa đơn theo trạng thái">
+                      {ChartGradientDefs()}
                       <XAxis type="number" allowDecimals={false} hide />
                       <YAxis type="category" dataKey="status" width={112} tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} />
                       <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number) => [`${value} hóa đơn`, "Số lượng"]} />
-                      <Bar dataKey="count" fill={CHART_PRIMARY} radius={[0, 8, 8, 0]} barSize={18} isAnimationActive={!reducedMotion} animationDuration={280} />
+                      <Bar dataKey="count" fill={CHART_GRADIENT.primary} filter={CHART_DEPTH_FILTER} radius={[0, 10, 10, 0]} barSize={18} isAnimationActive={!reducedMotion} animationDuration={280} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -335,9 +351,10 @@ export default function InvoicesPage() {
             <FormField label="Số buổi" required><input required type="number" min={1} step={1} value={form.sessionCount} onChange={(event) => setField("sessionCount", Number(event.target.value))} className={FIELD_CLASS} /></FormField>
             <FormField label="Số tiền" required><input required type="number" min={1} value={form.amount || ""} onChange={(event) => { setAmountTouched(true); setField("amount", Number(event.target.value)); }} className={FIELD_CLASS} /></FormField>
             <FormField label="Hạn thanh toán" required><input required type="date" value={form.dueAt} onChange={(event) => setField("dueAt", event.target.value)} className={FIELD_CLASS} /></FormField>
-            <FormField label="Số tài khoản" required><input required value={form.accountNumber} onChange={(event) => setField("accountNumber", event.target.value)} className={FIELD_CLASS} /></FormField>
-            <FormField label="Tên tài khoản"><input value={form.accountName} onChange={(event) => setField("accountName", event.target.value)} className={FIELD_CLASS} /></FormField>
-            <FormField label="Mã ngân hàng"><input value={form.bankBin} onChange={(event) => setField("bankBin", event.target.value)} className={FIELD_CLASS} /></FormField>
+            <FormField label="Số tài khoản" required><input required value={form.accountNumber} readOnly className={`${FIELD_CLASS} bg-neutral-100`} /></FormField>
+            <FormField label="Tên tài khoản"><input value={form.accountName} readOnly className={`${FIELD_CLASS} bg-neutral-100`} /></FormField>
+            <FormField label="Mã ngân hàng"><input value={form.bankBin} readOnly className={`${FIELD_CLASS} bg-neutral-100`} /></FormField>
+            <p className="text-xs leading-5 text-neutral-500 sm:col-span-2">Thông tin VietQR được quản lý tại Cài đặt và snapshot vào hóa đơn này.</p>
           </div>
           <aside className="flex flex-col rounded-card border border-primary-100 bg-primary-50/70 p-5">
             <p className="text-xs font-bold uppercase tracking-[0.12em] text-primary-700">Xem trước hóa đơn</p>

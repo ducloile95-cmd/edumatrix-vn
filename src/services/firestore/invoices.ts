@@ -17,6 +17,7 @@ import {
 import { COLLECTIONS } from "@/constants/collections";
 import { db } from "@/services/firebase/firestoreClient";
 import { stableDocumentId } from "@/utils/idempotency";
+import { recordFirestoreUsage } from "@/services/firestore/usage";
 import { createInvoiceCode, createPaymentContent } from "@/utils/payment";
 import type { InvoiceDoc, PaymentDoc, PaymentStatus } from "@/types/academic";
 
@@ -50,10 +51,12 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<void> {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+  recordFirestoreUsage({ collectionId: COLLECTIONS.INVOICES, writes: 1 });
 }
 
 export async function listInvoices(): Promise<(InvoiceDoc & { id: string })[]> {
   const snap = await getDocs(query(collection(db, COLLECTIONS.INVOICES), limit(300)));
+  recordFirestoreUsage({ collectionId: COLLECTIONS.INVOICES, reads: snap.size });
   return snap.docs.map((item) => ({ id: item.id, ...(item.data() as InvoiceDoc) }));
 }
 
@@ -124,6 +127,7 @@ export async function reportPayment(
 
 export async function listPayments(): Promise<(PaymentDoc & { id: string })[]> {
   const snap = await getDocs(query(collection(db, COLLECTIONS.PAYMENTS), limit(300)));
+  recordFirestoreUsage({ collectionId: COLLECTIONS.PAYMENTS, reads: snap.size });
   return snap.docs.map((item) => ({ id: item.id, ...(item.data() as PaymentDoc) }));
 }
 

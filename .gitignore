@@ -4,6 +4,9 @@ dist-ssr/
 .env
 .env.local
 .env.*.local
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
 *.local
 .firebase/
 firebase-debug.log*

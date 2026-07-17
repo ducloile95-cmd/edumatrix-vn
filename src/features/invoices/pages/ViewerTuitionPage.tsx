@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { QRCodeSVG } from "qrcode.react";
 import { ViewerShell } from "@/components/layouts/ViewerShell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Modal } from "@/components/ui/Modal";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { listInvoicesByStudents, reportPayment } from "@/services/firestore/invoices";
-import { buildPaymentQrPayload } from "@/utils/payment";
+import { buildVietQrImageUrl } from "@/utils/payment";
 import type { InvoiceDoc } from "@/types/academic";
 
 export default function ViewerTuitionPage() {
@@ -50,10 +49,12 @@ export default function ViewerTuitionPage() {
       <Modal open={!!selected} onClose={() => setSelected(null)} size="sm" title={selected?.invoiceCode ?? "Hóa đơn"}>
         {selected && (
           <div className="text-center">
-            <QRCodeSVG
-              className="mx-auto mt-1"
-              size={220}
-              value={buildPaymentQrPayload({
+            <img
+              className="mx-auto mt-1 size-[260px] rounded-card object-contain"
+              width={260}
+              height={260}
+              alt={`VietQR thanh toán hóa đơn ${selected.invoiceCode}`}
+              src={buildVietQrImageUrl({
                 bankBin: selected.bankBin,
                 accountNumber: selected.accountNumber,
                 accountName: selected.accountName,

@@ -14,7 +14,7 @@ const AccessDeniedPage = lazy(() => import("@/features/auth/pages/AccessDeniedPa
 const AccountDisabledPage = lazy(() => import("@/features/auth/pages/AccountDisabledPage"));
 const StaffDashboardPage = lazy(() => import("@/features/dashboard/pages/StaffDashboardPage"));
 const ViewerDashboardPage = lazy(() => import("@/features/dashboard/pages/ViewerDashboardPage"));
-const UsersPage = lazy(() => import("@/features/users/pages/UsersPage"));
+const UsersPage = lazy(() => import("@/features/users/pages/UsersAdminPage"));
 const CatalogPage = lazy(() => import("@/features/catalog/pages/CatalogPage"));
 const StudentsPage = lazy(() => import("@/features/students/pages/StudentsPage"));
 const ClassesPage = lazy(() => import("@/features/classes/pages/ClassesPage"));
@@ -25,7 +25,8 @@ const AttendancePage = lazy(() => import("@/features/attendance/pages/Attendance
 const LearningPage = lazy(() => import("@/features/learning/pages/LearningPage"));
 const ViewerAssignmentsPage = lazy(() => import("@/features/assignments/pages/ViewerAssignmentsPage"));
 const InvoicesPage = lazy(() => import("@/features/invoices/pages/InvoicesPage"));
-const StaffAnnouncementsPage = lazy(() => import("@/features/announcements/pages/StaffAnnouncementsPage"));
+const ChatPage = lazy(() => import("@/features/announcements/pages/ChatPage"));
+const ChatDemoPage = lazy(() => import("@/features/announcements/pages/ChatDemoPage"));
 const SettingsPage = lazy(() => import("@/features/settings/pages/SettingsPage"));
 const ViewerTuitionPage = lazy(() => import("@/features/invoices/pages/ViewerTuitionPage"));
 const ViewerSchedulePage = lazy(() => import("@/features/dashboard/pages/ViewerSchedulePage"));
@@ -153,12 +154,27 @@ export function AppRouter() {
 
           <Route
             path={ROUTES.STAFF_ANNOUNCEMENTS}
-            element={<RequireAuth><RequireRole roles={[USER_ROLES.ADMIN, USER_ROLES.TEACHER]}><StaffAnnouncementsPage /></RequireRole></RequireAuth>}
+            element={<Navigate to={ROUTES.STAFF_CHAT} replace />}
+          />
+
+          <Route
+            path={ROUTES.STAFF_CHAT}
+            element={<RequireAuth><RequireRole roles={[USER_ROLES.ADMIN, USER_ROLES.TEACHER]}><ChatPage /></RequireRole></RequireAuth>}
+          />
+
+          <Route
+            path={ROUTES.STAFF_CHAT_DEMO}
+            element={<RequireAuth><RequireRole roles={[USER_ROLES.ADMIN, USER_ROLES.TEACHER]}><ChatDemoPage /></RequireRole></RequireAuth>}
           />
 
           <Route
             path={ROUTES.STAFF_SETTINGS}
             element={<RequireAuth><RequireRole roles={[USER_ROLES.ADMIN, USER_ROLES.TEACHER]}><SettingsPage /></RequireRole></RequireAuth>}
+          />
+
+          <Route
+            path={ROUTES.STAFF_SETTINGS_DEMO}
+            element={<Navigate to={ROUTES.STAFF_SETTINGS} replace />}
           />
 
           <Route

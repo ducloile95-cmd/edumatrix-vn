@@ -302,3 +302,182 @@ describe("phan quyen Admin/Teacher", () => {
     );
   });
 });
+
+describe("chat and message outbox", () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, "chat_threads", "thread_assigned"), { assignedTeacherIds: [TEACHER_UID], parentUid: VIEWER_UID, studentId: "student_001" });
+      await setDoc(doc(db, "chat_threads", "thread_other"), { assignedTeacherIds: ["other-teacher"], parentUid: "other-parent", studentId: "student_002" });
+      await setDoc(doc(db, "chat_threads", "thread_assigned", "messages", "message_1"), { direction: "inbound", text: "Xin chao" });
+      await setDoc(doc(db, "message_outbox", "own_message"), { actorUid: TEACHER_UID, status: "sent" });
+      await setDoc(doc(db, "message_outbox", "other_message"), { actorUid: "other-teacher", status: "sent" });
+    });
+  });
+
+  test("Admin doc duoc moi thread", async () => {
+    await assertSucceeds(getDoc(doc(asAdmin(), "chat_threads", "thread_other")));
+  });
+
+  test("Teacher chi doc thread duoc phan cong", async () => {
+    await assertSucceeds(getDoc(doc(asTeacher(), "chat_threads", "thread_assigned")));
+    await assertFails(getDoc(doc(asTeacher(), "chat_threads", "thread_other")));
+  });
+
+  test("Teacher doc message trong thread duoc phan cong", async () => {
+    await assertSucceeds(getDoc(doc(asTeacher(), "chat_threads", "thread_assigned", "messages", "message_1")));
+  });
+
+  test("Viewer khong doc duoc chat", async () => {
+    await assertFails(getDoc(doc(asViewer(), "chat_threads", "thread_assigned")));
+  });
+
+  test("Teacher chi doc outbox cua chinh minh", async () => {
+    await assertSucceeds(getDoc(doc(asTeacher(), "message_outbox", "own_message")));
+    await assertFails(getDoc(doc(asTeacher(), "message_outbox", "other_message")));
+  });
+
+  test("Client khong duoc gia mao message hoac outbox", async () => {
+    await assertFails(setDoc(doc(asAdmin(), "chat_threads", "new_thread"), { assignedTeacherIds: [] }));
+    await assertFails(setDoc(doc(asTeacher(), "message_outbox", "fake"), { actorUid: TEACHER_UID, status: "sent" }));
+  });
+});
+
+describe("admin settings", () => {
+  test("Admin ghi payment settings hop le", async () => {
+    await assertSucceeds(setDoc(doc(asAdmin(), "settings", "payment"), {
+      bankBin: "970436",
+      bankName: "Vietcombank",
+      accountNumber: "012345678901",
+      accountName: "EDUMATRIX VIET NAM",
+      contentTemplate: "{invoiceCode} {studentCode}",
+      vietQrTemplate: "compact2",
+      updatedAt: serverTimestamp(),
+    }));
+  });
+
+  test("Teacher khong doc hoac ghi settings", async () => {
+    await assertFails(getDoc(doc(asTeacher(), "settings", "payment")));
+    await assertFails(setDoc(doc(asTeacher(), "settings", "integrations"), {
+      facebookPageId: "page-id",
+      driveFolderId: "folder-id",
+      webhookUrl: "https://example.com/webhook",
+      updatedAt: serverTimestamp(),
+    }));
+  });
+
+  test("Admin khong luu field secret ngoai schema", async () => {
+    await assertFails(setDoc(doc(asAdmin(), "settings", "integrations"), {
+      facebookPageId: "page-id",
+      driveFolderId: "folder-id",
+      webhookUrl: "https://example.com/webhook",
+      accessToken: "must-not-be-stored",
+      updatedAt: serverTimestamp(),
+    }));
+  });
+});
+
+describe("usage events", () => {
+  const usageId = `${TEACHER_UID}_2026-07-17_classes`;
+  const validUsage = {
+    uid: TEACHER_UID,
+    dateKey: "2026-07-17",
+    collectionId: "classes",
+    reads: 12,
+    writes: 2,
+    deletes: 0,
+    lastLatencyMs: 120,
+    createdAt: Timestamp.now(),
+    updatedAt: Timestamp.now(),
+  };
+
+  test("active user ghi rollup cua chinh minh", async () => {
+    await assertSucceeds(setDoc(doc(asTeacher(), "usage_events", usageId), validUsage));
+  });
+
+  test("khong gia uid hoac tang vuot bien", async () => {
+    await assertFails(setDoc(doc(asTeacher(), "usage_events", `other_2026-07-17_classes`), { ...validUsage, uid: "other" }));
+    await assertSucceeds(setDoc(doc(asTeacher(), "usage_events", usageId), validUsage));
+    await assertFails(updateDoc(doc(asTeacher(), "usage_events", usageId), { reads: 900 }));
+  });
+
+  test("Admin doc duoc, user khac khong doc duoc", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), "usage_events", usageId), validUsage));
+    await assertSucceeds(getDoc(doc(asAdmin(), "usage_events", usageId)));
+    await assertFails(getDoc(doc(asViewer(), "usage_events", usageId)));
+  });
+});
+
+describe("account activity", () => {
+  const activityId = `${VIEWER_UID}_2026-07-17`;
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "users", VIEWER_UID), {
+        email: VIEWER_EMAIL,
+        displayName: "Parent",
+        photoURL: null,
+        role: "viewer",
+        studentIds: [],
+        status: "active",
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      });
+    });
+  });
+
+  test("user creates own daily activity", async () => {
+    await assertSucceeds(setDoc(doc(asViewer(), "account_activity", activityId), {
+      uid: VIEWER_UID,
+      dateKey: "2026-07-17",
+      activeMinutes: 1,
+      lastSeenAt: serverTimestamp(),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }));
+  });
+
+  test("user cannot create activity for another uid", async () => {
+    await assertFails(setDoc(doc(asViewer(), "account_activity", `other_2026-07-17`), {
+      uid: "other",
+      dateKey: "2026-07-17",
+      activeMinutes: 1,
+      lastSeenAt: serverTimestamp(),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }));
+  });
+
+  test("heartbeat increment is capped at five minutes", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "account_activity", activityId), {
+        uid: VIEWER_UID,
+        dateKey: "2026-07-17",
+        activeMinutes: 5,
+        lastSeenAt: Timestamp.now(),
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      });
+    });
+    await assertFails(updateDoc(doc(asViewer(), "account_activity", activityId), {
+      activeMinutes: 11,
+      lastSeenAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }));
+  });
+
+  test("admin reads activity while teacher cannot read another account", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "account_activity", activityId), {
+        uid: VIEWER_UID,
+        dateKey: "2026-07-17",
+        activeMinutes: 10,
+        lastSeenAt: Timestamp.now(),
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      });
+    });
+    await assertSucceeds(getDoc(doc(asAdmin(), "account_activity", activityId)));
+    await assertFails(getDoc(doc(asTeacher(), "account_activity", activityId)));
+  });
+});

@@ -32,4 +32,14 @@ export interface InviteDoc {
   status: InviteStatus;
   createdBy: string;
   createdAt: Timestamp;
+  claimedAt?: Timestamp;
+}
+
+export interface AccountActivityDoc {
+  uid: string;
+  dateKey: string;
+  activeMinutes: number;
+  lastSeenAt: Timestamp;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }

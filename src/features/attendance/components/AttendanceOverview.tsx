@@ -10,7 +10,8 @@ import { EmptyState } from "@/components/feedback/EmptyState";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { ChartPanel } from "@/components/charts/ChartPanel";
-import { CHART_AXIS_TICK, CHART_DANGER, CHART_INFO, CHART_SUCCESS, CHART_TOOLTIP_STYLE, CHART_WARNING } from "@/components/charts/chartTheme";
+import { ChartGradientDefs, CHART_DEPTH_FILTER, CHART_GRADIENT } from "@/components/charts/ChartGradientDefs";
+import { CHART_AXIS_TICK, CHART_TOOLTIP_STYLE } from "@/components/charts/chartTheme";
 import { listClasses } from "@/services/firestore/classes";
 import { listStudents } from "@/services/firestore/students";
 import { listSessions } from "@/services/firestore/sessions";
@@ -25,7 +26,6 @@ interface AttendanceOverviewProps {
 
 /** Nhan/mau dung chung voi AttendanceMarkPanel - "absent"/"excused" hien la "khong phep"/"co phep". */
 const STATUS_LABEL: Record<AttendanceStatus, string> = { present: "Có mặt", late: "Đi muộn", absent: "Vắng không phép", excused: "Vắng có phép" };
-const STATUS_COLOR: Record<AttendanceStatus, string> = { present: CHART_SUCCESS, late: CHART_WARNING, absent: CHART_DANGER, excused: CHART_INFO };
 
 export function AttendanceOverview({ onJumpToSession }: AttendanceOverviewProps) {
   const reducedMotion = useReducedMotion();
@@ -135,14 +135,15 @@ export function AttendanceOverview({ onJumpToSession }: AttendanceOverviewProps)
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={weeklyChart} aria-label="Biểu đồ chuyên cần theo tuần, chia theo có mặt, đi muộn, vắng không phép và vắng có phép">
+                {ChartGradientDefs()}
                 <XAxis dataKey="week" tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} />
                 <YAxis allowDecimals={false} tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
                 <Legend />
-                <Bar dataKey="present" name={STATUS_LABEL.present} stackId="a" fill={STATUS_COLOR.present} isAnimationActive={!reducedMotion} animationDuration={280} />
-                <Bar dataKey="late" name={STATUS_LABEL.late} stackId="a" fill={STATUS_COLOR.late} isAnimationActive={!reducedMotion} animationDuration={280} />
-                <Bar dataKey="absent" name={STATUS_LABEL.absent} stackId="a" fill={STATUS_COLOR.absent} isAnimationActive={!reducedMotion} animationDuration={280} />
-                <Bar dataKey="excused" name={STATUS_LABEL.excused} stackId="a" fill={STATUS_COLOR.excused} radius={[8, 8, 2, 2]} isAnimationActive={!reducedMotion} animationDuration={280} />
+                <Bar dataKey="present" name={STATUS_LABEL.present} stackId="a" fill={CHART_GRADIENT.success} filter={CHART_DEPTH_FILTER} isAnimationActive={!reducedMotion} animationDuration={280} />
+                <Bar dataKey="late" name={STATUS_LABEL.late} stackId="a" fill={CHART_GRADIENT.warning} filter={CHART_DEPTH_FILTER} isAnimationActive={!reducedMotion} animationDuration={280} />
+                <Bar dataKey="absent" name={STATUS_LABEL.absent} stackId="a" fill={CHART_GRADIENT.danger} filter={CHART_DEPTH_FILTER} isAnimationActive={!reducedMotion} animationDuration={280} />
+                <Bar dataKey="excused" name={STATUS_LABEL.excused} stackId="a" fill={CHART_GRADIENT.info} filter={CHART_DEPTH_FILTER} radius={[9, 9, 2, 2]} isAnimationActive={!reducedMotion} animationDuration={280} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -155,9 +156,10 @@ export function AttendanceOverview({ onJumpToSession }: AttendanceOverviewProps)
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart aria-label="Biểu đồ tròn tổng hợp trạng thái điểm danh">
-                  <Pie data={donutData} dataKey="value" nameKey="label" innerRadius="58%" outerRadius="82%" paddingAngle={3} cornerRadius={6} isAnimationActive={!reducedMotion} animationDuration={280}>
+                  {ChartGradientDefs()}
+                  <Pie data={donutData} dataKey="value" nameKey="label" innerRadius="56%" outerRadius="84%" paddingAngle={4} cornerRadius={8} filter={CHART_DEPTH_FILTER} isAnimationActive={!reducedMotion} animationDuration={280}>
                     {donutData.map((item) => (
-                      <Cell key={item.status} fill={STATUS_COLOR[item.status]} />
+                      <Cell key={item.status} fill={CHART_GRADIENT[item.status === "present" ? "success" : item.status === "late" ? "warning" : item.status === "absent" ? "danger" : "info"]} />
                     ))}
                   </Pie>
                   <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number, _name, entry) => [`${value} lượt`, entry.payload.label]} />

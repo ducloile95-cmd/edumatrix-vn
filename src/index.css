@@ -63,7 +63,10 @@
   .edumatrix-chart .recharts-legend-item-text { @apply text-xs text-neutral-600; }
   .edumatrix-chart .recharts-surface { overflow: visible; }
   .edumatrix-chart :is(.recharts-bar-rectangle, .recharts-line-curve, .recharts-area-area) { transition: opacity var(--motion-standard) var(--ease-standard), filter var(--motion-fast) var(--ease-standard); }
-  .edumatrix-chart .recharts-bar-rectangle:hover { filter: brightness(.96); }
+  .edumatrix-chart .recharts-bar-rectangle { transition: opacity var(--motion-fast) var(--ease-standard), transform var(--motion-fast) var(--ease-standard); transform-origin: center; }
+  .edumatrix-chart .recharts-bar-rectangle:hover { opacity: .88; }
+  .edumatrix-chart .recharts-pie-sector { transition: opacity var(--motion-fast) var(--ease-standard); }
+  .edumatrix-chart .recharts-pie-sector:hover { opacity: .86; }
 
   /* Đồng bộ toàn bộ form popup (Modal) với màu hệ thống — redesign-preserve (design-taste-frontend). */
   [role="dialog"] :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {

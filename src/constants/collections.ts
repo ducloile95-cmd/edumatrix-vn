@@ -5,6 +5,8 @@
 export const COLLECTIONS = {
   USERS: "users",
   INVITES: "invites",
+  ACCOUNT_ACTIVITY: "account_activity",
+  USAGE_EVENTS: "usage_events",
 
   STUDENTS: "students",
   SUBJECTS: "subjects",
@@ -33,6 +35,8 @@ export const COLLECTIONS = {
   ANNOUNCEMENTS: "announcements",
   MESSAGE_OUTBOX: "message_outbox",
   MESSENGER_CONNECTIONS: "messenger_connections",
+  CHAT_THREADS: "chat_threads",
+  FANPAGE_POSTS: "fanpage_posts",
 
   VIEWER_DASHBOARDS: "viewer_dashboards",
   AUDIT_LOGS: "audit_logs",
@@ -41,5 +45,6 @@ export const COLLECTIONS = {
 export const SETTINGS_DOC = {
   GENERAL: "settings/general",
   PAYMENT: "settings/payment",
+  INTEGRATIONS: "settings/integrations",
   MESSENGER: "settings/messenger",
 } as const;

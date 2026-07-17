@@ -1,10 +1,10 @@
 export const CHART_GRID_COLOR = "#EEECEA";
 export const CHART_AXIS_TICK = { fontSize: 10, fill: "#78746D" } as const;
 export const CHART_TOOLTIP_STYLE = {
-  borderRadius: 10,
+  borderRadius: 12,
   border: "1px solid #E7E5E2",
-  background: "rgba(255,255,255,.96)",
-  boxShadow: "0 12px 32px rgba(28,51,137,.12)",
+  background: "rgba(255,255,255,.98)",
+  boxShadow: "0 16px 38px rgba(28,51,137,.18), inset 0 1px rgba(255,255,255,.9)",
   fontSize: 12,
 } as const;
 
@@ -35,4 +35,3 @@ export const CHART_TONE_BG: Record<ChartTone, string> = {
   danger: "#FEF2F2",
   neutral: "#F4F3F1",
 };
-
