@@ -1,23 +1,50 @@
 import { useEffect, useRef, useState } from "react";
 import { CalendarDays, ChevronDown, X } from "lucide-react";
+import { endOfDay, endOfMonth, endOfWeek, format, startOfDay, startOfMonth, startOfWeek, subDays, subMonths, subWeeks } from "date-fns";
 import { Button } from "@/components/ui/Button";
 
-const QUICK_RANGES = [
-  { label: "Hôm nay", value: "14/07/2026 - 14/07/2026" },
-  { label: "Tuần này", value: "13/07/2026 - 19/07/2026" },
-  { label: "Tuần trước", value: "06/07/2026 - 12/07/2026" },
-  { label: "Tháng này", value: "01/07/2026 - 14/07/2026" },
-  { label: "Tháng trước", value: "01/06/2026 - 30/06/2026" },
-  { label: "30 ngày qua", value: "15/06/2026 - 14/07/2026" },
-];
+export interface DateRange {
+  from: Date;
+  to: Date;
+}
 
-export function TimeRangeFilter() {
+function buildQuickRanges(): { label: string; range: DateRange }[] {
+  const now = new Date();
+  const thisWeekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const thisWeekEnd = endOfWeek(now, { weekStartsOn: 1 });
+  const lastWeekStart = subWeeks(thisWeekStart, 1);
+  const lastWeekEnd = subWeeks(thisWeekEnd, 1);
+  const lastMonth = subMonths(now, 1);
+
+  return [
+    { label: "Hôm nay", range: { from: startOfDay(now), to: endOfDay(now) } },
+    { label: "Tuần này", range: { from: thisWeekStart, to: thisWeekEnd } },
+    { label: "Tuần trước", range: { from: lastWeekStart, to: lastWeekEnd } },
+    { label: "Tháng này", range: { from: startOfMonth(now), to: endOfDay(now) } },
+    { label: "Tháng trước", range: { from: startOfMonth(lastMonth), to: endOfMonth(lastMonth) } },
+    { label: "30 ngày qua", range: { from: startOfDay(subDays(now, 29)), to: endOfDay(now) } },
+  ];
+}
+
+function sameRange(a: DateRange | null, b: DateRange | null): boolean {
+  if (!a || !b) return a === b;
+  return a.from.getTime() === b.from.getTime() && a.to.getTime() === b.to.getTime();
+}
+
+interface TimeRangeFilterProps {
+  value: DateRange | null;
+  onApply: (range: DateRange | null) => void;
+}
+
+export function TimeRangeFilter({ value, onApply }: TimeRangeFilterProps) {
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState(QUICK_RANGES[3]);
+  const [draft, setDraft] = useState<DateRange | null>(value);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const quickRanges = buildQuickRanges();
 
   useEffect(() => {
     if (!open) return;
+    setDraft(value);
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
@@ -26,7 +53,10 @@ export function TimeRangeFilter() {
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  const label = value ? `${format(value.from, "dd/MM/yyyy")} - ${format(value.to, "dd/MM/yyyy")}` : "Tất cả thời gian";
 
   return (
     <div className="relative">
@@ -38,7 +68,7 @@ export function TimeRangeFilter() {
         className="inline-flex min-h-touch min-w-[248px] items-center gap-2 rounded-input border border-neutral-300 bg-white px-3 text-sm font-semibold text-neutral-900 shadow-[var(--shadow-1)] transition hover:border-primary-500 hover:text-primary-700 active:scale-[.98]"
       >
         <CalendarDays size={17} className="text-neutral-700" />
-        <span className="tabular-nums">{selected.value}</span>
+        <span className="tabular-nums">{label}</span>
         <ChevronDown size={16} className="ml-auto text-neutral-500" />
       </button>
 
@@ -54,11 +84,11 @@ export function TimeRangeFilter() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="time-filter-title"
-            className="page-enter grid max-h-[calc(100dvh-2rem)] w-full max-w-[820px] grid-rows-[auto_1fr_auto] overflow-hidden rounded-modal border border-neutral-200 bg-white shadow-[var(--shadow-4)]"
+            className="page-enter grid w-full max-w-[480px] grid-rows-[auto_1fr_auto] overflow-hidden rounded-modal border border-neutral-200 bg-white shadow-[var(--shadow-4)]"
           >
             <header className="flex min-h-[64px] items-center justify-between border-b border-neutral-200 px-5">
               <h2 id="time-filter-title" className="text-lg font-semibold text-neutral-900">
-                Thời gian báo cáo
+                Lọc theo ngày tạo hồ sơ
               </h2>
               <button
                 type="button"
@@ -70,110 +100,85 @@ export function TimeRangeFilter() {
               </button>
             </header>
 
-            <div className="grid min-h-0 grid-cols-[200px_1fr]">
-              <aside className="border-r border-neutral-200 bg-neutral-50 py-3">
-                {QUICK_RANGES.map((range) => (
+            <div className="grid gap-4 p-5">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDraft(null)}
+                  className={`min-h-touch rounded-full border px-3.5 text-xs font-bold transition ${
+                    draft === null ? "border-primary-500 bg-primary-500 text-white" : "border-neutral-300 bg-white text-neutral-600"
+                  }`}
+                >
+                  Tất cả thời gian
+                </button>
+                {quickRanges.map((item) => (
                   <button
-                    key={range.label}
+                    key={item.label}
                     type="button"
-                    onClick={() => setSelected(range)}
-                    className={`min-h-[38px] w-full border-l-4 px-5 text-left text-sm font-semibold transition ${
-                      selected.label === range.label
-                        ? "border-success-500 bg-success-100 text-success-700"
-                        : "border-transparent text-neutral-700 hover:bg-white hover:text-primary-700"
+                    onClick={() => setDraft(item.range)}
+                    className={`min-h-touch rounded-full border px-3.5 text-xs font-bold transition ${
+                      sameRange(draft, item.range) ? "border-primary-500 bg-primary-500 text-white" : "border-neutral-300 bg-white text-neutral-600"
                     }`}
                   >
-                    {range.label}
+                    {item.label}
                   </button>
                 ))}
-                <div className="mt-3 flex items-center gap-2 border-t border-neutral-200 px-5 pt-3 text-sm text-neutral-500">
-                  <input
-                    type="number"
-                    value={29}
-                    readOnly
-                    aria-label="Số ngày qua"
-                    className="h-8 w-12 rounded-input border border-neutral-300 bg-white text-center text-sm font-semibold text-neutral-800"
-                  />
-                  ngày qua
-                </div>
-              </aside>
+              </div>
 
-              <section className="grid gap-4 p-5">
-                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+              <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-3">
+                <label className="text-xs font-semibold text-neutral-500">
+                  Từ ngày
                   <input
-                    type="text"
-                    value={selected.value.split(" - ")[0]}
-                    readOnly
-                    aria-label="Từ ngày"
-                    className="h-11 rounded-input border border-neutral-300 bg-white text-center text-sm font-semibold text-neutral-900"
+                    type="date"
+                    value={draft ? format(draft.from, "yyyy-MM-dd") : ""}
+                    onChange={(event) => {
+                      if (!event.target.value) return;
+                      const from = startOfDay(new Date(event.target.value));
+                      setDraft((prev) => ({ from, to: prev && prev.to >= from ? prev.to : endOfDay(from) }));
+                    }}
+                    className="mt-1 h-11 w-full rounded-input border border-neutral-300 bg-white px-3 text-center text-sm font-semibold text-neutral-900"
                   />
-                  <span className="text-sm font-semibold text-neutral-500">đến</span>
+                </label>
+                <span className="pb-3 text-sm font-semibold text-neutral-500">đến</span>
+                <label className="text-xs font-semibold text-neutral-500">
+                  Đến ngày
                   <input
-                    type="text"
-                    value={selected.value.split(" - ")[1]}
-                    readOnly
-                    aria-label="Đến ngày"
-                    className="h-11 rounded-input border border-neutral-300 bg-white text-center text-sm font-semibold text-neutral-900"
+                    type="date"
+                    value={draft ? format(draft.to, "yyyy-MM-dd") : ""}
+                    onChange={(event) => {
+                      if (!event.target.value) return;
+                      const to = endOfDay(new Date(event.target.value));
+                      setDraft((prev) => ({ from: prev && prev.from <= to ? prev.from : startOfDay(to), to }));
+                    }}
+                    className="mt-1 h-11 w-full rounded-input border border-neutral-300 bg-white px-3 text-center text-sm font-semibold text-neutral-900"
                   />
-                </div>
-
-                <div className="grid grid-cols-[36px_1fr_36px] items-center gap-3 text-center text-sm font-semibold text-neutral-900">
-                  <button type="button" className="h-9 rounded-full border border-success-500 text-success-700">
-                    &lt;
-                  </button>
-                  <span>Tháng 7 2026 - Tháng 8 2026</span>
-                  <button type="button" className="h-9 rounded-full border border-success-500 text-success-700">
-                    &gt;
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-2 gap-6 text-center text-xs font-semibold text-neutral-800">
-                  <CalendarMock month="july" />
-                  <CalendarMock month="august" />
-                </div>
-              </section>
+                </label>
+              </div>
             </div>
 
             <footer className="flex justify-end gap-3 border-t border-neutral-200 bg-white px-5 py-4">
-              <Button variant="secondary" onClick={() => setOpen(false)}>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setDraft(value);
+                  setOpen(false);
+                }}
+              >
                 Bỏ qua
               </Button>
-              <Button variant="primary" onClick={() => setOpen(false)}>
+              <Button
+                variant="primary"
+                onClick={() => {
+                  onApply(draft);
+                  setOpen(false);
+                }}
+              >
                 Áp dụng
               </Button>
             </footer>
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function CalendarMock({ month }: { month: "july" | "august" }) {
-  const days = month === "july"
-    ? ["", "", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "", ""]
-    : ["", "", "", "", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31"];
-  return (
-    <div className="grid grid-cols-7 gap-1">
-      {["T2", "T3", "T4", "T5", "T6", "T7", "CN"].map((day) => (
-        <span key={day} className="grid h-7 place-items-center text-[11px] text-neutral-500">
-          {day}
-        </span>
-      ))}
-      {days.map((day, index) => {
-        const julyRange = month === "july" && Number(day) >= 1 && Number(day) <= 14;
-        const selected = month === "july" && (day === "1" || day === "14");
-        return (
-          <span
-            key={`${day}-${index}`}
-            className={`grid h-8 place-items-center rounded-sm tabular-nums ${
-              selected ? "rounded-full bg-success-500 text-white" : julyRange ? "bg-success-100" : ""
-            }`}
-          >
-            {day}
-          </span>
-        );
-      })}
     </div>
   );
 }

@@ -34,11 +34,11 @@ export function PostQueueList({ actorUid, actorName }: PostQueueListProps) {
   // cho phep update khi resource.data.status == 'scheduled').
   const sendNow = useMutation({
     mutationFn: async (post: Post) => {
-      try {
-        const response = await postToPage({ message: post.message, link: post.link ?? undefined, imageUrls: post.imageUrls ?? undefined });
-        await markFanpagePostResult(post.id, { status: "sent", postId: response.postId ?? null });
-      } catch (error) {
-        await markFanpagePostResult(post.id, { status: "failed", errorCode: (error as Error).message });
+      const result = await postToPage({ message: post.message, link: post.link ?? undefined, imageUrls: post.imageUrls ?? undefined });
+      if (result.posted) {
+        await markFanpagePostResult(post.id, { status: "sent", postId: result.postId ?? null });
+      } else {
+        await markFanpagePostResult(post.id, { status: "failed", errorCode: result.message });
       }
     },
     onSuccess: invalidate,
@@ -52,15 +52,15 @@ export function PostQueueList({ actorUid, actorName }: PostQueueListProps) {
   // Thu lai 1 bai loi: tao ban ghi MOI (khong sua ban ghi loi cu) de giu lich su nguyen ven.
   const retry = useMutation({
     mutationFn: async (post: Post) => {
-      try {
-        const response = await postToPage({ message: post.message, link: post.link ?? undefined, imageUrls: post.imageUrls ?? undefined });
+      const result = await postToPage({ message: post.message, link: post.link ?? undefined, imageUrls: post.imageUrls ?? undefined });
+      if (result.posted) {
         await createFanpagePost(
-          { message: post.message, link: post.link, imageUrls: post.imageUrls, status: "sent", scheduledFor: null, postId: response.postId ?? null },
+          { message: post.message, link: post.link, imageUrls: post.imageUrls, status: "sent", scheduledFor: null, postId: result.postId ?? null },
           actorUid, actorName,
         );
-      } catch (error) {
+      } else {
         await createFanpagePost(
-          { message: post.message, link: post.link, imageUrls: post.imageUrls, status: "failed", scheduledFor: null, errorCode: (error as Error).message },
+          { message: post.message, link: post.link, imageUrls: post.imageUrls, status: "failed", scheduledFor: null, errorCode: result.message },
           actorUid, actorName,
         );
       }

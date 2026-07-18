@@ -2,6 +2,9 @@ import { useState } from "react";
 import { useMutation, useQueries, useQuery } from "@tanstack/react-query";
 import { ViewerShell } from "@/components/layouts/ViewerShell";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { EmptyState } from "@/components/feedback/EmptyState";
+import { ErrorState } from "@/components/feedback/ErrorState";
+import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { getStudent } from "@/services/firestore/students";
 import { listAssignmentsByClass, listSubmissionsByStudents, submitAssignment } from "@/services/firestore/assignments";
@@ -16,19 +19,37 @@ export default function ViewerAssignmentsPage() {
   const assignments = assignmentQueries.flatMap((item) => item.data ?? []);
   const submissions = useQuery({ queryKey: ["viewer-submissions", studentIds], queryFn: () => listSubmissionsByStudents(studentIds), enabled: studentIds.length > 0 });
 
+  const isLoading = studentQueries.some((query) => query.isLoading) || assignmentQueries.some((query) => query.isLoading);
+  const firstError = studentQueries.find((query) => query.error)?.error ?? assignmentQueries.find((query) => query.error)?.error;
+
   return (
     <ViewerShell>
       <PageHeader title="Bài tập" description="Theo dõi bài cần nộp và gửi bài làm cho giáo viên." />
-      <div className="space-y-3">
-        {assignments.map((item) => (
-          <ViewerAssignment
-            key={item.id}
-            assignment={item}
-            studentId={studentIds.find((id) => studentQueries.find((query) => query.data?.id === id)?.data?.currentClassIds.includes(item.classId)) ?? studentIds[0]}
-            saved={submissions.data?.find((value) => value.assignmentId === item.id)}
-          />
-        ))}
-      </div>
+      {isLoading && <LoadingSkeleton rows={3} />}
+      {!isLoading && firstError && (
+        <ErrorState
+          message="Không thể tải danh sách bài tập. Vui lòng kiểm tra kết nối và thử lại."
+          onRetry={() => {
+            studentQueries.forEach((query) => query.refetch());
+            assignmentQueries.forEach((query) => query.refetch());
+          }}
+        />
+      )}
+      {!isLoading && !firstError && assignments.length === 0 && (
+        <EmptyState title="Chưa có bài tập nào" description="Khi giáo viên giao bài mới, thông tin sẽ hiển thị ở đây." />
+      )}
+      {!isLoading && !firstError && assignments.length > 0 && (
+        <div className="space-y-3">
+          {assignments.map((item) => (
+            <ViewerAssignment
+              key={item.id}
+              assignment={item}
+              studentId={studentIds.find((id) => studentQueries.find((query) => query.data?.id === id)?.data?.currentClassIds.includes(item.classId)) ?? studentIds[0]}
+              saved={submissions.data?.find((value) => value.assignmentId === item.id)}
+            />
+          ))}
+        </div>
+      )}
     </ViewerShell>
   );
 }

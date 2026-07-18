@@ -35,6 +35,8 @@ export interface MessageOutboxDoc {
   recipientPsid: string;
   content: string;
   status: "sent" | "failed";
+  /** Tag Meta Message Tag da dung khi gui (vd ACCOUNT_UPDATE), null neu gui kieu RESPONSE thuong. */
+  messageTag: string | null;
   actorUid: string;
   createdAt: Timestamp | string;
 }

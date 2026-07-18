@@ -42,7 +42,7 @@ export async function saveAttendance(sessionId: string, classId: string, entries
  * Dung khi hoc sinh bao nghi truoc ngay hoc - khong dung cac ban cung lop.
  * Rules attendance/{id} cho phep create/update bat ky luc nao (khong kiem tra
  * buoi hoc da dien ra hay chua) nen khong can doi Rules hay collection moi -
- * xem docs/KE-HOACH-TONG-QUAN-DIEM-DANH-16-07-2026.md muc 6.
+ * xem docs/archive/KE-HOACH-TONG-QUAN-DIEM-DANH-16-07-2026.md muc 6.
  */
 export async function registerLeave(
   sessionId: string,

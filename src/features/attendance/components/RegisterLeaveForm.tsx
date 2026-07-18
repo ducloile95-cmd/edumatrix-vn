@@ -22,7 +22,7 @@ const LABEL = "mb-1 block text-sm font-medium text-neutral-700";
 /**
  * Dang ky nghi hoc truoc cho 1 hoc sinh - single-action, dat trong Modal
  * (khong lam tab, giong pattern Form giao an) - xem
- * docs/KE-HOACH-TONG-QUAN-DIEM-DANH-16-07-2026.md muc 6.
+ * docs/archive/KE-HOACH-TONG-QUAN-DIEM-DANH-16-07-2026.md muc 6.
  */
 export function RegisterLeaveForm({ onDone }: RegisterLeaveFormProps) {
   const { firebaseUser } = useAuth();

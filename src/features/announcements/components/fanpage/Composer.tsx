@@ -45,18 +45,18 @@ export function Composer({ configured, actorUid, actorName }: ComposerProps) {
         return;
       }
 
-      try {
-        const result = await postToPage({ message: trimmedMessage, link: trimmedLink ?? undefined, imageUrls: urls ?? undefined });
+      const result = await postToPage({ message: trimmedMessage, link: trimmedLink ?? undefined, imageUrls: urls ?? undefined });
+      if (result.posted) {
         await createFanpagePost(
           { message: trimmedMessage, link: trimmedLink, imageUrls: urls, status: "sent", scheduledFor: null, postId: result.postId ?? null },
           actorUid, actorName,
         );
-      } catch (error) {
+      } else {
         await createFanpagePost(
-          { message: trimmedMessage, link: trimmedLink, imageUrls: urls, status: "failed", scheduledFor: null, errorCode: (error as Error).message },
+          { message: trimmedMessage, link: trimmedLink, imageUrls: urls, status: "failed", scheduledFor: null, errorCode: result.message },
           actorUid, actorName,
         );
-        throw error;
+        throw new Error(result.message);
       }
     },
     onSuccess: () => {

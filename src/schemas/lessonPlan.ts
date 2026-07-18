@@ -38,6 +38,10 @@ export const lessonPlanFormSchema = z
   .refine((value) => !value.attachmentUrl || value.attachmentUrl.startsWith("https://"), {
     message: "Link phải bắt đầu bằng https://",
     path: ["attachmentUrl"],
+  })
+  .refine((value) => !!value.classId, {
+    message: "Chọn lớp học trước khi lưu giáo án",
+    path: ["classId"],
   });
 
 export type LessonPlanFormValues = z.infer<typeof lessonPlanFormSchema>;

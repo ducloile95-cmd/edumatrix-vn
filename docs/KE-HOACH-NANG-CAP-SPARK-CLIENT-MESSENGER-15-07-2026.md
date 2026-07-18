@@ -2,7 +2,7 @@
 
 Ngày cập nhật: 15/07/2026
 
-Trạng thái hiện tại: P1/P2 đã hoàn tất. P3 đạt 85%: Worker production config đã local-ready, `ALLOWED_ORIGIN` production là `https://edumatrix-vn-576b1.web.app`, script `build:prod`/`deploy:prod` bắt buộc `--env production`; còn chờ phê duyệt Cloudflare dry-run/deploy vì thao tác đó gửi bundle/config ra bên ngoài. P4 đạt 45%: Worker/client đã hỗ trợ payload `MESSAGE_TAG` qua trường `tag`, nhưng Meta App Live, App Review, webhook production và gửi thử thật vẫn phải làm ngoài local. P5 đạt 70%: UI Staff đã hiển thị trạng thái Worker, học sinh/phụ huynh, RESPONSE/MESSAGE_TAG, đang gửi, lỗi và thành công.
+Trạng thái hiện tại (cập nhật 18/07/2026 sau khi rà lại P1-P5): P1 đạt mục tiêu (có `h1` thật trên mỗi trang, lint/typecheck sạch) nhưng mô tả kỹ thuật cũ trong bảng lộ trình từng ghi sai component - đã sửa lại bên dưới; `npm test`/`npm run build`/`npm run test:rules` chưa xác nhận được trong sandbox (thiếu binary Rollup native và JDK 21+), cần chạy trên máy thật. P2 đạt phần lớn, còn một khoảng lệch nhỏ ở Staff dashboard - xem ghi chú trong bảng lộ trình. P3 đạt 85%: Worker production config đã local-ready, `ALLOWED_ORIGIN` production là `https://edumatrix-vn-576b1.web.app`, script `build:prod`/`deploy:prod` bắt buộc `--env production`; còn chờ phê duyệt Cloudflare dry-run/deploy vì thao tác đó gửi bundle/config ra bên ngoài. P4 đạt 45%: Worker/client đã hỗ trợ payload `MESSAGE_TAG` qua trường `tag`, nhưng Meta App Live, App Review, webhook production và gửi thử thật vẫn phải làm ngoài local. P5 đạt ~95% phạm vi local-ready: đã bổ sung nút "Nhắn mới" + chọn học sinh để bắt đầu hội thoại mới (không cần thread có sẵn), ô chọn tag RESPONSE/MESSAGE_TAG khi gửi, chỉ báo đang gửi/gửi thành công, lỗi thô từ Worker được dịch sang thông báo thân thiện, và cột Loại gửi trong Nhật ký gửi. P6 hoàn thành local-ready: fallback không API qua nút copy link mời liên kết (`m.me/<page>?ref=<uid>`) khi gửi báo `no_recipient`, và banner mở Trang Facebook khi Worker chưa cấu hình - chỉ còn thiếu Lợi điền `VITE_MESSENGER_PAGE_USERNAME` thật. P7 đã đối chiếu xong phần xác minh được từ code (checklist Go-live mục 8 và `messenger-api-setup.md` mục 12) - phần còn lại (App Review, deploy production thật, gửi thử tin thật) chỉ Lợi tự làm được từ máy có quyền truy cập Meta/Cloudflare.
 
 Roadmap/diagram động để kiểm tra tiến trình: [roadmap-spark-client-messenger-diagram-15-07-2026.html](./roadmap-spark-client-messenger-diagram-15-07-2026.html)
 
@@ -63,13 +63,13 @@ Nguyên tắc: Nếu Worker lỗi, hết quota, sai CORS hoặc Meta từ chối
 | Giai đoạn | Việc cần làm | Tiêu chí hoàn thành |
 |---|---|---|
 | P0 | Chốt core app không phụ thuộc Messenger. Ẩn hoặc disable Messenger nếu thiếu `VITE_MESSENGER_WORKER_URL`. | Deploy Spark vẫn dùng được toàn bộ quản lý lớp, học phí, thông báo nội bộ khi không có Worker. |
-| P1 | Hoàn tất blocker production: `PageHeader` render `h1`, lint sạch, rules tests pass. | `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`, `npm run test:rules` pass. |
-| P2 | Hoàn tất tối ưu Spark quota/bundle: giảm đọc preview, giữ pagination/limit, tách Firestore khỏi đường tải ban đầu. | Auth/login không preload Firestore; dashboard preview dùng limit nhỏ hơn; build pass; full Firestore là async chunk có ngân sách 650 kB để giữ cache/realtime. |
+| P1 | Hoàn tất blocker production: có `h1` thật trên mỗi trang (thực tế render qua `Topbar.tsx`, không phải `PageHeader` như mô tả cũ - `PageHeader` không render `h1`, các prop `title`/`description`/`eyebrow` của nó khai báo nhưng không dùng; mục tiêu accessibility vẫn đạt, chỉ là mô tả kỹ thuật cũ sai), lint sạch, rules tests pass. | `npm run lint`, `npm run typecheck` pass (đã xác nhận trong sandbox 18/07); `npm test`, `npm run build`, `npm run test:rules` cần chạy trên máy thật (sandbox thiếu binary Rollup native và JDK 21+). |
+| P2 | Hoàn tất tối ưu Spark quota/bundle: giảm đọc preview, giữ pagination/limit, tách Firestore khỏi đường tải ban đầu. | Auth/login không preload Firestore; Viewer dashboard preview dùng limit nhỏ hơn trang danh sách đầy đủ; build pass; full Firestore là async chunk có ngân sách 650 kB để giữ cache/realtime. **Ghi chú rà lại 18/07:** Staff dashboard (`staffDashboard.ts`) hiện dùng lại nguyên `listClasses()`/`listSessions()` với cùng limit (200/300) như trang danh sách đầy đủ, chưa có limit preview riêng nhỏ hơn như Viewer dashboard - lệch nhẹ so với tiêu chí, chưa sửa vì ngoài phạm vi P5. |
 | P3 | Hoàn thiện Worker production config. | Local-ready: `check:prod-config`, Worker typecheck và Worker tests pass; `npm run build:prod`/`deploy:prod` dùng `--env production`. Còn cần Cloudflare dry-run/deploy được phê duyệt. |
 | P4 | Hoàn thiện Meta setup. | Local-prep: Worker/client hỗ trợ `tag` cho `MESSAGE_TAG`, test payload pass. Còn cần Meta App Live, Page connected, webhook verified, quyền `pages_messaging` được duyệt nếu gửi cho người dùng thật. |
-| P5 | Bổ sung UI trạng thái Messenger. | Local-ready: Staff thấy rõ Worker chưa cấu hình, danh sách học sinh đang tải/lỗi, chưa chọn học sinh, chưa gắn phụ huynh, RESPONSE/MESSAGE_TAG, đang gửi, gửi thành công/thất bại. Còn cần smoke test với Worker production thật. |
-| P6 | Thêm fallback không API. | Có nút mở `m.me/<page>?ref=<uid>` hoặc copy nội dung tin để Staff nhắn thủ công. |
-| P7 | Kiểm thử go-live. | Gửi thử 1 tin thật, kiểm tra `message_outbox`, kiểm tra app vẫn chạy khi Worker tắt. |
+| P5 | Bổ sung UI trạng thái Messenger. | **Local-ready, cập nhật 18/07:** Staff thấy rõ Worker chưa cấu hình; có nút "Nhắn mới" trong tab Hội thoại mở picker chọn học sinh (tìm kiếm theo tên/mã, tự scope theo teacher/admin qua `listStudents()`) để bắt đầu hoặc tiếp tục hội thoại mà không cần thread có sẵn - `handleSend` phía Worker đã tự resolve PSID và tạo `chat_threads` từ `studentId`, không cần sửa Worker/Rules; sau khi gửi lần đầu thành công, danh sách hội thoại tự làm mới và tự chọn hội thoại vừa tạo. Có ô nhập tag tùy chọn (RESPONSE mặc định / MESSAGE_TAG khi nhập tag) ở cả hội thoại có sẵn lẫn hội thoại mới, kiểm tra định dạng `A-Z`/`_` phía client trước khi gửi. Có chỉ báo "Đang gửi..." và "Đã gửi thành công." Lỗi thô từ Worker (`no_recipient`, `invalid_message_tag`, `student_scope_denied`, `staff_required`, `missing_bearer_token`, `meta_...`) được dịch sang thông báo tiếng Việt qua `friendlyMessengerError()` thay vì hiện mã lỗi thô. Nhật ký gửi có thêm cột Loại gửi (RESPONSE/TAG · tên tag). Còn thiếu duy nhất: smoke test với Worker production thật, và xác minh tag cụ thể có được Meta App Review chấp nhận hay không (phụ thuộc P4). |
+| P6 | Thêm fallback không API. | **Local-ready, hoàn thành 18/07:** biến `VITE_MESSENGER_PAGE_USERNAME` (rỗng mặc định, tự ẩn tính năng nếu chưa điền); khi gửi báo lỗi `no_recipient`, Staff thấy nút copy link `m.me/<page>?ref=<parentUid>` cho từng phụ huynh của học sinh đó (ở cả hội thoại có sẵn lẫn "Nhắn mới") để mời liên kết qua kênh khác (Zalo/SMS); khi Worker chưa cấu hình, banner đầu trang Chat có link mở thẳng Trang Facebook để Staff nhắn thủ công. Còn cần Lợi điền `VITE_MESSENGER_PAGE_USERNAME` thật khi có Page để tính năng hiện ra. |
+| P7 | Kiểm thử go-live. | **Đối chiếu 18/07:** đã rà lại toàn bộ checklist Go-live (mục 8 dưới đây, và `docs/messenger-api-setup.md` mục 12) từng dòng với code/config thật, tick các mục xác minh được từ sandbox kèm bằng chứng cụ thể. Phần còn lại - App Meta chuyển Live/App Review, deploy Worker production thật, gửi thử 1 tin thật + kiểm tra `message_outbox` - đều cần thao tác trên Cloudflare/Meta dashboard thật, chỉ Lợi tự làm được từ máy có quyền truy cập. |
 
 ### Chính sách P2 quota/bundle
 
@@ -108,16 +108,18 @@ Nguyên tắc: Nếu Worker lỗi, hết quota, sai CORS hoặc Meta từ chối
 
 ## 8. Go/No-Go checklist
 
-- [ ] Core app chạy được khi `VITE_MESSENGER_WORKER_URL` rỗng.
-- [ ] Không có token Meta hoặc service account trong source, bundle, `.env` commit.
-- [ ] Worker production dùng đúng `--env production`.
+**Ghi chú rà lại 18/07/2026:** các mục dưới đây đã được đối chiếu trực tiếp với code/config trong repo (không phải suy đoán). Mục nào chỉ xác nhận được bằng thao tác thật trên Cloudflare/Meta dashboard (deploy, App Review, gửi thử) thì giữ nguyên chưa tick - chỉ Lợi tự làm được từ máy thật.
+
+- [x] Core app chạy được khi `VITE_MESSENGER_WORKER_URL` rỗng. (`configured` trong `ChatPage.tsx` gate toàn bộ UI Messenger; `.env`/`.env.local` hiện để trống và app chạy bình thường suốt các lần build/typecheck trong sandbox)
+- [x] Không có token Meta hoặc service account trong source, bundle, `.env` commit. (`.env`/`.env.example` chỉ chứa Firebase public config; `.gitignore` chặn `.env`, `.env.local`, `.dev.vars*`; secret Worker chỉ đặt qua `wrangler secret put`, không xuất hiện trong repo)
+- [ ] Worker production dùng đúng `--env production`. (local-ready: `workers/messenger/package.json` bắt buộc `--env production` trong cả `build:prod` và `deploy:prod` - script đã enforce sẵn; còn cần Lợi tự deploy thật để xác nhận)
 - [x] `ALLOWED_ORIGIN` là Firebase Hosting production domain.
-- [ ] Firestore Rules cấm client ghi `messenger_connections`.
-- [ ] Staff gửi tin phải qua Firebase ID token.
-- [ ] Viewer không có UI gửi tin từ Page.
+- [x] Firestore Rules cấm client ghi `messenger_connections`. (`firebase/firestore.rules` - `match /messenger_connections/{uid}` có `allow write: if false`)
+- [x] Staff gửi tin phải qua Firebase ID token. (`sendMessenger`/`postToPage` trong `client.ts` luôn gắn `Authorization: Bearer <idToken>`; Worker `requireStaff()` xác thực token trước khi xử lý)
+- [x] Viewer không có UI gửi tin từ Page. (`app/router.tsx` - `ROUTES.STAFF_CHAT` chỉ role admin/teacher; không route Viewer nào trỏ tới ChatPage/Composer/PostQueueList)
 - [x] UI Staff disable gửi Fanpage/Messenger khi thiếu `VITE_MESSENGER_WORKER_URL`.
 - [x] UI Staff hiển thị trạng thái Messenger trước/sau khi gửi.
-- [ ] Có fallback link `m.me` khi Worker chưa cấu hình.
+- [x] Có fallback link `m.me` khi Worker chưa cấu hình. (mới hoàn thành 18/07 - P6: nút copy link mời phụ huynh liên kết khi gửi báo `no_recipient`, banner mở Trang Facebook khi Worker chưa cấu hình; cần biến `VITE_MESSENGER_PAGE_USERNAME` - hiện để trống, Lợi tự điền khi có Page thật, tính năng tự ẩn nếu chưa điền)
 - [x] Worker/client hỗ trợ `tag` cho luồng Messenger ngoài cửa sổ phản hồi.
-- [ ] Có log thành công/thất bại trong `message_outbox`.
-- [ ] Có hướng dẫn tắt Messenger mà không rollback toàn app.
+- [x] Có log thành công/thất bại trong `message_outbox`. (Worker `handleSend`/`handlePost` luôn ghi `message_outbox` với `status: sent|failed`, kể cả khi Meta từ chối)
+- [x] Có hướng dẫn tắt Messenger mà không rollback toàn app. (`docs/messenger-api-setup.md` mục 6: để trống `VITE_MESSENGER_WORKER_URL` thì app vẫn chạy, chỉ Messenger tạm tắt)

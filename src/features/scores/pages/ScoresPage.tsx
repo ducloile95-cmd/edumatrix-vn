@@ -58,41 +58,50 @@ export default function ScoresPage({ embedded = false }: { embedded?: boolean })
         <input aria-label="Điểm tối đa" type="number" min={1} value={meta.max} onChange={(e) => setMeta({ ...meta, max: Number(e.target.value) })} className="w-24 min-h-touch rounded-input border px-3" />
       </div>
 
-      <ul className="mt-4 divide-y">
-        {classStudents.map((student) => (
-          <li key={student.id} className="grid gap-2 py-3 md:grid-cols-[1fr_120px_1fr]">
-            <span className="text-sm font-medium">{student.fullName}</span>
-            <input
-              aria-label={`Điểm ${student.fullName}`}
-              type="number"
-              min={0}
-              max={meta.max}
-              value={entries[student.id]?.score ?? ""}
-              onChange={(e) => setEntries({ ...entries, [student.id]: { studentId: student.id, score: Number(e.target.value), comment: entries[student.id]?.comment ?? "" } })}
-              className="min-h-touch rounded-input border px-3"
-            />
-            <input
-              aria-label={`Nhận xét ${student.fullName}`}
-              placeholder="Nhận xét"
-              value={entries[student.id]?.comment ?? ""}
-              onChange={(e) => setEntries({ ...entries, [student.id]: { studentId: student.id, score: entries[student.id]?.score ?? 0, comment: e.target.value } })}
-              className="min-h-touch rounded-input border px-3"
-            />
-          </li>
-        ))}
-      </ul>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!save.isPending) save.mutate();
+        }}
+      >
+        <ul className="mt-4 divide-y">
+          {classStudents.map((student) => (
+            <li key={student.id} className="grid gap-2 py-3 md:grid-cols-[1fr_120px_1fr]">
+              <span className="text-sm font-medium">{student.fullName}</span>
+              <input
+                aria-label={`Điểm ${student.fullName}`}
+                type="number"
+                min={0}
+                max={meta.max}
+                value={entries[student.id]?.score ?? ""}
+                onChange={(e) => setEntries({ ...entries, [student.id]: { studentId: student.id, score: Number(e.target.value), comment: entries[student.id]?.comment ?? "" } })}
+                className="min-h-touch rounded-input border px-3"
+              />
+              <input
+                aria-label={`Nhận xét ${student.fullName}`}
+                placeholder="Nhận xét"
+                value={entries[student.id]?.comment ?? ""}
+                onChange={(e) => setEntries({ ...entries, [student.id]: { studentId: student.id, score: entries[student.id]?.score ?? 0, comment: e.target.value } })}
+                className="min-h-touch rounded-input border px-3"
+              />
+            </li>
+          ))}
+        </ul>
 
-      {classStudents.length > 0 && (
-        <button onClick={() => save.mutate()} disabled={save.isPending} className="mt-3 min-h-touch rounded-input bg-primary-500 px-5 text-white disabled:opacity-50">
-          {save.isPending ? "Đang lưu..." : "Lưu điểm cả lớp"}
-        </button>
-      )}
-      {save.isError && (
-        <p role="alert" className="mt-2 text-sm text-danger-700">
-          Lưu thất bại. Kiểm tra mạng và bấm Lưu lại - điểm đã nhập vẫn còn.
-        </p>
-      )}
-      {save.isSuccess && <p className="mt-2 text-sm text-success-700">Đã lưu điểm cả lớp.</p>}
+        {classStudents.length > 0 && (
+          <button type="submit" disabled={save.isPending} className="mt-3 min-h-touch rounded-input bg-primary-500 px-5 text-white disabled:opacity-50">
+            {save.isPending ? "Đang lưu..." : "Lưu điểm cả lớp"}
+          </button>
+        )}
+        {save.isError && (
+          <p role="alert" className="mt-2 text-sm text-danger-700">
+            {save.error instanceof Error && save.error.message === "SCORE_INVALID"
+              ? `Có điểm nằm ngoài khoảng 0–${meta.max}. Kiểm tra lại rồi lưu tiếp.`
+              : "Lưu thất bại. Kiểm tra mạng và bấm Lưu lại - điểm đã nhập vẫn còn."}
+          </p>
+        )}
+        {save.isSuccess && <p className="mt-2 text-sm text-success-700">Đã lưu điểm cả lớp.</p>}
+      </form>
 
     </>
   );

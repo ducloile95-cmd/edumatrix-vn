@@ -38,7 +38,6 @@ export const COLLECTIONS = {
   CHAT_THREADS: "chat_threads",
   FANPAGE_POSTS: "fanpage_posts",
 
-  VIEWER_DASHBOARDS: "viewer_dashboards",
   AUDIT_LOGS: "audit_logs",
 } as const;
 

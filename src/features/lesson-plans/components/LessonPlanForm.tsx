@@ -180,6 +180,7 @@ export function LessonPlanForm({ editingPlan, onDone }: LessonPlanFormProps) {
                     <option key={item.id} value={item.id}>{item.name}</option>
                   ))}
                 </select>
+                {errors.classId && <p role="alert" className="mt-1 text-xs text-danger-700">{errors.classId.message}</p>}
               </div>
 
               <div>

@@ -1,4 +1,4 @@
-export function createInvoiceCode(studentId:string,date=new Date()):string{return `HP-${studentId.toUpperCase()}-${date.getFullYear()}${String(date.getMonth()+1).padStart(2,"0")}`;}
+export function createInvoiceCode(studentId:string,idSuffix:string,date=new Date()):string{return `HP-${studentId.toUpperCase()}-${date.getFullYear()}${String(date.getMonth()+1).padStart(2,"0")}-${idSuffix.slice(-4).toUpperCase()}`;}
 export function createPaymentContent(invoiceCode:string):string{return invoiceCode.split("-").join(" ");}
 interface VietQrImageInput {
   bankBin: string;

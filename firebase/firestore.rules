@@ -274,6 +274,69 @@ service cloud.firestore {
         );
     }
 
+    function validAssignmentData(data) {
+      return data.keys().hasAll(['title', 'description', 'classId', 'lessonPlanId', 'sessionId', 'dueAt', 'submissionType', 'maxScore', 'status', 'createdBy', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['title', 'description', 'classId', 'subjectId', 'lessonPlanId', 'sessionId', 'dueAt', 'submissionType', 'maxScore', 'status', 'createdBy', 'createdAt', 'updatedAt']) &&
+        data.title is string &&
+        data.description is string &&
+        data.classId is string &&
+        (!data.keys().hasAny(['subjectId']) || data.subjectId is string) &&
+        (data.lessonPlanId == null || data.lessonPlanId is string) &&
+        (data.sessionId == null || data.sessionId is string) &&
+        data.dueAt is timestamp &&
+        data.submissionType in ['link', 'text'] &&
+        data.maxScore is number && data.maxScore > 0 &&
+        data.status in ['draft', 'published', 'closed'] &&
+        data.createdBy is string &&
+        hasTimestamps(data);
+    }
+
+    function validSubmissionData(data) {
+      return data.keys().hasAll(['assignmentId', 'studentId', 'classId', 'submissionUrl', 'submissionText', 'studentNote', 'status', 'score', 'teacherComment', 'checkedBy', 'submittedAt', 'checkedAt', 'updatedAt']) &&
+        data.keys().hasOnly(['assignmentId', 'studentId', 'classId', 'submissionUrl', 'submissionText', 'studentNote', 'status', 'score', 'teacherComment', 'checkedBy', 'submittedAt', 'checkedAt', 'updatedAt']) &&
+        data.assignmentId is string &&
+        data.studentId is string &&
+        data.classId is string &&
+        data.submissionUrl is string &&
+        data.submissionText is string &&
+        data.studentNote is string &&
+        data.status in ['submitted', 'reviewing', 'graded', 'redo_required'] &&
+        (data.score == null || data.score is number) &&
+        data.teacherComment is string &&
+        (data.checkedBy == null || data.checkedBy is string) &&
+        data.submittedAt is timestamp &&
+        (data.checkedAt == null || data.checkedAt is timestamp) &&
+        data.updatedAt is timestamp;
+    }
+
+    function validAnnouncementData(data) {
+      return data.keys().hasAll(['type', 'title', 'message', 'createdAt']) &&
+        data.keys().hasOnly(['type', 'sessionId', 'assignmentId', 'classId', 'studentId', 'title', 'message', 'createdAt']) &&
+        data.type in ['attendance_alert', 'schedule_change', 'homework_reminder'] &&
+        data.title is string &&
+        data.message is string &&
+        (!data.keys().hasAny(['sessionId']) || data.sessionId is string) &&
+        (!data.keys().hasAny(['assignmentId']) || data.assignmentId is string) &&
+        (!data.keys().hasAny(['classId']) || data.classId is string) &&
+        (!data.keys().hasAny(['studentId']) || data.studentId is string);
+    }
+
+    function validPaymentData(data) {
+      return data.keys().hasAll(['invoiceId', 'studentId', 'amount', 'transactionReference', 'note', 'status', 'reportedBy', 'verifiedBy', 'reportedAt', 'verifiedAt', 'updatedAt']) &&
+        data.keys().hasOnly(['invoiceId', 'studentId', 'amount', 'transactionReference', 'note', 'status', 'reportedBy', 'verifiedBy', 'reportedAt', 'verifiedAt', 'updatedAt']) &&
+        data.invoiceId is string &&
+        data.studentId is string &&
+        data.amount is number && data.amount > 0 &&
+        data.transactionReference is string &&
+        data.note is string &&
+        data.status in ['reported', 'verified', 'rejected'] &&
+        data.reportedBy is string &&
+        (data.verifiedBy == null || data.verifiedBy is string) &&
+        data.reportedAt is timestamp &&
+        (data.verifiedAt == null || data.verifiedAt is timestamp) &&
+        data.updatedAt is timestamp;
+    }
+
     // ---------- users/{uid} ----------
     // Chi Admin duoc doi role/studentIds/status. Tao ho so lan dau (claim invite)
     // phai khop dung role/studentIds lay tu invite - nguoi dung khong tu chon (A16.4).
@@ -366,7 +429,8 @@ service cloud.firestore {
       allow create, update: if isAdmin() && (
         (docId == 'general' && validGeneralSettings(request.resource.data)) ||
         (docId == 'integrations' && validIntegrationSettings(request.resource.data)) ||
-        (docId == 'payment' && validPaymentSettings(request.resource.data))
+        (docId == 'payment' && validPaymentSettings(request.resource.data)) ||
+        (docId == 'messenger')
       );
       allow delete: if false;
     }
@@ -532,8 +596,9 @@ service cloud.firestore {
       allow read: if isStaff() || (
         isActive() && resource.data.studentId != null && ownsStudent(resource.data.studentId)
       );
-      allow create: if isStaff();
+      allow create: if isStaff() && validAnnouncementData(request.resource.data);
       allow update: if isStaff() &&
+        validAnnouncementData(request.resource.data) &&
         resource.data.type == 'attendance_alert' &&
         announcementId == 'attendance_' + resource.data.sessionId + '_' + resource.data.studentId &&
         keepsImmutable(['type', 'sessionId', 'classId', 'studentId']) &&
@@ -606,11 +671,9 @@ service cloud.firestore {
       );
       allow create: if canManageClass(request.resource.data.classId) &&
         request.resource.data.createdBy == request.auth.uid &&
-        request.resource.data.maxScore > 0 &&
-        request.resource.data.status in ['draft', 'published', 'closed'];
+        validAssignmentData(request.resource.data);
       allow update: if canManageClass(resource.data.classId) &&
-        request.resource.data.maxScore > 0 &&
-        request.resource.data.status in ['draft', 'published', 'closed'] &&
+        validAssignmentData(request.resource.data) &&
         keepsImmutable(['classId', 'createdBy', 'createdAt']);
       allow delete: if false;
     }
@@ -618,8 +681,11 @@ service cloud.firestore {
       allow read: if canManageClass(resource.data.classId) || ownsStudent(resource.data.studentId);
       allow create: if ownsStudent(request.resource.data.studentId) &&
         submissionId == request.resource.data.assignmentId + '_' + request.resource.data.studentId &&
-        request.resource.data.status == 'submitted' && request.resource.data.score == null && request.resource.data.teacherComment == '';
+        request.resource.data.status == 'submitted' && request.resource.data.score == null && request.resource.data.teacherComment == '' &&
+        validSubmissionData(request.resource.data) &&
+        get(/databases/$(database)/documents/assignments/$(request.resource.data.assignmentId)).data.classId == request.resource.data.classId;
       allow update: if keepsImmutable(['assignmentId', 'studentId', 'classId']) &&
+        validSubmissionData(request.resource.data) &&
         (
           (
             canManageClass(resource.data.classId) &&
@@ -675,7 +741,7 @@ service cloud.firestore {
     }
     match /invoices/{invoiceId} {
       allow read: if isStaff() || ownsStudent(resource.data.studentId);
-      allow create: if isStaff() &&
+      allow create: if isAdmin() &&
         request.resource.data.createdBy == request.auth.uid &&
         request.resource.data.status == 'unpaid' &&
         request.resource.data.amount > 0;
@@ -695,8 +761,10 @@ service cloud.firestore {
       allow create: if ownsStudent(request.resource.data.studentId) &&
         request.resource.data.status == 'reported' &&
         request.resource.data.reportedBy == request.auth.uid &&
-        request.resource.data.verifiedBy == null;
-      allow update: if (isStaff() &&
+        request.resource.data.verifiedBy == null &&
+        validPaymentData(request.resource.data) &&
+        get(/databases/$(database)/documents/invoices/$(request.resource.data.invoiceId)).data.amount == request.resource.data.amount;
+      allow update: if validPaymentData(request.resource.data) && ((isStaff() &&
         request.resource.data.status in ['verified', 'rejected'] &&
         keepsImmutable(['invoiceId', 'studentId', 'amount', 'reportedBy', 'reportedAt'])
       ) || (
@@ -713,16 +781,9 @@ service cloud.firestore {
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(
           ['transactionReference', 'note', 'status', 'verifiedBy', 'verifiedAt', 'reportedAt', 'updatedAt']
         )
-      );
+      ));
       allow delete: if false;
     }
-  match /viewer_dashboards/{uid} {
-    allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
-    // Dashboard là dữ liệu dẫn xuất; client không được tự ghi để giả mạo điểm,
-    // học phí hoặc chuyên cần. Backend tin cậy có thể ghi bằng Admin SDK.
-    allow create, update: if false;
-    allow delete: if false;
-  }
     match /chat_threads/{threadId} {
       allow read: if isAdmin() || (
         isTeacher() && request.auth.uid in resource.data.assignedTeacherIds

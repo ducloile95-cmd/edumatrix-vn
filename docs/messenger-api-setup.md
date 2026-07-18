@@ -275,6 +275,8 @@ curl -X POST https://<worker>/api/messenger/send \
 
 ## 12. Checklist Go-live
 
+> Rà lại 18/07/2026: các mục dưới đây đều là trạng thái tài khoản Meta/Cloudflare production thật (App Review, token, secret, webhook, gửi thử), không thể xác minh được từ source code - chỉ Lợi tự làm và tick được từ máy có quyền truy cập Meta for Developers/Cloudflare dashboard. Checklist rộng hơn (bao gồm cả phần đã xác minh được từ code) nằm ở `docs/KE-HOACH-NANG-CAP-SPARK-CLIENT-MESSENGER-15-07-2026.md` mục 8.
+
 - [ ] App Meta chuyển sang **Live**; đã submit App Review cho `pages_messaging` (+ `pages_manage_posts` nếu dùng post).
 - [ ] `META_PAGE_ACCESS_TOKEN` là **System User token** (không hết hạn).
 - [ ] Tất cả secret đã `wrangler secret put` (không nằm trong repo).

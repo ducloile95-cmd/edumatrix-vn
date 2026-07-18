@@ -3,9 +3,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ViewerShell } from "@/components/layouts/ViewerShell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Modal } from "@/components/ui/Modal";
+import { EmptyState } from "@/components/feedback/EmptyState";
+import { ErrorState } from "@/components/feedback/ErrorState";
+import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { listInvoicesByStudents, reportPayment } from "@/services/firestore/invoices";
 import { buildVietQrImageUrl } from "@/utils/payment";
+import { formatVnd } from "@/utils/currency";
 import type { InvoiceDoc } from "@/types/academic";
 
 export default function ViewerTuitionPage() {
@@ -23,28 +27,37 @@ export default function ViewerTuitionPage() {
   return (
     <ViewerShell>
       <PageHeader title="Học phí" description="Theo dõi khoản cần thanh toán và xác nhận chuyển khoản." />
-      <div className="space-y-3">
-        {invoices.data?.map((invoice) => (
-          <article key={invoice.id} className="border-b border-neutral-200 py-4">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <h2 className="text-xl font-semibold text-neutral-900">{invoice.title}</h2>
-                <p className="text-sm">
-                  {invoice.amount.toLocaleString("vi-VN")} đ · {invoice.status}
-                </p>
+      {invoices.isLoading && <LoadingSkeleton rows={3} />}
+      {invoices.error && (
+        <ErrorState message="Không thể tải danh sách học phí. Vui lòng kiểm tra kết nối và thử lại." onRetry={() => invoices.refetch()} />
+      )}
+      {!invoices.isLoading && !invoices.error && (invoices.data?.length ?? 0) === 0 && (
+        <EmptyState title="Chưa có khoản học phí nào" description="Khi có hóa đơn học phí mới, thông tin sẽ hiển thị ở đây." />
+      )}
+      {!!invoices.data?.length && (
+        <div className="space-y-3">
+          {invoices.data.map((invoice) => (
+            <article key={invoice.id} className="border-b border-neutral-200 py-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-semibold text-neutral-900">{invoice.title}</h2>
+                  <p className="text-sm">
+                    {formatVnd(invoice.amount)} · {invoice.status}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelected(invoice)}
+                  className="min-h-touch rounded-input border border-neutral-300 px-3 text-sm transition hover:border-primary-300 hover:text-primary-700"
+                  style={{ transitionDuration: "var(--motion-duration)" }}
+                >
+                  Mở QR
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setSelected(invoice)}
-                className="min-h-touch rounded-input border border-neutral-300 px-3 text-sm transition hover:border-primary-300 hover:text-primary-700"
-                style={{ transitionDuration: "var(--motion-duration)" }}
-              >
-                Mở QR
-              </button>
-            </div>
-          </article>
-        ))}
-      </div>
+            </article>
+          ))}
+        </div>
+      )}
 
       <Modal open={!!selected} onClose={() => setSelected(null)} size="sm" title={selected?.invoiceCode ?? "Hóa đơn"}>
         {selected && (
@@ -63,7 +76,7 @@ export default function ViewerTuitionPage() {
               })}
             />
             <p className="mt-3 text-sm">
-              {selected.accountNumber} · {selected.amount.toLocaleString("vi-VN")} đ
+              {selected.accountNumber} · {formatVnd(selected.amount)}
             </p>
             <p className="font-medium">{selected.paymentContent}</p>
             <label htmlFor="payment-reference" className="sr-only">
@@ -84,6 +97,11 @@ export default function ViewerTuitionPage() {
             >
               {report.isPending ? "Đang gửi..." : "Tôi đã chuyển khoản"}
             </button>
+            {report.isError && (
+              <p role="alert" className="mt-2 text-sm text-danger-700">
+                Không thể ghi nhận báo chuyển khoản. Vui lòng thử lại hoặc liên hệ nhà trường.
+              </p>
+            )}
           </div>
         )}
       </Modal>

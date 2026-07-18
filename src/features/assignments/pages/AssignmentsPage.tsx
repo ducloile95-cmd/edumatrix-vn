@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Timestamp } from "firebase/firestore";
-import { format } from "date-fns";
+import { addDays, format, subDays } from "date-fns";
 import { Plus } from "lucide-react";
 import { AppShell } from "@/components/layouts/AppShell";
 import { Button } from "@/components/ui/Button";
@@ -9,6 +9,9 @@ import { Modal } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { listClasses } from "@/services/firestore/classes";
+import { listSessionsByClass } from "@/services/firestore/sessions";
+import { listLessonPlans } from "@/services/firestore/lessonPlans";
+import { formatSessionLabel } from "@/utils/lessonPlan";
 import { createAssignment, gradeSubmission, listAssignments, listSubmissions, remindMissing } from "@/services/firestore/assignments";
 import type { AssignmentDoc, SubmissionStatus } from "@/types/academic";
 
@@ -21,6 +24,13 @@ export default function AssignmentsPage({ embedded = false }: { embedded?: boole
   const submissions = useQuery({ queryKey: ["submissions", selected?.id], queryFn: () => listSubmissions(selected?.id ?? ""), enabled: !!selected });
   const [form, setForm] = useState({ title: "", description: "", classId: "", dueAt: "", maxScore: 10, lessonPlanId: "", sessionId: "" });
   const [createOpen, setCreateOpen] = useState(false);
+  const lessonPlans = useQuery({ queryKey: ["lesson-plans"], queryFn: listLessonPlans });
+  const lessonPlansForClass = lessonPlans.data?.filter((item) => item.classId === form.classId) ?? [];
+  const classSessions = useQuery({
+    queryKey: ["sessions-by-class", form.classId],
+    queryFn: () => listSessionsByClass(form.classId, subDays(new Date(), 30), addDays(new Date(), 120), 100),
+    enabled: !!form.classId,
+  });
   const create = useMutation({
     mutationFn: () => {
       const klass = classes.data?.find((item) => item.id === form.classId);
@@ -54,7 +64,13 @@ export default function AssignmentsPage({ embedded = false }: { embedded?: boole
         className="grid gap-3 md:grid-cols-3"
       >
         <input aria-label="Tên bài tập" required placeholder="Tên bài tập" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="min-h-touch rounded-input border px-3" />
-        <select aria-label="Lớp học" required value={form.classId} onChange={(e) => setForm({ ...form, classId: e.target.value })} className="min-h-touch rounded-input border px-3">
+        <select
+          aria-label="Lớp học"
+          required
+          value={form.classId}
+          onChange={(e) => setForm({ ...form, classId: e.target.value, lessonPlanId: "", sessionId: "" })}
+          className="min-h-touch rounded-input border px-3"
+        >
           <option value="">Chọn lớp</option>
           {classes.data?.map((item) => (
             <option key={item.id} value={item.id}>
@@ -65,8 +81,34 @@ export default function AssignmentsPage({ embedded = false }: { embedded?: boole
         <input aria-label="Hạn nộp" required type="datetime-local" value={form.dueAt} onChange={(e) => setForm({ ...form, dueAt: e.target.value })} className="min-h-touch rounded-input border px-3" />
         <textarea aria-label="Yêu cầu bài tập" placeholder="Yêu cầu bài tập" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="min-h-20 rounded-input border p-3 md:col-span-2" />
         <input aria-label="Điểm tối đa" type="number" min={1} value={form.maxScore} onChange={(e) => setForm({ ...form, maxScore: Number(e.target.value) })} className="min-h-touch rounded-input border px-3" />
-        <input aria-label="Mã giáo án" placeholder="Mã giáo án" value={form.lessonPlanId} onChange={(e) => setForm({ ...form, lessonPlanId: e.target.value })} className="min-h-touch rounded-input border px-3" />
-        <input aria-label="Mã buổi học" placeholder="Mã buổi học" value={form.sessionId} onChange={(e) => setForm({ ...form, sessionId: e.target.value })} className="min-h-touch rounded-input border px-3" />
+        <select
+          aria-label="Giáo án liên kết"
+          value={form.lessonPlanId}
+          disabled={!form.classId}
+          onChange={(e) => setForm({ ...form, lessonPlanId: e.target.value })}
+          className="min-h-touch rounded-input border px-3 disabled:opacity-50"
+        >
+          <option value="">-- Không gắn giáo án --</option>
+          {lessonPlansForClass.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.title}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label="Buổi học liên kết"
+          value={form.sessionId}
+          disabled={!form.classId}
+          onChange={(e) => setForm({ ...form, sessionId: e.target.value })}
+          className="min-h-touch rounded-input border px-3 disabled:opacity-50"
+        >
+          <option value="">-- Không gắn buổi học --</option>
+          {classSessions.data?.map((item) => (
+            <option key={item.id} value={item.id}>
+              {formatSessionLabel(item)}
+            </option>
+          ))}
+        </select>
         <button disabled={create.isPending} className="min-h-touch rounded-input bg-primary-500 px-5 text-white disabled:opacity-50">
           {create.isPending ? "Đang giao..." : "Giao bài"}
         </button>

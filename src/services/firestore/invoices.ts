@@ -1,7 +1,6 @@
 import {
   QueryDocumentSnapshot,
   Timestamp,
-  addDoc,
   collection,
   getCountFromServer,
   doc,
@@ -10,6 +9,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  setDoc,
   startAfter,
   where,
   writeBatch,
@@ -39,9 +39,10 @@ export interface InvoicePage {
 }
 
 export async function createInvoice(input: CreateInvoiceInput): Promise<void> {
-  const invoiceCode = createInvoiceCode(input.studentId);
+  const invoiceRef = doc(collection(db, COLLECTIONS.INVOICES));
+  const invoiceCode = createInvoiceCode(input.studentId, invoiceRef.id);
 
-  await addDoc(collection(db, COLLECTIONS.INVOICES), {
+  await setDoc(invoiceRef, {
     ...input,
     invoiceCode,
     paymentContent: createPaymentContent(invoiceCode),

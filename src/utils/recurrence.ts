@@ -1,3 +1,8 @@
+import { fromZonedTime } from "date-fns-tz";
+
+/** Gio truong hoc, dung chung cho toan bo logic sinh lich - khong phu thuoc mui gio he thong cua trinh duyet/may chu. */
+export const SCHOOL_TIME_ZONE = "Asia/Ho_Chi_Minh";
+
 export interface RecurrenceInput {
   /** Ngay khai giang - chi phan ngay duoc dung, gio lay tu startTime/endTime. */
   startDate: Date;
@@ -22,11 +27,15 @@ export interface RecurrenceResult {
   endDate: Date;
 }
 
+/**
+ * Ghep ngay cua `date` (theo lich duong da co) voi gio "HH:mm" - gio nay luon duoc hieu
+ * la gio Viet Nam (SCHOOL_TIME_ZONE), khong phai gio he thong cua trinh duyet/may chu.
+ * Tranh sai lech buoi hoc neu thiet bi tao lich dang dat mui gio khac Viet Nam.
+ */
 function withTime(date: Date, time: string): Date {
   const [hours, minutes] = time.split(":").map(Number);
-  const result = new Date(date);
-  result.setHours(hours, minutes, 0, 0);
-  return result;
+  const wallClock = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hours, minutes, 0, 0);
+  return fromZonedTime(wallClock, SCHOOL_TIME_ZONE);
 }
 
 /**

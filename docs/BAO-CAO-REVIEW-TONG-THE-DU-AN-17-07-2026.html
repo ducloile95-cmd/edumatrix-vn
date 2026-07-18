@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Báo cáo rà soát mã nguồn — Edumatrix VN</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f6f6f7;
+    --surface:#ffffff;
+    --border:rgba(24,24,27,0.09);
+    --border-strong:rgba(24,24,27,0.14);
+    --text-1:#18181b;
+    --text-2:#52525b;
+    --text-3:#a1a1aa;
+    --accent:#3457d5;
+    --accent-bg:#eef1fd;
+    --good:#0a8f5b;
+    --good-bg:#eafbf3;
+    --warn:#c2760a;
+    --warn-bg:#fef6e7;
+    --crit:#c81e4a;
+    --crit-bg:#fdeaf0;
+    --radius-lg:28px;
+    --radius-md:18px;
+    --radius-sm:10px;
+    --shadow-diffuse:0 24px 48px -24px rgba(24,24,27,0.10);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text-1);
+    font-family:'Outfit',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    line-height:1.5;
+  }
+  .mono{font-family:'JetBrains Mono',monospace;}
+  .wrap{max-width:1240px;margin:0 auto;padding:0 24px;}
+
+  /* ===== Header ===== */
+  header.hero{
+    padding:64px 0 40px;
+    border-bottom:1px solid var(--border);
+    background:
+      radial-gradient(1200px 400px at 85% -10%, rgba(52,87,213,0.07), transparent 60%),
+      var(--bg);
+  }
+  .hero-grid{
+    display:grid;
+    grid-template-columns:1.6fr 1fr;
+    gap:40px;
+    align-items:end;
+  }
+  .eyebrow{
+    display:inline-flex;align-items:center;gap:8px;
+    font-size:12.5px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;
+    color:var(--accent);background:var(--accent-bg);
+    padding:6px 14px;border-radius:999px;margin-bottom:22px;
+  }
+  h1{
+    font-size:clamp(30px,4.2vw,46px);
+    font-weight:700;
+    letter-spacing:-0.02em;
+    line-height:1.08;
+    margin:0 0 16px;
+    max-width:16ch;
+  }
+  .hero-sub{
+    font-size:16.5px;
+    color:var(--text-2);
+    max-width:58ch;
+    margin:0;
+  }
+  .hero-meta{
+    border-left:1px solid var(--border-strong);
+    padding-left:28px;
+    display:flex;flex-direction:column;gap:14px;
+  }
+  .hero-meta .row{display:flex;justify-content:space-between;gap:16px;font-size:13.5px;}
+  .hero-meta .row span:first-child{color:var(--text-3);}
+  .hero-meta .row span:last-child{font-weight:600;text-align:right;}
+
+  /* ===== Section shell ===== */
+  section{padding:52px 0;}
+  section.tight{padding:36px 0;}
+  .section-head{margin-bottom:28px;}
+  .section-tag{
+    font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;
+    color:var(--text-3);margin-bottom:8px;
+  }
+  .section-title{font-size:26px;font-weight:700;letter-spacing:-0.01em;margin:0 0 8px;}
+  .section-desc{color:var(--text-2);font-size:15px;max-width:70ch;margin:0;}
+
+  /* ===== Stat bar (no card-boxes; divider style per anti-card rule) ===== */
+  .statbar{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius-lg);
+    box-shadow:var(--shadow-diffuse);
+    padding:36px 40px;
+    display:grid;
+    grid-template-columns:1.4fr repeat(4,1fr);
+  }
+  .stat-narrative{padding-right:32px;}
+  .stat-narrative p{color:var(--text-2);font-size:14.5px;margin:10px 0 0;}
+  .stat-narrative .big{font-size:19px;font-weight:600;letter-spacing:-0.01em;}
+  .stat-item{
+    border-left:1px solid var(--border);
+    padding-left:28px;
+    display:flex;flex-direction:column;justify-content:center;gap:6px;
+  }
+  .stat-num{font-family:'JetBrains Mono',monospace;font-size:34px;font-weight:500;letter-spacing:-0.02em;}
+  .stat-label{font-size:12.5px;color:var(--text-3);font-weight:500;}
+  .stat-item.crit .stat-num{color:var(--crit);}
+  .stat-item.warn .stat-num{color:var(--warn);}
+  .stat-item.good .stat-num{color:var(--good);}
+
+  @media (max-width:900px){
+    .statbar{grid-template-columns:1fr 1fr;row-gap:24px;}
+    .stat-narrative{grid-column:1/-1;padding-right:0;}
+    .stat-item{border-left:none;border-top:1px solid var(--border);padding-left:0;padding-top:16px;}
+  }
+
+  /* ===== Priority list ===== */
+  .priority-list{display:flex;flex-direction:column;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;}
+  .priority-item{
+    background:var(--surface);
+    display:grid;grid-template-columns:56px 1fr auto;gap:20px;align-items:center;
+    padding:22px 28px;
+  }
+  .priority-num{
+    font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:500;color:var(--crit);
+    background:var(--crit-bg);width:36px;height:36px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .priority-item p{margin:0;font-size:15px;color:var(--text-1);}
+  .priority-item .tag{
+    font-size:11.5px;color:var(--text-3);font-weight:500;white-space:nowrap;
+    border:1px solid var(--border-strong);padding:5px 12px;border-radius:999px;
+  }
+  @media (max-width:700px){
+    .priority-item{grid-template-columns:36px 1fr;}
+    .priority-item .tag{grid-column:2;justify-self:start;}
+  }
+
+  /* ===== Controls ===== */
+  .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:26px;}
+  .pill-btn{
+    font-family:inherit;font-size:13.5px;font-weight:500;color:var(--text-2);
+    background:var(--surface);border:1px solid var(--border-strong);
+    padding:9px 16px;border-radius:999px;cursor:pointer;transition:all .15s ease;
+  }
+  .pill-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .pill-btn.active{background:var(--text-1);color:#fff;border-color:var(--text-1);}
+  .search-box{
+    margin-left:auto;position:relative;
+  }
+  .search-box input{
+    font-family:inherit;font-size:13.5px;
+    border:1px solid var(--border-strong);border-radius:999px;
+    padding:9px 16px 9px 36px;width:240px;background:var(--surface);color:var(--text-1);
+  }
+  .search-box input:focus{outline:2px solid var(--accent);outline-offset:1px;}
+  .search-box svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--text-3);}
+
+  /* ===== Category cards ===== */
+  .cat-grid{display:flex;flex-direction:column;gap:14px;}
+  .cat-card{
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);
+    overflow:hidden;transition:border-color .15s ease;
+  }
+  .cat-card[data-hidden="true"]{display:none;}
+  .cat-head{
+    display:grid;grid-template-columns:1fr auto auto auto;gap:18px;align-items:center;
+    padding:22px 26px;cursor:pointer;
+  }
+  .cat-name{font-size:16.5px;font-weight:600;letter-spacing:-0.005em;}
+  .cat-summary{display:none;}
+  .badge{
+    font-size:12px;font-weight:600;padding:6px 13px;border-radius:999px;white-space:nowrap;
+  }
+  .badge.good{color:var(--good);background:var(--good-bg);}
+  .badge.improve{color:var(--warn);background:var(--warn-bg);}
+  .badge.critical{color:var(--crit);background:var(--crit-bg);}
+  .count-chip{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-3);white-space:nowrap;}
+  .chev{color:var(--text-3);transition:transform .2s ease;flex-shrink:0;}
+  .cat-card.open .chev{transform:rotate(180deg);}
+  .cat-body{max-height:0;overflow:hidden;transition:max-height .25s ease;}
+  .cat-card.open .cat-body{max-height:2400px;}
+  .cat-body-inner{padding:0 26px 26px;border-top:1px solid var(--border);}
+  .cat-desc{color:var(--text-2);font-size:14.5px;margin:20px 0 22px;max-width:75ch;}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:32px;}
+  @media (max-width:800px){.cols{grid-template-columns:1fr;} .cat-head{grid-template-columns:1fr auto;}
+    .cat-head .count-chip, .cat-head .badge{grid-row:2;}}
+  .col-title{font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:14px;}
+  .col-title.good{color:var(--good);}
+  .col-title.bad{color:var(--crit);}
+  ul.finding-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px;}
+  ul.finding-list li{font-size:14px;color:var(--text-1);padding-left:18px;position:relative;}
+  ul.finding-list li::before{content:"";position:absolute;left:0;top:7px;width:6px;height:6px;border-radius:50%;}
+  ul.finding-list.good li::before{background:var(--good);}
+  ul.finding-list.bad li::before{background:var(--crit);}
+  ul.finding-list.bad li.sev-trung-binh::before{background:var(--warn);}
+  ul.finding-list.bad li.sev-thap::before{background:var(--text-3);}
+  .ref{display:block;margin-top:5px;font-size:11.5px;color:var(--text-3);}
+  .sev-tag{font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.03em;margin-right:8px;padding:2px 8px;border-radius:5px;}
+  .sev-tag.cao{color:var(--crit);background:var(--crit-bg);}
+  .sev-tag.trung-binh{color:var(--warn);background:var(--warn-bg);}
+  .sev-tag.thap{color:var(--text-3);background:#f1f1f2;}
+  .empty-note{font-size:13.5px;color:var(--text-3);font-style:italic;}
+
+  /* ===== Table ===== */
+  .table-wrap{
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);
+    overflow:hidden;box-shadow:var(--shadow-diffuse);
+  }
+  table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  thead th{
+    text-align:left;font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;
+    color:var(--text-3);padding:16px 20px;border-bottom:1px solid var(--border-strong);
+    position:sticky;top:0;background:var(--surface);
+  }
+  tbody td{padding:16px 20px;border-bottom:1px solid var(--border);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:#fafafb;}
+  tbody tr[data-hidden="true"]{display:none;}
+  td.col-module{font-weight:600;white-space:nowrap;font-size:13px;}
+  td.col-type{white-space:nowrap;}
+  td.col-content{color:var(--text-1);max-width:520px;}
+  td.col-content .ref{margin-top:6px;}
+  td.col-sev{white-space:nowrap;}
+  .type-pill{font-size:11px;font-weight:600;padding:4px 10px;border-radius:999px;white-space:nowrap;}
+  .type-pill.strength{color:var(--good);background:var(--good-bg);}
+  .type-pill.issue{color:var(--text-2);background:#f1f1f2;}
+  .table-scroll{max-height:640px;overflow:auto;}
+  #result-count{font-size:13px;color:var(--text-3);margin-bottom:14px;}
+
+  /* ===== Footer ===== */
+  footer{padding:48px 0 72px;border-top:1px solid var(--border);}
+  .footer-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:40px;}
+  footer h3{font-size:15px;margin:0 0 10px;}
+  footer p{font-size:13.5px;color:var(--text-2);margin:0 0 8px;max-width:60ch;}
+  .disclaimer{
+    background:var(--accent-bg);border:1px solid rgba(52,87,213,0.18);border-radius:var(--radius-md);
+    padding:20px 24px;font-size:13.5px;color:var(--accent);
+  }
+  @media (max-width:800px){
+    .hero-grid{grid-template-columns:1fr;} .hero-meta{border-left:none;border-top:1px solid var(--border-strong);padding-left:0;padding-top:20px;}
+    .footer-grid{grid-template-columns:1fr;}
+    .search-box{margin-left:0;width:100%;} .search-box input{width:100%;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="eyebrow">Báo cáo rà soát mã nguồn · Chỉ đọc, không chỉnh sửa</span>
+      <h1>Sức khỏe mã nguồn dự án Edumatrix&nbsp;VN</h1>
+      <p class="hero-sub">Bốn kỹ sư AI độc lập đã cùng rà soát toàn bộ hệ thống — từ nền tảng kỹ thuật, luật bảo mật dữ liệu, đến từng phân hệ nghiệp vụ (học viên, lớp học, điểm danh, học phí...). Báo cáo này viết bằng ngôn ngữ thường ngày, không cần biết lập trình vẫn đọc hiểu được.</p>
+    </div>
+    <div class="hero-meta">
+      <div class="row"><span>Ngày rà soát</span><span>17/07/2026</span></div>
+      <div class="row"><span>Phạm vi</span><span>Toàn bộ ứng dụng web</span></div>
+      <div class="row"><span>Quy mô</span><span>156 file · ~11.500 dòng</span></div>
+      <div class="row"><span>Thay đổi mã nguồn</span><span>Không có (0)</span></div>
+    </div>
+  </div>
+</header>
+
+<section class="tight">
+  <div class="wrap">
+    <div class="statbar">
+      <div class="stat-narrative">
+        <div class="big">Nền tảng vững, còn vài lỗ hổng cần vá sớm</div>
+        <p>Phần khung kỹ thuật và luật bảo mật dữ liệu được xây khá kỷ luật. Vấn đề đáng chú ý nhất tập trung ở nơi liên quan trực tiếp đến <strong>tiền học phí</strong> và <strong>điểm số học sinh</strong> — nên xử lý trước tiên.</p>
+      </div>
+      <div class="stat-item good"><div class="stat-num">32</div><div class="stat-label">Điểm hợp lý (điểm mạnh)</div></div>
+      <div class="stat-item crit"><div class="stat-num">11</div><div class="stat-label">Vấn đề mức Cao</div></div>
+      <div class="stat-item warn"><div class="stat-num">13</div><div class="stat-label">Vấn đề mức Trung bình</div></div>
+      <div class="stat-item"><div class="stat-num">9</div><div class="stat-label">Vấn đề mức Thấp</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="tight">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="section-tag">Ưu tiên xử lý</div>
+      <h2 class="section-title">Nên xử lý trước tiên</h2>
+      <p class="section-desc">6 vấn đề có ảnh hưởng thực tế lớn nhất, xếp theo mức độ nghiêm trọng — chủ yếu liên quan đến tiền, điểm số và rủi ro âm thầm không ai nhận ra.</p>
+    </div>
+    <div class="priority-list" id="priority-list"></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="section-head">
+      <div class="section-tag">Rà soát theo từng phân hệ</div>
+      <h2 class="section-title">13 khu vực đã kiểm tra</h2>
+      <p class="section-desc">Bấm vào một mục để xem chi tiết điểm hợp lý và chưa hợp lý. Dùng bộ lọc bên dưới để chỉ xem những khu vực đang có vấn đề.</p>
+    </div>
+    <div class="controls" id="cat-controls">
+      <button class="pill-btn active" data-filter="all">Tất cả (13)</button>
+      <button class="pill-btn" data-filter="critical">Nghiêm trọng (2)</button>
+      <button class="pill-btn" data-filter="improve">Cần cải thiện (6)</button>
+      <button class="pill-btn" data-filter="good">Tốt (5)</button>
+      <div class="search-box">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="cat-search" placeholder="Tìm theo từ khoá...">
+      </div>
+    </div>
+    <div class="cat-grid" id="cat-grid"></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="section-head">
+      <div class="section-tag">Bảng đánh giá chi tiết</div>
+      <h2 class="section-title">Toàn bộ 65 phát hiện, từng dòng một</h2>
+      <p class="section-desc">Bảng đầy đủ mọi điểm hợp lý và chưa hợp lý đã tìm thấy, kèm ghi chú kỹ thuật (tên file) cho ai muốn tra cứu sâu hơn. Lọc theo module hoặc loại bằng ô tìm kiếm bên dưới.</p>
+    </div>
+    <div class="controls">
+      <button class="pill-btn active" data-tfilter="all">Tất cả</button>
+      <button class="pill-btn" data-tfilter="issue">Chỉ vấn đề</button>
+      <button class="pill-btn" data-tfilter="strength">Chỉ điểm mạnh</button>
+      <div class="search-box">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="table-search" placeholder="Tìm trong bảng...">
+      </div>
+    </div>
+    <div id="result-count"></div>
+    <div class="table-wrap">
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:15%">Module</th>
+              <th style="width:10%">Loại</th>
+              <th style="width:10%">Mức độ</th>
+              <th>Nội dung</th>
+            </tr>
+          </thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap footer-grid">
+    <div>
+      <h3>Phương pháp thực hiện</h3>
+      <p>Bốn kỹ sư AI (mô hình Claude) rà soát độc lập song song: (1) kiến trúc &amp; tầng dữ liệu dùng chung, (2) luật bảo mật Firestore, (3) nhóm phân hệ Học viên/Lớp học/Môn học/Lịch học/Điểm danh/Giáo án, (4) nhóm phân hệ Thông báo/Bài tập/Đăng nhập/Học phí/Người dùng/Fanpage. Mỗi phát hiện chỉ được giữ lại khi đọc thấy trực tiếp trong mã nguồn thực tế, không suy đoán.</p>
+      <h3 style="margin-top:22px;">Những gì KHÔNG được rà soát</h3>
+      <p>Không kiểm tra hiệu năng khi tải nặng (load test), không kiểm tra giao diện trên từng trình duyệt/thiết bị thật, không đánh giá phong cách trình bày code (việc này để công cụ lint tự động lo).</p>
+    </div>
+    <div class="disclaimer">
+      Đây là báo cáo <strong>chỉ đọc</strong> — không có bất kỳ dòng mã nguồn nào bị chỉnh sửa trong quá trình rà soát này. Mọi đề xuất ở trên cần được xác nhận và thực hiện riêng ở một phiên làm việc khác.
+    </div>
+  </div>
+</footer>
+
+<script>
+const DATA = [
+  {
+    id:"kien-truc", name:"Kiến trúc & tổ chức mã nguồn", rating:"improve",
+    desc:"Nền tảng kỹ thuật (cách tổ chức thư mục, kiểu dữ liệu, cách gọi dữ liệu) được xây khá kỷ luật — nhưng có vài file cấu hình bị trùng lặp, trong đó bản build thực tế lại dùng bản KHÔNG được kiểm tra lỗi, tiềm ẩn rủi ro.",
+    strengths:[
+      {text:"Toàn bộ 156 file mã nguồn không có một dòng nào dùng kiểu dữ liệu mập mờ (\"any\") — mức kỷ luật cao hiếm gặp, giảm mạnh nguy cơ lỗi ẩn."},
+      {text:"Cơ chế lấy dữ liệu (React Query) được dùng nhất quán ở 42 file, có cấu hình riêng để tiết kiệm lượt đọc dữ liệu — phù hợp gói Firebase miễn phí."},
+      {text:"Luồng đăng nhập/phân quyền tách lớp rõ ràng, có ghi chú đây chỉ là lớp bảo vệ giao diện — bảo mật thật nằm ở luật Firestore (đúng nguyên tắc)."},
+      {text:"Tên các bảng dữ liệu được gom về một nơi duy nhất, không có chỗ nào viết tay tên bảng rải rác — tránh gõ sai."}
+    ],
+    issues:[
+      {sev:"cao", text:"Có 2 bản file cấu hình Vite gần giống hệt nhau. Hệ thống build thực tế lại ưu tiên chạy bản KHÔNG được kiểm tra kiểu dữ liệu, trong khi lập trình viên có xu hướng sửa bản còn lại — sửa nhầm chỗ, thay đổi sẽ không có tác dụng.", ref:"vite.config.js / vite.config.ts"},
+      {sev:"cao", text:"Tương tự với cấu hình giao diện Tailwind: có 2 bản song song, bản đang thực sự chạy không được kiểm soát chặt.", ref:"tailwind.config.js / tailwind.config.ts"},
+      {sev:"cao", text:"Trang tổng quan dành cho phụ huynh có đoạn code \"ép\" dữ liệu về dạng chung chung, bỏ qua toàn bộ kiểm tra kiểu dữ liệu — nếu sai tên trường, màn hình sẽ hiển thị trống thay vì báo lỗi.", ref:"viewerDashboard.ts"},
+      {sev:"trung-binh", text:"Đoạn code lấy \"Thông báo\" được viết tay lặp lại ở 3 nơi khác nhau thay vì dùng chung một hàm — sửa một chỗ, dễ quên sửa 2 chỗ còn lại.", ref:"Topbar.tsx, ViewerAnnouncementsPage.tsx, viewerDashboard.ts"},
+      {sev:"trung-binh", text:"2 màn hình truy cập thẳng cơ sở dữ liệu thay vì đi qua lớp trung gian dùng chung như phần còn lại của hệ thống.", ref:"Topbar.tsx, ViewerAnnouncementsPage.tsx"},
+      {sev:"trung-binh", text:"Định dạng ngày tháng được viết tay lặp lại ở hơn 8 file thay vì dùng chung một hàm.", ref:"nhiều file"},
+      {sev:"trung-binh", text:"Tên các nhóm dữ liệu cache được gõ tay rải rác ở 28+ file thay vì quản lý tập trung — vẫn chạy đúng nhờ đặt tên khớp theo thói quen, dễ gãy khi đổi tên.", ref:"nhiều file"},
+      {sev:"thap", text:"Đã có sẵn hàm định dạng tiền tệ dùng chung nhưng 2 màn hình vẫn tự viết lại logic tương tự.", ref:"currency.ts"},
+      {sev:"thap", text:"Có 1 file dùng chung và 1 màn hình \"Không có quyền truy cập\" được tạo ra nhưng không nơi nào sử dụng — code chết.", ref:"client.ts, PermissionDenied.tsx"},
+      {sev:"thap", text:"2 file tạm do máy tự sinh ra đang bị lưu vào kho mã nguồn dù đã có quy tắc loại trừ — dấu hiệu quy tắc thêm sau nhưng chưa dọn file cũ.", ref:".gitignore, *.tsbuildinfo"}
+    ]
+  },
+  {
+    id:"bao-mat", name:"Bảo mật & phân quyền dữ liệu", rating:"improve",
+    desc:"Lớp bảo vệ dữ liệu quan trọng nhất, vì hệ thống dùng gói Firebase miễn phí, không có máy chủ riêng để kiểm tra lại. Khung phân quyền (ai xem gì, ai sửa gì) làm rất tốt, nhưng có một lỗ hổng đáng lo ở phần tạo hóa đơn học phí.",
+    strengths:[
+      {text:"Mặc định CHẶN mọi thứ không được khai báo rõ ràng — không có bảng dữ liệu nào bị bỏ sót, lộ ra ngoài."},
+      {text:"Tài khoản bị khóa (kể cả Admin) sẽ mất quyền ngay lập tức — đã có kiểm thử tự động xác nhận."},
+      {text:"Người dùng không thể tự phong mình làm Admin khi đăng ký — bắt buộc khớp với \"lời mời\" do Admin tạo trước, có kiểm thử xác nhận."},
+      {text:"Sau khi tạo tài khoản, người dùng không thể tự sửa vai trò/trạng thái của chính mình — chỉ Admin sửa được."},
+      {text:"Số liệu quan trọng (tiền hóa đơn, điểm số, điểm danh...) bị khóa cứng sau khi tạo — không ai sửa được số liệu cũ để gian lận, có kiểm thử riêng xác nhận."},
+      {text:"Giáo viên chỉ xem/sửa được dữ liệu đúng lớp mình phụ trách — có bộ kiểm thử riêng xác nhận không đụng được dữ liệu lớp của giáo viên khác."}
+    ],
+    issues:[
+      {sev:"cao", text:"Khi tạo HÓA ĐƠN học phí, hệ thống chỉ kiểm tra số tiền > 0, không kiểm tra thông tin số tài khoản ngân hàng nhận tiền. Vì thông tin ngân hàng bị khóa cứng sau khi tạo, một tài khoản giáo viên (không chỉ Admin) về lý thuyết có thể tạo hóa đơn với SỐ TÀI KHOẢN GIẢ, khiến phụ huynh chuyển khoản nhầm nơi — rủi ro gian lận tài chính thực sự, cần vá sớm.", ref:"firestore.rules dòng 676-681"},
+      {sev:"cao", text:"Một số bảng dữ liệu thêm ở giai đoạn sau (bài tập, bài nộp, thông báo, hóa đơn, thanh toán) không được kiểm tra đầy đủ định dạng khi ghi — khác với các bảng ra đời sớm được kiểm tra rất chặt. Mức bảo vệ không đồng đều giữa các module.", ref:"firestore.rules — assignments, submissions, announcements, invoices"},
+      {sev:"trung-binh", text:"Phụ huynh có thể tự \"nộp bài\" gán vào một bài tập/lớp học bất kỳ mà không thực sự thuộc lớp đó, do thiếu bước đối chiếu chéo.", ref:"firestore.rules dòng 619-621"},
+      {sev:"trung-binh", text:"Khi phụ huynh tự báo \"đã chuyển khoản\", hệ thống không đối chiếu số tiền báo có khớp hóa đơn gốc hay không — vẫn an toàn về lâu dài nhưng dễ khiến Admin duyệt nhầm nếu không để ý.", ref:"firestore.rules dòng 693-698"},
+      {sev:"trung-binh", text:"Một số kịch bản kiểm thử tự động cho module Giáo án đang dùng dữ liệu mẫu theo cấu trúc CŨ (đã thay bằng cấu trúc mới hồi 16/07) — kiểm thử vẫn \"chạy qua\" nhưng không còn kiểm tra đúng thứ cần kiểm tra.", ref:"immutable-rules.test.ts, phase5-rules.test.ts"},
+      {sev:"thap", text:"Có luật bảo mật viết cho một cơ chế ghi dữ liệu bằng máy chủ riêng — nhưng hệ thống này không có máy chủ riêng (gói miễn phí), nên luật đó không bao giờ có tác dụng thực tế.", ref:"firestore.rules dòng 719-725"},
+      {sev:"thap", text:"Có một hằng số cấu hình không khớp với luật bảo mật tương ứng — nếu sau này có tính năng dùng đến, sẽ luôn bị từ chối ghi.", ref:"collections.ts, firestore.rules dòng 366-370"}
+    ]
+  },
+  {
+    id:"hoc-vien", name:"Module Học viên", rating:"improve",
+    desc:"Danh sách và hồ sơ học viên hoạt động tốt, hộp thoại thông tin học viên làm chuẩn về khả năng tiếp cận. Điểm trừ lớn nhất là một bộ lọc theo thời gian chỉ mang tính hình thức.",
+    strengths:[
+      {text:"Hộp thoại thông tin học viên làm đúng chuẩn: đóng bằng phím Escape, tự động focus — phù hợp người dùng thao tác bàn phím/trình đọc màn hình."},
+      {text:"Danh sách học viên chỉ tải dữ liệu điểm danh/điểm số của đúng những học viên đang hiển thị — không tải toàn bộ, tiết kiệm lượt đọc Firestore."}
+    ],
+    issues:[
+      {sev:"cao", text:"Bộ lọc \"Thời gian lọc\" trong danh sách học viên chỉ là giao diện trang trí — ngày tháng viết cứng sẵn, nút \"Áp dụng\" không lọc được gì. Nhân viên bấm vào sẽ tưởng đã lọc nhưng danh sách không đổi.", ref:"TimeRangeFilter.tsx"},
+      {sev:"thap", text:"Có sẵn một biểu mẫu \"sửa học viên\" đầy đủ nhưng không được dùng ở đâu — nếu sau này vô tình bật lại, dữ liệu phụ huynh nhập có thể bị mất do form cũ không lưu đủ trường.", ref:"StudentForm.tsx"}
+    ]
+  },
+  {
+    id:"lop-hoc", name:"Module Lớp học", rating:"good",
+    desc:"Không phát hiện lỗi chức năng nào. Đây là một trong những module được xử lý cẩn thận nhất.",
+    strengths:[
+      {text:"Khi thêm/xóa học viên khỏi lớp, hệ thống cập nhật đồng thời 3 nơi liên quan (lớp học, học viên, giáo viên) trong cùng một thao tác — tránh dữ liệu lệch nhau."},
+      {text:"Khi xóa một lớp học, hệ thống chỉ hủy các buổi SẮP TỚI và giữ nguyên lịch sử đã học — đúng nghiệp vụ, không mất dữ liệu quá khứ."}
+    ],
+    issues:[]
+  },
+  {
+    id:"mon-hoc", name:"Module Môn học & Khóa học", rating:"good",
+    desc:"Không phát hiện lỗi chức năng nào. Cách liên kết giữa Môn học và Khóa học được làm mượt và tiết kiệm tài nguyên.",
+    strengths:[
+      {text:"Bấm chọn một Môn học sẽ tự lọc ra đúng các Khóa học liên quan — thao tác qua lại giữa 2 danh sách mượt mà."},
+      {text:"Xử lý tốt các khóa học cũ tạo trước khi có trường \"Giá theo buổi\" — không lỗi hiển thị, không cần script sửa dữ liệu cũ."}
+    ],
+    issues:[]
+  },
+  {
+    id:"lich-hoc", name:"Module Lịch học / Thời khóa biểu", rating:"improve",
+    desc:"Thuật toán xếp lịch không chồng chéo được làm rất tốt, nhưng cách xử lý MÚI GIỜ chưa nhất quán — có thể gây lệch giờ học nếu máy tính nhân viên đặt sai múi giờ.",
+    strengths:[
+      {text:"Thuật toán tự động xếp các buổi học trùng giờ vào cột riêng biệt (giống Google Calendar) được cài đúng và xử lý tốt các trường hợp biên."},
+      {text:"Tính năng kéo-thả đổi giờ học giữ nguyên đúng thời lượng buổi học và tự động chuyển trạng thái + gửi thông báo — đúng nghiệp vụ."}
+    ],
+    issues:[
+      {sev:"cao", text:"Phần lớn module Lịch học tính ngày giờ theo đồng hồ máy tính cục bộ của trình duyệt, thay vì cố định theo giờ Việt Nam như quy định — dù thư viện xử lý múi giờ đã có sẵn và dùng đúng ở nơi khác. Máy nhân viên đặt sai múi giờ hệ thống có thể làm sai ngày/giờ của buổi học lặp lại hoặc khi kéo-thả đổi giờ.", ref:"recurrence.ts, sessions.ts, FitWeekTimetable.tsx, TimetableGrid.tsx"},
+      {sev:"trung-binh", text:"Có một file danh sách lớp học kiểu cũ (224 dòng) không còn dùng ở đâu — sót lại sau đợt gộp tính năng, nên dọn bỏ để tránh nhầm lẫn khi sửa code sau này.", ref:"ClassScheduleList.tsx"}
+    ]
+  },
+  {
+    id:"diem-danh", name:"Module Điểm danh", rating:"good",
+    desc:"Module được đánh giá chắc chắn nhất trong toàn bộ hệ thống — cả về đúng nghiệp vụ lẫn tiết kiệm tài nguyên.",
+    strengths:[
+      {text:"Xử lý thông minh cho các câu truy vấn lớn (chia nhỏ theo nhóm 30 học viên) để không vượt giới hạn của Firestore."},
+      {text:"Phân biệt đúng giữa \"chưa điểm danh\" và \"đã đăng ký nghỉ học\" — tránh báo nhầm buổi học thiếu điểm danh khi học sinh đã xin nghỉ."},
+      {text:"Toàn bộ điểm danh một buổi học được lưu trong một lần ghi duy nhất khi bấm Lưu, không ghi từng dòng khi tick chọn — tiết kiệm số lượt ghi dữ liệu."}
+    ],
+    issues:[]
+  },
+  {
+    id:"giao-an", name:"Module Giáo án", rating:"improve",
+    desc:"Có điểm bất nhất giữa giao diện và luật kiểm tra dữ liệu: màn hình đánh dấu \"Lớp học\" là bắt buộc, nhưng thực ra cho phép bỏ trống — hậu quả là giáo án có thể \"Xuất bản\" mà không hiện cho phụ huynh, không ai được cảnh báo.",
+    strengths:[
+      {text:"Có kiểm tra chéo tổng thời lượng các hoạt động so với thời lượng thực tế buổi học, hiển thị rõ khớp/lệch — kiểm tra nghiệp vụ hữu ích, làm tốt."},
+      {text:"Màn hình xem chi tiết giáo án được tái sử dụng khéo léo cho cả xem và in ấn, không phải xây riêng 2 giao diện."}
+    ],
+    issues:[
+      {sev:"cao", text:"Ô \"Lớp học\" trên biểu mẫu giáo án có dấu (*) báo bắt buộc, nhưng hệ thống thực chất KHÔNG bắt buộc — giáo viên vẫn lưu được khi bỏ trống, không có dòng báo lỗi nào hiện ra. Nếu bấm \"Xuất bản\" mà quên chọn lớp, giáo án sẽ không hiển thị cho phụ huynh — và không ai được thông báo việc xuất bản đã \"thất bại trong im lặng\".", ref:"LessonPlanForm.tsx, schemas/lessonPlan.ts"}
+    ]
+  },
+  {
+    id:"bai-tap-diem", name:"Module Bài tập & Điểm số", rating:"critical",
+    desc:"Vấn đề nghiêm trọng nhất tìm thấy trong toàn bộ đợt rà soát: màn hình nhập điểm thủ công của giáo viên không kiểm tra điểm nhập vào có nằm trong thang điểm hợp lệ hay không, có thể làm sai điểm trung bình của học sinh.",
+    strengths:[
+      {text:"Luồng chấm bài tập (khác với nhập điểm thủ công) xử lý đúng và cẩn thận trường hợp chấm lại, kể cả cập nhật lại điểm trung bình chính xác."}
+    ],
+    issues:[
+      {sev:"cao", text:"Màn hình \"Bảng điểm\" (nhập điểm thủ công) chỉ kiểm tra điểm tối đa phải lớn hơn 0, KHÔNG kiểm tra điểm giáo viên nhập có nằm trong khoảng 0 đến điểm tối đa hay không. Ô nhập điểm có giới hạn hiển thị trên giao diện nhưng không nằm trong một biểu mẫu chuẩn nên giới hạn đó không thực sự chặn — gõ nhầm \"999\" cho bài thang điểm 10 vẫn được lưu và tính vào điểm trung bình. Cùng nghiệp vụ này lại được kiểm tra đúng ở luồng chấm bài tập nhưng bị bỏ sót ở luồng nhập điểm thủ công.", ref:"services/firestore/scores.ts (saveClassScores)"},
+      {sev:"cao", text:"Biểu mẫu tạo Bài tập bắt giáo viên/nhân viên tự gõ tay MÃ giáo án và MÃ buổi học (chuỗi ký tự kỹ thuật trong cơ sở dữ liệu) thay vì chọn từ danh sách xổ xuống như mọi nơi khác. Không ai không rành kỹ thuật biết mã đó là gì — tính năng \"gắn giáo án/buổi học vào bài tập\" gần như không dùng được.", ref:"AssignmentsPage.tsx"},
+      {sev:"trung-binh", text:"2 màn hình dành cho phụ huynh (Bài tập, Thông báo) không hiển thị trạng thái \"đang tải\" hay \"có lỗi\" khi có sự cố — khác với phần còn lại của hệ thống vốn luôn có đủ 3 trạng thái tải/lỗi/rỗng.", ref:"ViewerAssignmentsPage.tsx, ViewerAnnouncementsPage.tsx"},
+      {sev:"trung-binh", text:"Có một màn hình \"Thông báo\" kiểu cũ không còn được dùng (đã thay bằng màn hình Trò chuyện) — nếu vô tình dùng lại, cũng thiếu bước lưu lịch sử đăng bài như màn hình hiện tại.", ref:"StaffAnnouncementsPage.tsx"}
+    ]
+  },
+  {
+    id:"hoc-phi", name:"Module Học phí / Hóa đơn", rating:"critical",
+    desc:"Có lỗ hổng bảo mật liên quan (xem mục Bảo mật) cộng thêm một lỗi giao diện khiến phụ huynh có thể \"báo đã chuyển khoản\" nhưng không hề biết nếu việc báo đó thất bại.",
+    strengths:[
+      {text:"Màn hình quản lý hóa đơn phía nhân viên đầy đủ trạng thái tải/lỗi/rỗng, và quan trọng hơn: các trường số tiền/tài khoản ngân hàng được khóa ở tầng bảo mật dữ liệu chứ không chỉ ở giao diện — đúng nguyên tắc bảo mật thật nằm ở tầng dữ liệu."}
+    ],
+    issues:[
+      {sev:"cao", text:"Trang \"Đóng học phí\" của phụ huynh không có trạng thái tải/lỗi, và khi phụ huynh bấm \"Tôi đã chuyển khoản\" mà việc ghi nhận bị từ chối (ví dụ hóa đơn đã được đánh dấu thanh toán trước đó), màn hình KHÔNG báo lỗi gì — phụ huynh sẽ tưởng đã báo thành công.", ref:"ViewerTuitionPage.tsx"},
+      {sev:"trung-binh", text:"Mã hóa đơn (dùng làm nội dung chuyển khoản) chỉ ghép từ mã học viên + tháng/năm, không có số thứ tự phân biệt. Nếu một học viên có 2 hóa đơn trong cùng tháng, cả hai sẽ có CÙNG nội dung chuyển khoản — nhân viên đối soát ngân hàng không phân biệt được khoản nào là khoản nào.", ref:"utils/payment.ts (createInvoiceCode)"}
+    ]
+  },
+  {
+    id:"dang-nhap", name:"Đăng nhập, Người dùng & Phân quyền", rating:"good",
+    desc:"Luồng đăng nhập và nhận lời mời tài khoản được làm cẩn thận, đúng thứ tự để tránh lộ nội dung trước khi xác thực xong. Điểm cần dọn dẹp là một module Người dùng phiên bản cũ bị bỏ quên.",
+    strengths:[
+      {text:"Màn hình được bảo vệ chỉ hiển thị nội dung sau khi đã xác nhận XONG cả trạng thái đăng nhập lẫn vai trò người dùng — không có tình trạng \"lóe\" nội dung nhạy cảm trước khi kiểm tra quyền xong, một lỗi rất dễ mắc nhưng đã xử lý đúng."},
+      {text:"Luồng nhận lời mời tài khoản mới an toàn trước tình huống bấm 2 lần liên tiếp, nhờ dùng một thao tác ghi gộp và cờ chặn ghi lại."}
+    ],
+    issues:[
+      {sev:"trung-binh", text:"Có nguyên một bộ 5 file (trang + component con) của module Quản lý người dùng phiên bản CŨ không còn dùng ở đâu (đã thay bằng phiên bản mới) nhưng vẫn còn trong kho mã nguồn — dễ khiến người sửa code sau này nhầm sửa nhầm file.", ref:"UsersPage.tsx và 4 file liên quan"}
+    ]
+  },
+  {
+    id:"fanpage", name:"Fanpage / Trò chuyện / Tin nhắn", rating:"good",
+    desc:"Không phát hiện rò rỉ thông tin bí mật nào trong mã nguồn — điểm rất đáng khen cho một tính năng tích hợp bên thứ ba. Việc đăng bài lên Fanpage được ghi lại đầy đủ lịch sử, kể cả khi thất bại.",
+    strengths:[
+      {text:"Không tìm thấy mật khẩu, khóa bí mật hay token nào bị viết cứng trong mã nguồn phía trình duyệt — đúng nguyên tắc bảo mật cho tích hợp Facebook/Messenger."},
+      {text:"Mỗi lần đăng bài lên Fanpage (kể cả thất bại) đều được lưu lịch sử với mã lỗi cụ thể — nhân viên luôn biết bài nào thành công, bài nào thất bại, không phải đoán."},
+      {text:"Mục Cài đặt giao diện trung thực thông báo tính năng nào \"chưa hoàn thiện, sẽ có ở bản sau\" thay vì giả vờ hoạt động — tránh gây hiểu nhầm."}
+    ],
+    issues:[
+      {sev:"thap", text:"Có đoạn code kết nối trực tiếp cơ sở dữ liệu nằm trong màn hình dùng chung (đã liệt kê ở mục Kiến trúc) — ở đây nó liên quan đến hiển thị thông báo.", ref:"Topbar.tsx"}
+    ]
+  },
+  {
+    id:"quy-trinh", name:"Vệ sinh kho mã nguồn & Quy trình kiểm thử", rating:"improve",
+    desc:"Quy trình kiểm tra tự động trước khi gộp code khá đầy đủ. Tuy nhiên độ phủ kiểm thử tự động cho logic nghiệp vụ còn khá mỏng, và kho mã nguồn đang chứa nhiều tài liệu tham khảo không liên quan đến sản phẩm.",
+    strengths:[
+      {text:"Có quy trình kiểm tra tự động chạy trên mỗi lần đẩy code: kiểm tra kiểu dữ liệu, kiểm tra style, chạy test, chạy riêng bộ test luật bảo mật, và build thử — đầy đủ hơn nhiều dự án cùng quy mô."},
+      {text:"Bộ kiểm thử luật bảo mật khá dày dặn với 11 file kiểm thử theo từng giai đoạn/chủ đề, bao phủ tốt các tình huống phân quyền."}
+    ],
+    issues:[
+      {sev:"trung-binh", text:"Chỉ có 6 file kiểm thử tự động cho logic nghiệp vụ (không tính luật bảo mật) trong khi có 156 file mã nguồn — độ phủ kiểm thử cho logic ứng dụng còn khá mỏng so với phần luật bảo mật.", ref:"src/**/*.test.ts"},
+      {sev:"thap", text:"Một thư mục tài liệu tham khảo trong kho mã nguồn đang chứa khoảng 910 file — phần lớn sao chép nguyên vẹn từ các dự án mã nguồn mở khác (không phải mã nguồn của Edumatrix), làm phình to kho mã nguồn chính.", ref:"Agents Instuctions/"},
+      {sev:"thap", text:"Thư mục tài liệu kế hoạch đang có hơn 40 file tích lũy qua nhiều đợt nâng cấp — lập kế hoạch trước khi code là thói quen tốt, nhưng nên gom các kế hoạch đã hoàn thành vào một thư mục lưu trữ riêng để dễ tìm tài liệu còn hiệu lực.", ref:"docs/"}
+    ]
+  }
+];
+
+const PRIORITIES = [
+  {text:"Màn hình nhập điểm thủ công không giới hạn điểm nhập vào — giáo viên gõ nhầm có thể làm sai điểm trung bình của học sinh.", tag:"Bài tập & Điểm số"},
+  {text:"Luật bảo mật cho phép tạo hóa đơn học phí mà không kiểm tra thông tin ngân hàng — rủi ro giả mạo số tài khoản nhận tiền.", tag:"Bảo mật / Học phí"},
+  {text:"Trang \"Đóng học phí\" của phụ huynh không báo lỗi khi việc báo chuyển khoản bị từ chối — phụ huynh tưởng đã báo thành công.", tag:"Học phí / Hóa đơn"},
+  {text:"File cấu hình Vite và Tailwind bị trùng — bản đang thực sự chạy lại là bản không được kiểm tra kỹ.", tag:"Kiến trúc"},
+  {text:"Bộ lọc \"Thời gian\" trong danh sách học viên chỉ mang tính trang trí, bấm vào không lọc được gì.", tag:"Học viên"},
+  {text:"Giáo án có thể được \"Xuất bản\" mà không gắn lớp học — phụ huynh sẽ không bao giờ thấy, và không ai được cảnh báo.", tag:"Giáo án"}
+];
+
+// ---- render priorities ----
+const pList = document.getElementById('priority-list');
+PRIORITIES.forEach((p,i)=>{
+  const el = document.createElement('div');
+  el.className='priority-item';
+  el.innerHTML = `<div class="priority-num">${i+1}</div><p>${p.text}</p><div class="tag">${p.tag}</div>`;
+  pList.appendChild(el);
+});
+
+const ratingMeta = {
+  good:{label:"Tốt", cls:"good"},
+  improve:{label:"Cần cải thiện", cls:"improve"},
+  critical:{label:"Nghiêm trọng", cls:"critical"}
+};
+const sevLabel = {cao:"Cao", "trung-binh":"Trung bình", thap:"Thấp"};
+
+// ---- render category cards ----
+const grid = document.getElementById('cat-grid');
+DATA.forEach(cat=>{
+  const rm = ratingMeta[cat.rating];
+  const card = document.createElement('div');
+  card.className='cat-card';
+  card.dataset.rating = cat.rating;
+  card.dataset.search = (cat.name+' '+cat.desc+' '+cat.strengths.map(s=>s.text).join(' ')+' '+cat.issues.map(i=>i.text).join(' ')).toLowerCase();
+
+  const strengthsHtml = cat.strengths.length
+    ? `<ul class="finding-list good">${cat.strengths.map(s=>`<li>${s.text}</li>`).join('')}</ul>`
+    : `<p class="empty-note">Không có điểm mạnh nổi bật được ghi nhận riêng.</p>`;
+  const issuesHtml = cat.issues.length
+    ? `<ul class="finding-list bad">${cat.issues.map(i=>`<li class="sev-${i.sev}"><span class="sev-tag ${i.sev}">${sevLabel[i.sev]}</span>${i.text}${i.ref?`<span class="ref mono">${i.ref}</span>`:''}</li>`).join('')}</ul>`
+    : `<p class="empty-note">Không phát hiện vấn đề nào trong phân hệ này.</p>`;
+
+  card.innerHTML = `
+    <div class="cat-head">
+      <div class="cat-name">${cat.name}</div>
+      <div class="count-chip">${cat.strengths.length} mạnh · ${cat.issues.length} vấn đề</div>
+      <div class="badge ${rm.cls}">${rm.label}</div>
+      <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <div class="cat-body">
+      <div class="cat-body-inner">
+        <p class="cat-desc">${cat.desc}</p>
+        <div class="cols">
+          <div>
+            <div class="col-title good">Điểm hợp lý</div>
+            ${strengthsHtml}
+          </div>
+          <div>
+            <div class="col-title bad">Điểm chưa hợp lý</div>
+            ${issuesHtml}
+          </div>
+        </div>
+      </div>
+    </div>`;
+  card.querySelector('.cat-head').addEventListener('click', ()=>card.classList.toggle('open'));
+  grid.appendChild(card);
+});
+
+// ---- category filter/search ----
+const catButtons = document.querySelectorAll('#cat-controls .pill-btn');
+const catSearch = document.getElementById('cat-search');
+let currentCatFilter = 'all';
+function applyCatFilter(){
+  const q = catSearch.value.trim().toLowerCase();
+  document.querySelectorAll('.cat-card').forEach(card=>{
+    const matchesRating = currentCatFilter==='all' || card.dataset.rating===currentCatFilter;
+    const matchesSearch = !q || card.dataset.search.includes(q);
+    card.dataset.hidden = (matchesRating && matchesSearch) ? "false" : "true";
+  });
+}
+catButtons.forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    catButtons.forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    currentCatFilter = btn.dataset.filter;
+    applyCatFilter();
+  });
+});
+catSearch.addEventListener('input', applyCatFilter);
+
+// ---- build flat table rows ----
+const rows = [];
+DATA.forEach(cat=>{
+  cat.strengths.forEach(s=>rows.push({module:cat.name, type:'strength', sev:null, text:s.text, ref:null}));
+  cat.issues.forEach(i=>rows.push({module:cat.name, type:'issue', sev:i.sev, text:i.text, ref:i.ref||null}));
+});
+
+const tbody = document.getElementById('table-body');
+rows.forEach(r=>{
+  const tr = document.createElement('tr');
+  tr.dataset.type = r.type;
+  tr.dataset.search = (r.module+' '+r.text+' '+(r.ref||'')).toLowerCase();
+  const sevCell = r.sev ? `<span class="sev-tag ${r.sev}">${sevLabel[r.sev]}</span>` : `<span class="sev-tag" style="color:var(--good);background:var(--good-bg);">—</span>`;
+  tr.innerHTML = `
+    <td class="col-module">${r.module}</td>
+    <td class="col-type"><span class="type-pill ${r.type}">${r.type==='strength'?'Điểm mạnh':'Vấn đề'}</span></td>
+    <td class="col-sev">${sevCell}</td>
+    <td class="col-content">${r.text}${r.ref?`<span class="ref mono">${r.ref}</span>`:''}</td>`;
+  tbody.appendChild(tr);
+});
+
+const resultCount = document.getElementById('result-count');
+function updateCount(){
+  const visible = [...tbody.querySelectorAll('tr')].filter(tr=>tr.dataset.hidden!=='true').length;
+  resultCount.textContent = `Hiển thị ${visible} / ${rows.length} dòng`;
+}
+
+const tableSearch = document.getElementById('table-search');
+const tFilterButtons = document.querySelectorAll('[data-tfilter]');
+let currentTFilter = 'all';
+function applyTableFilter(){
+  const q = tableSearch.value.trim().toLowerCase();
+  tbody.querySelectorAll('tr').forEach(tr=>{
+    const matchesType = currentTFilter==='all' || tr.dataset.type===currentTFilter;
+    const matchesSearch = !q || tr.dataset.search.includes(q);
+    tr.dataset.hidden = (matchesType && matchesSearch) ? "false" : "true";
+  });
+  updateCount();
+}
+tFilterButtons.forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    tFilterButtons.forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    currentTFilter = btn.dataset.tfilter;
+    applyTableFilter();
+  });
+});
+tableSearch.addEventListener('input', applyTableFilter);
+updateCount();
+</script>
+</body>
+</html>

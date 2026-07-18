@@ -17,7 +17,7 @@ import { DataListPanel, DATA_LIST_FOOTER, DATA_LIST_SCROLL } from "@/components/
 import { CHART_TONE_ACCENT, CHART_TONE_BG } from "@/components/charts/chartTheme";
 import { usePagination } from "@/hooks/usePagination";
 import { StudentInfoDialog } from "@/features/students/components/StudentInfoDialog";
-import { TimeRangeFilter } from "@/features/students/components/TimeRangeFilter";
+import { TimeRangeFilter, type DateRange } from "@/features/students/components/TimeRangeFilter";
 import type { AttendanceDoc, StudentDoc, SubmissionDoc } from "@/types/academic";
 
 type StatusFilter = "all" | "active" | "inactive";
@@ -45,6 +45,7 @@ const STUDENT_TABLE_MIN_WIDTH = 1440;
 export function StudentsList() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [dateRange, setDateRange] = useState<DateRange | null>(null);
   const [pageSize, setPageSize] = useState(15);
   const [viewingStudent, setViewingStudent] = useState<(StudentDoc & { id: string }) | null>(null);
   const { role } = useAuth();
@@ -94,9 +95,11 @@ export function StudentsList() {
         student.studentCode.toLowerCase().includes(keyword) ||
         classCourseText.includes(keyword);
       const matchesStatus = statusFilter === "all" || student.status === statusFilter;
-      return matchesSearch && matchesStatus;
+      const createdAt = student.createdAt?.toDate ? student.createdAt.toDate() : null;
+      const matchesDate = !dateRange || (createdAt !== null && createdAt >= dateRange.from && createdAt <= dateRange.to);
+      return matchesSearch && matchesStatus && matchesDate;
     });
-  }, [classById, courseById, search, statusFilter, students]);
+  }, [classById, courseById, dateRange, search, statusFilter, students]);
 
   const { page, pageItems, setPage } = usePagination(filtered, pageSize);
   const visibleStudentIds = useMemo(() => pageItems.map((student) => student.id), [pageItems]);
@@ -188,7 +191,13 @@ export function StudentsList() {
 
         <div>
           <p className="mb-1 text-xs font-semibold text-neutral-500">Thời gian lọc</p>
-          <TimeRangeFilter />
+          <TimeRangeFilter
+            value={dateRange}
+            onApply={(range) => {
+              setDateRange(range);
+              setPage(1);
+            }}
+          />
         </div>
       </div>
 

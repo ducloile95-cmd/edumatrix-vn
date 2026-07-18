@@ -60,6 +60,11 @@ beforeEach(async () => {
       status: "active",
       studentIds: ["student-2"],
     });
+    await setDoc(doc(db, "users", "teacher"), {
+      role: "teacher",
+      status: "active",
+      studentIds: [],
+    });
     await setDoc(doc(db, "invoices", "invoice-1"), invoice);
     await setDoc(doc(db, "payments", "payment-1"), {
       invoiceId: "invoice-1",
@@ -78,6 +83,22 @@ beforeEach(async () => {
 });
 
 describe("Phase 9 payment", () => {
+  test("admin creates invoice", async () =>
+    assertSucceeds(
+      setDoc(doc(env.authenticatedContext("admin").firestore(), "invoices", "invoice-new"), {
+        ...invoice,
+        createdBy: "admin",
+      }),
+    ));
+
+  test("teacher cannot create invoice", async () =>
+    assertFails(
+      setDoc(doc(env.authenticatedContext("teacher").firestore(), "invoices", "invoice-new"), {
+        ...invoice,
+        createdBy: "teacher",
+      }),
+    ));
+
   test("owner reads invoice", async () =>
     assertSucceeds(getDoc(doc(env.authenticatedContext("viewer").firestore(), "invoices", "invoice-1"))));
 

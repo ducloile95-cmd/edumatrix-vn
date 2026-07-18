@@ -2,11 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { Bell, CloudSun, Menu } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { collection, getDocs, limit, query, where, type Timestamp } from "firebase/firestore";
 import { format } from "date-fns";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { db } from "@/services/firebase/firestoreClient";
-import { COLLECTIONS } from "@/constants/collections";
+import { listAnnouncementsByStudents } from "@/services/firestore/announcements";
 import { ROUTES } from "@/constants/routes";
 import { findPageDescription, findPageTitle } from "@/constants/navigation";
 
@@ -38,7 +36,6 @@ function useWeather() {
 }
 
 type Notification = { id: string; title: string; time: string };
-type AnnouncementDoc = { title?: string; message?: string; createdAt?: Timestamp; studentId?: string };
 
 /**
  * Chuyen chuong (bell) doc du lieu that tu ANNOUNCEMENTS cho Phu huynh/Hoc sinh (co studentIds,
@@ -53,26 +50,13 @@ function useNotifications(): Notification[] {
 
   const { data } = useQuery({
     queryKey: ["topbar-notifications", studentIds],
-    queryFn: async () => {
-      const groups = await Promise.all(
-        studentIds.map(async (studentId) => {
-          const snap = await getDocs(
-            query(collection(db, COLLECTIONS.ANNOUNCEMENTS), where("studentId", "==", studentId), limit(10)),
-          );
-          return snap.docs.map((item) => ({ id: item.id, ...(item.data() as AnnouncementDoc) }));
-        }),
-      );
-      return groups
-        .flat()
-        .sort((a, b) => (b.createdAt?.toMillis() ?? 0) - (a.createdAt?.toMillis() ?? 0))
-        .slice(0, 8);
-    },
+    queryFn: () => listAnnouncementsByStudents(studentIds, 10),
     enabled: studentIds.length > 0,
   });
 
-  return (data ?? []).map((item) => ({
+  return (data ?? []).slice(0, 8).map((item) => ({
     id: item.id,
-    title: item.title ?? "Thông báo",
+    title: item.title || "Thông báo",
     time: item.createdAt ? format(item.createdAt.toDate(), "dd/MM HH:mm") : "",
   }));
 }
