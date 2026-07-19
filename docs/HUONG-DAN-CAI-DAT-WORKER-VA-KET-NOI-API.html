@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="vi" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="Hướng dẫn từng bước cài đặt Edumatrix, Cloudflare Worker và kết nối Firebase, Meta Messenger, Google Drive, VietQR.">
+  <title>Edumatrix | Hướng dẫn cài Worker & kết nối API</title>
+  <style>
+    :root {
+      --paper: #f4f1e9;
+      --surface: #fffdf7;
+      --surface-2: #ece8dd;
+      --ink: #13231e;
+      --muted: #65706b;
+      --line: #d4d0c5;
+      --brand: #0f6b4f;
+      --brand-strong: #074d39;
+      --brand-soft: #d9eee4;
+      --warning: #a54b19;
+      --warning-soft: #f8dfcd;
+      --danger: #a32d35;
+      --code: #10241d;
+      --code-ink: #dff5e8;
+      --shadow: 0 16px 44px rgb(19 35 30 / 8%);
+      --radius: 18px;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      --sans: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    [data-theme="dark"] {
+      --paper: #101714;
+      --surface: #17211d;
+      --surface-2: #202c27;
+      --ink: #eef5f1;
+      --muted: #a4b2ab;
+      --line: #35423c;
+      --brand: #66d3a7;
+      --brand-strong: #95e6c4;
+      --brand-soft: #193c30;
+      --warning: #f0a06b;
+      --warning-soft: #462b20;
+      --danger: #ff969d;
+      --code: #09100d;
+      --code-ink: #dff5e8;
+      --shadow: 0 18px 48px rgb(0 0 0 / 24%);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 88px; }
+    body {
+      margin: 0;
+      overflow-x: clip;
+      background: var(--paper);
+      color: var(--ink);
+      font: 15px/1.65 var(--sans);
+      text-rendering: optimizeLegibility;
+    }
+    button, input { font: inherit; }
+    a { color: var(--brand-strong); text-underline-offset: 3px; overflow-wrap: anywhere; }
+    a:hover { text-decoration-thickness: 2px; }
+    :focus-visible { outline: 3px solid var(--brand); outline-offset: 3px; }
+    .skip-link { position: fixed; left: 12px; top: -60px; z-index: 50; background: var(--ink); color: var(--surface); padding: 10px 14px; border-radius: 8px; }
+    .skip-link:focus { top: 12px; }
+    .topbar {
+      position: sticky; top: 0; z-index: 30;
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      min-height: 64px; padding: 10px clamp(16px, 4vw, 56px);
+      border-bottom: 1px solid var(--line);
+      background: color-mix(in srgb, var(--paper) 90%, transparent);
+      backdrop-filter: blur(14px);
+    }
+    .brand { display: flex; align-items: center; gap: 11px; color: var(--ink); text-decoration: none; font-weight: 800; letter-spacing: -.02em; }
+    .brand-mark { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--brand); color: var(--surface); font: 800 12px/1 var(--mono); }
+    .top-actions { display: flex; flex: 0 0 auto; gap: 8px; }
+    .icon-button, .filter-button, .copy-button, .reset-button {
+      min-height: 40px; border: 1px solid var(--line); border-radius: 999px; padding: 8px 13px;
+      background: var(--surface); color: var(--ink); cursor: pointer; transition: transform .18s ease, border-color .18s ease, background .18s ease;
+    }
+    .icon-button:hover, .filter-button:hover, .copy-button:hover, .reset-button:hover { transform: translateY(-1px); border-color: var(--brand); }
+    .shell { display: grid; grid-template-columns: 260px minmax(0, 880px); gap: clamp(28px, 5vw, 72px); width: min(1240px, calc(100% - 32px)); margin: 0 auto; }
+    .sidebar { position: sticky; top: 86px; align-self: start; height: calc(100vh - 106px); overflow: auto; padding: 26px 0; }
+    .eyebrow { margin: 0 0 10px; color: var(--brand-strong); font: 800 11px/1.2 var(--mono); letter-spacing: .13em; text-transform: uppercase; }
+    .progress-card { padding: 18px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
+    .progress-row { display: flex; justify-content: space-between; gap: 12px; font-weight: 750; }
+    .progress-track { height: 8px; margin-top: 12px; overflow: hidden; border-radius: 99px; background: var(--surface-2); }
+    .progress-bar { width: 0; height: 100%; border-radius: inherit; background: var(--brand); transition: width .25s ease; }
+    .sidebar nav { margin-top: 22px; }
+    .sidebar nav a { display: block; padding: 7px 10px; border-left: 2px solid transparent; color: var(--muted); text-decoration: none; font-size: 13px; }
+    .sidebar nav a:hover, .sidebar nav a[aria-current="true"] { border-left-color: var(--brand); color: var(--ink); }
+    main { min-width: 0; padding: 52px 0 120px; }
+    .hero { padding: clamp(30px, 6vw, 70px) 0 46px; border-bottom: 1px solid var(--line); }
+    h1 { max-width: 790px; margin: 0; font-size: clamp(42px, 7vw, 86px); line-height: .96; letter-spacing: -.065em; font-weight: 850; }
+    .hero-lead { max-width: 690px; margin: 28px 0 0; color: var(--muted); font-size: clamp(17px, 2vw, 21px); line-height: 1.5; }
+    .hero-meta { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 24px; }
+    .tag { display: inline-flex; align-items: center; min-height: 30px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); background: var(--surface); font: 700 11px/1 var(--mono); }
+    .notice { margin-top: 28px; padding: 18px 20px; border-left: 4px solid var(--warning); border-radius: 0 12px 12px 0; background: var(--warning-soft); }
+    .notice strong { color: var(--warning); }
+    .toolbar { display: grid; grid-template-columns: minmax(220px, 1fr); gap: 12px; padding: 28px 0 8px; }
+    .search { width: 100%; min-height: 46px; border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; color: var(--ink); background: var(--surface); }
+    .filters { display: flex; flex-wrap: wrap; gap: 7px; }
+    .filter-button[aria-pressed="true"] { border-color: var(--brand); background: var(--brand); color: var(--surface); }
+    .section { padding: 56px 0 8px; }
+    .section-head { display: grid; grid-template-columns: 78px minmax(0, 1fr); gap: 18px; align-items: start; margin-bottom: 26px; }
+    .section-number { color: var(--brand); font: 800 36px/1 var(--mono); letter-spacing: -.07em; }
+    h2 { margin: 0; font-size: clamp(28px, 4vw, 46px); line-height: 1.05; letter-spacing: -.045em; }
+    .section-intro { max-width: 700px; margin: 12px 0 0; color: var(--muted); font-size: 17px; }
+    h3 { margin: 0 0 10px; font-size: 18px; line-height: 1.25; letter-spacing: -.02em; }
+    .map { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--line); }
+    .map-item { min-height: 150px; padding: 16px; background: var(--surface); }
+    .map-item b { display: block; margin-bottom: 30px; color: var(--brand); font: 800 12px/1 var(--mono); }
+    .map-item span { display: block; font-weight: 800; }
+    .map-item small { display: block; margin-top: 6px; color: var(--muted); line-height: 1.35; }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    .card { padding: 22px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+    .card p:last-child { margin-bottom: 0; }
+    .card-kicker { margin: 0 0 18px; color: var(--brand-strong); font: 800 11px/1 var(--mono); text-transform: uppercase; letter-spacing: .1em; }
+    .step-list { display: grid; gap: 12px; }
+    .step { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 12px; padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+    .step input { width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--brand); cursor: pointer; }
+    .step label { cursor: pointer; }
+    .step:has(input:checked) { border-color: var(--brand); background: var(--brand-soft); }
+    .step:has(input:checked) label { text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--ink) 45%, transparent); }
+    .step strong { display: block; margin-bottom: 5px; }
+    .step small { display: block; color: var(--muted); line-height: 1.5; }
+    .code-wrap { position: relative; margin: 14px 0; }
+    pre { margin: 0; overflow: auto; border-radius: 14px; padding: 20px 18px; background: var(--code); color: var(--code-ink); font: 12.5px/1.65 var(--mono); }
+    code { font-family: var(--mono); }
+    p code, li code, td code { padding: 2px 5px; border-radius: 5px; background: var(--surface-2); color: var(--ink); font-size: .9em; overflow-wrap: anywhere; word-break: break-word; }
+    .copy-button { position: absolute; top: 9px; right: 9px; min-height: 32px; border-color: rgb(255 255 255 / 20%); background: #213a31; color: #fff; font-size: 11px; }
+    .security-table, .trouble-table { width: 100%; border-collapse: collapse; border: 1px solid var(--line); background: var(--surface); }
+    th, td { padding: 13px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { color: var(--muted); background: var(--surface-2); font: 800 11px/1.3 var(--mono); text-transform: uppercase; letter-spacing: .06em; }
+    td { font-size: 13px; }
+    .ok { color: var(--brand-strong); font-weight: 800; }
+    .no { color: var(--danger); font-weight: 800; }
+    .callout { margin: 18px 0; padding: 18px; border: 1px solid var(--brand); border-radius: 14px; background: var(--brand-soft); }
+    .callout p { margin: 0; }
+    .path { display: inline-block; word-break: break-all; }
+    .source-list { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+    .source-list li { display: grid; grid-template-columns: 170px 1fr; gap: 20px; padding: 15px 0; border-bottom: 1px solid var(--line); }
+    .source-list span { color: var(--muted); font: 700 11px/1.4 var(--mono); text-transform: uppercase; }
+    .reset-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--line); }
+    .empty-state { display: none; margin: 42px 0; padding: 30px; text-align: center; border: 1px dashed var(--line); border-radius: var(--radius); color: var(--muted); }
+    footer { margin-top: 70px; padding-top: 24px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+    [hidden] { display: none !important; }
+    @media (max-width: 980px) {
+      .shell { grid-template-columns: 1fr; width: min(880px, calc(100% - 28px)); }
+      .sidebar { position: static; height: auto; padding: 22px 0 0; }
+      .sidebar nav { display: none; }
+      main { padding-top: 0; }
+      .map { grid-template-columns: repeat(2, 1fr); }
+      .map-item:last-child { grid-column: 1 / -1; }
+    }
+    @media (max-width: 640px) {
+      .topbar { padding-inline: 14px; }
+      .brand span:last-child { display: none; }
+      .icon-button .wide-label { display: none; }
+      h1 { font-size: clamp(42px, 13vw, 56px); letter-spacing: -.055em; }
+      .hero { padding-top: 38px; }
+      .grid-2, .map { grid-template-columns: 1fr; }
+      .map-item:last-child { grid-column: auto; }
+      .section-head { grid-template-columns: 52px 1fr; }
+      .section-number { font-size: 26px; }
+      .security-table, .trouble-table { display: block; overflow-x: auto; white-space: nowrap; }
+      .source-list li { grid-template-columns: 1fr; gap: 4px; }
+      .reset-row { align-items: flex-start; flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+    }
+    @media print {
+      :root { --paper: #fff; --surface: #fff; --surface-2: #f4f4f1; --ink: #111; --muted: #444; --line: #ccc; --brand: #075f44; --brand-strong: #075f44; --brand-soft: #eef7f3; }
+      .topbar, .sidebar nav, .toolbar, .copy-button, .reset-row { display: none !important; }
+      .shell { display: block; width: 100%; }
+      .sidebar { height: auto; padding: 0 0 20px; }
+      main { padding: 0; }
+      .hero { padding-top: 12px; }
+      .section { break-inside: avoid; padding-top: 34px; }
+      .card, .step, pre { break-inside: avoid; box-shadow: none; }
+      a { color: inherit; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#noi-dung">Bỏ qua điều hướng</a>
+  <header class="topbar">
+    <a class="brand" href="#top" aria-label="Về đầu trang"><span class="brand-mark">EM</span><span>Edumatrix · Sổ tay tích hợp</span></a>
+    <div class="top-actions">
+      <button class="icon-button" id="themeToggle" type="button" aria-label="Đổi giao diện sáng tối">◐ <span class="wide-label">Giao diện</span></button>
+      <button class="icon-button" id="printButton" type="button">⌁ <span class="wide-label">In / PDF</span></button>
+    </div>
+  </header>
+
+  <div class="shell" id="top">
+    <aside class="sidebar" aria-label="Tiến độ và mục lục">
+      <div class="progress-card">
+        <p class="eyebrow">Tiến độ cài đặt</p>
+        <div class="progress-row"><span id="progressLabel">0 / 32 bước</span><span id="progressPercent">0%</span></div>
+        <div class="progress-track" role="progressbar" aria-label="Tiến độ" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="progress-bar" id="progressBar"></div></div>
+      </div>
+      <nav>
+        <a href="#tong-quan">00 · Tổng quan</a>
+        <a href="#nen-tang">01 · Chuẩn bị dự án</a>
+        <a href="#firebase">02 · Firebase</a>
+        <a href="#worker">03 · Cloudflare Worker</a>
+        <a href="#meta">04 · Meta Messenger</a>
+        <a href="#drive">05 · Google Drive</a>
+        <a href="#vietqr">06 · VietQR</a>
+        <a href="#admin">07 · Cấu hình Admin</a>
+        <a href="#xu-ly-loi">08 · Xử lý lỗi</a>
+        <a href="#go-live">09 · Go-live</a>
+        <a href="#nguon">Nguồn chính thức</a>
+      </nav>
+    </aside>
+
+    <main id="noi-dung">
+      <section class="hero" id="tong-quan" data-platform="all">
+        <p class="eyebrow">Bản hướng dẫn theo mã nguồn · 19.07.2026</p>
+        <h1>Cài một lần.<br>Kiểm tra từng lớp.</h1>
+        <p class="hero-lead">Từ máy phát triển đến production: Firebase giữ dữ liệu, Worker giữ bí mật, Meta nhận webhook, Google Drive lưu giáo án và VietQR tạo mã thanh toán.</p>
+        <div class="hero-meta"><span class="tag">WINDOWS + POWERSHELL</span><span class="tag">SPARK PLAN</span><span class="tag">CLIENT-SIDE APP</span><span class="tag">32 CHECKPOINTS</span></div>
+        <div class="notice"><strong>Lưu ý về tài liệu cũ.</strong> Hướng dẫn này lấy mã nguồn hiện tại làm chuẩn. Các đoạn trong <code>HUONG-DAN-KET-NOI-FACEBOOK-DRIVE-WEBHOOK.md</code> nói Google Drive “chưa triển khai” hoặc dùng tên biến cũ không còn đúng.</div>
+      </section>
+
+      <div class="toolbar" aria-label="Bộ lọc tài liệu">
+        <input class="search" id="guideSearch" type="search" placeholder="Tìm: secret, webhook, Drive, 403, deploy..." aria-label="Tìm trong hướng dẫn">
+        <div class="filters" id="filters">
+          <button class="filter-button" type="button" data-filter="all" aria-pressed="true">Tất cả</button>
+          <button class="filter-button" type="button" data-filter="firebase" aria-pressed="false">Firebase</button>
+          <button class="filter-button" type="button" data-filter="worker" aria-pressed="false">Worker</button>
+          <button class="filter-button" type="button" data-filter="meta" aria-pressed="false">Meta</button>
+          <button class="filter-button" type="button" data-filter="drive" aria-pressed="false">Drive</button>
+          <button class="filter-button" type="button" data-filter="vietqr" aria-pressed="false">VietQR</button>
+        </div>
+      </div>
+      <div class="empty-state" id="emptyState">Không tìm thấy nội dung phù hợp. Hãy thử từ khóa ngắn hơn hoặc chọn “Tất cả”.</div>
+
+      <section class="section guide-section" data-platform="all" id="ban-do">
+        <div class="section-head"><span class="section-number">5L</span><div><h2>Bản đồ năm lớp kết nối</h2><p class="section-intro">Mỗi lớp chỉ chịu một trách nhiệm. Nếu lỗi, kiểm tra từ trái sang phải để không trộn lỗi giao diện với lỗi hạ tầng.</p></div></div>
+        <div class="map">
+          <div class="map-item"><b>01</b><span>Firebase</span><small>Đăng nhập, Firestore, Hosting, App Check.</small></div>
+          <div class="map-item"><b>02</b><span>Worker</span><small>Xác thực ID token, giữ secret, gọi Graph API.</small></div>
+          <div class="map-item"><b>03</b><span>Meta</span><small>Messenger, bài đăng, webhook và liên kết phụ huynh.</small></div>
+          <div class="map-item"><b>04</b><span>Drive</span><small>Chọn, tải lên và gọi lại giáo án.</small></div>
+          <div class="map-item"><b>05</b><span>VietQR</span><small>Danh sách ngân hàng và ảnh QR chuyển khoản.</small></div>
+        </div>
+      </section>
+
+      <section class="section guide-section" data-platform="all" id="nen-tang">
+        <div class="section-head"><span class="section-number">01</span><div><h2>Chuẩn bị dự án</h2><p class="section-intro">Hoàn thành lớp nền trước khi cấu hình bất kỳ nền tảng bên ngoài nào.</p></div></div>
+        <div class="grid-2">
+          <div class="card"><p class="card-kicker">Cần có</p><h3>Tài khoản và công cụ</h3><p>Node.js/npm, Firebase CLI, tài khoản Cloudflare, Google Cloud, Meta Developer và quyền Admin của Edumatrix.</p></div>
+          <div class="card"><p class="card-kicker">Thứ tự khuyên dùng</p><h3>Local → Worker → nền tảng</h3><p>Chạy ứng dụng local, dựng Worker, kết nối Meta và Drive, rồi mới triển khai Hosting production.</p></div>
+        </div>
+        <div class="code-wrap"><button class="copy-button" type="button">Sao chép</button><pre><code>Copy-Item .env.example .env.local
+npm install
+npm run lint
+npm run typecheck
+npm test
+npm run test:rules
+npm run build</code></pre></div>
+        <div class="step-list">
+          <div class="step"><input type="checkbox" id="s01" data-step><label for="s01"><strong>Tạo <code>.env.local</code> từ mẫu</strong><small>Chỉ điền biến <code>VITE_*</code> được ứng dụng dùng. Không commit file này.</small></label></div>
+          <div class="step"><input type="checkbox" id="s02" data-step><label for="s02"><strong>Cài dependency và chạy kiểm tra nền</strong><small>Lint, typecheck, unit test, security rules test và build phải qua trước khi cấu hình API.</small></label></div>
+          <div class="step"><input type="checkbox" id="s03" data-step><label for="s03"><strong>Chạy giao diện local</strong><small>Dùng <code>npm run dev</code>, mở URL Vite hiển thị trong terminal và đăng nhập bằng tài khoản phù hợp.</small></label></div>
+        </div>
+      </section>
+
+      <section class="section guide-section" data-platform="firebase" id="firebase">
+        <div class="section-head"><span class="section-number">02</span><div><h2>Firebase</h2><p class="section-intro">Project hiện tại là <code>edumatrix-vn-576b1</code>. Firebase cung cấp Auth, Firestore, Hosting và App Check.</p></div></div>
+        <div class="card">
+          <p class="card-kicker">Biến public phía trình duyệt</p>
+          <div class="code-wrap"><button class="copy-button" type="button">Sao chép</button><pre><code>VITE_FIREBASE_API_KEY=&lt;firebase-web-api-key&gt;
+VITE_FIREBASE_AUTH_DOMAIN=edumatrix-vn-576b1.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=edumatrix-vn-576b1
+VITE_FIREBASE_STORAGE_BUCKET=&lt;firebase-storage-bucket&gt;
+VITE_FIREBASE_MESSAGING_SENDER_ID=&lt;sender-id&gt;
+VITE_FIREBASE_APP_ID=&lt;firebase-web-app-id&gt;
+VITE_FIREBASE_MEASUREMENT_ID=&lt;measurement-id-neu-co&gt;
+VITE_APPCHECK_SITE_KEY=&lt;recaptcha-v3-site-key&gt;</code></pre></div>
+          <p>Firebase web config không phải khóa quản trị. Bảo vệ dữ liệu bằng Firestore Rules, phân quyền người dùng và App Check, không bằng cách giấu các biến <code>VITE_FIREBASE_*</code>.</p>
+        </div>
+        <div class="code-wrap"><button class="copy-button" type="button">Sao chép</button><pre><code>npx firebase login
+npx firebase use edumatrix-vn-576b1
+npm run test:rules
+npm run build
+npx firebase deploy --only firestore:rules,firestore:indexes,hosting</code></pre></div>
+        <div class="step-list">
+          <div class="step"><input type="checkbox" id="s04" data-step><label for="s04"><strong>Tạo Web App trong Firebase Console</strong><small>Sao chép web config vào <code>.env.local</code>; bật phương thức đăng nhập mà dự án sử dụng.</small></label></div>
+          <div class="step"><input type="checkbox" id="s05" data-step><label for="s05"><strong>Kiểm tra Firestore Rules bằng emulator</strong><small>Có thể dùng <code>npm run emulators</code>. Emulator ports: Auth 9099, Firestore 8090, Hosting 5000.</small></label></div>
+          <div class="step"><input type="checkbox" id="s06" data-step><label for="s06"><strong>Đăng ký App Check cho Web</strong><small>Mã nguồn hiện dùng reCAPTCHA v3. Theo dõi metrics trước, sau đó mới bật enforcement có kiểm soát.</small></label></div>
+          <div class="step"><input type="checkbox" id="s07" data-step><label for="s07"><strong>Xóa debug token ở production</strong><small><code>VITE_APPCHECK_DEBUG_TOKEN</code> chỉ dành cho local. Không đưa token debug vào build production.</small></label></div>
+          <div class="step"><input type="checkbox" id="s08" data-step><label for="s08"><strong>Deploy Rules, Indexes và Hosting</strong><small>Build output nằm trong <code>dist</code>. Sau deploy, đăng nhập và mở một màn hình đọc Firestore để smoke test.</small></label></div>
+        </div>
+      </section>
+
+      <section class="section guide-section" data-platform="worker" id="worker">
+        <div class="section-head"><span class="section-number">03</span><div><h2>Cloudflare Worker</h2><p class="section-intro">Worker là ranh giới bảo mật: nhận Firebase ID token từ frontend, xác minh quyền rồi mới dùng secret để gọi Meta.</p></div></div>
+        <div class="callout"><p><strong>Không đặt secret trong <code>wrangler.jsonc</code>.</strong> Local dùng <code>.dev.vars</code>; production dùng Wrangler Secrets. Môi trường <code>--env production</code> là Worker riêng, thường có tên <code>edumatrix-messenger-production</code>.</p></div>
+        <div class="code-wrap"><button class="copy-button" type="button">Sao chép</button><pre><code>Set-Location workers/messenger
+npm install
+Copy-Item .dev.vars.example .dev.vars
+npm run dev
+npm test
+npm run build:prod</code></pre></div>
+        <div class="card">
+          <p class="card-kicker">workers/messenger/.dev.vars</p>
+          <div class="code-wrap"><button class="copy-button" type="button">Sao chép</button><pre><code>META_PAGE_ACCESS_TOKEN=&lt;page-access-token&gt;
+META_APP_SECRET=&lt;meta-app-secret&gt;
+META_WEBHOOK_VERIFY_TOKEN=&lt;tu-tao-mot-chuoi-ngau-nhien&gt;
+FIREBASE_CLIENT_EMAIL=&lt;service-account-client-email&gt;
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"</code></pre></div>
+          <p>Giữ nguyên ký tự <code>\n</code> trong private key. File này đã phải nằm trong <code>.gitignore</code> và tuyệt đối không commit.</p>
+        </div>
+        <div class="code-wrap"><button class="copy-button" type="button">Sao chép</button><pre><code>npx wrangler login
+npx wrangler secret put META_PAGE_ACCESS_TOKEN --env production
+npx wrangler secret put META_APP_SECRET --env production
+npx wrangler secret put META_WEBHOOK_VERIFY_TOKEN --env production
+npx wrangler secret put FIREBASE_CLIENT_EMAIL --env production
+npx wrangler secret put FIREBASE_PRIVATE_KEY --env production
+npm run deploy:prod</code></pre></div>
+        <p>Mỗi lệnh <code>wrangler secret put</code> có thể tạo và triển khai một version mới. Hãy chuẩn bị đủ giá trị, thêm secret theo một phiên cấu hình và chạy <code>npm run deploy:prod</code> cuối cùng.</p>
+        <div class="step-list">
+          <div class="step"><input type="checkbox" id="s09" data-step><label for="s09"><strong>Kiểm tra biến không bí mật trong <code>wrangler.jsonc</code></strong><small><code>FIREBASE_PROJECT_ID</code>, <code>META_GRAPH_VERSION</code> và <code>ALLOWED_ORIGIN</code> phải đúng theo từng môi trường.</small></label></div>
+          <div class="step"><input type="checkbox" id="s10" data-step><label for="s10"><strong>Tạo <code>.dev.vars</code> và chạy Worker local</strong><small>Không dùng secret production trong repo. Chạy test và gọi <code>GET /health</code>.</small></label></div>
+          <div class="step"><input type="checkbox" id="s11" data-step><label for="s11"><strong>Đặt đủ 5 production secrets</strong><small>Dùng đúng hậu tố <code>--env production</code>; nếu thiếu, deployment check sẽ thất bại.</small></label></div>
+          <div class="step"><input type="checkbox" id="s12" data-step><label for="s12"><strong>Deploy production Worker</strong><small>Chạy <code>npm run build:prod</code>, <code>npm run deploy:prod</code>, ghi lại URL <code>workers.dev</code>.</small></label></div>
+          <div class="step"><input type="checkbox" id="s13" data-step><label for="s13"><strong>Smoke test health endpoint</strong><small>Dùng <code>curl.exe https://&lt;worker-url&gt;/health</code>. Phải nhận phản hồi thành công trước khi nối Meta.</small></label></div>
+          <div class="step"><input type="checkbox" id="s14" data-step><label for="s14"><strong>Đưa Worker URL vào frontend</strong><small>Đặt <code>VITE_MESSENGER_WORKER_URL=https://&lt;worker-url&gt;</code>, build lại frontend và xác minh CORS origin.</small></label></div>
+        </div>
+      </section>
+
+      <section class="section guide-section" data-platform="meta" id="meta">
+        <div class="section-head"><span class="section-number">04</span><div><h2>Meta Messenger</h2><p class="section-intro">Meta App kết nối với Facebook Page; webhook gọi vào Worker, còn frontend không bao giờ nhìn thấy Page Access Token.</p></div></div>
+        <div class="grid-2">
+          <div class="card"><p class="card-kicker">Worker endpoints</p><p><code>POST /api/messenger/send</code><br><code>POST /api/messenger/post</code><br><code>POST /api/messenger/referral</code><br><code>GET/POST /webhook</code></p></div>
+          <div class="card"><p class="card-kicker">Webhook fields</p><p><code>messages</code><br><code>messaging_postbacks</code><br><code>messaging_referrals</code></p></div>
+        </div>
+        <div class="card" style="margin-top:14px">
+          <h3>Luồng liên kết phụ huynh an toàn</h3>
+          <p>Nhân viên tạo referral bằng <code>{ parentUid, studentId }</code>. Worker xác minh vai trò và phạm vi học sinh, sinh nonce 128-bit dùng một lần, hết hạn sau 24 giờ. Link gửi cho phụ huynh có dạng:</p>
+          <div class="code-wrap"><button class="copy-button" type="button">Sao chép</button><pre><code>https://m.me/&lt;PAGE_USERNAME&gt;?ref=&lt;one-time-nonce&gt;</code></pre></div>
+          <p>Không tự ghép <code>parentUid</code> vào URL. Khi webhook nhận referral, Worker claim nonce theo giao dịch atomic và không ghi đè PSID đã có.</p>
+        </div>
+        <div class="step-list" style="margin-top:14px">
+          <div class="step"><input type="checkbox" id="s15" data-step><label for="s15"><strong>Tạo Meta App và thêm Messenger</strong><small>Kết nối đúng Facebook Page, tạo Page Access Token và giữ token trong Worker secret.</small></label></div>
+          <div class="step"><input type="checkbox" id="s16" data-step><label for="s16"><strong>Đăng ký webhook callback</strong><small>Callback: <code>https://&lt;worker-url&gt;/webhook</code>. Verify token phải trùng <code>META_WEBHOOK_VERIFY_TOKEN</code>.</small></label></div>
+          <div class="step"><input type="checkbox" id="s17" data-step><label for="s17"><strong>Đăng ký các webhook fields</strong><small>Chọn messages, messaging_postbacks, messaging_referrals cho Page.</small></label></div>
+          <div class="step"><input type="checkbox" id="s18" data-step><label for="s18"><strong>Rà soát quyền và App Review</strong><small>Messenger cần <code>pages_messaging</code>; đăng bài thường cần <code>pages_manage_posts</code> và <code>pages_read_engagement</code>; webhook có thể cần <code>pages_manage_metadata</code>. Đối chiếu dashboard Meta hiện tại.</small></label></div>
+          <div class="step"><input type="checkbox" id="s19" data-step><label for="s19"><strong>Điền định danh Meta trong frontend và Admin</strong><small><code>VITE_MESSENGER_PAGE_USERNAME</code> là username Page; Admin lưu Facebook Page ID, không lưu token.</small></label></div>
+          <div class="step"><input type="checkbox" id="s20" data-step><label for="s20"><strong>Smoke test ba luồng</strong><small>Gửi tin nhắn test, tạo bài đăng test và tạo link referral từ màn hình Chat. Xem log Worker nếu lỗi.</small></label></div>
+        </div>
+      </section>
+
+      <section class="section guide-section" data-platform="drive" id="drive">
+        <div class="section-head"><span class="section-number">05</span><div><h2>Google Drive & Picker</h2><p class="section-intro">Giáo án có thể được chọn, tải lên và gọi lại trong ứng dụng. Triển khai hiện tại dùng Google Identity Services token model và scope <code>drive.file</code>.</p></div></div>
+        <div class="callout"><p><strong>Mô hình hiện tại không cần client secret hay refresh token.</strong> Access token được giữ trong bộ nhớ, có thời hạn ngắn; khi hết hạn, người dùng bấm kết nối lại. Upload multipart đang giới hạn 5 MB.</p></div>
+        <div class="step-list">
+          <div class="step"><input type="checkbox" id="s21" data-step><label for="s21"><strong>Tạo hoặc chọn Google Cloud Project</strong><small>Ghi lại <strong>Project Number</strong>, không nhầm với Project ID. Project Number dùng cho Picker App ID.</small></label></div>
+          <div class="step"><input type="checkbox" id="s22" data-step><label for="s22"><strong>Bật Google Drive API và Google Picker API</strong><small>Hai API phải cùng nằm trong project dùng để tạo OAuth Client và API key.</small></label></div>
+          <div class="step"><input type="checkbox" id="s23" data-step><label for="s23"><strong>Cấu hình OAuth consent screen</strong><small>Khai báo tên ứng dụng, email hỗ trợ, đối tượng người dùng và test users nếu ứng dụng còn ở chế độ Testing.</small></label></div>
+          <div class="step"><input type="checkbox" id="s24" data-step><label for="s24"><strong>Tạo OAuth Client ID loại Web application</strong><small>Authorized JavaScript origins phải đúng origin, không có path: ví dụ <code>http://localhost:5173</code> và domain Hosting production.</small></label></div>
+          <div class="step"><input type="checkbox" id="s25" data-step><label for="s25"><strong>Tạo và giới hạn API key cho Picker</strong><small>Giới hạn theo HTTP referrers của localhost/production và chỉ cho API cần thiết. Không dùng khóa không giới hạn.</small></label></div>
+          <div class="step"><input type="checkbox" id="s26" data-step><label for="s26"><strong>Điền đúng ba biến frontend</strong><small>Client ID, Picker API key và Project Number. Build lại sau khi đổi <code>.env.local</code>.</small></label></div>
+        </div>
+        <div class="code-wrap"><button class="copy-button" type="button">Sao chép</button><pre><code>VITE_GOOGLE_CLIENT_ID=&lt;oauth-client-id&gt;.apps.googleusercontent.com
+VITE_GOOGLE_PICKER_API_KEY=&lt;restricted-api-key&gt;
+VITE_GOOGLE_PICKER_APP_ID=&lt;google-cloud-project-number&gt;</code></pre></div>
+        <div class="step-list">
+          <div class="step"><input type="checkbox" id="s27" data-step><label for="s27"><strong>Tạo thư mục giáo án và lấy Folder ID</strong><small>Mở thư mục Drive; ID là đoạn sau <code>/folders/</code> trong URL. Chia sẻ thư mục cho tài khoản Google sẽ vận hành ứng dụng.</small></label></div>
+          <div class="step"><input type="checkbox" id="s28" data-step><label for="s28"><strong>Lưu Folder ID trong Admin</strong><small>Mở <code>/app/settings?section=integrations</code>, điền Google Drive Folder ID và lưu.</small></label></div>
+          <div class="step"><input type="checkbox" id="s29" data-step><label for="s29"><strong>Smoke test giáo án</strong><small>Trong màn hình giáo án: Kết nối Drive → Chọn tệp → Tải lên tệp dưới 5 MB → Làm mới → Mở lại tệp → Ngắt kết nối.</small></label></div>
+        </div>
+      </section>
+
+      <section class="section guide-section" data-platform="vietqr" id="vietqr">
+        <div class="section-head"><span class="section-number">06</span><div><h2>VietQR</h2><p class="section-intro">Tích hợp hiện tại dùng API danh sách ngân hàng và Quick Link ảnh QR. Không cần API key, nhưng không tự xác nhận tiền đã vào tài khoản.</p></div></div>
+        <div class="grid-2">
+          <div class="card"><p class="card-kicker">Danh sách ngân hàng</p><h3><code>api.vietqr.io/v2/banks</code></h3><p>Timeout 12 giây; ứng dụng chỉ giữ ngân hàng hỗ trợ chuyển khoản và BIN 6 chữ số.</p></div>
+          <div class="card"><p class="card-kicker">Ảnh thanh toán</p><h3><code>img.vietqr.io</code></h3><p>Quick Link chứa BIN, số tài khoản, số tiền, nội dung và tên tài khoản. QR cần đối soát thủ công.</p></div>
+        </div>
+        <div class="step-list" style="margin-top:14px">
+          <div class="step"><input type="checkbox" id="s30" data-step><label for="s30"><strong>Mở cấu hình Thanh toán và QR</strong><small>Đi tới <code>/app/settings?section=payment</code>, chọn ngân hàng và điền số tài khoản 6–19 ký tự chữ/số.</small></label></div>
+          <div class="step"><input type="checkbox" id="s31" data-step><label for="s31"><strong>Kiểm tra tên, nội dung và template</strong><small>Tên tài khoản tối thiểu 5 ký tự; nội dung hỗ trợ <code>{invoiceCode}</code> và <code>{studentCode}</code>; mặc định <code>compact2</code>.</small></label></div>
+          <div class="step"><input type="checkbox" id="s32" data-step><label for="s32"><strong>Lưu và quét thử QR</strong><small>Kiểm tra preview, quét bằng ứng dụng ngân hàng, đối chiếu đúng ngân hàng, tài khoản, số tiền và nội dung. Không chuyển tiền thật nếu chỉ đang test.</small></label></div>
+        </div>
+      </section>
+
+      <section class="section guide-section" data-platform="all" id="admin">
+        <div class="section-head"><span class="section-number">07</span><div><h2>Bản đồ cấu hình Admin</h2><p class="section-intro">Admin chỉ lưu định danh và cấu hình công khai. Secret nằm ngoài Firestore và ngoài bundle frontend.</p></div></div>
+        <table class="security-table">
+          <thead><tr><th>Giá trị</th><th>Nơi lưu đúng</th><th>Frontend thấy?</th></tr></thead>
+          <tbody>
+            <tr><td>Facebook Page ID, Drive Folder ID, Webhook URL</td><td>Firestore <code>settings/integrations</code></td><td class="ok">Có, theo quyền</td></tr>
+            <tr><td>Thông tin ngân hàng và mẫu VietQR</td><td>Firestore <code>settings/payment</code></td><td class="ok">Có, theo quyền</td></tr>
+            <tr><td><code>VITE_FIREBASE_*</code>, Google Client ID, Picker API key</td><td><code>.env.local</code> / biến build hosting</td><td class="ok">Có</td></tr>
+            <tr><td>Meta token, Meta app secret, webhook verify token</td><td>Cloudflare Worker Secrets</td><td class="no">Không</td></tr>
+            <tr><td>Firebase service account email và private key</td><td>Cloudflare Worker Secrets</td><td class="no">Không</td></tr>
+            <tr><td>Google client secret, refresh token</td><td>Không dùng trong kiến trúc hiện tại</td><td class="no">Không được thêm</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><p><strong>Hai trang cần nhớ:</strong> Kết nối và API tại <code>/app/settings?section=integrations</code>; Thanh toán và QR tại <code>/app/settings?section=payment</code>. Chỉ tài khoản Admin được thay đổi cấu hình hệ thống.</p></div>
+      </section>
+
+      <section class="section guide-section" data-platform="all" id="xu-ly-loi">
+        <div class="section-head"><span class="section-number">08</span><div><h2>Xử lý lỗi theo triệu chứng</h2><p class="section-intro">Không đổi nhiều cấu hình cùng lúc. Dùng Network, Worker logs và console của từng nền tảng để xác định lớp lỗi.</p></div></div>
+        <table class="trouble-table">
+          <thead><tr><th>Triệu chứng</th><th>Kiểm tra đầu tiên</th><th>Cách xử lý</th></tr></thead>
+          <tbody>
+            <tr><td>Frontend báo CORS khi gọi Worker</td><td><code>ALLOWED_ORIGIN</code></td><td>Đặt đúng origin, gồm scheme và port, không có path; deploy lại đúng environment.</td></tr>
+            <tr><td>Worker trả 401</td><td>Firebase ID token</td><td>Đăng nhập lại, kiểm tra project ID và service-account secret.</td></tr>
+            <tr><td>Worker trả 403</td><td>Vai trò/phạm vi dữ liệu</td><td>Kiểm tra custom claims, staff scope và quan hệ parent–student; không nới rule tạm thời.</td></tr>
+            <tr><td>Meta verify webhook thất bại</td><td>Callback + verify token</td><td>URL phải là HTTPS <code>/webhook</code>; token trong Meta phải trùng Worker secret.</td></tr>
+            <tr><td>Meta gửi tin/bài thất bại</td><td>Token, quyền, App mode</td><td>Tạo lại Page token nếu hết hạn; kiểm tra Page, quyền và App Review.</td></tr>
+            <tr><td>Google OAuth báo origin mismatch</td><td>Authorized JavaScript origins</td><td>Thêm đúng origin hiện tại, không thêm route hoặc dấu gạch chéo dư.</td></tr>
+            <tr><td>Picker mở nhưng không tải/chọn tệp</td><td>Drive API, Picker API, scope</td><td>Kiểm tra cùng Cloud Project, Project Number, API key restrictions và quyền thư mục.</td></tr>
+            <tr><td>Drive upload bị chặn</td><td>Dung lượng tệp</td><td>Bản hiện tại chỉ hỗ trợ multipart upload tối đa 5 MB.</td></tr>
+            <tr><td>Danh sách VietQR không tải</td><td>Network tới api.vietqr.io</td><td>Ứng dụng vẫn dùng ngân hàng đã lưu; thử lại sau và không xóa cấu hình đang hoạt động.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="section guide-section" data-platform="all" id="go-live">
+        <div class="section-head"><span class="section-number">09</span><div><h2>Checklist go-live cuối</h2><p class="section-intro">Hoàn tất 32 checkpoint ở các phần trên, sau đó rà nhanh các điều kiện không thể tự động xác nhận.</p></div></div>
+        <div class="grid-2">
+          <div class="card"><p class="card-kicker">Bảo mật</p><h3>Không có secret trong client</h3><p>Tìm toàn repo trước khi phát hành. Không commit <code>.env.local</code>, <code>.dev.vars</code>, private key, access token hoặc debug token.</p></div>
+          <div class="card"><p class="card-kicker">Khả năng quay lui</p><h3>Ghi lại version đang chạy</h3><p>Lưu Firebase release, Worker deployment/version và thời điểm đổi cấu hình nền tảng để có thể rollback có mục tiêu.</p></div>
+          <div class="card"><p class="card-kicker">Smoke test</p><h3>Kiểm tra bằng từng vai trò</h3><p>Admin cấu hình; Staff gửi tin, tạo referral và quản lý giáo án; tài khoản ngoài phạm vi phải bị từ chối.</p></div>
+          <div class="card"><p class="card-kicker">Vận hành</p><h3>Log và đối soát</h3><p>Theo dõi Worker logs, App Check metrics, webhook delivery và đối soát VietQR thủ công sau khi mở production.</p></div>
+        </div>
+        <div class="reset-row"><span>Tiến độ được lưu riêng trong trình duyệt này bằng localStorage.</span><button class="reset-button" id="resetChecklist" type="button">Đặt lại checklist</button></div>
+      </section>
+
+      <section class="section guide-section" data-platform="all" id="nguon">
+        <div class="section-head"><span class="section-number">↗</span><div><h2>Nguồn đối chiếu</h2><p class="section-intro">Ưu tiên mã nguồn dự án cho tên biến và luồng hiện tại; dùng tài liệu chính thức cho hành vi nền tảng.</p></div></div>
+        <ul class="source-list">
+          <li><span>Cloudflare</span><a href="https://developers.cloudflare.com/workers/configuration/secrets/" target="_blank" rel="noreferrer">Workers Secrets</a></li>
+          <li><span>Cloudflare</span><a href="https://developers.cloudflare.com/workers/wrangler/environments/" target="_blank" rel="noreferrer">Wrangler Environments</a></li>
+          <li><span>Firebase</span><a href="https://firebase.google.com/docs/app-check" target="_blank" rel="noreferrer">Firebase App Check</a></li>
+          <li><span>Google Identity</span><a href="https://developers.google.com/identity/oauth2/web/guides/use-token-model" target="_blank" rel="noreferrer">OAuth 2.0 token model for Web</a></li>
+          <li><span>Google Drive</span><a href="https://developers.google.com/workspace/drive/api/guides/api-specific-auth" target="_blank" rel="noreferrer">Choose Drive API scopes</a></li>
+          <li><span>Google Picker</span><a href="https://developers.google.com/workspace/drive/picker/guides/overview" target="_blank" rel="noreferrer">Google Picker overview</a></li>
+          <li><span>Meta</span><a href="https://developers.facebook.com/docs/messenger-platform/" target="_blank" rel="noreferrer">Messenger Platform</a></li>
+          <li><span>Meta</span><a href="https://developers.facebook.com/docs/graph-api/webhooks/" target="_blank" rel="noreferrer">Graph API Webhooks</a></li>
+          <li><span>VietQR</span><a href="https://www.vietqr.io/danh-sach-api/link-tao-ma-nhanh/" target="_blank" rel="noreferrer">VietQR Quick Link</a></li>
+        </ul>
+        <footer>Nguồn nội bộ đã đối chiếu: <code>.env.example</code>, <code>firebase.json</code>, <code>.firebaserc</code>, <code>workers/messenger/wrangler.jsonc</code>, Worker source/tests, Firebase Rules và các adapter tích hợp trong <code>src/services/integrations</code>.</footer>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.documentElement;
+      const themeButton = document.getElementById('themeToggle');
+      const printButton = document.getElementById('printButton');
+      const searchInput = document.getElementById('guideSearch');
+      const filterButtons = [...document.querySelectorAll('[data-filter]')];
+      const sections = [...document.querySelectorAll('.guide-section')];
+      const emptyState = document.getElementById('emptyState');
+      const checkboxes = [...document.querySelectorAll('[data-step]')];
+      const progressBar = document.getElementById('progressBar');
+      const progressLabel = document.getElementById('progressLabel');
+      const progressPercent = document.getElementById('progressPercent');
+      const progressTrack = document.querySelector('[role="progressbar"]');
+      const storageKey = 'edumatrix-integration-guide-v1';
+      const themeKey = 'edumatrix-guide-theme';
+      let activeFilter = 'all';
+
+      const preferredTheme = localStorage.getItem(themeKey) || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      root.dataset.theme = preferredTheme;
+      themeButton.addEventListener('click', () => {
+        root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+        localStorage.setItem(themeKey, root.dataset.theme);
+      });
+      printButton.addEventListener('click', () => window.print());
+
+      const saved = JSON.parse(localStorage.getItem(storageKey) || '{}');
+      checkboxes.forEach((box) => {
+        box.checked = Boolean(saved[box.id]);
+        box.addEventListener('change', () => {
+          saved[box.id] = box.checked;
+          localStorage.setItem(storageKey, JSON.stringify(saved));
+          updateProgress();
+        });
+      });
+
+      function updateProgress() {
+        const completed = checkboxes.filter((box) => box.checked).length;
+        const percent = Math.round((completed / checkboxes.length) * 100);
+        progressLabel.textContent = `${completed} / ${checkboxes.length} bước`;
+        progressPercent.textContent = `${percent}%`;
+        progressBar.style.width = `${percent}%`;
+        progressTrack.setAttribute('aria-valuenow', String(percent));
+      }
+
+      function applyFilters() {
+        const query = searchInput.value.trim().toLocaleLowerCase('vi');
+        let visibleCount = 0;
+        sections.forEach((section) => {
+          const platform = section.dataset.platform || 'all';
+          const platformMatch = activeFilter === 'all' || platform === activeFilter || platform === 'all';
+          const textMatch = !query || section.textContent.toLocaleLowerCase('vi').includes(query);
+          const visible = platformMatch && textMatch;
+          section.hidden = !visible;
+          if (visible) visibleCount += 1;
+        });
+        emptyState.style.display = visibleCount ? 'none' : 'block';
+      }
+
+      filterButtons.forEach((button) => button.addEventListener('click', () => {
+        activeFilter = button.dataset.filter;
+        filterButtons.forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+        applyFilters();
+      }));
+      searchInput.addEventListener('input', applyFilters);
+
+      document.querySelectorAll('.copy-button').forEach((button) => button.addEventListener('click', async () => {
+        const text = button.nextElementSibling.innerText;
+        try {
+          await navigator.clipboard.writeText(text);
+          button.textContent = 'Đã chép';
+        } catch {
+          const selection = getSelection();
+          const range = document.createRange();
+          range.selectNodeContents(button.nextElementSibling);
+          selection.removeAllRanges();
+          selection.addRange(range);
+          button.textContent = 'Đã chọn';
+        }
+        setTimeout(() => { button.textContent = 'Sao chép'; }, 1400);
+      }));
+
+      document.getElementById('resetChecklist').addEventListener('click', () => {
+        if (!confirm('Đặt lại toàn bộ 32 checkpoint?')) return;
+        checkboxes.forEach((box) => { box.checked = false; });
+        localStorage.removeItem(storageKey);
+        Object.keys(saved).forEach((key) => delete saved[key]);
+        updateProgress();
+      });
+
+      const navLinks = [...document.querySelectorAll('.sidebar nav a')];
+      const observer = new IntersectionObserver((entries) => {
+        const active = entries.filter((entry) => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        if (!active) return;
+        navLinks.forEach((link) => link.setAttribute('aria-current', String(link.getAttribute('href') === `#${active.target.id}`)));
+      }, { rootMargin: '-15% 0px -68% 0px', threshold: [0, .2, .6] });
+      document.querySelectorAll('main section[id]').forEach((section) => observer.observe(section));
+
+      updateProgress();
+    })();
+  </script>
+</body>
+</html>

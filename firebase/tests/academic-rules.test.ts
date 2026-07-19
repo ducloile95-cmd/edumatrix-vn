@@ -220,10 +220,10 @@ describe("courses", () => {
 });
 
 describe("students - ownership", () => {
-  test("Admin doc duoc moi hoc sinh, Teacher chi doc hoc sinh duoc gan", async () => {
+  test("Admin va Teacher doc duoc danh ba hoc sinh de ghi danh", async () => {
     await assertSucceeds(getDoc(doc(asAdmin(), "students", STUDENT_OWNED)));
     await assertSucceeds(getDoc(doc(asTeacher(), "students", STUDENT_OWNED)));
-    await assertFails(getDoc(doc(asTeacher(), "students", STUDENT_OTHER)));
+    await assertSucceeds(getDoc(doc(asTeacher(), "students", STUDENT_OTHER)));
   });
 
   test("Viewer doc duoc hoc sinh cua minh", async () => {
@@ -319,8 +319,8 @@ describe("classes - ownership qua studentIds", () => {
     );
   });
 
-  test("Teacher khong tu sua danh sach hoc sinh cua lop", async () => {
-    await assertFails(
+  test("Teacher them duoc mot hoc sinh vao lop phu trach", async () => {
+    await assertSucceeds(
       updateDoc(doc(asTeacher(), "classes", "class_001"), {
         studentIds: [STUDENT_OWNED, STUDENT_OTHER],
         updatedAt: serverTimestamp(),

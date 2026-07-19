@@ -31,7 +31,7 @@ function sectionsToActivities(sections: LessonPlanSection[]): LessonPlanActivity
   }));
 }
 
-type LessonPlanRawFields = "objectives" | "preparation" | "activities" | "homework" | "notesAfterTeaching" | "attachmentUrl" | "attachmentLabel";
+type LessonPlanRawFields = "objectives" | "preparation" | "activities" | "homework" | "notesAfterTeaching" | "attachmentUrl" | "attachmentLabel" | "driveFileId" | "driveFileName" | "driveMimeType" | "driveWebViewLink" | "driveModifiedTime";
 type LessonPlanRawDoc = Omit<LessonPlanDoc, LessonPlanRawFields> &
   Partial<Pick<LessonPlanDoc, LessonPlanRawFields>> & { sections?: LessonPlanSection[] };
 
@@ -50,6 +50,11 @@ export function normalizeLessonPlan(raw: LessonPlanRawDoc): LessonPlanDoc {
     notesAfterTeaching: raw.notesAfterTeaching ?? "",
     attachmentUrl: raw.attachmentUrl ?? null,
     attachmentLabel: raw.attachmentLabel ?? "",
+    driveFileId: raw.driveFileId ?? null,
+    driveFileName: raw.driveFileName ?? null,
+    driveMimeType: raw.driveMimeType ?? null,
+    driveWebViewLink: raw.driveWebViewLink ?? null,
+    driveModifiedTime: raw.driveModifiedTime ?? null,
   };
 }
 

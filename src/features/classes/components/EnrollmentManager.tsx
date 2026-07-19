@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { listStudents } from "@/services/firestore/students";
+import { listEnrollmentCandidates } from "@/services/firestore/students";
 import { enrollStudent, unenrollStudent } from "@/services/firestore/enrollments";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
 import { ErrorState } from "@/components/feedback/ErrorState";
@@ -14,6 +14,7 @@ interface EnrollmentManagerProps {
   classId: string;
   courseId: string;
   enrolledStudentIds: string[];
+  canUnenroll?: boolean;
 }
 
 function initials(fullName: string): string {
@@ -26,7 +27,7 @@ function initials(fullName: string): string {
  * Ghi danh/rut hoc sinh khoi lop. Dung so luong hoc sinh nho (<50 theo quy
  * mo du an) nen tai toan bo danh sach hoc sinh roi loc o client (A14).
  */
-export function EnrollmentManager({ classId, courseId, enrolledStudentIds }: EnrollmentManagerProps) {
+export function EnrollmentManager({ classId, courseId, enrolledStudentIds, canUnenroll = true }: EnrollmentManagerProps) {
   const [search, setSearch] = useState("");
   const [confirmTarget, setConfirmTarget] = useState<(StudentDoc & { id: string }) | null>(null);
   const queryClient = useQueryClient();
@@ -36,7 +37,7 @@ export function EnrollmentManager({ classId, courseId, enrolledStudentIds }: Enr
     isLoading,
     isError,
     refetch,
-  } = useQuery({ queryKey: ["students"], queryFn: listStudents });
+  } = useQuery({ queryKey: ["students", "enrollment-candidates"], queryFn: listEnrollmentCandidates });
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["classes"] });
@@ -131,13 +132,15 @@ export function EnrollmentManager({ classId, courseId, enrolledStudentIds }: Enr
                       <p className="truncate text-sm font-medium text-neutral-800">{s.fullName}</p>
                       <p className="font-mono text-xs text-neutral-500">{s.studentCode}</p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setConfirmTarget(s)}
-                      className="min-h-touch rounded-input border border-neutral-300 px-3 text-xs font-semibold text-neutral-600 transition hover:border-danger-300 hover:bg-danger-50 hover:text-danger-700"
-                    >
-                      Rút khỏi lớp
-                    </button>
+                    {canUnenroll && (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmTarget(s)}
+                        className="min-h-touch rounded-input border border-neutral-300 px-3 text-xs font-semibold text-neutral-600 transition hover:border-danger-300 hover:bg-danger-50 hover:text-danger-700"
+                      >
+                        Rút khỏi lớp
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>

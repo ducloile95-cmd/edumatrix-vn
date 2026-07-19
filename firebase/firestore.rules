@@ -68,6 +68,19 @@ service cloud.firestore {
         data.vietQrTemplate is string && data.vietQrTemplate.size() >= 2 && data.vietQrTemplate.size() <= 60;
     }
 
+    function validAcademicSettings(data) {
+      return data.keys().hasOnly(['rankThresholds', 'updatedAt']) &&
+        data.keys().hasAll(['rankThresholds', 'updatedAt']) &&
+        data.updatedAt is timestamp &&
+        data.rankThresholds.keys().hasOnly(['S', 'A', 'B', 'D']) &&
+        data.rankThresholds.keys().hasAll(['S', 'A', 'B', 'D']) &&
+        data.rankThresholds.S is number && data.rankThresholds.S <= 100 &&
+        data.rankThresholds.S > data.rankThresholds.A &&
+        data.rankThresholds.A > data.rankThresholds.B &&
+        data.rankThresholds.B > data.rankThresholds.D &&
+        data.rankThresholds.D == 0;
+    }
+
     function isAssignedTeacherForClass(classId) {
       return isTeacher() &&
         exists(/databases/$(database)/documents/classes/$(classId)) &&
@@ -86,6 +99,46 @@ service cloud.firestore {
       return isActive() &&
         currentUser().role == 'viewer' &&
         studentId in currentUser().studentIds;
+    }
+
+    function isAssignedTeacherForStudent(studentId) {
+      return isTeacher() &&
+        exists(/databases/$(database)/documents/students/$(studentId)) &&
+        request.auth.uid in get(/databases/$(database)/documents/students/$(studentId)).data.teacherIds;
+    }
+
+    function isTeacherEnrollmentClassUpdate(classId) {
+      let addedStudentIds = request.resource.data.studentIds.removeAll(resource.data.studentIds);
+      return isTeacher() && request.auth.uid in resource.data.teacherIds &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['studentIds', 'updatedAt']) &&
+        request.resource.data.teacherIds == resource.data.teacherIds &&
+        request.resource.data.studentIds.hasAll(resource.data.studentIds) &&
+        request.resource.data.studentIds.size() == resource.data.studentIds.size() + 1 &&
+        addedStudentIds.size() == 1;
+    }
+
+    function isTeacherEnrollmentStudentUpdate(studentId) {
+      let addedClassIds = request.resource.data.currentClassIds.removeAll(resource.data.currentClassIds);
+      let classData = get(/databases/$(database)/documents/classes/$(addedClassIds[0])).data;
+      return isTeacher() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['currentClassIds', 'teacherIds', 'updatedAt']) &&
+        request.resource.data.currentClassIds.hasAll(resource.data.currentClassIds) &&
+        request.resource.data.currentClassIds.size() == resource.data.currentClassIds.size() + 1 &&
+        addedClassIds.size() == 1 &&
+        request.auth.uid in classData.teacherIds &&
+        request.resource.data.teacherIds.hasAll(resource.data.teacherIds) &&
+        request.resource.data.teacherIds.hasAll(classData.teacherIds) &&
+        request.resource.data.teacherIds.removeAll(resource.data.teacherIds).hasOnly(classData.teacherIds);
+    }
+
+    function isTeacherEnrollmentCreate(enrollmentId) {
+      let classId = request.resource.data.classId;
+      let studentId = request.resource.data.studentId;
+      let classData = get(/databases/$(database)/documents/classes/$(classId)).data;
+      return isTeacher() && request.auth.uid in classData.teacherIds &&
+        enrollmentId == classId + '_' + studentId &&
+        request.resource.data.status == 'active' &&
+        request.resource.data.courseId == classData.courseId;
     }
 
     // ---------- Invite claim helpers (A16.4) ----------
@@ -224,9 +277,25 @@ service cloud.firestore {
         data.student is string;
     }
 
+    function validLessonPlanDriveAttachment(data) {
+      return (
+        data.get('driveFileId', null) == null &&
+        data.get('driveFileName', null) == null &&
+        data.get('driveMimeType', null) == null &&
+        data.get('driveWebViewLink', null) == null &&
+        data.get('driveModifiedTime', null) == null
+      ) || (
+        data.driveFileId is string && data.driveFileId.size() <= 200 &&
+        data.driveFileName is string && data.driveFileName.size() <= 300 &&
+        data.driveMimeType is string && data.driveMimeType.size() <= 150 &&
+        data.driveWebViewLink is string && data.driveWebViewLink.matches('https://.*') &&
+        data.driveModifiedTime is string && data.driveModifiedTime.size() <= 50
+      );
+    }
+
     function validLessonPlanData(data) {
       return data.keys().hasAll(['title', 'classId', 'courseId', 'subjectId', 'sessionId', 'objectives', 'preparation', 'activities', 'homework', 'notesAfterTeaching', 'attachmentUrl', 'attachmentLabel', 'publicSummary', 'status', 'createdBy', 'createdAt', 'updatedAt']) &&
-        data.keys().hasOnly(['title', 'classId', 'courseId', 'subjectId', 'sessionId', 'objectives', 'preparation', 'activities', 'homework', 'notesAfterTeaching', 'attachmentUrl', 'attachmentLabel', 'publicSummary', 'status', 'createdBy', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['title', 'classId', 'courseId', 'subjectId', 'sessionId', 'objectives', 'preparation', 'activities', 'homework', 'notesAfterTeaching', 'attachmentUrl', 'attachmentLabel', 'driveFileId', 'driveFileName', 'driveMimeType', 'driveWebViewLink', 'driveModifiedTime', 'publicSummary', 'status', 'createdBy', 'createdAt', 'updatedAt']) &&
         data.title is string &&
         (data.classId == null || data.classId is string) &&
         (data.courseId == null || data.courseId is string) &&
@@ -239,6 +308,7 @@ service cloud.firestore {
         data.notesAfterTeaching is string &&
         (data.attachmentUrl == null || data.attachmentUrl is string) &&
         data.attachmentLabel is string &&
+        validLessonPlanDriveAttachment(data) &&
         data.publicSummary is string &&
         data.status in ['draft', 'published', 'archived'] &&
         hasTimestamps(data);
@@ -321,6 +391,52 @@ service cloud.firestore {
         (!data.keys().hasAny(['studentId']) || data.studentId is string);
     }
 
+    function validLessonPlanPublicData(data, lessonPlanId) {
+      return data.keys().hasAll(['lessonPlanId', 'title', 'classId', 'courseId', 'subjectId', 'sessionId', 'publicSummary', 'publishedAt']) &&
+        data.keys().hasOnly(['lessonPlanId', 'title', 'classId', 'courseId', 'subjectId', 'sessionId', 'publicSummary', 'publishedAt']) &&
+        data.lessonPlanId == lessonPlanId &&
+        data.title is string &&
+        data.classId is string &&
+        (data.courseId == null || data.courseId is string) &&
+        (data.subjectId == null || data.subjectId is string) &&
+        (data.sessionId == null || data.sessionId is string) &&
+        data.publicSummary is string &&
+        data.publishedAt is timestamp;
+    }
+
+    function validAttendanceSummary(data) {
+      return data.keys().hasAll(['sessionId', 'classId', 'total', 'present', 'absent', 'late', 'excused', 'updatedAt']) &&
+        data.keys().hasOnly(['sessionId', 'classId', 'total', 'present', 'absent', 'late', 'excused', 'updatedAt']) &&
+        data.sessionId is string && data.classId is string && data.updatedAt is timestamp &&
+        data.total is int && data.total >= 0 &&
+        data.present is int && data.present >= 0 &&
+        data.absent is int && data.absent >= 0 &&
+        data.late is int && data.late >= 0 &&
+        data.excused is int && data.excused >= 0 &&
+        data.total == data.present + data.absent + data.late + data.excused;
+    }
+
+    function validAssignmentSummary(data) {
+      return data.keys().hasAll(['assignmentId', 'totalStudents', 'submittedCount', 'gradedCount', 'redoCount', 'updatedAt']) &&
+        data.keys().hasOnly(['assignmentId', 'totalStudents', 'submittedCount', 'gradedCount', 'redoCount', 'updatedAt']) &&
+        data.assignmentId is string && data.updatedAt is timestamp &&
+        data.totalStudents is int && data.totalStudents >= 0 &&
+        data.submittedCount is int && data.submittedCount >= 0 && data.submittedCount <= data.totalStudents &&
+        data.gradedCount is int && data.gradedCount >= 0 && data.gradedCount <= data.totalStudents &&
+        data.redoCount is int && data.redoCount >= 0 && data.redoCount <= data.totalStudents;
+    }
+
+    function validStudentSummary(data) {
+      return data.keys().hasAll(['studentId', 'scoreCount', 'averagePercent', 'latestScore', 'latestMaxScore', 'updatedAt']) &&
+        data.keys().hasOnly(['studentId', 'scoreCount', 'totalPercent', 'averagePercent', 'latestScore', 'latestMaxScore', 'updatedAt']) &&
+        data.studentId is string && data.updatedAt is timestamp &&
+        data.scoreCount is int && data.scoreCount >= 0 &&
+        data.averagePercent is number && data.averagePercent >= 0 && data.averagePercent <= 100 &&
+        (!data.keys().hasAny(['totalPercent']) || (data.totalPercent is number && data.totalPercent >= 0)) &&
+        data.latestMaxScore is number && data.latestMaxScore > 0 &&
+        data.latestScore is number && data.latestScore >= 0 && data.latestScore <= data.latestMaxScore;
+    }
+
     function validPaymentData(data) {
       return data.keys().hasAll(['invoiceId', 'studentId', 'amount', 'transactionReference', 'note', 'status', 'reportedBy', 'verifiedBy', 'reportedAt', 'verifiedAt', 'updatedAt']) &&
         data.keys().hasOnly(['invoiceId', 'studentId', 'amount', 'transactionReference', 'note', 'status', 'reportedBy', 'verifiedBy', 'reportedAt', 'verifiedAt', 'updatedAt']) &&
@@ -342,7 +458,11 @@ service cloud.firestore {
     // phai khop dung role/studentIds lay tu invite - nguoi dung khong tu chon (A16.4).
 
     match /users/{uid} {
-      allow read: if isAdmin() || request.auth.uid == uid;
+      // Teacher can read the operational directory needed by class and parent
+      // views, but Admin profiles remain private from Teacher accounts.
+      allow read: if isAdmin() || request.auth.uid == uid || (
+        isTeacher() && resource.data.role in ['teacher', 'viewer']
+      );
 
       allow create: if isAdmin() || (
         request.auth.uid == uid &&
@@ -394,40 +514,23 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // ---------- account_activity/{uid_yyyy-MM-dd} ----------
-    // Daily client-side rollup for usage analytics. It never grants access.
+    // ---------- legacy client telemetry ----------
+    // Existing records stay readable by Admin for migration/audit, but clients
+    // can no longer create noisy self-reported telemetry.
     match /account_activity/{activityId} {
-      allow read: if isAdmin() || (
-        signedIn() && resource.data.uid == request.auth.uid
-      );
-
-      allow create: if isActive() &&
-        request.resource.data.uid == request.auth.uid &&
-        activityId == request.auth.uid + '_' + request.resource.data.dateKey &&
-        request.resource.data.activeMinutes >= 0 &&
-        request.resource.data.activeMinutes <= 5 &&
-        request.resource.data.keys().hasOnly(
-          ['uid', 'dateKey', 'activeMinutes', 'lastSeenAt', 'createdAt', 'updatedAt']
-        );
-
-      allow update: if isActive() &&
-        resource.data.uid == request.auth.uid &&
-        request.resource.data.uid == resource.data.uid &&
-        request.resource.data.dateKey == resource.data.dateKey &&
-        request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['activeMinutes', 'lastSeenAt', 'updatedAt']) &&
-        request.resource.data.activeMinutes >= resource.data.activeMinutes &&
-        request.resource.data.activeMinutes <= resource.data.activeMinutes + 5;
-
-      allow delete: if false;
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     // ---------- settings/* ----------
-    // Chi Admin doc/ghi. Khong co token, API secret hay OAuth refresh token trong collection nay.
+    // Integration identifiers are public config for active staff. Other settings remain Admin-only.
     match /settings/{docId} {
-      allow read: if isAdmin();
+      allow read: if isAdmin() ||
+        (docId == 'integrations' && isStaff()) ||
+        (docId == 'academic' && isActive());
       allow create, update: if isAdmin() && (
         (docId == 'general' && validGeneralSettings(request.resource.data)) ||
+        (docId == 'academic' && validAcademicSettings(request.resource.data)) ||
         (docId == 'integrations' && validIntegrationSettings(request.resource.data)) ||
         (docId == 'payment' && validPaymentSettings(request.resource.data)) ||
         (docId == 'messenger')
@@ -435,30 +538,9 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // ---------- usage_events/{uid_yyyy-MM-dd_collection} ----------
-    // App-level estimate only. It never grants access and is not a billing source.
     match /usage_events/{usageId} {
-      allow read: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
-      allow create: if isActive() &&
-        request.resource.data.uid == request.auth.uid &&
-        usageId == request.auth.uid + '_' + request.resource.data.dateKey + '_' + request.resource.data.collectionId &&
-        request.resource.data.keys().hasOnly(['uid', 'dateKey', 'collectionId', 'reads', 'writes', 'deletes', 'lastLatencyMs', 'createdAt', 'updatedAt']) &&
-        request.resource.data.reads >= 0 && request.resource.data.reads <= 500 &&
-        request.resource.data.writes >= 0 && request.resource.data.writes <= 200 &&
-        request.resource.data.deletes >= 0 && request.resource.data.deletes <= 100 &&
-        request.resource.data.lastLatencyMs >= 0 && request.resource.data.lastLatencyMs <= 60000;
-      allow update: if isActive() &&
-        resource.data.uid == request.auth.uid &&
-        request.resource.data.uid == resource.data.uid &&
-        request.resource.data.dateKey == resource.data.dateKey &&
-        request.resource.data.collectionId == resource.data.collectionId &&
-        request.resource.data.createdAt == resource.data.createdAt &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reads', 'writes', 'deletes', 'lastLatencyMs', 'updatedAt']) &&
-        request.resource.data.reads >= resource.data.reads && request.resource.data.reads <= resource.data.reads + 500 &&
-        request.resource.data.writes >= resource.data.writes && request.resource.data.writes <= resource.data.writes + 200 &&
-        request.resource.data.deletes >= resource.data.deletes && request.resource.data.deletes <= resource.data.deletes + 100 &&
-        request.resource.data.lastLatencyMs >= 0 && request.resource.data.lastLatencyMs <= 60000;
-      allow delete: if false;
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     // ---------- audit_logs/{logId} ----------
@@ -512,14 +594,16 @@ service cloud.firestore {
     // tu sua duoc).
 
     match /students/{studentId} {
-      allow read: if isAdmin() || ownsStudent(studentId) ||
-        (isTeacher() && request.auth.uid in resource.data.teacherIds);
+      allow read: if isStaff() || ownsStudent(studentId);
       allow create: if isAdmin() &&
         validStudentData(studentId, request.resource.data);
       allow update: if keepsImmutable(['studentCode', 'createdAt']) &&
         validStudentData(studentId, request.resource.data) &&
         (
           isAdmin() || (
+            request.resource.data.diff(resource.data).affectedKeys().hasAny(['currentClassIds', 'teacherIds']) &&
+            isTeacherEnrollmentStudentUpdate(studentId)
+          ) || (
             isTeacher() &&
             request.auth.uid in resource.data.teacherIds &&
             request.resource.data.teacherIds == resource.data.teacherIds &&
@@ -537,7 +621,10 @@ service cloud.firestore {
     // students/{id}.currentClassIds (xem services/firestore/enrollments.ts).
 
     match /classes/{classId} {
-      allow read: if isAdmin() || isAssignedTeacherForClass(classId) ||
+      // Use resource data here so Firestore can prove an array-contains list
+      // query. isAssignedTeacherForClass() uses get() and is for child records.
+      allow read: if isAdmin() ||
+        (isTeacher() && request.auth.uid in resource.data.teacherIds) ||
         (isActive() && currentUser().role == 'viewer' &&
          resource.data.studentIds.hasAny(currentUser().studentIds));
       allow create: if (
@@ -555,6 +642,10 @@ service cloud.firestore {
         (
           isAdmin() ||
           (
+            request.resource.data.diff(resource.data).affectedKeys().hasAny(['studentIds']) &&
+            isTeacherEnrollmentClassUpdate(classId)
+          ) ||
+          (
             isAssignedTeacherForClass(classId) &&
             request.resource.data.teacherIds == resource.data.teacherIds &&
             request.resource.data.studentIds == resource.data.studentIds
@@ -569,9 +660,11 @@ service cloud.firestore {
 
     match /enrollments/{enrollmentId} {
       allow read: if canManageClass(resource.data.classId) || ownsStudent(resource.data.studentId);
-      allow create: if isAdmin() &&
+      allow create: if (
+        isAdmin() &&
         enrollmentId == request.resource.data.classId + '_' + request.resource.data.studentId &&
-        request.resource.data.status in ['active', 'ended'];
+        request.resource.data.status in ['active', 'ended']
+      ) || isTeacherEnrollmentCreate(enrollmentId);
       allow update: if isAdmin() &&
         request.resource.data.status in ['active', 'ended'] &&
         keepsImmutable(['classId', 'courseId', 'studentId', 'joinedAt']);
@@ -606,6 +699,22 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /notification_reads/{readId} {
+      allow read: if isAdmin() || (
+        isActive() && resource.data.uid == request.auth.uid
+      );
+      allow create, update: if isActive() &&
+        request.resource.data.keys().hasOnly(['uid', 'announcementId', 'readAt']) &&
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.announcementId is string &&
+        request.resource.data.readAt is timestamp &&
+        readId == request.auth.uid + '_' + request.resource.data.announcementId &&
+        ownsStudent(
+          get(/databases/$(database)/documents/announcements/$(request.resource.data.announcementId)).data.studentId
+        );
+      allow delete: if false;
+    }
+
     match /lesson_plans/{lessonPlanId} {
       // Nguoi tao luon doc lai duoc giao an cua chinh minh, ke ca khi chua gan lop (classId == null) - sua loi cu.
       allow read: if isAdmin() ||
@@ -626,9 +735,9 @@ service cloud.firestore {
         get(/databases/$(database)/documents/classes/$(resource.data.classId)).data.studentIds
           .hasAny(currentUser().studentIds)
       );
-      allow create: if canManageClass(request.resource.data.classId) && request.resource.data.lessonPlanId == lessonPlanId;
+      allow create: if canManageClass(request.resource.data.classId) && validLessonPlanPublicData(request.resource.data, lessonPlanId);
       allow update: if canManageClass(resource.data.classId) &&
-        request.resource.data.lessonPlanId == lessonPlanId &&
+        validLessonPlanPublicData(request.resource.data, lessonPlanId) &&
         keepsImmutable(['lessonPlanId', 'classId']);
       allow delete: if canManageClass(resource.data.classId);
     }
@@ -657,9 +766,11 @@ service cloud.firestore {
         get(/databases/$(database)/documents/classes/$(resource.data.classId)).data.studentIds
           .hasAny(currentUser().studentIds)
       );
-      allow create: if canManageClass(request.resource.data.classId) && request.resource.data.sessionId == sessionId;
+      allow create: if canManageClass(request.resource.data.classId) &&
+        request.resource.data.sessionId == sessionId && validAttendanceSummary(request.resource.data);
       allow update: if canManageClass(resource.data.classId) &&
         request.resource.data.sessionId == sessionId &&
+        validAttendanceSummary(request.resource.data) &&
         keepsImmutable(['sessionId', 'classId']);
       allow delete: if false;
     }
@@ -707,10 +818,21 @@ service cloud.firestore {
       allow delete: if false;
     }
     match /assignment_summaries/{assignmentId} {
-      allow read: if isStaff();
-      allow create: if isStaff() && request.resource.data.assignmentId == assignmentId;
-      allow update: if isStaff() &&
+      allow read: if isAdmin() || (
+        isTeacher() && canManageClass(
+          get(/databases/$(database)/documents/assignments/$(assignmentId)).data.classId
+        )
+      );
+      allow create: if request.resource.data.assignmentId == assignmentId &&
+        canManageClass(
+          getAfter(/databases/$(database)/documents/assignments/$(assignmentId)).data.classId
+        ) &&
+        validAssignmentSummary(request.resource.data);
+      allow update: if canManageClass(
+          get(/databases/$(database)/documents/assignments/$(assignmentId)).data.classId
+        ) &&
         request.resource.data.assignmentId == assignmentId &&
+        validAssignmentSummary(request.resource.data) &&
         keepsImmutable(['assignmentId']);
       allow delete: if false;
     }
@@ -732,15 +854,18 @@ service cloud.firestore {
       allow delete: if false;
     }
     match /student_summaries/{studentId} {
-      allow read: if isStaff() || ownsStudent(studentId);
-      allow create: if isStaff() && request.resource.data.studentId == studentId;
-      allow update: if isStaff() &&
+      allow read: if isAdmin() || isAssignedTeacherForStudent(studentId) || ownsStudent(studentId);
+      allow create: if (isAdmin() || isAssignedTeacherForStudent(studentId)) && request.resource.data.studentId == studentId &&
+        validStudentSummary(request.resource.data);
+      allow update: if (isAdmin() || isAssignedTeacherForStudent(studentId)) &&
         request.resource.data.studentId == studentId &&
+        validStudentSummary(request.resource.data) &&
         keepsImmutable(['studentId']);
       allow delete: if false;
     }
     match /invoices/{invoiceId} {
-      allow read: if isStaff() || ownsStudent(resource.data.studentId);
+      allow read: if isAdmin() || ownsStudent(resource.data.studentId) ||
+        isAssignedTeacherForStudent(resource.data.studentId);
       allow create: if isAdmin() &&
         request.resource.data.createdBy == request.auth.uid &&
         request.resource.data.status == 'unpaid' &&
@@ -748,7 +873,7 @@ service cloud.firestore {
       allow update: if keepsImmutable(
         ['invoiceCode', 'studentId', 'courseId', 'amount', 'paymentContent', 'bankBin', 'accountNumber', 'accountName', 'createdBy', 'createdAt']
       ) && (
-        isStaff() || (
+        isAdmin() || (
           ownsStudent(resource.data.studentId) && resource.data.status in ['unpaid', 'rejected'] &&
           request.resource.data.status == 'pending' &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
@@ -757,14 +882,15 @@ service cloud.firestore {
       allow delete: if false;
     }
     match /payments/{paymentId} {
-      allow read: if isStaff() || ownsStudent(resource.data.studentId);
+      allow read: if isAdmin() || ownsStudent(resource.data.studentId) ||
+        isAssignedTeacherForStudent(resource.data.studentId);
       allow create: if ownsStudent(request.resource.data.studentId) &&
         request.resource.data.status == 'reported' &&
         request.resource.data.reportedBy == request.auth.uid &&
         request.resource.data.verifiedBy == null &&
         validPaymentData(request.resource.data) &&
         get(/databases/$(database)/documents/invoices/$(request.resource.data.invoiceId)).data.amount == request.resource.data.amount;
-      allow update: if validPaymentData(request.resource.data) && ((isStaff() &&
+      allow update: if validPaymentData(request.resource.data) && ((isAdmin() &&
         request.resource.data.status in ['verified', 'rejected'] &&
         keepsImmutable(['invoiceId', 'studentId', 'amount', 'reportedBy', 'reportedAt'])
       ) || (
@@ -808,6 +934,15 @@ service cloud.firestore {
     match /messenger_connections/{uid} {
       allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
       allow write: if false;
+    }
+
+    // Nonce va reverse-index chi Worker voi service account duoc truy cap.
+    match /messenger_link_nonces/{nonceId} {
+      allow read, write: if false;
+    }
+
+    match /messenger_psid_links/{psid} {
+      allow read, write: if false;
     }
 
     // fanpage_posts: lich su + hang cho dang bai Fanpage - client ghi truc tiep (Admin-only,

@@ -93,6 +93,14 @@ export async function listStudents(): Promise<(StudentDoc & { id: string })[]> {
     .sort((a, b) => a.fullName.localeCompare(b.fullName, "vi"));
 }
 
+/** Danh bạ dùng riêng cho ghi danh. Rules vẫn giới hạn quyền ghi theo lớp phụ trách. */
+export async function listEnrollmentCandidates(): Promise<(StudentDoc & { id: string })[]> {
+  const snap = await getDocs(
+    query(collection(db, COLLECTIONS.STUDENTS), orderBy("fullName"), limit(200)),
+  );
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as StudentDoc) }));
+}
+
 export async function getStudent(studentId: string): Promise<(StudentDoc & { id: string }) | null> {
   const snapshot = await getDoc(doc(db, COLLECTIONS.STUDENTS, studentId));
   return snapshot.exists() ? { id: snapshot.id, ...(snapshot.data() as StudentDoc) } : null;

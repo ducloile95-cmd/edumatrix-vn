@@ -7,9 +7,9 @@ import {
   limit,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   Timestamp,
-  updateDoc,
   where,
   writeBatch,
 } from "firebase/firestore";
@@ -17,7 +17,7 @@ import { db } from "@/services/firebase/firestoreClient";
 import { COLLECTIONS } from "@/constants/collections";
 import { getCurrentUserDoc, isAdminUser, isTeacherUser } from "@/services/firestore/authz";
 import { generateRecurringSessions } from "@/utils/recurrence";
-import type { ClassDoc, ClassStatus } from "@/types/academic";
+import type { ClassDoc, ClassStatus, StudentDoc } from "@/types/academic";
 
 export interface UpsertClassInput {
   name: string;
@@ -120,17 +120,61 @@ export async function createClassWithSchedule(
   return classRef.id;
 }
 
-/** Khong dong studentIds tai day - viec ghi danh di qua services/firestore/enrollments.ts. */
+/**
+ * Khong dong studentIds tai day - viec ghi danh di qua services/firestore/enrollments.ts.
+ * Khi Admin doi phan cong giao vien, cap nhat teacherIds tren cac hoc sinh cua
+ * lop trong cung transaction de student scope va Messenger khong bi lech.
+ */
 export async function updateClass(classId: string, input: UpsertClassInput): Promise<void> {
-  await updateDoc(doc(db, COLLECTIONS.CLASSES, classId), {
-    name: input.name,
-    courseId: input.courseId,
-    subjectIds: input.subjectIds,
-    teacherIds: input.teacherIds,
-    scheduleText: input.scheduleText,
-    location: input.location,
-    status: input.status,
-    updatedAt: serverTimestamp(),
+  const actor = await getCurrentUserDoc();
+  const shouldSyncStudents = isAdminUser(actor);
+  await runTransaction(db, async (transaction) => {
+    const classRef = doc(db, COLLECTIONS.CLASSES, classId);
+    const classSnap = await transaction.get(classRef);
+    if (!classSnap.exists()) throw new Error("class_not_found");
+
+    const currentClass = classSnap.data() as ClassDoc;
+    const nextTeacherIds = [...new Set(input.teacherIds)].sort();
+
+    const studentRefs = shouldSyncStudents
+      ? currentClass.studentIds.map((studentId) => doc(db, COLLECTIONS.STUDENTS, studentId))
+      : [];
+    const studentSnaps = await Promise.all(studentRefs.map((studentRef) => transaction.get(studentRef)));
+    const students = studentSnaps
+      .filter((studentSnap) => studentSnap.exists())
+      .map((studentSnap) => ({ ref: studentSnap.ref, data: studentSnap.data() as StudentDoc }));
+
+    const otherClassIds = [...new Set(students.flatMap(({ data }) => data.currentClassIds))]
+      .filter((otherClassId) => otherClassId !== classId);
+    const otherClassSnaps = await Promise.all(
+      otherClassIds.map((otherClassId) => transaction.get(doc(db, COLLECTIONS.CLASSES, otherClassId))),
+    );
+    const teacherIdsByClass = new Map(
+      otherClassSnaps
+        .filter((otherClassSnap) => otherClassSnap.exists())
+        .map((otherClassSnap) => [otherClassSnap.id, (otherClassSnap.data() as ClassDoc).teacherIds]),
+    );
+
+    transaction.update(classRef, {
+      name: input.name,
+      courseId: input.courseId,
+      subjectIds: input.subjectIds,
+      teacherIds: nextTeacherIds,
+      scheduleText: input.scheduleText,
+      location: input.location,
+      status: input.status,
+      updatedAt: serverTimestamp(),
+    });
+
+    students.forEach(({ ref, data }) => {
+      const teacherIds = [...new Set([
+        ...nextTeacherIds,
+        ...data.currentClassIds
+          .filter((studentClassId) => studentClassId !== classId)
+          .flatMap((studentClassId) => teacherIdsByClass.get(studentClassId) ?? []),
+      ])];
+      transaction.update(ref, { teacherIds, updatedAt: serverTimestamp() });
+    });
   });
 }
 

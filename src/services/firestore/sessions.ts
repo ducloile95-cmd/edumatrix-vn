@@ -1,6 +1,5 @@
 import {
   Timestamp,
-  addDoc,
   collection,
   doc,
   getDoc,
@@ -9,7 +8,6 @@ import {
   orderBy,
   query,
   serverTimestamp,
-  updateDoc,
   where,
   writeBatch,
 } from "firebase/firestore";
@@ -22,24 +20,22 @@ import type { SessionDoc, SessionStatus } from "@/types/academic";
 export interface CreateSessionsInput {
   classId: string;
   title: string;
-  startAt: Date;
-  endAt: Date;
+  occurrences: Array<{ startAt: Date; endAt: Date }>;
   location: string;
   note: string;
-  repeatCount: number;
   makeUpForSessionId: string | null;
 }
 
 export async function createSessions(input: CreateSessionsInput): Promise<void> {
+  if (input.occurrences.length < 1 || input.occurrences.length > 200) throw new Error("INVALID_SESSION_COUNT");
   const batch = writeBatch(db);
-  for (let index = 0; index < input.repeatCount; index += 1) {
-    const offset = index * 7 * 24 * 60 * 60 * 1000;
+  input.occurrences.forEach((occurrence) => {
     const ref = doc(collection(db, COLLECTIONS.SESSIONS));
     batch.set(ref, {
       classId: input.classId,
       title: input.title,
-      startAt: Timestamp.fromDate(new Date(input.startAt.getTime() + offset)),
-      endAt: Timestamp.fromDate(new Date(input.endAt.getTime() + offset)),
+      startAt: Timestamp.fromDate(occurrence.startAt),
+      endAt: Timestamp.fromDate(occurrence.endAt),
       location: input.location,
       status: "scheduled",
       note: input.note,
@@ -47,7 +43,7 @@ export async function createSessions(input: CreateSessionsInput): Promise<void> 
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
-  }
+  });
   await batch.commit();
 }
 
@@ -89,16 +85,19 @@ export async function updateSession(
   const sessionRef = doc(db, COLLECTIONS.SESSIONS, sessionId);
   const sessionSnap = shouldAnnounce ? await getDoc(sessionRef) : null;
   const currentSession = sessionSnap?.exists() ? (sessionSnap.data() as SessionDoc) : null;
-  await updateDoc(sessionRef, payload);
+  if (shouldAnnounce && !currentSession) throw new Error("SESSION_NOT_FOUND");
 
+  const batch = writeBatch(db);
+  batch.update(sessionRef, payload);
   if (shouldAnnounce) {
-    await addDoc(collection(db, COLLECTIONS.ANNOUNCEMENTS), {
+    batch.set(doc(collection(db, COLLECTIONS.ANNOUNCEMENTS)), {
       type: "schedule_change",
       sessionId,
-      ...(currentSession ? { classId: currentSession.classId } : {}),
+      classId: currentSession?.classId,
       title: changes.status === "cancelled" ? "Buổi học đã hủy" : "Lịch học đã thay đổi",
       message: changes.note || "Vui lòng kiểm tra lịch học mới.",
       createdAt: serverTimestamp(),
     });
   }
+  await batch.commit();
 }

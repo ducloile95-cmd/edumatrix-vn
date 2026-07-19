@@ -5,9 +5,6 @@
 export const COLLECTIONS = {
   USERS: "users",
   INVITES: "invites",
-  ACCOUNT_ACTIVITY: "account_activity",
-  USAGE_EVENTS: "usage_events",
-
   STUDENTS: "students",
   SUBJECTS: "subjects",
   COURSES: "courses",
@@ -33,6 +30,7 @@ export const COLLECTIONS = {
   PAYMENTS: "payments",
 
   ANNOUNCEMENTS: "announcements",
+  NOTIFICATION_READS: "notification_reads",
   MESSAGE_OUTBOX: "message_outbox",
   MESSENGER_CONNECTIONS: "messenger_connections",
   CHAT_THREADS: "chat_threads",
@@ -43,6 +41,7 @@ export const COLLECTIONS = {
 
 export const SETTINGS_DOC = {
   GENERAL: "settings/general",
+  ACADEMIC: "settings/academic",
   PAYMENT: "settings/payment",
   INTEGRATIONS: "settings/integrations",
   MESSENGER: "settings/messenger",

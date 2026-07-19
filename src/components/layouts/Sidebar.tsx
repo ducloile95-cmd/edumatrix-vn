@@ -64,7 +64,7 @@ function Leaf({
 }) {
   const pad = variant === "child" ? "pl-5 pr-2" : "px-2.5";
   const iconSize = variant === "child" ? 13 : 16;
-  const textSize = variant === "child" ? "text-[10.75px]" : "text-[12.5px]";
+  const textSize = variant === "child" ? "text-[11.75px]" : "text-[12.5px]";
   const rowHeight = variant === "child" ? "h-[30px]" : "h-8";
   const inactiveColor =
     variant === "child"
@@ -166,7 +166,7 @@ function Group({
             {group.children.map((child) => (
               <li key={child.label}>
                 {child.disabled ? (
-                  <span className="flex items-center gap-2 rounded-input px-2 py-1.5 text-[11px] text-neutral-400">
+                  <span className="flex items-center gap-2 rounded-input px-2 py-1.5 text-[12px] text-neutral-400">
                     {child.label}
                     <span className="rounded-full bg-neutral-200/80 px-1.5 text-[10px] font-semibold">Sắp có</span>
                   </span>
@@ -175,7 +175,7 @@ function Group({
                     to={child.to}
                     onClick={onClose}
                     className={({ isActive }) =>
-                      `block rounded-input px-2 py-1.5 text-[11px] ${
+                      `block rounded-input px-2 py-1.5 text-[12px] ${
                         isActive ? "bg-primary-50 font-medium text-primary-700" : "text-neutral-700 hover:bg-neutral-100 hover:text-primary-700"
                       }`
                     }

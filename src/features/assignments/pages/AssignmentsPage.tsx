@@ -21,7 +21,7 @@ export default function AssignmentsPage({ embedded = false }: { embedded?: boole
   const classes = useQuery({ queryKey: ["classes"], queryFn: listClasses });
   const assignments = useQuery({ queryKey: ["assignments"], queryFn: listAssignments });
   const [selected, setSelected] = useState<(AssignmentDoc & { id: string }) | null>(null);
-  const submissions = useQuery({ queryKey: ["submissions", selected?.id], queryFn: () => listSubmissions(selected?.id ?? ""), enabled: !!selected });
+  const submissions = useQuery({ queryKey: ["submissions", selected?.id], queryFn: () => listSubmissions(selected?.id ?? "", selected?.classId ?? ""), enabled: !!selected });
   const [form, setForm] = useState({ title: "", description: "", classId: "", dueAt: "", maxScore: 10, lessonPlanId: "", sessionId: "" });
   const [createOpen, setCreateOpen] = useState(false);
   const lessonPlans = useQuery({ queryKey: ["lesson-plans"], queryFn: listLessonPlans });

@@ -3,7 +3,6 @@ import {
 } from "firebase/firestore";
 import { COLLECTIONS } from "@/constants/collections";
 import { db } from "@/services/firebase/firestoreClient";
-import { recordFirestoreUsage } from "@/services/firestore/usage";
 import type { FanpagePostDoc } from "@/types/chat";
 
 export interface CreateFanpagePostInput {
@@ -39,7 +38,6 @@ export async function createFanpagePost(input: CreateFanpagePostInput, actorUid:
 export async function listFanpagePosts(): Promise<Array<FanpagePostDoc & { id: string }>> {
   const q = query(collection(db, COLLECTIONS.FANPAGE_POSTS), orderBy("createdAt", "desc"), limit(100));
   const snapshot = await getDocs(q);
-  recordFirestoreUsage({ collectionId: COLLECTIONS.FANPAGE_POSTS, reads: snapshot.size });
   return snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as FanpagePostDoc) }));
 }
 

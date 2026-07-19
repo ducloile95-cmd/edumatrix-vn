@@ -24,7 +24,8 @@ const STATUS_LABEL = {
 export default function ClassDetailPage() {
   const { classId } = useParams<{ classId: string }>();
   const { role } = useAuth();
-  const canManageEnrollments = role === USER_ROLES.ADMIN;
+  const canManageEnrollments = role === USER_ROLES.ADMIN || role === USER_ROLES.TEACHER;
+  const canUnenroll = role === USER_ROLES.ADMIN;
 
   const { data: klass, isLoading, isError, refetch } = useQuery({
     queryKey: ["class", classId],
@@ -101,12 +102,15 @@ export default function ClassDetailPage() {
             <div className="mt-6 rounded-card border border-neutral-200 bg-neutral-0 p-4 sm:p-5">
               <h2 className="mb-1">Ghi danh học sinh</h2>
               <p className="mb-3 text-sm text-neutral-500">
-                Tìm và thêm học sinh vào lớp, hoặc rút học sinh khỏi lớp (cần xác nhận).
+                {canUnenroll
+                  ? "Tìm và thêm học sinh vào lớp, hoặc rút học sinh khỏi lớp (cần xác nhận)."
+                  : "Tìm và thêm học sinh vào lớp được phân công."}
               </p>
               <EnrollmentManager
                 classId={klass.id}
                 courseId={klass.courseId}
                 enrolledStudentIds={klass.studentIds}
+                canUnenroll={canUnenroll}
               />
             </div>
             )}

@@ -204,14 +204,15 @@ Lệnh trên chỉ kiểm tra GET handshake. Không dùng nó để kiểm tra c
 Edumatrix cần Page-Scoped ID của phụ huynh. Tạo liên kết:
 
 ```text
-https://m.me/<PAGE_USERNAME>?ref=<FIREBASE_UID_PHU_HUYNH>
+POST /api/messenger/referral { "parentUid": "<FIREBASE_UID_PHU_HUYNH>" }
+https://m.me/<PAGE_USERNAME>?ref=<ONE_TIME_NONCE_TRA_VE>
 ```
 
 Sau khi phụ huynh mở link và gửi tin:
 
 1. Meta gọi webhook.
-2. Worker đọc referral UID và PSID.
-3. Worker ghi `messenger_connections/{uid}`.
+2. Worker kiểm tra referral nonce còn hạn, chưa dùng và PSID chưa thuộc tài khoản khác.
+3. Worker dùng Firestore atomic commit để đánh dấu nonce đã dùng và ghi `messenger_connections/{uid}` cùng `messenger_psid_links/{psid}`.
 4. Tin nhắn được ghi vào `chat_threads/{threadId}/messages`.
 5. Admin hoặc giáo viên được phân công nhìn thấy hội thoại trong module Chat.
 
@@ -420,7 +421,7 @@ Nếu cần upload nền khi Admin không mở trình duyệt, client-side token
 | Webhook GET được nhưng POST 401 | App Secret sai hoặc proxy làm thay đổi body | Đặt lại `META_APP_SECRET`, giữ raw body để verify |
 | Chat chỉ đọc | Thiếu `VITE_MESSENGER_WORKER_URL` | Thêm env và build lại frontend |
 | Meta trả lỗi quyền | App còn Development hoặc thiếu Advanced Access | Kiểm tra role test, App Review và quyền token |
-| `no_recipient` | Phụ huynh chưa liên kết Page | Gửi link `m.me?ref=<uid>` và yêu cầu gửi tin |
+| `no_recipient` | Phụ huynh chưa liên kết Page | Tạo link nonce qua Worker rồi yêu cầu phụ huynh gửi tin |
 | Google `origin_mismatch` | Origin chưa đăng ký hoặc có path | Thêm đúng scheme, host và port |
 | Google `access_denied` | User không phải test user hoặc từ chối scope | Thêm test user, kiểm tra consent screen |
 | Drive trả 404 với Folder ID | Token không có quyền trên thư mục | Chọn lại bằng Picker hoặc tạo thư mục qua API |

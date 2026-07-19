@@ -18,7 +18,8 @@ export default function ClassesPage() {
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
   const { role } = useAuth();
-  const canManageClasses = role === USER_ROLES.ADMIN;
+  const canManageClasses = role === USER_ROLES.ADMIN || role === USER_ROLES.TEACHER;
+  const canDeleteClasses = role === USER_ROLES.ADMIN;
 
   const openCreate = () => { setEditingClass(null); setOpen(true); };
   const openEdit = (klass: ClassDoc & { id: string }) => { setEditingClass(klass); setOpen(true); };
@@ -46,9 +47,9 @@ export default function ClassesPage() {
       <div>
         <ClassesList
           onEdit={openEdit}
-          onDelete={setDeletingClass}
+          onDelete={canDeleteClasses ? setDeletingClass : undefined}
           canEdit={canManageClasses}
-          canDelete={canManageClasses}
+          canDelete={canDeleteClasses}
         />
       </div>
 

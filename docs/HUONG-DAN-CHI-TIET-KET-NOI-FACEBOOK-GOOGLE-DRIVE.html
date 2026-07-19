@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="vi" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="Hướng dẫn chi tiết kết nối Facebook Messenger, Fanpage và Google Drive cho Edumatrix.">
+  <title>Edumatrix | Kết nối Facebook & Google Drive</title>
+  <style>
+    :root {
+      --bg: #eef2f7;
+      --paper: #ffffff;
+      --paper-2: #f6f8fb;
+      --ink: #111b2e;
+      --muted: #607087;
+      --line: #d8e0ea;
+      --accent: #155eef;
+      --accent-strong: #0d46ba;
+      --accent-soft: #e8f0ff;
+      --success: #087a55;
+      --success-soft: #e5f7ef;
+      --warning: #a04414;
+      --warning-soft: #fff1e8;
+      --danger: #b42336;
+      --danger-soft: #ffecef;
+      --code: #101827;
+      --code-ink: #e6edf7;
+      --shadow: 0 18px 50px rgb(27 48 81 / 9%);
+      --radius: 14px;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      --sans: "Segoe UI", Inter, ui-sans-serif, system-ui, sans-serif;
+    }
+    [data-theme="dark"] {
+      --bg: #0c121d;
+      --paper: #131c2a;
+      --paper-2: #192536;
+      --ink: #eef4ff;
+      --muted: #a9b7ca;
+      --line: #304056;
+      --accent: #76a7ff;
+      --accent-strong: #a8c5ff;
+      --accent-soft: #172d56;
+      --success: #72d6b2;
+      --success-soft: #15392e;
+      --warning: #ffad7a;
+      --warning-soft: #442719;
+      --danger: #ff9ba8;
+      --danger-soft: #451e27;
+      --code: #070b12;
+      --code-ink: #e6edf7;
+      --shadow: 0 20px 55px rgb(0 0 0 / 28%);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 86px; }
+    body { margin: 0; overflow-x: clip; background: var(--bg); color: var(--ink); font: 15px/1.65 var(--sans); }
+    button, input { font: inherit; }
+    a { color: var(--accent-strong); overflow-wrap: anywhere; text-underline-offset: 3px; }
+    :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+    .skip { position: fixed; z-index: 60; top: -60px; left: 12px; padding: 10px 14px; border-radius: 8px; background: var(--ink); color: var(--paper); }
+    .skip:focus { top: 12px; }
+    .topbar {
+      position: sticky; z-index: 40; top: 0; display: flex; align-items: center; justify-content: space-between; gap: 16px;
+      min-height: 64px; padding: 10px clamp(14px, 4vw, 54px); border-bottom: 1px solid var(--line);
+      background: color-mix(in srgb, var(--bg) 91%, transparent); backdrop-filter: blur(14px);
+    }
+    .brand { display: flex; align-items: center; gap: 11px; min-width: 0; color: var(--ink); text-decoration: none; font-weight: 800; letter-spacing: -.02em; }
+    .brand-mark { display: grid; flex: 0 0 auto; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--accent); color: #fff; font: 800 11px/1 var(--mono); }
+    .top-actions { display: flex; flex: 0 0 auto; gap: 8px; }
+    .button, .filter, .copy, .reset {
+      min-height: 40px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 13px;
+      background: var(--paper); color: var(--ink); cursor: pointer; transition: transform .16s ease, border-color .16s ease, background .16s ease;
+    }
+    .button:hover, .filter:hover, .copy:hover, .reset:hover { transform: translateY(-1px); border-color: var(--accent); }
+    .layout { display: grid; grid-template-columns: 264px minmax(0, 920px); gap: clamp(28px, 5vw, 72px); width: min(1260px, calc(100% - 32px)); margin: auto; }
+    aside { position: sticky; top: 84px; align-self: start; height: calc(100vh - 100px); overflow: auto; padding: 26px 0; }
+    .progress { padding: 17px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper); box-shadow: var(--shadow); }
+    .progress-label { display: flex; justify-content: space-between; gap: 12px; font-weight: 800; }
+    .progress-track { height: 7px; margin-top: 12px; overflow: hidden; border-radius: 10px; background: var(--paper-2); }
+    .progress-fill { width: 0; height: 100%; background: var(--accent); transition: width .2s ease; }
+    .platform-progress { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 12px; color: var(--muted); font: 700 10px/1.4 var(--mono); }
+    nav { margin-top: 20px; }
+    nav a { display: block; padding: 7px 10px; border-left: 2px solid transparent; color: var(--muted); text-decoration: none; font-size: 13px; }
+    nav a:hover, nav a[aria-current="true"] { border-left-color: var(--accent); color: var(--ink); }
+    main { min-width: 0; padding: 52px 0 120px; }
+    .hero { padding: clamp(26px, 5vw, 56px) 0 48px; }
+    .eyebrow { margin: 0 0 14px; color: var(--accent-strong); font: 800 11px/1.3 var(--mono); letter-spacing: .12em; text-transform: uppercase; }
+    h1 { max-width: 850px; margin: 0; font-size: clamp(43px, 6.5vw, 78px); line-height: .98; letter-spacing: -.06em; }
+    .lead { max-width: 700px; margin: 24px 0 0; color: var(--muted); font-size: clamp(17px, 2vw, 21px); line-height: 1.55; }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 25px; }
+    .hero-actions a { min-height: 42px; padding: 9px 14px; border-radius: 10px; text-decoration: none; font-weight: 750; }
+    .hero-actions a:first-child { background: var(--accent); color: #fff; }
+    .hero-actions a:last-child { border: 1px solid var(--line); background: var(--paper); color: var(--ink); }
+    .architecture { display: grid; grid-template-columns: 1fr 78px 1fr; gap: 14px; align-items: stretch; margin-top: 44px; }
+    .arch-lane { padding: 20px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper); }
+    .arch-lane h2 { margin: 0; font-size: 17px; }
+    .arch-lane p { margin: 8px 0 0; color: var(--muted); font-size: 13px; }
+    .arch-flow { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 18px; }
+    .arch-flow span { padding: 5px 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--paper-2); font: 700 10px/1.4 var(--mono); }
+    .arch-divider { display: grid; place-items: center; color: var(--muted); font: 800 11px/1.3 var(--mono); writing-mode: vertical-rl; text-transform: uppercase; letter-spacing: .1em; }
+    .toolbar { display: grid; gap: 10px; padding: 24px 0 8px; border-top: 1px solid var(--line); }
+    .search { width: 100%; min-height: 46px; border: 1px solid var(--line); border-radius: 11px; padding: 10px 14px; background: var(--paper); color: var(--ink); }
+    .filters { display: flex; flex-wrap: wrap; gap: 7px; }
+    .filter[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: #fff; }
+    .section { padding: 56px 0 10px; }
+    .section-header { max-width: 750px; margin-bottom: 25px; }
+    .section-header h2 { margin: 0; font-size: clamp(28px, 4vw, 44px); line-height: 1.08; letter-spacing: -.045em; }
+    .section-header p { margin: 12px 0 0; color: var(--muted); font-size: 17px; }
+    h3 { margin: 0 0 8px; font-size: 18px; line-height: 1.3; }
+    h4 { margin: 0 0 5px; font-size: 15px; }
+    .callout { margin: 18px 0; padding: 17px 18px; border-left: 4px solid var(--accent); border-radius: 0 var(--radius) var(--radius) 0; background: var(--accent-soft); }
+    .callout.warning { border-left-color: var(--warning); background: var(--warning-soft); }
+    .callout.danger { border-left-color: var(--danger); background: var(--danger-soft); }
+    .callout p { margin: 0; }
+    .facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .fact { padding: 19px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper); }
+    .fact b { display: block; margin-bottom: 6px; }
+    .fact span { color: var(--muted); font-size: 13px; }
+    .stage { margin-top: 28px; }
+    .stage-title { display: flex; align-items: baseline; gap: 12px; margin-bottom: 13px; }
+    .stage-title span { color: var(--accent); font: 800 12px/1 var(--mono); }
+    .steps { display: grid; gap: 10px; }
+    .step { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 12px; padding: 17px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper); }
+    .step:has(input:checked) { border-color: var(--success); background: var(--success-soft); }
+    .step input { width: 19px; height: 19px; margin: 2px 0 0; accent-color: var(--success); cursor: pointer; }
+    .step label { min-width: 0; cursor: pointer; }
+    .step strong { display: block; margin-bottom: 5px; }
+    .step small { display: block; color: var(--muted); font-size: 13px; line-height: 1.55; }
+    .step:has(input:checked) strong { text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--ink) 40%, transparent); }
+    .codebox { position: relative; margin: 14px 0; }
+    pre { margin: 0; overflow: auto; border-radius: var(--radius); padding: 20px 18px; background: var(--code); color: var(--code-ink); font: 12.5px/1.7 var(--mono); }
+    code { font-family: var(--mono); }
+    p code, li code, td code, small code { padding: 2px 5px; border-radius: 5px; background: var(--paper-2); color: var(--ink); font-size: .9em; overflow-wrap: anywhere; word-break: break-word; }
+    .copy { position: absolute; top: 9px; right: 9px; min-height: 31px; border-color: rgb(255 255 255 / 18%); background: #22324a; color: #fff; font-size: 11px; }
+    table { width: 100%; border-collapse: collapse; border: 1px solid var(--line); background: var(--paper); }
+    th, td { padding: 12px 13px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { background: var(--paper-2); color: var(--muted); font: 800 10.5px/1.4 var(--mono); letter-spacing: .06em; text-transform: uppercase; }
+    td { font-size: 13px; }
+    .yes { color: var(--success); font-weight: 800; }
+    .no { color: var(--danger); font-weight: 800; }
+    .check-matrix td:first-child { width: 28%; font-weight: 750; }
+    .source-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 0; list-style: none; }
+    .source-list a { display: block; height: 100%; padding: 15px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper); text-decoration: none; font-weight: 750; }
+    .source-list small { display: block; margin-top: 5px; color: var(--muted); font-weight: 400; }
+    .empty { display: none; margin: 36px 0; padding: 28px; border: 1px dashed var(--line); border-radius: var(--radius); color: var(--muted); text-align: center; }
+    .reset-row { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+    footer { margin-top: 60px; padding-top: 23px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+    [hidden] { display: none !important; }
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: minmax(0, 1fr); width: min(920px, calc(100% - 28px)); }
+      aside { position: static; height: auto; padding: 22px 0 0; }
+      aside nav { display: none; }
+      main { padding-top: 0; }
+    }
+    @media (max-width: 680px) {
+      .topbar { padding-inline: 14px; }
+      .brand span:last-child, .button .label { display: none; }
+      h1 { font-size: clamp(42px, 12vw, 57px); }
+      .architecture, .facts, .source-list { grid-template-columns: 1fr; }
+      .arch-divider { writing-mode: initial; min-height: 30px; }
+      .table-wrap { overflow-x: auto; }
+      table { min-width: 670px; }
+      .reset-row { align-items: flex-start; flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+    }
+    @media print {
+      :root { --bg: #fff; --paper: #fff; --paper-2: #f5f6f8; --ink: #111; --muted: #444; --line: #c8cdd5; --accent: #174ea6; --accent-strong: #174ea6; --accent-soft: #eef4ff; }
+      .topbar, aside nav, .toolbar, .copy, .reset-row { display: none !important; }
+      .layout { display: block; width: 100%; }
+      aside { height: auto; padding: 0 0 16px; }
+      main { padding: 0; }
+      .section { padding-top: 34px; }
+      .step, .fact, pre, table { break-inside: avoid; box-shadow: none; }
+      a { color: inherit; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#content">Bỏ qua điều hướng</a>
+  <header class="topbar">
+    <a class="brand" href="#top"><span class="brand-mark">EM</span><span>Edumatrix · Hướng dẫn kết nối</span></a>
+    <div class="top-actions">
+      <button class="button" id="theme" type="button" aria-label="Đổi giao diện sáng tối">◐ <span class="label">Giao diện</span></button>
+      <button class="button" id="print" type="button">⌁ <span class="label">In / PDF</span></button>
+    </div>
+  </header>
+
+  <div class="layout" id="top">
+    <aside aria-label="Mục lục và tiến độ">
+      <div class="progress">
+        <p class="eyebrow">Tiến độ cấu hình</p>
+        <div class="progress-label"><span id="progressText">0 / 28 bước</span><span id="progressPercent">0%</span></div>
+        <div class="progress-track" role="progressbar" aria-label="Tiến độ hướng dẫn" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="platform-progress"><span id="metaProgress">Facebook 0/15</span><span id="driveProgress">Drive 0/13</span></div>
+      </div>
+      <nav>
+        <a href="#tong-quan">Tổng quan kiến trúc</a>
+        <a href="#bao-mat">Quy tắc bảo mật</a>
+        <a href="#chuan-bi">Chuẩn bị</a>
+        <a href="#facebook">Facebook / Meta</a>
+        <a href="#facebook-test">Kiểm thử Facebook</a>
+        <a href="#drive">Google Drive</a>
+        <a href="#drive-test">Kiểm thử Drive</a>
+        <a href="#admin">Cấu hình Admin</a>
+        <a href="#troubleshoot">Xử lý lỗi</a>
+        <a href="#go-live">Go-live</a>
+        <a href="#sources">Nguồn chính thức</a>
+      </nav>
+    </aside>
+
+    <main id="content">
+      <section class="hero" id="tong-quan" data-platform="all">
+        <p class="eyebrow">Facebook + Google Drive · Theo mã nguồn hiện tại</p>
+        <h1>Hai kết nối.<br>Một đường kiểm tra.</h1>
+        <p class="lead">Thiết lập Messenger và Fanpage qua Worker bảo mật; kết nối Google Drive để lưu, chọn và gọi lại giáo án trong Edumatrix.</p>
+        <div class="hero-actions"><a href="#facebook">Bắt đầu Facebook</a><a href="#drive">Bắt đầu Google Drive</a></div>
+        <div class="architecture" aria-label="Sơ đồ kiến trúc hai kết nối">
+          <article class="arch-lane">
+            <h2>Facebook đi qua Worker</h2>
+            <p>Frontend chỉ gửi Firebase ID token. Meta token và service account không bao giờ đi vào trình duyệt.</p>
+            <div class="arch-flow"><span>EDUMATRIX</span><span>FIREBASE ID TOKEN</span><span>WORKER</span><span>GRAPH API</span></div>
+          </article>
+          <div class="arch-divider">Tách ranh giới</div>
+          <article class="arch-lane">
+            <h2>Drive dùng quyền người dùng</h2>
+            <p>Google cấp access token ngắn hạn cho trình duyệt. Không có client secret hoặc refresh token.</p>
+            <div class="arch-flow"><span>EDUMATRIX</span><span>GOOGLE CONSENT</span><span>PICKER</span><span>DRIVE API</span></div>
+          </article>
+        </div>
+      </section>
+
+      <div class="toolbar" aria-label="Tìm và lọc nội dung">
+        <input class="search" id="search" type="search" placeholder="Tìm: webhook, Page token, OAuth, origin, Folder ID, 403..." aria-label="Tìm trong tài liệu">
+        <div class="filters">
+          <button class="filter" type="button" data-filter="all" aria-pressed="true">Tất cả</button>
+          <button class="filter" type="button" data-filter="meta" aria-pressed="false">Facebook / Meta</button>
+          <button class="filter" type="button" data-filter="drive" aria-pressed="false">Google Drive</button>
+          <button class="filter" type="button" data-filter="security" aria-pressed="false">Bảo mật</button>
+        </div>
+      </div>
+      <div class="empty" id="empty">Không có phần nào khớp. Hãy chọn “Tất cả” hoặc dùng từ khóa ngắn hơn.</div>
+
+      <section class="section guide" id="bao-mat" data-platform="security">
+        <div class="section-header"><h2>Đặt đúng dữ liệu vào đúng nơi</h2><p>Nếu chỉ nhớ một phần của tài liệu này, hãy nhớ bảng bên dưới.</p></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Giá trị</th><th>Nơi lưu đúng</th><th>Được xuất hiện trong client?</th></tr></thead>
+          <tbody>
+            <tr><td><code>META_PAGE_ACCESS_TOKEN</code>, <code>META_APP_SECRET</code>, verify token</td><td>Cloudflare Worker Secrets</td><td class="no">Không</td></tr>
+            <tr><td>Firebase service-account email và private key</td><td>Cloudflare Worker Secrets</td><td class="no">Không</td></tr>
+            <tr><td>Worker URL, Facebook Page username</td><td><code>.env.local</code> với tiền tố <code>VITE_</code></td><td class="yes">Có</td></tr>
+            <tr><td>Facebook Page ID, webhook URL, Drive Folder ID</td><td>Admin → Kết nối và API</td><td class="yes">Có, theo quyền</td></tr>
+            <tr><td>Google OAuth Client ID, Picker API key, Project Number</td><td><code>.env.local</code>; API key phải giới hạn referrer</td><td class="yes">Có</td></tr>
+            <tr><td>Google client secret, refresh token</td><td>Không dùng trong kiến trúc hiện tại</td><td class="no">Không được thêm</td></tr>
+          </tbody>
+        </table></div>
+        <div class="callout danger"><p><strong>Không chụp màn hình hoặc dán secret vào tài liệu hỗ trợ.</strong> Nếu token từng xuất hiện trong Git, chat hoặc ảnh, hãy thu hồi và tạo lại; xóa khỏi file là chưa đủ.</p></div>
+      </section>
+
+      <section class="section guide" id="chuan-bi" data-platform="all">
+        <div class="section-header"><h2>Chuẩn bị trước khi mở Console</h2><p>Kiểm tra ứng dụng local và gom đủ quyền tài khoản trước khi cấu hình nền tảng.</p></div>
+        <div class="facts">
+          <div class="fact"><b>Quyền cần có</b><span>Firebase project, Cloudflare account, Meta App/Page và Google Cloud project; đồng thời có tài khoản Admin Edumatrix.</span></div>
+          <div class="fact"><b>Địa chỉ dùng trong hướng dẫn</b><span>Local: <code>http://localhost:5173</code>. Production: <code>https://edumatrix-vn-576b1.web.app</code>.</span></div>
+        </div>
+        <div class="codebox"><button class="copy" type="button">Sao chép</button><pre><code>Copy-Item .env.example .env.local
+npm install
+npm run typecheck
+npm test
+npm run build
+npm run dev</code></pre></div>
+        <div class="steps">
+          <div class="step"><input type="checkbox" id="m01" data-step="meta"><label for="m01"><strong>Xác nhận đăng nhập được bằng Admin</strong><small>Mở ứng dụng local, đăng nhập và truy cập <code>/app/settings?section=integrations</code>.</small></label></div>
+          <div class="step"><input type="checkbox" id="d01" data-step="drive"><label for="d01"><strong>Xác nhận build nền đang hoạt động</strong><small>Typecheck, test và build phải qua trước khi thêm biến môi trường mới.</small></label></div>
+        </div>
+      </section>
+
+      <section class="section guide" id="facebook" data-platform="meta">
+        <div class="section-header"><h2>Kết nối Facebook / Meta</h2><p>Mục tiêu cuối: Worker có thể nhận webhook, gửi Messenger, tạo referral và đăng nội dung Fanpage mà không lộ token.</p></div>
+        <div class="callout"><p><strong>Phạm vi mã nguồn:</strong> Worker đang dùng Graph API <code>v22.0</code> với các endpoint <code>/api/messenger/send</code>, <code>/api/messenger/post</code>, <code>/api/messenger/referral</code> và <code>/webhook</code>.</p></div>
+
+        <div class="stage">
+          <div class="stage-title"><span>GIAI ĐOẠN A</span><h3>Tạo Meta App và nối Facebook Page</h3></div>
+          <div class="steps">
+            <div class="step"><input type="checkbox" id="m02" data-step="meta"><label for="m02"><strong>Chuẩn bị Facebook Page</strong><small>Tài khoản thao tác phải có quyền quản trị Page. Ghi lại Page ID và Page username trong URL <code>facebook.com/&lt;username&gt;</code>.</small></label></div>
+            <div class="step"><input type="checkbox" id="m03" data-step="meta"><label for="m03"><strong>Tạo Meta App</strong><small>Trong Meta for Developers, tạo app dành cho use case doanh nghiệp và thêm Messenger. Tên menu có thể thay đổi theo giao diện Meta.</small></label></div>
+            <div class="step"><input type="checkbox" id="m04" data-step="meta"><label for="m04"><strong>Kết nối Page trong Messenger API Settings</strong><small>Chọn đúng Page Edumatrix sẽ sử dụng. Không dùng Page thử nghiệm khác với Page ID lưu trong Admin.</small></label></div>
+            <div class="step"><input type="checkbox" id="m05" data-step="meta"><label for="m05"><strong>Tạo Page Access Token</strong><small>Sao chép token một lần vào trình quản lý mật khẩu. Không dán vào <code>.env.local</code>, Firestore hoặc tài liệu HTML.</small></label></div>
+            <div class="step"><input type="checkbox" id="m06" data-step="meta"><label for="m06"><strong>Lấy App Secret và tự tạo Verify Token</strong><small>App Secret nằm trong App Settings. Verify Token là chuỗi ngẫu nhiên dài do bạn tự đặt, dùng để Meta xác minh webhook.</small></label></div>
+          </div>
+        </div>
+
+        <div class="stage">
+          <div class="stage-title"><span>GIAI ĐOẠN B</span><h3>Cấu hình Cloudflare Worker</h3></div>
+          <p>Local secrets nằm trong <code>workers/messenger/.dev.vars</code>. Production secrets phải được đưa lên Cloudflare bằng Wrangler.</p>
+          <div class="codebox"><button class="copy" type="button">Sao chép</button><pre><code>Set-Location workers/messenger
+npm install
+Copy-Item .dev.vars.example .dev.vars
+npm run dev
+npm test
+npm run build:prod</code></pre></div>
+          <div class="codebox"><button class="copy" type="button">Sao chép</button><pre><code># workers/messenger/.dev.vars
+META_PAGE_ACCESS_TOKEN=&lt;page-access-token&gt;
+META_APP_SECRET=&lt;meta-app-secret&gt;
+META_WEBHOOK_VERIFY_TOKEN=&lt;random-verify-token&gt;
+FIREBASE_CLIENT_EMAIL=&lt;service-account-email&gt;
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"</code></pre></div>
+          <div class="steps">
+            <div class="step"><input type="checkbox" id="m07" data-step="meta"><label for="m07"><strong>Tạo service account dùng riêng cho Worker</strong><small>Từ Firebase/Google Cloud, lấy client email và private key. Giữ nguyên ký tự <code>\n</code> trong private key.</small></label></div>
+            <div class="step"><input type="checkbox" id="m08" data-step="meta"><label for="m08"><strong>Chạy Worker local và gọi health</strong><small>Sau <code>npm run dev</code>, gọi URL local hiển thị trong terminal với path <code>/health</code>.</small></label></div>
+            <div class="step"><input type="checkbox" id="m09" data-step="meta"><label for="m09"><strong>Kiểm tra origin production</strong><small>Trong <code>wrangler.jsonc</code>, production <code>ALLOWED_ORIGIN</code> phải là <code>https://edumatrix-vn-576b1.web.app</code> hoặc custom domain thực tế.</small></label></div>
+          </div>
+          <div class="codebox"><button class="copy" type="button">Sao chép</button><pre><code>npx wrangler login
+npx wrangler secret put META_PAGE_ACCESS_TOKEN --env production
+npx wrangler secret put META_APP_SECRET --env production
+npx wrangler secret put META_WEBHOOK_VERIFY_TOKEN --env production
+npx wrangler secret put FIREBASE_CLIENT_EMAIL --env production
+npx wrangler secret put FIREBASE_PRIVATE_KEY --env production
+npm run deploy:prod</code></pre></div>
+          <div class="steps">
+            <div class="step"><input type="checkbox" id="m10" data-step="meta"><label for="m10"><strong>Đặt đủ năm production secrets</strong><small>Phải dùng <code>--env production</code>. Đây là environment Worker riêng; đừng vô tình đặt secret vào environment mặc định.</small></label></div>
+            <div class="step"><input type="checkbox" id="m11" data-step="meta"><label for="m11"><strong>Deploy và ghi lại Worker URL</strong><small>Chạy <code>npm run deploy:prod</code>, sau đó gọi <code>curl.exe https://&lt;worker-url&gt;/health</code>.</small></label></div>
+          </div>
+        </div>
+
+        <div class="stage">
+          <div class="stage-title"><span>GIAI ĐOẠN C</span><h3>Đăng ký webhook và quyền Meta</h3></div>
+          <div class="steps">
+            <div class="step"><input type="checkbox" id="m12" data-step="meta"><label for="m12"><strong>Thêm webhook callback</strong><small>Callback URL: <code>https://&lt;worker-url&gt;/webhook</code>. Verify Token phải trùng tuyệt đối với <code>META_WEBHOOK_VERIFY_TOKEN</code>.</small></label></div>
+            <div class="step"><input type="checkbox" id="m13" data-step="meta"><label for="m13"><strong>Đăng ký Page và webhook fields</strong><small>Chọn <code>messages</code>, <code>messaging_postbacks</code>, <code>messaging_referrals</code>; kiểm tra Page đã được subscribe vào app.</small></label></div>
+            <div class="step"><input type="checkbox" id="m14" data-step="meta"><label for="m14"><strong>Rà soát permission và App Review</strong><small>Messenger thường cần <code>pages_messaging</code>; đăng Page cần <code>pages_manage_posts</code> và <code>pages_read_engagement</code>; quản lý subscription có thể cần <code>pages_manage_metadata</code>.</small></label></div>
+          </div>
+          <div class="callout warning"><p><strong>Development mode chỉ phục vụ tài khoản có vai trò trong App.</strong> Muốn người dùng thật tương tác, phải hoàn thiện Privacy Policy, Data Deletion, App Review và chuyển App sang Live theo yêu cầu hiện hành của Meta.</p></div>
+        </div>
+
+        <div class="stage">
+          <div class="stage-title"><span>GIAI ĐOẠN D</span><h3>Nối Worker vào Edumatrix</h3></div>
+          <div class="codebox"><button class="copy" type="button">Sao chép</button><pre><code># .env.local
+VITE_MESSENGER_WORKER_URL=https://&lt;worker-url&gt;
+VITE_MESSENGER_PAGE_USERNAME=&lt;facebook-page-username&gt;</code></pre></div>
+          <div class="steps">
+            <div class="step"><input type="checkbox" id="m15" data-step="meta"><label for="m15"><strong>Build lại frontend sau khi đổi biến</strong><small>Chạy <code>npm run build</code>. Vite chỉ đưa biến môi trường vào bundle tại thời điểm build.</small></label></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section guide" id="facebook-test" data-platform="meta">
+        <div class="section-header"><h2>Kiểm thử Facebook từ ngoài vào trong</h2><p>Không thử mọi thứ cùng lúc. Đi theo thứ tự để biết lỗi nằm ở Meta, Worker hay quyền dữ liệu.</p></div>
+        <div class="table-wrap"><table class="check-matrix">
+          <thead><tr><th>Lớp kiểm tra</th><th>Thao tác</th><th>Kết quả đạt</th></tr></thead>
+          <tbody>
+            <tr><td>Worker</td><td>Mở <code>GET /health</code></td><td>HTTP 200; Worker phản hồi trước khi nối webhook.</td></tr>
+            <tr><td>Webhook verify</td><td>Bấm Verify and Save trong Meta</td><td>Meta chấp nhận callback và không báo verify token sai.</td></tr>
+            <tr><td>Frontend</td><td>Mở Admin → Kết nối và API</td><td>Thẻ Messenger Worker hiển thị đã cấu hình.</td></tr>
+            <tr><td>Referral</td><td>Chat → tạo link liên kết phụ huynh; mở link và nhắn Page</td><td>Webhook claim nonce một lần; hội thoại xuất hiện đúng học sinh.</td></tr>
+            <tr><td>Messenger</td><td>Gửi tin cho hội thoại đã liên kết</td><td>Outbox có trạng thái sent hoặc lỗi Meta cụ thể.</td></tr>
+            <tr><td>Fanpage</td><td>Admin → Chat → Đăng Fanpage → Đăng ngay</td><td>Bài text/link xuất hiện trên Page và có lịch sử.</td></tr>
+          </tbody>
+        </table></div>
+        <div class="callout warning"><p><strong>Giới hạn hiện tại:</strong> hàng chờ Fanpage không tự chạy trên Spark Plan; Admin phải bấm “Đăng ngay” khi đến giờ. Worker hiện chỉ gửi nội dung và link lên Graph API; các URL ảnh trong giao diện chưa được Worker vận chuyển thành ảnh bài đăng.</p></div>
+      </section>
+
+      <section class="section guide" id="drive" data-platform="drive">
+        <div class="section-header"><h2>Kết nối Google Drive & Picker</h2><p>Mục tiêu cuối: Admin/Staff cấp quyền Drive, chọn giáo án có sẵn, upload giáo án mới vào đúng thư mục và mở lại tệp từ Edumatrix.</p></div>
+        <div class="facts">
+          <div class="fact"><b>Quyền đang dùng</b><span><code>https://www.googleapis.com/auth/drive.file</code>, giới hạn vào tệp do app tạo hoặc người dùng chọn/cấp quyền.</span></div>
+          <div class="fact"><b>Vòng đời phiên</b><span>Access token chỉ giữ trong bộ nhớ, thường khoảng một giờ; hết hạn thì bấm kết nối lại.</span></div>
+          <div class="fact"><b>Upload hiện tại</b><span>Multipart upload tối đa 5 MB, timeout 45 giây, lưu vào Folder ID trong Admin.</span></div>
+          <div class="fact"><b>Ba giá trị public</b><span>OAuth Client ID, restricted Picker API key và Google Cloud Project Number.</span></div>
+        </div>
+
+        <div class="stage">
+          <div class="stage-title"><span>GIAI ĐOẠN A</span><h3>Chuẩn bị Google Cloud Project</h3></div>
+          <div class="steps">
+            <div class="step"><input type="checkbox" id="d02" data-step="drive"><label for="d02"><strong>Tạo hoặc chọn một Google Cloud Project</strong><small>Dùng cùng một project cho OAuth Client ID, API key và Picker App ID. Ghi lại cả Project ID lẫn <strong>Project Number</strong>.</small></label></div>
+            <div class="step"><input type="checkbox" id="d03" data-step="drive"><label for="d03"><strong>Bật Google Drive API</strong><small>Google Cloud Console → APIs & Services → Library → Google Drive API → Enable.</small></label></div>
+            <div class="step"><input type="checkbox" id="d04" data-step="drive"><label for="d04"><strong>Bật Google Picker API</strong><small>Picker là API riêng với Drive API. Cả hai phải được bật trong cùng project.</small></label></div>
+            <div class="step"><input type="checkbox" id="d05" data-step="drive"><label for="d05"><strong>Cấu hình OAuth consent screen</strong><small>Điền tên app, email hỗ trợ và audience. Nếu còn Testing, thêm mọi tài khoản Google sẽ dùng thử vào Test users.</small></label></div>
+          </div>
+        </div>
+
+        <div class="stage">
+          <div class="stage-title"><span>GIAI ĐOẠN B</span><h3>Tạo OAuth Client và API key</h3></div>
+          <div class="steps">
+            <div class="step"><input type="checkbox" id="d06" data-step="drive"><label for="d06"><strong>Tạo OAuth Client ID loại Web application</strong><small>APIs & Services → Credentials → Create Credentials → OAuth client ID → Web application.</small></label></div>
+            <div class="step"><input type="checkbox" id="d07" data-step="drive"><label for="d07"><strong>Thêm Authorized JavaScript origins</strong><small>Thêm chính xác <code>http://localhost:5173</code> và <code>https://edumatrix-vn-576b1.web.app</code>. Nếu có custom domain, thêm origin đó. Không thêm path.</small></label></div>
+            <div class="step"><input type="checkbox" id="d08" data-step="drive"><label for="d08"><strong>Tạo API key và giới hạn theo website</strong><small>Application restrictions: Websites. HTTP referrers: <code>http://localhost:5173/*</code> và <code>https://edumatrix-vn-576b1.web.app/*</code>.</small></label></div>
+            <div class="step"><input type="checkbox" id="d09" data-step="drive"><label for="d09"><strong>Giới hạn API key theo API</strong><small>Chọn Google Picker API. Drive REST requests trong mã nguồn dùng OAuth access token, không dùng API key để vượt quyền.</small></label></div>
+            <div class="step"><input type="checkbox" id="d10" data-step="drive"><label for="d10"><strong>Lấy Project Number làm Picker App ID</strong><small>Vào IAM & Admin → Settings. Dùng Project Number, không dùng Project ID hoặc OAuth Client ID.</small></label></div>
+          </div>
+        </div>
+
+        <div class="stage">
+          <div class="stage-title"><span>GIAI ĐOẠN C</span><h3>Đưa cấu hình public vào frontend</h3></div>
+          <div class="codebox"><button class="copy" type="button">Sao chép</button><pre><code># .env.local
+VITE_GOOGLE_CLIENT_ID=&lt;oauth-client-id&gt;.apps.googleusercontent.com
+VITE_GOOGLE_PICKER_API_KEY=&lt;restricted-picker-api-key&gt;
+VITE_GOOGLE_PICKER_APP_ID=&lt;google-cloud-project-number&gt;</code></pre></div>
+          <div class="steps">
+            <div class="step"><input type="checkbox" id="d11" data-step="drive"><label for="d11"><strong>Điền đúng ba biến và build lại</strong><small>Không thêm <code>GOOGLE_CLIENT_SECRET</code> hoặc refresh token. Chạy lại <code>npm run build</code> sau khi thay đổi.</small></label></div>
+          </div>
+        </div>
+
+        <div class="stage">
+          <div class="stage-title"><span>GIAI ĐOẠN D</span><h3>Chuẩn bị thư mục giáo án</h3></div>
+          <div class="steps">
+            <div class="step"><input type="checkbox" id="d12" data-step="drive"><label for="d12"><strong>Tạo thư mục Google Drive dành cho giáo án</strong><small>Dùng tài khoản Google sẽ vận hành Edumatrix. Chia sẻ thư mục cho các tài khoản cần tải lên hoặc chọn tệp.</small></label></div>
+            <div class="step"><input type="checkbox" id="d13" data-step="drive"><label for="d13"><strong>Sao chép Folder ID</strong><small>Trong URL <code>https://drive.google.com/drive/folders/FOLDER_ID</code>, chỉ sao chép phần <code>FOLDER_ID</code>.</small></label></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section guide" id="drive-test" data-platform="drive">
+        <div class="section-header"><h2>Kiểm thử Google Drive theo sáu thao tác</h2><p>Dùng cùng tài khoản Google đã được cấp quyền với thư mục giáo án.</p></div>
+        <div class="table-wrap"><table class="check-matrix">
+          <thead><tr><th>Thao tác</th><th>Cách làm</th><th>Kết quả đạt</th></tr></thead>
+          <tbody>
+            <tr><td>Kết nối</td><td>Admin → Kết nối và API → Kết nối Drive</td><td>Google consent mở, scope là <code>drive.file</code>, trạng thái chuyển sang đã kết nối.</td></tr>
+            <tr><td>Chọn tệp</td><td>Trong giáo án, mở Picker và chọn một tệp</td><td>Tên, MIME type, link và thời gian cập nhật được lưu vào giáo án.</td></tr>
+            <tr><td>Upload</td><td>Chọn tệp nhỏ hơn 5 MB</td><td>Tệp mới xuất hiện trong thư mục cấu hình và có app property <code>lesson-plan</code>.</td></tr>
+            <tr><td>Mở lại</td><td>Mở attachment từ chi tiết giáo án</td><td>Google Drive mở đúng tệp và tài khoản hiện tại có quyền xem.</td></tr>
+            <tr><td>Làm mới</td><td>Thay đổi tệp trên Drive rồi refresh metadata</td><td>Edumatrix cập nhật modified time; tệp trong Trash được báo không khả dụng.</td></tr>
+            <tr><td>Ngắt phiên</td><td>Bấm Ngắt phiên trong Kết nối và API</td><td>Token bị revoke/xóa khỏi bộ nhớ; thao tác tiếp theo yêu cầu kết nối lại.</td></tr>
+          </tbody>
+        </table></div>
+      </section>
+
+      <section class="section guide" id="admin" data-platform="all">
+        <div class="section-header"><h2>Lưu ba định danh trong Admin</h2><p>Đây là bước nối cấu hình nền tảng với giao diện Edumatrix.</p></div>
+        <div class="callout"><p>Mở <code>/app/settings?section=integrations</code>. Chỉ Admin được lưu thay đổi.</p></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Trường</th><th>Giá trị</th><th>Ví dụ hình dạng</th></tr></thead>
+          <tbody>
+            <tr><td>Facebook Page ID</td><td>ID số của Page đã kết nối với Meta App</td><td><code>123456789012345</code></td></tr>
+            <tr><td>Google Drive folder ID</td><td>Phần sau <code>/folders/</code> trong URL Drive</td><td><code>1AbC...xYz</code></td></tr>
+            <tr><td>Webhook callback URL</td><td>Worker production URL cộng <code>/webhook</code></td><td><code>https://...workers.dev/webhook</code></td></tr>
+          </tbody>
+        </table></div>
+        <div class="callout warning"><p>Không nhập Page Access Token, App Secret, Verify Token, service-account key hoặc Google token vào ba trường này.</p></div>
+      </section>
+
+      <section class="section guide" id="troubleshoot" data-platform="all">
+        <div class="section-header"><h2>Xử lý lỗi theo triệu chứng</h2><p>Chỉ thay một cấu hình mỗi lần, sau đó kiểm thử lại đúng lớp vừa thay.</p></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Triệu chứng</th><th>Nguyên nhân thường gặp</th><th>Cách xử lý</th></tr></thead>
+          <tbody>
+            <tr><td>Meta không verify webhook</td><td>Callback sai path hoặc verify token không trùng</td><td>Dùng HTTPS <code>/webhook</code>; đặt lại cùng một token trong Meta và Worker production.</td></tr>
+            <tr><td>Worker trả 401</td><td>Thiếu hoặc hết hạn Firebase ID token</td><td>Đăng nhập lại Edumatrix; kiểm tra Firebase project ID và service-account secret.</td></tr>
+            <tr><td>Worker trả 403 <code>admin_required</code></td><td>Tài khoản không phải Admin</td><td>Không nới quyền Worker; dùng đúng tài khoản Admin cho đăng Fanpage.</td></tr>
+            <tr><td>Facebook từ chối gửi</td><td>Page token, permission, App mode hoặc cửa sổ Messenger</td><td>Xem Worker logs, kiểm tra token/Page, App Review và chính sách gửi hiện hành.</td></tr>
+            <tr><td>CORS khi gọi Worker</td><td><code>ALLOWED_ORIGIN</code> không khớp frontend</td><td>Đặt đúng scheme + hostname + port, không có path; deploy lại đúng environment.</td></tr>
+            <tr><td>Google báo origin mismatch</td><td>Authorized JavaScript origins thiếu hoặc có path</td><td>Thêm chính xác origin local/production; chờ cấu hình cập nhật rồi thử lại.</td></tr>
+            <tr><td>API key bị chặn</td><td>HTTP referrer hoặc API restriction sai</td><td>Kiểm tra referrer có <code>/*</code>, Picker API được bật và key thuộc đúng Cloud Project.</td></tr>
+            <tr><td>Picker mở nhưng không thấy đúng thư mục</td><td>Folder ID hoặc quyền tài khoản Google</td><td>Đăng nhập đúng tài khoản; kiểm tra Folder ID và chia sẻ thư mục.</td></tr>
+            <tr><td>Drive trả 401/403</td><td>Token hết hạn hoặc thiếu quyền tệp/thư mục</td><td>Kết nối lại; nếu vẫn 403, chia sẻ tệp/thư mục cho tài khoản đang dùng.</td></tr>
+            <tr><td>Upload Drive thất bại</td><td>Tệp lớn hơn 5 MB hoặc mạng quá 45 giây</td><td>Giảm kích thước tệp; bản hiện tại chưa có resumable upload.</td></tr>
+          </tbody>
+        </table></div>
+      </section>
+
+      <section class="section guide" id="go-live" data-platform="security">
+        <div class="section-header"><h2>Điều kiện trước khi go-live</h2><p>Chỉ công bố khi kiểm thử bằng tài khoản và Page production đã hoàn tất.</p></div>
+        <div class="facts">
+          <div class="fact"><b>Facebook</b><span>App ở trạng thái phù hợp, webhook delivery ổn định, quyền đã được duyệt và token chưa hết hiệu lực.</span></div>
+          <div class="fact"><b>Worker</b><span>Năm secret có trong production, origin đúng, health 200 và log không chứa dữ liệu bí mật.</span></div>
+          <div class="fact"><b>Google</b><span>Consent screen, origins, test users/publishing status và API key restrictions đã đúng domain.</span></div>
+          <div class="fact"><b>Ứng dụng</b><span>Build production mới nhất, Admin settings đúng, smoke test Chat/Fanpage/Drive đều đạt.</span></div>
+        </div>
+        <div class="reset-row"><span>Checklist được lưu trong localStorage của trình duyệt này. Không có secret nào được tài liệu lưu lại.</span><button class="reset" id="reset" type="button">Đặt lại 28 bước</button></div>
+      </section>
+
+      <section class="section guide" id="sources" data-platform="all">
+        <div class="section-header"><h2>Nguồn chính thức và mã nguồn đối chiếu</h2><p>Tên biến và giới hạn lấy từ mã nguồn dự án; thao tác nền tảng được đối chiếu với tài liệu nhà cung cấp.</p></div>
+        <ul class="source-list">
+          <li><a href="https://developers.cloudflare.com/workers/configuration/secrets/" target="_blank" rel="noreferrer">Cloudflare Worker Secrets<small>Cách lưu và triển khai secret an toàn.</small></a></li>
+          <li><a href="https://developers.cloudflare.com/workers/wrangler/environments/" target="_blank" rel="noreferrer">Wrangler Environments<small>Phân biệt môi trường mặc định và production.</small></a></li>
+          <li><a href="https://developers.facebook.com/docs/messenger-platform/" target="_blank" rel="noreferrer">Meta Messenger Platform<small>Thiết lập Messenger, token và chính sách nền tảng.</small></a></li>
+          <li><a href="https://developers.facebook.com/docs/graph-api/webhooks/" target="_blank" rel="noreferrer">Meta Graph API Webhooks<small>Callback verification và webhook subscription.</small></a></li>
+          <li><a href="https://developers.google.com/identity/oauth2/web/guides/use-token-model" target="_blank" rel="noreferrer">Google OAuth Token Model<small>Access token ngắn hạn cho ứng dụng trình duyệt.</small></a></li>
+          <li><a href="https://developers.google.com/workspace/drive/picker/guides/web-picker" target="_blank" rel="noreferrer">Google Picker for Web<small>Client ID, API key, Project Number và PickerBuilder.</small></a></li>
+          <li><a href="https://developers.google.com/workspace/drive/api/guides/api-specific-auth" target="_blank" rel="noreferrer">Google Drive Scopes<small>Lựa chọn và đặc tính của scope drive.file.</small></a></li>
+          <li><a href="https://developers.google.com/workspace/drive/api/guides/manage-uploads" target="_blank" rel="noreferrer">Google Drive Uploads<small>Multipart upload và các phương thức tải tệp.</small></a></li>
+        </ul>
+        <footer>Đã đối chiếu: <code>.env.example</code>, <code>workers/messenger/wrangler.jsonc</code>, Worker source/tests, <code>googleDrive.ts</code>, Firebase Rules và giao diện Admin Integrations. Cập nhật: 19.07.2026.</footer>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.documentElement;
+      const boxes = [...document.querySelectorAll('[data-step]')];
+      const sections = [...document.querySelectorAll('.guide')];
+      const filterButtons = [...document.querySelectorAll('[data-filter]')];
+      const search = document.getElementById('search');
+      const empty = document.getElementById('empty');
+      const progressFill = document.getElementById('progressFill');
+      const progressText = document.getElementById('progressText');
+      const progressPercent = document.getElementById('progressPercent');
+      const progressTrack = document.querySelector('[role="progressbar"]');
+      const storageKey = 'edumatrix-facebook-drive-guide-v1';
+      const themeKey = 'edumatrix-facebook-drive-theme';
+      let activeFilter = 'all';
+
+      root.dataset.theme = localStorage.getItem(themeKey) || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.getElementById('theme').addEventListener('click', () => {
+        root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+        localStorage.setItem(themeKey, root.dataset.theme);
+      });
+      document.getElementById('print').addEventListener('click', () => window.print());
+
+      const saved = JSON.parse(localStorage.getItem(storageKey) || '{}');
+      boxes.forEach((box) => {
+        box.checked = Boolean(saved[box.id]);
+        box.addEventListener('change', () => {
+          saved[box.id] = box.checked;
+          localStorage.setItem(storageKey, JSON.stringify(saved));
+          updateProgress();
+        });
+      });
+
+      function updateProgress() {
+        const done = boxes.filter((box) => box.checked).length;
+        const percent = Math.round(done / boxes.length * 100);
+        const meta = boxes.filter((box) => box.dataset.step === 'meta');
+        const drive = boxes.filter((box) => box.dataset.step === 'drive');
+        progressText.textContent = `${done} / ${boxes.length} bước`;
+        progressPercent.textContent = `${percent}%`;
+        progressFill.style.width = `${percent}%`;
+        progressTrack.setAttribute('aria-valuenow', String(percent));
+        document.getElementById('metaProgress').textContent = `Facebook ${meta.filter((box) => box.checked).length}/${meta.length}`;
+        document.getElementById('driveProgress').textContent = `Drive ${drive.filter((box) => box.checked).length}/${drive.length}`;
+      }
+
+      function applyFilter() {
+        const query = search.value.trim().toLocaleLowerCase('vi');
+        let visible = 0;
+        sections.forEach((section) => {
+          const platform = section.dataset.platform || 'all';
+          const platformMatch = activeFilter === 'all' || platform === activeFilter || platform === 'all';
+          const textMatch = !query || section.textContent.toLocaleLowerCase('vi').includes(query);
+          section.hidden = !(platformMatch && textMatch);
+          if (!section.hidden) visible += 1;
+        });
+        empty.style.display = visible ? 'none' : 'block';
+      }
+
+      filterButtons.forEach((button) => button.addEventListener('click', () => {
+        activeFilter = button.dataset.filter;
+        filterButtons.forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+        applyFilter();
+      }));
+      search.addEventListener('input', applyFilter);
+
+      document.querySelectorAll('.copy').forEach((button) => button.addEventListener('click', async () => {
+        const content = button.nextElementSibling.innerText;
+        try {
+          await navigator.clipboard.writeText(content);
+          button.textContent = 'Đã chép';
+        } catch {
+          const range = document.createRange();
+          range.selectNodeContents(button.nextElementSibling);
+          const selection = getSelection();
+          selection.removeAllRanges();
+          selection.addRange(range);
+          button.textContent = 'Đã chọn';
+        }
+        setTimeout(() => { button.textContent = 'Sao chép'; }, 1400);
+      }));
+
+      document.getElementById('reset').addEventListener('click', () => {
+        if (!confirm('Đặt lại toàn bộ 28 bước?')) return;
+        boxes.forEach((box) => { box.checked = false; });
+        localStorage.removeItem(storageKey);
+        Object.keys(saved).forEach((key) => delete saved[key]);
+        updateProgress();
+      });
+
+      const links = [...document.querySelectorAll('aside nav a')];
+      const observer = new IntersectionObserver((entries) => {
+        const current = entries.filter((entry) => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        if (!current) return;
+        links.forEach((link) => link.setAttribute('aria-current', String(link.getAttribute('href') === `#${current.target.id}`)));
+      }, { rootMargin: '-12% 0px -70% 0px', threshold: [0, .2, .5] });
+      document.querySelectorAll('main section[id]').forEach((section) => observer.observe(section));
+
+      updateProgress();
+    })();
+  </script>
+</body>
+</html>

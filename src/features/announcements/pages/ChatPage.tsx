@@ -15,7 +15,7 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
 import { FanpagePanel } from "@/features/announcements/components/fanpage/FanpagePanel";
 import { listChatThreads, listMessageOutbox, subscribeChatMessages } from "@/services/firestore/chat";
 import { listStudents } from "@/services/firestore/students";
-import { MessengerSendError, messengerInviteLink, messengerPageUrl, sendMessenger } from "@/services/messenger/client";
+import { createMessengerInviteLink, isMessengerInviteConfigured, MessengerSendError, messengerPageUrl, sendMessenger } from "@/services/integrations/messenger";
 import { queryKeys } from "@/hooks/queryKeys";
 import type { ChatMessageDoc, ChatThreadDoc } from "@/types/chat";
 
@@ -59,20 +59,35 @@ function ConnectionBar({ configured }: { configured: boolean }) {
 }
 
 /** Nut copy 1 link vao clipboard, doi label sang "Da copy" tam thoi de xac nhan - dung chung cho link moi lien ket Messenger. */
-function CopyInviteLinkButton({ link, label }: { link: string; label: string }) {
+function CopyInviteLinkButton({ parentUid, studentId, label }: { parentUid: string; studentId: string; label: string }) {
   const [copied, setCopied] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   return (
-    <button
-      type="button"
-      onClick={async () => {
-        await navigator.clipboard.writeText(link);
-        setCopied(true);
-        window.setTimeout(() => setCopied(false), 2000);
-      }}
-      className="inline-flex items-center gap-1.5 rounded-input border border-neutral-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-primary-700 hover:bg-primary-50"
-    >
-      <Copy size={13} />{copied ? "Đã copy link" : label}
-    </button>
+    <span className="inline-flex flex-col items-start gap-1">
+      <button
+        type="button"
+        disabled={pending}
+        onClick={async () => {
+          setPending(true);
+          setError(null);
+          try {
+            const invite = await createMessengerInviteLink(parentUid, studentId);
+            await navigator.clipboard.writeText(invite.url);
+            setCopied(true);
+            window.setTimeout(() => setCopied(false), 2000);
+          } catch (cause) {
+            setError(cause instanceof Error ? cause.message : "Không tạo được link mời");
+          } finally {
+            setPending(false);
+          }
+        }}
+        className="inline-flex items-center gap-1.5 rounded-input border border-neutral-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-primary-700 hover:bg-primary-50 disabled:opacity-50"
+      >
+        <Copy size={13} />{pending ? "Đang tạo link..." : copied ? "Đã copy link" : label}
+      </button>
+      {error && <span role="alert" className="text-xs text-danger-700">{error}</span>}
+    </span>
   );
 }
 
@@ -177,8 +192,8 @@ function ConversationPanel({ thread, configured, onBack }: { thread: Thread; con
               <div className="mt-2 space-y-1.5">
                 <p role="alert" className="text-xs text-danger-700">Gửi thất bại: {(send.error as Error).message}</p>
                 {send.error instanceof MessengerSendError && send.error.code === "no_recipient" && (
-                  messengerInviteLink(thread.parentUid) ? (
-                    <CopyInviteLinkButton link={messengerInviteLink(thread.parentUid)!} label="Copy link mời phụ huynh liên kết Messenger" />
+                  isMessengerInviteConfigured() ? (
+                    <CopyInviteLinkButton parentUid={thread.parentUid} studentId={thread.studentId} label="Copy link mời phụ huynh liên kết Messenger" />
                   ) : (
                     <p className="text-xs text-neutral-500">Chưa cấu hình Page Facebook (VITE_MESSENGER_PAGE_USERNAME) để tạo link mời.</p>
                   )
@@ -275,12 +290,12 @@ function NewConversationPicker({ open, onClose, configured, onSent }: { open: bo
               {send.error instanceof MessengerSendError && send.error.code === "no_recipient" && (
                 !selected.parentUids.length ? (
                   <p className="text-xs text-neutral-500">Học sinh chưa có tài khoản phụ huynh liên kết trong hệ thống.</p>
-                ) : !messengerInviteLink(selected.parentUids[0]) ? (
+                ) : !isMessengerInviteConfigured() ? (
                   <p className="text-xs text-neutral-500">Chưa cấu hình Page Facebook (VITE_MESSENGER_PAGE_USERNAME) để tạo link mời.</p>
                 ) : (
                   <div className="flex flex-wrap gap-1.5">
                     {selected.parentUids.map((uid, index) => (
-                      <CopyInviteLinkButton key={uid} link={messengerInviteLink(uid)!} label={selected.parentUids.length > 1 ? `Copy link mời phụ huynh ${index + 1}` : "Copy link mời phụ huynh liên kết Messenger"} />
+                      <CopyInviteLinkButton key={uid} parentUid={uid} studentId={selected.id} label={selected.parentUids.length > 1 ? `Copy link mời phụ huynh ${index + 1}` : "Copy link mời phụ huynh liên kết Messenger"} />
                     ))}
                   </div>
                 )

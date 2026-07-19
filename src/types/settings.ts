@@ -1,4 +1,10 @@
 import type { Timestamp } from "firebase/firestore";
+import type { RankThresholds } from "@/utils/ranking";
+
+export interface AcademicSettingsDoc {
+  rankThresholds: RankThresholds;
+  updatedAt: Timestamp | null;
+}
 
 /** settings/general - thong tin truong hoc, chi Admin doc/ghi (xem firestore.rules match /settings/{docId}). */
 export interface SchoolSettingsDoc {
@@ -27,18 +33,5 @@ export interface PaymentSettingsDoc {
   accountName: string;
   contentTemplate: string;
   vietQrTemplate: string;
-  updatedAt: Timestamp;
-}
-
-/** usage_events/{uid_date_collection} - uoc tinh do client Edumatrix ghi nhan. */
-export interface FirestoreUsageDoc {
-  uid: string;
-  dateKey: string;
-  collectionId: string;
-  reads: number;
-  writes: number;
-  deletes: number;
-  lastLatencyMs: number;
-  createdAt: Timestamp;
   updatedAt: Timestamp;
 }

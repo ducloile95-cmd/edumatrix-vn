@@ -7,7 +7,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { doc, getDoc, serverTimestamp, setDoc, updateDoc, Timestamp } from "firebase/firestore";
+import { collection, doc, documentId, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, Timestamp, where } from "firebase/firestore";
 
 /**
  * Emulator test cho Firestore Security Rules (A16, A28).
@@ -356,7 +356,14 @@ describe("admin settings", () => {
     }));
   });
 
-  test("Teacher khong doc hoac ghi settings", async () => {
+  test("Teacher chi doc public integration config va khong duoc ghi", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), "settings", "integrations"), {
+      facebookPageId: "page-id",
+      driveFolderId: "folder-id",
+      webhookUrl: "https://example.com/webhook",
+      updatedAt: Timestamp.now(),
+    }));
+    await assertSucceeds(getDoc(doc(asTeacher(), "settings", "integrations")));
     await assertFails(getDoc(doc(asTeacher(), "settings", "payment")));
     await assertFails(setDoc(doc(asTeacher(), "settings", "integrations"), {
       facebookPageId: "page-id",
@@ -377,48 +384,26 @@ describe("admin settings", () => {
   });
 });
 
-describe("usage events", () => {
-  const usageId = `${TEACHER_UID}_2026-07-17_classes`;
-  const validUsage = {
-    uid: TEACHER_UID,
-    dateKey: "2026-07-17",
-    collectionId: "classes",
-    reads: 12,
-    writes: 2,
-    deletes: 0,
-    lastLatencyMs: 120,
-    createdAt: Timestamp.now(),
-    updatedAt: Timestamp.now(),
-  };
-
-  test("active user ghi rollup cua chinh minh", async () => {
-    await assertSucceeds(setDoc(doc(asTeacher(), "usage_events", usageId), validUsage));
-  });
-
-  test("khong gia uid hoac tang vuot bien", async () => {
-    await assertFails(setDoc(doc(asTeacher(), "usage_events", `other_2026-07-17_classes`), { ...validUsage, uid: "other" }));
-    await assertSucceeds(setDoc(doc(asTeacher(), "usage_events", usageId), validUsage));
-    await assertFails(updateDoc(doc(asTeacher(), "usage_events", usageId), { reads: 900 }));
-  });
-
-  test("Admin doc duoc, user khac khong doc duoc", async () => {
-    await testEnv.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), "usage_events", usageId), validUsage));
-    await assertSucceeds(getDoc(doc(asAdmin(), "usage_events", usageId)));
-    await assertFails(getDoc(doc(asViewer(), "usage_events", usageId)));
-  });
-});
-
-describe("account activity", () => {
-  const activityId = `${VIEWER_UID}_2026-07-17`;
-
+describe("teacher operational directory", () => {
   beforeEach(async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(doc(ctx.firestore(), "users", VIEWER_UID), {
+      const db = ctx.firestore();
+      await setDoc(doc(db, "users", "teacher-colleague"), {
+        email: "colleague@edumatrix.vn",
+        displayName: "Teacher Colleague",
+        photoURL: null,
+        role: "teacher",
+        studentIds: [],
+        status: "active",
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      });
+      await setDoc(doc(db, "users", VIEWER_UID), {
         email: VIEWER_EMAIL,
         displayName: "Parent",
         photoURL: null,
         role: "viewer",
-        studentIds: [],
+        studentIds: ["student_001"],
         status: "active",
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
@@ -426,58 +411,201 @@ describe("account activity", () => {
     });
   });
 
-  test("user creates own daily activity", async () => {
-    await assertSucceeds(setDoc(doc(asViewer(), "account_activity", activityId), {
+  test("Teacher doc duoc ho so phu huynh va giao vien khac", async () => {
+    await assertSucceeds(getDoc(doc(asTeacher(), "users", VIEWER_UID)));
+    await assertSucceeds(getDoc(doc(asTeacher(), "users", "teacher-colleague")));
+    await assertSucceeds(getDocs(query(
+      collection(asTeacher(), "users"),
+      where(documentId(), "in", [VIEWER_UID, "teacher-colleague"]),
+    )));
+  });
+
+  test("Teacher khong doc duoc ho so Admin", async () => {
+    await assertFails(getDoc(doc(asTeacher(), "users", ADMIN_UID)));
+  });
+
+  test("Admin ghi academic settings hop le, moi tai khoan active duoc doc", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), "users", VIEWER_UID), {
+      email: VIEWER_EMAIL,
+      displayName: "Parent",
+      photoURL: null,
+      role: "viewer",
+      studentIds: ["student_001"],
+      status: "active",
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    }));
+    const academic = doc(asAdmin(), "settings", "academic");
+    await assertSucceeds(setDoc(academic, {
+      rankThresholds: { S: 90, A: 80, B: 65, D: 0 },
+      updatedAt: serverTimestamp(),
+    }));
+    await assertSucceeds(getDoc(doc(asTeacher(), "settings", "academic")));
+    await assertSucceeds(getDoc(doc(asViewer(), "settings", "academic")));
+    await assertFails(setDoc(doc(asTeacher(), "settings", "academic"), {
+      rankThresholds: { S: 90, A: 80, B: 65, D: 0 },
+      updatedAt: serverTimestamp(),
+    }));
+  });
+
+  test("Tu choi academic settings sai thu tu", async () => {
+    await assertFails(setDoc(doc(asAdmin(), "settings", "academic"), {
+      rankThresholds: { S: 80, A: 90, B: 65, D: 0 },
+      updatedAt: serverTimestamp(),
+    }));
+  });
+});
+
+describe("teacher scoped finance and assignment summaries", () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      const now = Timestamp.now();
+      await setDoc(doc(db, "students", "student_assigned"), { teacherIds: [TEACHER_UID] });
+      await setDoc(doc(db, "students", "student_other"), { teacherIds: ["other-teacher"] });
+      await setDoc(doc(db, "invoices", "invoice_assigned"), { studentId: "student_assigned", status: "unpaid", updatedAt: now });
+      await setDoc(doc(db, "invoices", "invoice_other"), { studentId: "student_other", status: "unpaid", updatedAt: now });
+      await setDoc(doc(db, "payments", "payment_assigned"), {
+        invoiceId: "invoice_assigned", studentId: "student_assigned", amount: 100000,
+        transactionReference: "REF-1", note: "", status: "reported", reportedBy: VIEWER_UID,
+        verifiedBy: null, reportedAt: now, verifiedAt: null, updatedAt: now,
+      });
+      await setDoc(doc(db, "payments", "payment_other"), {
+        invoiceId: "invoice_other", studentId: "student_other", amount: 100000,
+        transactionReference: "REF-2", note: "", status: "reported", reportedBy: "other-parent",
+        verifiedBy: null, reportedAt: now, verifiedAt: null, updatedAt: now,
+      });
+      await setDoc(doc(db, "classes", "class_assigned"), { teacherIds: [TEACHER_UID] });
+      await setDoc(doc(db, "classes", "class_other"), { teacherIds: ["other-teacher"] });
+      await setDoc(doc(db, "assignments", "assignment_assigned"), { classId: "class_assigned" });
+      await setDoc(doc(db, "assignments", "assignment_other"), { classId: "class_other" });
+      await setDoc(doc(db, "assignment_summaries", "assignment_assigned"), { assignmentId: "assignment_assigned" });
+      await setDoc(doc(db, "assignment_summaries", "assignment_other"), { assignmentId: "assignment_other" });
+    });
+  });
+
+  test("Teacher chi doc tai chinh hoc sinh duoc phan cong", async () => {
+    await assertSucceeds(getDoc(doc(asTeacher(), "invoices", "invoice_assigned")));
+    await assertFails(getDoc(doc(asTeacher(), "invoices", "invoice_other")));
+    await assertSucceeds(getDoc(doc(asTeacher(), "payments", "payment_assigned")));
+    await assertFails(getDoc(doc(asTeacher(), "payments", "payment_other")));
+    await assertSucceeds(getDocs(query(collection(asTeacher(), "invoices"), where("studentId", "==", "student_assigned"))));
+    await assertSucceeds(getDocs(query(collection(asTeacher(), "payments"), where("studentId", "==", "student_assigned"))));
+    await assertFails(getDocs(collection(asTeacher(), "invoices")));
+    await assertFails(getDocs(collection(asTeacher(), "payments")));
+  });
+
+  test("Teacher khong duoc doi soat, Admin van duoc xu ly", async () => {
+    await assertFails(updateDoc(doc(asTeacher(), "invoices", "invoice_assigned"), { status: "paid", updatedAt: serverTimestamp() }));
+    await assertFails(updateDoc(doc(asTeacher(), "payments", "payment_assigned"), {
+      status: "verified", verifiedBy: TEACHER_UID, verifiedAt: serverTimestamp(), updatedAt: serverTimestamp(),
+    }));
+    await assertSucceeds(updateDoc(doc(asAdmin(), "invoices", "invoice_assigned"), { status: "paid", updatedAt: serverTimestamp() }));
+    await assertSucceeds(updateDoc(doc(asAdmin(), "payments", "payment_assigned"), {
+      status: "verified", verifiedBy: ADMIN_UID, verifiedAt: serverTimestamp(), updatedAt: serverTimestamp(),
+    }));
+  });
+
+  test("Teacher chi doc assignment summary cua lop duoc phan cong", async () => {
+    await assertSucceeds(getDoc(doc(asTeacher(), "assignment_summaries", "assignment_assigned")));
+    await assertFails(getDoc(doc(asTeacher(), "assignment_summaries", "assignment_other")));
+    await assertSucceeds(getDoc(doc(asAdmin(), "assignment_summaries", "assignment_other")));
+  });
+});
+
+describe("notification read state", () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, "users", VIEWER_UID), {
+        email: VIEWER_EMAIL,
+        displayName: "Parent",
+        photoURL: null,
+        role: "viewer",
+        studentIds: ["student_001"],
+        status: "active",
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      });
+      await setDoc(doc(db, "announcements", "announcement_1"), {
+        studentId: "student_001",
+        title: "Thong bao",
+      });
+      await setDoc(doc(db, "announcements", "announcement_other"), {
+        studentId: "student_999",
+        title: "Thong bao khac",
+      });
+    });
+  });
+
+  test("viewer writes and reads own deterministic read state", async () => {
+    const readRef = doc(asViewer(), "notification_reads", `${VIEWER_UID}_announcement_1`);
+    await assertSucceeds(setDoc(readRef, {
       uid: VIEWER_UID,
-      dateKey: "2026-07-17",
-      activeMinutes: 1,
-      lastSeenAt: serverTimestamp(),
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+      announcementId: "announcement_1",
+      readAt: serverTimestamp(),
     }));
+    await assertSucceeds(getDoc(readRef));
   });
 
-  test("user cannot create activity for another uid", async () => {
-    await assertFails(setDoc(doc(asViewer(), "account_activity", `other_2026-07-17`), {
+  test("viewer cannot forge uid, id, or announcement ownership", async () => {
+    const validData = {
+      uid: VIEWER_UID,
+      announcementId: "announcement_1",
+      readAt: serverTimestamp(),
+    };
+    await assertFails(setDoc(doc(asViewer(), "notification_reads", `other_announcement_1`), {
+      ...validData,
       uid: "other",
-      dateKey: "2026-07-17",
-      activeMinutes: 1,
-      lastSeenAt: serverTimestamp(),
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+    }));
+    await assertFails(setDoc(doc(asViewer(), "notification_reads", "wrong-id"), validData));
+    await assertFails(setDoc(doc(asViewer(), "notification_reads", `${VIEWER_UID}_announcement_other`), {
+      ...validData,
+      announcementId: "announcement_other",
     }));
   });
 
-  test("heartbeat increment is capped at five minutes", async () => {
+  test("other viewer cannot read state while admin can", async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(doc(ctx.firestore(), "account_activity", activityId), {
+      await setDoc(doc(ctx.firestore(), "notification_reads", `${VIEWER_UID}_announcement_1`), {
         uid: VIEWER_UID,
-        dateKey: "2026-07-17",
-        activeMinutes: 5,
-        lastSeenAt: Timestamp.now(),
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
+        announcementId: "announcement_1",
+        readAt: Timestamp.now(),
       });
     });
-    await assertFails(updateDoc(doc(asViewer(), "account_activity", activityId), {
-      activeMinutes: 11,
-      lastSeenAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    }));
+    await assertFails(getDoc(doc(asViewer("other-viewer", "other@gmail.com"), "notification_reads", `${VIEWER_UID}_announcement_1`)));
+    await assertSucceeds(getDoc(doc(asAdmin(), "notification_reads", `${VIEWER_UID}_announcement_1`)));
+  });
+});
+
+describe("legacy client telemetry", () => {
+  const usageId = `${TEACHER_UID}_2026-07-17_classes`;
+  const activityId = `${VIEWER_UID}_2026-07-17`;
+
+  test("client cannot create telemetry records", async () => {
+    await assertFails(setDoc(doc(asTeacher(), "usage_events", usageId), { uid: TEACHER_UID }));
+    await assertFails(setDoc(doc(asViewer(), "account_activity", activityId), { uid: VIEWER_UID }));
   });
 
-  test("admin reads activity while teacher cannot read another account", async () => {
+  test("Admin can inspect legacy data while other roles cannot", async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(doc(ctx.firestore(), "account_activity", activityId), {
-        uid: VIEWER_UID,
-        dateKey: "2026-07-17",
-        activeMinutes: 10,
-        lastSeenAt: Timestamp.now(),
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
-      });
+      await setDoc(doc(ctx.firestore(), "usage_events", usageId), { uid: TEACHER_UID });
+      await setDoc(doc(ctx.firestore(), "account_activity", activityId), { uid: VIEWER_UID });
     });
+    await assertSucceeds(getDoc(doc(asAdmin(), "usage_events", usageId)));
     await assertSucceeds(getDoc(doc(asAdmin(), "account_activity", activityId)));
-    await assertFails(getDoc(doc(asTeacher(), "account_activity", activityId)));
+    await assertFails(getDoc(doc(asTeacher(), "usage_events", usageId)));
+    await assertFails(getDoc(doc(asViewer(), "account_activity", activityId)));
+  });
+});
+
+describe("Messenger referral secrets", () => {
+  test("all client roles are denied nonce and PSID reverse-index access", async () => {
+    const nonceRef = doc(asAdmin(), "messenger_link_nonces", "abcdefghijklmnopqrstuv");
+    const psidRef = doc(asAdmin(), "messenger_psid_links", "psid-1");
+    await assertFails(setDoc(nonceRef, { uid: VIEWER_UID, status: "active" }));
+    await assertFails(getDoc(nonceRef));
+    await assertFails(setDoc(psidRef, { uid: VIEWER_UID }));
+    await assertFails(getDoc(psidRef));
   });
 });

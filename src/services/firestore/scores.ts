@@ -3,7 +3,61 @@ import { db } from "@/services/firebase/firestoreClient"; import { COLLECTIONS }
 import { stableDocumentId } from "@/utils/idempotency";
 export interface ScoreEntry { studentId: string; score: number; comment: string; }
 function scoreId(input: { classId: string; subjectId: string; assessmentName: string; studentId: string }): string { return stableDocumentId([input.classId, input.subjectId, input.assessmentName, input.studentId]); }
-export async function saveClassScores(input: { classId: string; subjectId: string; assessmentName: string; assessmentType: AssessmentType; maxScore: number; entries: ScoreEntry[]; actorUid: string }): Promise<void> { if (input.maxScore <= 0) throw new Error("MAX_SCORE_INVALID"); if (input.entries.some((entry) => entry.score < 0 || entry.score > input.maxScore)) throw new Error("SCORE_INVALID"); for (const entry of input.entries) { await runTransaction(db, async (transaction) => { const scoreRef = doc(db, COLLECTIONS.SCORES, scoreId({ ...input, studentId: entry.studentId })); const summaryRef = doc(db, COLLECTIONS.STUDENT_SUMMARIES, entry.studentId); const currentSnap = await transaction.get(scoreRef); const summarySnap = await transaction.get(summaryRef); const current = currentSnap.exists() ? currentSnap.data() as ScoreDoc : undefined; const summary = summarySnap.exists() ? summarySnap.data() as { scoreCount?: number; averagePercent?: number; totalPercent?: number } : {}; const oldCount = summary.scoreCount ?? 0; const oldTotal = summary.totalPercent ?? ((summary.averagePercent ?? 0) * oldCount); const oldPercent = current ? current.score / current.maxScore * 100 : 0; const count = current ? oldCount : oldCount + 1; const total = oldTotal - oldPercent + entry.score / input.maxScore * 100; transaction.set(scoreRef, { studentId: entry.studentId, classId: input.classId, subjectId: input.subjectId, assessmentName: input.assessmentName, assessmentType: input.assessmentType, score: entry.score, maxScore: input.maxScore, teacherComment: entry.comment, source: "manual", assignmentId: null, submissionId: null, published: true, createdBy: current?.createdBy ?? input.actorUid, createdAt: current?.createdAt ?? serverTimestamp(), updatedAt: serverTimestamp() }); transaction.set(summaryRef, { studentId: entry.studentId, scoreCount: count, totalPercent: total, averagePercent: count ? total / count : 0, latestScore: entry.score, latestMaxScore: input.maxScore, updatedAt: serverTimestamp() }, { merge: true }); }); } }
+export async function saveClassScores(input: { classId: string; subjectId: string; assessmentName: string; assessmentType: AssessmentType; maxScore: number; entries: ScoreEntry[]; actorUid: string }): Promise<void> {
+  if (input.maxScore <= 0) throw new Error("MAX_SCORE_INVALID");
+  if (input.entries.some((entry) => entry.score < 0 || entry.score > input.maxScore)) throw new Error("SCORE_INVALID");
+  if (new Set(input.entries.map((entry) => entry.studentId)).size !== input.entries.length) throw new Error("STUDENT_DUPLICATED");
+  if (input.entries.length > 200) throw new Error("SCORE_BATCH_TOO_LARGE");
+
+  await runTransaction(db, async (transaction) => {
+    const rows = await Promise.all(input.entries.map(async (entry) => {
+      const scoreRef = doc(db, COLLECTIONS.SCORES, scoreId({ ...input, studentId: entry.studentId }));
+      const summaryRef = doc(db, COLLECTIONS.STUDENT_SUMMARIES, entry.studentId);
+      const [currentSnap, summarySnap] = await Promise.all([
+        transaction.get(scoreRef),
+        transaction.get(summaryRef),
+      ]);
+      return { entry, scoreRef, summaryRef, currentSnap, summarySnap };
+    }));
+
+    rows.forEach(({ entry, scoreRef, summaryRef, currentSnap, summarySnap }) => {
+      const current = currentSnap.exists() ? currentSnap.data() as ScoreDoc : undefined;
+      const summary = summarySnap.exists() ? summarySnap.data() as { scoreCount?: number; averagePercent?: number; totalPercent?: number } : {};
+      const oldCount = summary.scoreCount ?? 0;
+      const oldTotal = summary.totalPercent ?? ((summary.averagePercent ?? 0) * oldCount);
+      const oldPercent = current ? current.score / current.maxScore * 100 : 0;
+      const count = current ? oldCount : oldCount + 1;
+      const total = oldTotal - oldPercent + entry.score / input.maxScore * 100;
+
+      transaction.set(scoreRef, {
+        studentId: entry.studentId,
+        classId: input.classId,
+        subjectId: input.subjectId,
+        assessmentName: input.assessmentName,
+        assessmentType: input.assessmentType,
+        score: entry.score,
+        maxScore: input.maxScore,
+        teacherComment: entry.comment,
+        source: "manual",
+        assignmentId: null,
+        submissionId: null,
+        published: true,
+        createdBy: current?.createdBy ?? input.actorUid,
+        createdAt: current?.createdAt ?? serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      transaction.set(summaryRef, {
+        studentId: entry.studentId,
+        scoreCount: count,
+        totalPercent: total,
+        averagePercent: count ? total / count : 0,
+        latestScore: entry.score,
+        latestMaxScore: input.maxScore,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+    });
+  });
+}
 export async function listScoresByStudent(studentId:string,pageSize=50):Promise<(ScoreDoc&{id:string})[]>{const snap=await getDocs(query(collection(db,COLLECTIONS.SCORES),where("studentId","==",studentId),orderBy("createdAt","desc"),limit(pageSize)));return snap.docs.map((item)=>({id:item.id,...(item.data() as ScoreDoc)})).filter((item)=>item.published!==false);}
 export async function listScoresByClass(classId:string):Promise<(ScoreDoc&{id:string})[]>{const snap=await getDocs(query(collection(db,COLLECTIONS.SCORES),where("classId","==",classId),limit(200)));return snap.docs.map((item)=>({id:item.id,...(item.data() as ScoreDoc)})).filter((item)=>item.published!==false);}
 export async function listStudentSummariesByIds(studentIds:string[]):Promise<{id:string;scoreCount:number;averagePercent:number;latestScore:number;latestMaxScore:number}[]>{const unique=[...new Set(studentIds)].filter(Boolean);const groups=await Promise.all(unique.reduce<string[][]>((chunks,id,index)=>{if(index%30===0)chunks.push([]);chunks[chunks.length-1].push(id);return chunks;},[]).map(async(chunk)=>{const snap=await getDocs(query(collection(db,COLLECTIONS.STUDENT_SUMMARIES),where(documentId(),"in",chunk)));return snap.docs.map((item)=>({id:item.id,...(item.data() as {scoreCount:number;averagePercent:number;latestScore:number;latestMaxScore:number})}));}));return groups.flat();}

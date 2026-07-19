@@ -17,8 +17,9 @@ import {
 import { COLLECTIONS } from "@/constants/collections";
 import { db } from "@/services/firebase/firestoreClient";
 import { stableDocumentId } from "@/utils/idempotency";
-import { recordFirestoreUsage } from "@/services/firestore/usage";
 import { createInvoiceCode, createPaymentContent } from "@/utils/payment";
+import { getCurrentUserDoc, isAdminUser, isTeacherUser } from "@/services/firestore/authz";
+import { listStudents } from "@/services/firestore/students";
 import type { InvoiceDoc, PaymentDoc, PaymentStatus } from "@/types/academic";
 
 export interface CreateInvoiceInput {
@@ -52,16 +53,26 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<void> {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
-  recordFirestoreUsage({ collectionId: COLLECTIONS.INVOICES, writes: 1 });
 }
 
 export async function listInvoices(): Promise<(InvoiceDoc & { id: string })[]> {
+  const currentUser = await getCurrentUserDoc();
+  if (isTeacherUser(currentUser)) {
+    const students = await listStudents();
+    return listInvoicesByStudents(students.map((student) => student.id));
+  }
+  if (!isAdminUser(currentUser)) return [];
   const snap = await getDocs(query(collection(db, COLLECTIONS.INVOICES), limit(300)));
-  recordFirestoreUsage({ collectionId: COLLECTIONS.INVOICES, reads: snap.size });
   return snap.docs.map((item) => ({ id: item.id, ...(item.data() as InvoiceDoc) }));
 }
 
 export async function countPendingInvoices(): Promise<number> {
+  const currentUser = await getCurrentUserDoc();
+  if (isTeacherUser(currentUser)) {
+    const invoices = await listInvoices();
+    return invoices.filter((invoice) => invoice.status === "pending").length;
+  }
+  if (!isAdminUser(currentUser)) return 0;
   const snapshot = await getCountFromServer(
     query(collection(db, COLLECTIONS.INVOICES), where("status", "==", "pending")),
   );
@@ -127,9 +138,25 @@ export async function reportPayment(
 }
 
 export async function listPayments(): Promise<(PaymentDoc & { id: string })[]> {
+  const currentUser = await getCurrentUserDoc();
+  if (isTeacherUser(currentUser)) {
+    const students = await listStudents();
+    return listPaymentsByStudents(students.map((student) => student.id));
+  }
+  if (!isAdminUser(currentUser)) return [];
   const snap = await getDocs(query(collection(db, COLLECTIONS.PAYMENTS), limit(300)));
-  recordFirestoreUsage({ collectionId: COLLECTIONS.PAYMENTS, reads: snap.size });
   return snap.docs.map((item) => ({ id: item.id, ...(item.data() as PaymentDoc) }));
+}
+
+export async function listPaymentsByStudents(ids: string[], pageSize = 100): Promise<(PaymentDoc & { id: string })[]> {
+  const uniqueIds = [...new Set(ids)].filter(Boolean);
+  const groups = await Promise.all(uniqueIds.map(async (studentId) => {
+    const snap = await getDocs(
+      query(collection(db, COLLECTIONS.PAYMENTS), where("studentId", "==", studentId), limit(pageSize)),
+    );
+    return snap.docs.map((item) => ({ id: item.id, ...(item.data() as PaymentDoc) }));
+  }));
+  return groups.flat();
 }
 
 export async function reconcilePayment(

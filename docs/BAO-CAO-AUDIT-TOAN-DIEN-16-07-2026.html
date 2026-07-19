@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Báo cáo audit toàn diện mã nguồn, Firebase Spark, UI và roadmap phát triển Edumatrix VN" />
+  <title>Edumatrix VN | Báo cáo audit toàn diện</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f5f7fc;
+      --surface: #ffffff;
+      --surface-raised: #ffffff;
+      --surface-soft: #edf2ff;
+      --ink: #172033;
+      --muted: #62708a;
+      --line: #dce3f0;
+      --line-strong: #bec9dc;
+      --brand: #3366f0;
+      --brand-strong: #2348d6;
+      --brand-soft: #dbe6fe;
+      --good: #157347;
+      --good-soft: #e4f5ec;
+      --warn: #9a5b06;
+      --warn-soft: #fff2d8;
+      --risk: #b6332b;
+      --risk-soft: #fee9e7;
+      --p3: #59647a;
+      --p3-soft: #edf0f5;
+      --shadow: 0 18px 55px rgba(36, 61, 119, .10);
+      --radius: 14px;
+      --radius-small: 9px;
+      --nav-height: 68px;
+    }
+
+    [data-theme="dark"] {
+      color-scheme: dark;
+      --page: #0d1321;
+      --surface: #141d30;
+      --surface-raised: #18243a;
+      --surface-soft: #1b2b50;
+      --ink: #f1f5ff;
+      --muted: #a4b0c7;
+      --line: #2a3852;
+      --line-strong: #43516b;
+      --brand: #78a0ff;
+      --brand-strong: #9ab7ff;
+      --brand-soft: #243a70;
+      --good: #72d6a5;
+      --good-soft: #183d31;
+      --warn: #ffc36c;
+      --warn-soft: #47371d;
+      --risk: #ff8c84;
+      --risk-soft: #4b292c;
+      --p3: #b8c2d7;
+      --p3-soft: #283247;
+      --shadow: 0 22px 65px rgba(0, 0, 0, .32);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      background: var(--page);
+      color: var(--ink);
+      font-family: "Be Vietnam Pro", "Segoe UI", Arial, sans-serif;
+      font-size: 15px;
+      line-height: 1.58;
+      transition: background-color 220ms ease, color 220ms ease;
+    }
+    button, input, select { font: inherit; }
+    button { color: inherit; }
+    a { color: inherit; }
+    :focus-visible { outline: 3px solid color-mix(in srgb, var(--brand) 60%, transparent); outline-offset: 3px; }
+    .skip-link { position: fixed; left: 16px; top: -80px; z-index: 100; padding: 10px 14px; border-radius: var(--radius-small); background: var(--ink); color: var(--page); }
+    .skip-link:focus { top: 12px; }
+    .shell { width: min(1240px, calc(100% - 40px)); margin-inline: auto; }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      min-height: var(--nav-height);
+      background: var(--page);
+      border-bottom: 1px solid var(--line);
+    }
+    .topbar-inner { min-height: var(--nav-height); display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+    .brand { display: flex; align-items: center; gap: 11px; text-decoration: none; font-weight: 800; letter-spacing: -.02em; white-space: nowrap; }
+    .brand-mark { width: 12px; height: 29px; border-radius: 4px; background: var(--brand); transform: skew(-8deg); box-shadow: 8px 0 0 color-mix(in srgb, var(--brand) 28%, transparent); }
+    .nav { display: flex; align-items: center; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+    .nav::-webkit-scrollbar { display: none; }
+    .nav a { padding: 9px 11px; border-radius: var(--radius-small); color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 650; white-space: nowrap; }
+    .nav a:hover { background: var(--surface); color: var(--ink); }
+    .actions { display: flex; gap: 8px; }
+    .control {
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-small);
+      background: var(--surface);
+      padding: 0 13px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 700;
+      transition: transform 160ms ease, border-color 160ms ease, background-color 160ms ease;
+    }
+    .control:hover { border-color: var(--brand); }
+    .control:active { transform: scale(.98); }
+    .control.primary { border-color: var(--brand); background: var(--brand); color: #fff; }
+
+    .hero { padding: 72px 0 46px; }
+    .hero-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(280px, .65fr); gap: 56px; align-items: end; }
+    .kicker { margin: 0 0 17px; color: var(--brand-strong); font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    h1, h2, h3, p { overflow-wrap: anywhere; }
+    h1 { margin: 0; max-width: 860px; font-size: clamp(42px, 6.6vw, 80px); line-height: 1.02; letter-spacing: -.055em; font-weight: 790; }
+    .hero-copy { max-width: 720px; margin: 24px 0 0; color: var(--muted); font-size: clamp(16px, 2vw, 19px); }
+    .audit-stamp { position: relative; overflow: hidden; padding: 24px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
+    .audit-stamp::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 5px; background: var(--warn); }
+    .audit-stamp strong { display: block; font-size: 50px; line-height: 1; letter-spacing: -.06em; }
+    .audit-stamp p { margin: 12px 0 0; color: var(--muted); }
+    .status-line { display: flex; align-items: center; gap: 8px; margin-top: 18px; color: var(--warn); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+    .status-line::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+
+    .gate-grid { display: grid; grid-template-columns: repeat(5, 1fr); margin-top: 40px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); overflow: hidden; }
+    .gate { min-width: 0; padding: 18px; border-right: 1px solid var(--line); }
+    .gate:last-child { border-right: 0; }
+    .gate small { display: block; color: var(--muted); font-weight: 650; }
+    .gate strong { display: block; margin-top: 7px; font-size: 21px; }
+    .pass { color: var(--good); }
+
+    .section { padding: 66px 0; scroll-margin-top: calc(var(--nav-height) + 18px); }
+    .section + .section { border-top: 1px solid var(--line); }
+    .section-head { display: flex; align-items: end; justify-content: space-between; gap: 28px; margin-bottom: 28px; }
+    .section-head h2 { margin: 0; max-width: 760px; font-size: clamp(29px, 4vw, 48px); line-height: 1.08; letter-spacing: -.04em; }
+    .section-note { max-width: 470px; margin: 0; color: var(--muted); }
+
+    .filter-panel { display: grid; grid-template-columns: minmax(230px, 1fr) auto auto auto; gap: 10px; margin-bottom: 18px; }
+    .search, .select {
+      width: 100%;
+      min-height: 45px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-small);
+      background: var(--surface);
+      color: var(--ink);
+      padding: 0 13px;
+    }
+    .severity-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+    .filter-button { min-height: 40px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); padding: 0 14px; cursor: pointer; font-size: 13px; font-weight: 750; }
+    .filter-button[aria-pressed="true"] { border-color: var(--ink); background: var(--ink); color: var(--page); }
+    .filter-summary { margin: 0 0 15px; color: var(--muted); font-size: 13px; }
+    .findings { display: grid; gap: 10px; }
+    .finding { --tone: var(--p3); --tone-soft: var(--p3-soft); border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); overflow: hidden; }
+    .finding[data-severity="p1"] { --tone: var(--risk); --tone-soft: var(--risk-soft); }
+    .finding[data-severity="p2"] { --tone: var(--warn); --tone-soft: var(--warn-soft); }
+    .finding.hidden { display: none; }
+    .finding-toggle { width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 14px; border: 0; background: transparent; padding: 18px 20px; text-align: left; cursor: pointer; }
+    .priority { min-width: 42px; padding: 6px 8px; border-radius: 7px; background: var(--tone-soft); color: var(--tone); text-align: center; font-size: 11px; font-weight: 850; letter-spacing: .06em; }
+    .finding-title { margin: 0; font-size: 16px; line-height: 1.35; }
+    .finding-sub { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+    .chevron { color: var(--muted); font-size: 21px; transition: transform 180ms ease; }
+    .finding.open .chevron { transform: rotate(45deg); }
+    .finding-detail { display: none; border-top: 1px solid var(--line); padding: 20px; background: color-mix(in srgb, var(--surface) 86%, var(--tone-soft)); }
+    .finding.open .finding-detail { display: block; }
+    .detail-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .detail-grid h4 { margin: 0 0 7px; font-size: 12px; color: var(--tone); text-transform: uppercase; letter-spacing: .07em; }
+    .detail-grid p { margin: 0; color: var(--muted); font-size: 13px; }
+    .evidence { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 17px; }
+    .code-link { display: inline-flex; min-height: 38px; align-items: center; border: 1px solid var(--line); border-radius: var(--radius-small); background: var(--surface); padding: 0 11px; color: var(--brand-strong); text-decoration: none; font: 700 12px/1.2 Consolas, monospace; }
+    .code-link:hover { border-color: var(--brand); }
+    code { border-radius: 5px; background: var(--surface-soft); padding: 2px 5px; color: var(--brand-strong); font-family: Consolas, monospace; font-size: .92em; }
+
+    .architecture { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: stretch; gap: 12px; }
+    .arch-card { padding: 22px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+    .arch-card.optional { border-style: dashed; }
+    .arch-card h3 { margin: 0 0 9px; font-size: 18px; }
+    .arch-card p { margin: 0; color: var(--muted); font-size: 13px; }
+    .arch-arrow { align-self: center; color: var(--brand); font-weight: 900; }
+    .matrix { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 18px; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+    .matrix-item { padding: 18px; background: var(--surface); border-right: 1px solid var(--line); }
+    .matrix-item:last-child { border-right: 0; }
+    .matrix-item strong { display: block; }
+    .matrix-item span { display: block; margin-top: 7px; color: var(--muted); font-size: 13px; }
+
+    .roadmap { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 28px; }
+    .roadmap-nav { position: sticky; top: calc(var(--nav-height) + 18px); align-self: start; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); padding: 14px; }
+    .roadmap-nav a { display: block; padding: 10px; border-radius: var(--radius-small); color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 700; }
+    .roadmap-nav a:hover { background: var(--surface-soft); color: var(--ink); }
+    .phases { display: grid; gap: 14px; }
+    .phase { scroll-margin-top: calc(var(--nav-height) + 18px); border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); padding: 22px; }
+    .phase-head { display: flex; justify-content: space-between; gap: 18px; }
+    .phase h3 { margin: 0; font-size: 20px; }
+    .phase p { margin: 8px 0 0; color: var(--muted); }
+    .phase-tag { white-space: nowrap; color: var(--brand-strong); font-size: 11px; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
+    .phase ul { margin: 16px 0 0; padding-left: 20px; }
+    .phase li + li { margin-top: 7px; }
+
+    .checklist-shell { margin-top: 28px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); overflow: hidden; }
+    .checklist-head { display: grid; grid-template-columns: auto minmax(180px, 1fr) auto; align-items: center; gap: 18px; padding: 18px; border-bottom: 1px solid var(--line); }
+    .checklist-head strong { font-size: 14px; }
+    .progress { height: 9px; overflow: hidden; border-radius: 999px; background: var(--line); }
+    .progress-fill { width: 0; height: 100%; border-radius: inherit; background: var(--brand); transition: width 240ms ease; }
+    .tasks { list-style: none; margin: 0; padding: 0; }
+    .task { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 13px; align-items: start; padding: 15px 18px; border-bottom: 1px solid var(--line); }
+    .task:last-child { border-bottom: 0; }
+    .task input { width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--brand); }
+    .task label { cursor: pointer; }
+    .task label strong { display: block; font-size: 14px; }
+    .task label span { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; }
+    .task-tag { color: var(--brand-strong); font-size: 10px; font-weight: 850; letter-spacing: .06em; }
+
+    .proposal-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 18px; }
+    .proposal { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); padding: 22px; }
+    .proposal h3 { margin: 0; font-size: 19px; }
+    .proposal p { margin: 9px 0 0; color: var(--muted); }
+    .proposal ul { margin: 15px 0 0; padding-left: 20px; }
+    .proposal li + li { margin-top: 7px; }
+    .proposal.featured { background: var(--ink); color: var(--page); }
+    .proposal.featured p, .proposal.featured li { color: color-mix(in srgb, var(--page) 78%, transparent); }
+
+    .footer { padding: 32px 0 48px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+    .footer-inner { display: flex; justify-content: space-between; gap: 20px; }
+    .toast { position: fixed; right: 20px; bottom: 20px; z-index: 80; transform: translateY(24px); opacity: 0; pointer-events: none; border-radius: var(--radius-small); background: var(--ink); color: var(--page); padding: 11px 14px; font-size: 13px; transition: transform 180ms ease, opacity 180ms ease; }
+    .toast.show { transform: translateY(0); opacity: 1; }
+
+    @media (max-width: 1050px) {
+      .nav { display: none; }
+      .gate-grid { grid-template-columns: repeat(3, 1fr); }
+      .gate { border-bottom: 1px solid var(--line); }
+      .gate:nth-child(3) { border-right: 0; }
+      .gate:nth-child(n+4) { border-bottom: 0; }
+      .architecture { grid-template-columns: 1fr; }
+      .arch-arrow { transform: rotate(90deg); justify-self: center; }
+      .matrix { grid-template-columns: repeat(2, 1fr); }
+      .matrix-item:nth-child(2) { border-right: 0; }
+      .matrix-item:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+      .roadmap { grid-template-columns: 1fr; }
+      .roadmap-nav { position: static; display: flex; overflow-x: auto; }
+      .roadmap-nav a { white-space: nowrap; }
+    }
+    @media (max-width: 760px) {
+      .shell { width: min(100% - 28px, 1240px); }
+      .topbar-inner { gap: 10px; }
+      .actions .control:first-child { display: none; }
+      .hero { padding-top: 48px; }
+      .hero-grid, .proposal-grid { grid-template-columns: 1fr; gap: 28px; }
+      .audit-stamp { max-width: 420px; }
+      .gate-grid { grid-template-columns: repeat(2, 1fr); }
+      .gate, .gate:nth-child(3) { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+      .gate:nth-child(even) { border-right: 0; }
+      .gate:last-child { grid-column: 1 / -1; border: 0; }
+      .section { padding: 52px 0; }
+      .section-head { display: block; }
+      .section-note { margin-top: 14px; }
+      .filter-panel { grid-template-columns: 1fr 1fr; }
+      .filter-panel .search { grid-column: 1 / -1; }
+      .detail-grid { grid-template-columns: 1fr; }
+      .checklist-head { grid-template-columns: 1fr auto; }
+      .progress { grid-column: 1 / -1; grid-row: 2; }
+      .footer-inner { display: block; }
+    }
+    @media (max-width: 480px) {
+      .brand span:not(.brand-mark) { display: none; }
+      .filter-panel, .matrix { grid-template-columns: 1fr; }
+      .matrix-item { border-right: 0; border-bottom: 1px solid var(--line); }
+      .matrix-item:last-child { border-bottom: 0; }
+      .finding-toggle { grid-template-columns: auto minmax(0, 1fr); padding: 15px; }
+      .chevron { display: none; }
+      .phase-head { display: block; }
+      .phase-tag { display: inline-block; margin-top: 10px; }
+      .task { grid-template-columns: auto minmax(0, 1fr); }
+      .task-tag { grid-column: 2; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+    }
+    @media print {
+      :root { color-scheme: light; }
+      body { background: #fff; }
+      .topbar, .filter-panel, .severity-filters, .checklist-head .control, .toast { display: none !important; }
+      .shell { width: 100%; }
+      .hero, .section { padding: 24px 0; }
+      .finding.hidden { display: block; }
+      .finding-detail { display: block; }
+      .roadmap { grid-template-columns: 1fr; }
+      .roadmap-nav { display: none; }
+      .finding, .phase, .proposal, .arch-card, .checklist-shell { break-inside: avoid; box-shadow: none; }
+      a { text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">Bỏ qua điều hướng</a>
+  <header class="topbar">
+    <div class="shell topbar-inner">
+      <a class="brand" href="#top" aria-label="Edumatrix VN, về đầu báo cáo"><span class="brand-mark" aria-hidden="true"></span><span>Edumatrix VN</span></a>
+      <nav class="nav" aria-label="Mục báo cáo">
+        <a href="#findings">Phát hiện</a>
+        <a href="#spark">Firebase Spark</a>
+        <a href="#roadmap">Roadmap</a>
+        <a href="#proposals">Đề xuất</a>
+      </nav>
+      <div class="actions">
+        <button class="control" id="printReport" type="button">In báo cáo</button>
+        <button class="control" id="themeToggle" type="button" aria-label="Đổi giao diện sáng tối">Chế độ tối</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero" id="top">
+      <div class="shell">
+        <div class="hero-grid">
+          <div>
+            <p class="kicker">Audit mã nguồn ngày 16/07/2026</p>
+            <h1>Nền tảng tốt. Vẫn còn điểm phải khóa.</h1>
+            <p class="hero-copy">Bản build và các bộ test hiện tại đều đạt. Báo cáo này tập trung vào lỗi toàn vẹn dữ liệu, khoảng trống sản phẩm và rủi ro vận hành chưa được compiler phát hiện.</p>
+          </div>
+          <aside class="audit-stamp" aria-label="Tổng kết audit">
+            <strong>12</strong>
+            <p>phát hiện và khoảng trống cần theo dõi, trong đó có 4 hạng mục P1.</p>
+            <div class="status-line">Cần xử lý trước mở rộng</div>
+          </aside>
+        </div>
+        <div class="gate-grid" aria-label="Kết quả các cổng kiểm tra">
+          <div class="gate"><small>Production build</small><strong class="pass">Đạt</strong></div>
+          <div class="gate"><small>ESLint</small><strong class="pass">Đạt</strong></div>
+          <div class="gate"><small>Unit test</small><strong>18 / 18</strong></div>
+          <div class="gate"><small>Worker test</small><strong>14 / 14</strong></div>
+          <div class="gate"><small>Rules + encoding</small><strong class="pass">Đạt</strong></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="findings">
+      <div class="shell">
+        <div class="section-head">
+          <div><p class="kicker">Phát hiện đã đối chiếu</p><h2>Lọc theo rủi ro và phân hệ</h2></div>
+          <p class="section-note">Mỗi mục liên kết trực tiếp tới nguồn bằng chứng. P1 cần xử lý trước khi mở rộng dữ liệu hoặc đưa quy trình vào vận hành thật.</p>
+        </div>
+
+        <div class="filter-panel" role="search">
+          <input class="search" id="findingSearch" type="search" placeholder="Tìm lỗi, file hoặc từ khóa" aria-label="Tìm trong phát hiện" />
+          <select class="select" id="areaFilter" aria-label="Lọc theo phân hệ">
+            <option value="all">Tất cả phân hệ</option>
+            <option value="security">Bảo mật</option>
+            <option value="data">Dữ liệu</option>
+            <option value="product">Sản phẩm</option>
+            <option value="quality">Chất lượng</option>
+            <option value="performance">Hiệu suất</option>
+            <option value="integration">Tích hợp</option>
+          </select>
+          <select class="select" id="statusFilter" aria-label="Lọc theo trạng thái">
+            <option value="all">Tất cả trạng thái</option>
+            <option value="open">Đang mở</option>
+            <option value="external">Chờ bên ngoài</option>
+          </select>
+          <button class="control" id="expandAll" type="button">Mở tất cả</button>
+        </div>
+        <div class="severity-filters" role="group" aria-label="Lọc theo mức độ">
+          <button class="filter-button" type="button" data-filter="all" aria-pressed="true">Tất cả</button>
+          <button class="filter-button" type="button" data-filter="p1" aria-pressed="false">P1</button>
+          <button class="filter-button" type="button" data-filter="p2" aria-pressed="false">P2</button>
+          <button class="filter-button" type="button" data-filter="p3" aria-pressed="false">P3</button>
+        </div>
+        <p class="filter-summary" id="filterSummary" aria-live="polite">Đang hiển thị 12 phát hiện</p>
+
+        <div class="findings" id="findingList">
+          <article class="finding open" data-severity="p1" data-area="security" data-status="open" data-search="env app check debug token gitignore bảo mật cấu hình">
+            <button class="finding-toggle" type="button" aria-expanded="true"><span class="priority">P1</span><span><h3 class="finding-title">Hai file môi trường thật chưa được Git bỏ qua</h3><p class="finding-sub"><code>.env.real</code> và <code>.env.emulator</code> có khóa App Check debug nhưng đang hiện là file untracked.</p></span><span class="chevron">+</span></button>
+            <div class="finding-detail"><div class="detail-grid"><div><h4>Tác động</h4><p>Có thể commit nhầm cấu hình debug. App Check debug token cần được xem như bí mật vận hành.</p></div><div><h4>Bằng chứng</h4><p><code>.gitignore</code> chỉ bỏ qua <code>.env</code>, <code>.env.local</code> và <code>.env.*.local</code>. Lịch sử Git chưa theo dõi hai file này.</p></div><div><h4>Hướng xử lý</h4><p>Bổ sung pattern ignore cụ thể, tách token debug khỏi môi trường thật và xác định quy trình luân chuyển token.</p></div></div><div class="evidence"><a class="code-link" href="../.gitignore">.gitignore</a><a class="code-link" href="../.env.example">.env.example</a></div></div>
+          </article>
+
+          <article class="finding" data-severity="p1" data-area="data" data-status="open" data-search="scores điểm lưu một phần transaction tuần tự blank zero scores page">
+            <button class="finding-toggle" type="button" aria-expanded="false"><span class="priority">P1</span><span><h3 class="finding-title">Lưu điểm cả lớp có thể hoàn thành một phần</h3><p class="finding-sub">Mỗi học sinh dùng một transaction riêng; ô trống còn bị chuyển thành điểm 0.</p></span><span class="chevron">+</span></button>
+            <div class="finding-detail"><div class="detail-grid"><div><h4>Tác động</h4><p>Mất mạng hoặc lỗi Rules ở giữa vòng lặp để lại một phần lớp đã lưu. Thông báo lỗi hiện nói điểm nhập vẫn còn nhưng dữ liệu trước lỗi đã được ghi.</p></div><div><h4>Bằng chứng</h4><p><code>scores.ts:6</code> chạy transaction tuần tự. <code>ScoresPage.tsx:71</code> dùng <code>Number("")</code>, kết quả là 0.</p></div><div><h4>Hướng xử lý</h4><p>Validation toàn bộ trước khi ghi, giữ trạng thái rỗng tách biệt và dùng chiến lược batch có giới hạn hoặc báo cáo kết quả từng phần rõ ràng.</p></div></div><div class="evidence"><a class="code-link" href="../src/services/firestore/scores.ts">scores.ts</a><a class="code-link" href="../src/features/scores/pages/ScoresPage.tsx">ScoresPage.tsx</a></div></div>
+          </article>
+
+          <article class="finding" data-severity="p1" data-area="data" data-status="open" data-search="assignment summary atomic orphan addDoc setDoc bài tập">
+            <button class="finding-toggle" type="button" aria-expanded="false"><span class="priority">P1</span><span><h3 class="finding-title">Assignment và summary không được tạo nguyên tử</h3><p class="finding-sub">Hai lần ghi độc lập có thể để lại bài tập không có document tổng hợp.</p></span><span class="chevron">+</span></button>
+            <div class="finding-detail"><div class="detail-grid"><div><h4>Tác động</h4><p>Nếu lần ghi summary thất bại sau khi assignment đã tạo, dashboard và thống kê có thể thiếu dữ liệu trong khi bài tập vẫn hiển thị.</p></div><div><h4>Bằng chứng</h4><p><code>assignments.ts:26</code> gọi <code>addDoc</code>, sau đó dòng 32 mới gọi <code>setDoc</code> cho summary.</p></div><div><h4>Hướng xử lý</h4><p>Tạo trước ID client-side và ghi cả hai document trong cùng write batch, kèm Rules test cho payload liên quan.</p></div></div><div class="evidence"><a class="code-link" href="../src/services/firestore/assignments.ts">assignments.ts</a></div></div>
+          </article>
+
+          <article class="finding" data-severity="p1" data-area="data" data-status="open" data-search="attendance stale alert vắng đi muộn hiện diện thông báo">
+            <button class="finding-toggle" type="button" aria-expanded="false"><span class="priority">P1</span><span><h3 class="finding-title">Cảnh báo điểm danh có thể tồn tại sau khi trạng thái đã đổi</h3><p class="finding-sub">Luồng chỉ tạo cảnh báo cho vắng hoặc đi muộn, không thu hồi khi học sinh chuyển sang có mặt hoặc có phép.</p></span><span class="chevron">+</span></button>
+            <div class="finding-detail"><div class="detail-grid"><div><h4>Tác động</h4><p>Phụ huynh vẫn thấy cảnh báo cũ, gây hiểu nhầm và làm giảm độ tin cậy của hệ thống.</p></div><div><h4>Bằng chứng</h4><p><code>attendance.ts:33</code> và dòng 61 chỉ xử lý nhánh tạo. Rules hiện cấm xóa announcement.</p></div><div><h4>Hướng xử lý</h4><p>Bổ sung trạng thái resolved có trường bất biến và Rules giới hạn, hoặc tách lifecycle cảnh báo khỏi bản ghi notification hiển thị.</p></div></div><div class="evidence"><a class="code-link" href="../src/services/firestore/attendance.ts">attendance.ts</a><a class="code-link" href="../firebase/firestore.rules">firestore.rules</a></div></div>
+          </article>
+
+          <article class="finding" data-severity="p2" data-area="product" data-status="open" data-search="notification unread read tracking chuông thông báo chưa đọc">
+            <button class="finding-toggle" type="button" aria-expanded="false"><span class="priority">P2</span><span><h3 class="finding-title">Số thông báo chưa đọc không phản ánh hành vi người dùng</h3><p class="finding-sub">Mọi notification được coi là chưa đọc ở mọi lần mở ứng dụng.</p></span><span class="chevron">+</span></button>
+            <div class="finding-detail"><div class="detail-grid"><div><h4>Tác động</h4><p>Badge không bao giờ giảm và không còn giá trị báo hiệu, đặc biệt với tài khoản có nhiều học sinh.</p></div><div><h4>Bằng chứng</h4><p><code>Topbar.tsx:48</code> ghi rõ chưa có read-tracking; dòng 89 lấy toàn bộ số notification làm unread.</p></div><div><h4>Hướng xử lý</h4><p>Chọn mô hình <code>lastReadAt</code> theo người dùng hoặc receipt theo notification, ưu tiên mô hình ít lượt đọc trên Spark.</p></div></div><div class="evidence"><a class="code-link" href="../src/components/layouts/Topbar.tsx">Topbar.tsx</a></div></div>
+          </article>
+
+          <article class="finding" data-severity="p2" data-area="product" data-status="open" data-search="appearance dark mode language i18n localStorage cài đặt">
+            <button class="finding-toggle" type="button" aria-expanded="false"><span class="priority">P2</span><span><h3 class="finding-title">Cài đặt giao diện đang lưu lựa chọn chưa hoạt động</h3><p class="finding-sub">Dark mode và tiếng Anh có control nhưng chưa áp dụng lên ứng dụng.</p></span><span class="chevron">+</span></button>
+            <div class="finding-detail"><div class="detail-grid"><div><h4>Tác động</h4><p>Người dùng hoàn thành thao tác và nhận thông báo đã lưu nhưng không thấy kết quả thực tế.</p></div><div><h4>Bằng chứng</h4><p><code>AppearanceTab.tsx:30</code> xác nhận chưa có theme provider hoặc i18n; dữ liệu chỉ nằm trong localStorage.</p></div><div><h4>Hướng xử lý</h4><p>Triển khai đầy đủ theme token và i18n, hoặc tạm ẩn các control để tránh tính năng giả.</p></div></div><div class="evidence"><a class="code-link" href="../src/features/settings/components/AppearanceTab.tsx">AppearanceTab.tsx</a></div></div>
+          </article>
+
+          <article class="finding" data-severity="p2" data-area="quality" data-status="open" data-search="roadmap stale ci worker production config todo tài liệu lệch">
+            <button class="finding-toggle" type="button" aria-expanded="false"><span class="priority">P2</span><span><h3 class="finding-title">Roadmap trạng thái không còn khớp mã nguồn</h3><p class="finding-sub">CI và Worker production config đã tồn tại nhưng vẫn được ghi là chưa làm.</p></span><span class="chevron">+</span></button>
+            <div class="finding-detail"><div class="detail-grid"><div><h4>Tác động</h4><p>Ưu tiên phát triển bị sai và người tiếp quản có thể làm lại công việc đã hoàn thành.</p></div><div><h4>Bằng chứng</h4><p><code>P1-004</code> và <code>P5-001</code> còn todo, trong khi package Worker có build:prod và repo có workflow CI.</p></div><div><h4>Hướng xử lý</h4><p>Đối chiếu evidence rồi cập nhật roadmap bằng script, đồng thời thêm kiểm tra tài liệu vào Definition of Done.</p></div></div><div class="evidence"><a class="code-link" href="upgrade-roadmap-state.json">upgrade-roadmap-state.json</a><a class="code-link" href="../.github/workflows/ci.yml">ci.yml</a><a class="code-link" href="../workers/messenger/package.json">Worker package</a></div></div>
+          </article>
+
+          <article class="finding" data-severity="p2" data-area="quality" data-status="open" data-search="ci component e2e production build worker test coverage">
+            <button class="finding-toggle" type="button" aria-expanded="false"><span class="priority">P2</span><span><h3 class="finding-title">Cổng kiểm tra chưa phủ giao diện và Worker production build</h3><p class="finding-sub">Frontend chỉ có năm file unit test; chưa có component test hoặc E2E ba vai trò.</p></span><span class="chevron">+</span></button>
+            <div class="finding-detail"><div class="detail-grid"><div><h4>Tác động</h4><p>Build xanh không chứng minh các luồng Admin, Teacher, Viewer hoạt động cùng nhau hoặc responsive không vỡ.</p></div><div><h4>Bằng chứng</h4><p>CI web chạy lint, typecheck, unit, Rules và build. Job Worker chỉ chạy test và audit, chưa chạy <code>build:prod</code>.</p></div><div><h4>Hướng xử lý</h4><p>Thêm component test cho workflow dữ liệu, E2E trên emulator và production dry-run cho Worker.</p></div></div><div class="evidence"><a class="code-link" href="../.github/workflows/ci.yml">ci.yml</a><a class="code-link" href="../src">src</a></div></div>
+          </article>
+
+          <article class="finding" data-severity="p2" data-area="quality" data-status="open" data-search="config duplicate js ts dts tsbuildinfo vite tailwind">
+            <button class="finding-toggle" type="button" aria-expanded="false"><span class="priority">P2</span><span><h3 class="finding-title">Cấu hình sinh tự động vẫn được track song song</h3><p class="finding-sub">Vite và Tailwind cùng có bản JS, TS, declaration và tsbuildinfo trong Git.</p></span><span class="chevron">+</span></button>
+            <div class="finding-detail"><div class="detail-grid"><div><h4>Tác động</h4><p>Vite có thể nạp bản JS thay vì nguồn TS. Hai bản hiện tương đương hành vi nhưng dễ lệch sau lần sửa kế tiếp.</p></div><div><h4>Bằng chứng</h4><p><code>git ls-files</code> trả về cả hai bộ config và hai file tsbuildinfo dù .gitignore đã chặn file mới.</p></div><div><h4>Hướng xử lý</h4><p>Chọn file TS làm nguồn duy nhất, bỏ các artifact đã track và xác nhận build trên máy sạch.</p></div></div><div class="evidence"><a class="code-link" href="../vite.config.ts">vite.config.ts</a><a class="code-link" href="../tailwind.config.ts">tailwind.config.ts</a></div></div>
+          </article>
+
+          <article class="finding" data-severity="p2" data-area="performance" data-status="open" data-search="bundle firestore charts size performance 623 432 gzip">
+            <button class="finding-toggle" type="button" aria-expanded="false"><span class="priority">P2</span><span><h3 class="finding-title">Hai vendor chunk lớn chưa có ngân sách hồi quy</h3><p class="finding-sub">Firestore khoảng 623 kB và chart khoảng 432 kB trước gzip trong production build.</p></span><span class="chevron">+</span></button>
+            <div class="finding-detail"><div class="detail-grid"><div><h4>Tác động</h4><p>Thiết bị yếu hoặc mạng di động có thể tải và parse chậm dù route splitting đã hoạt động.</p></div><div><h4>Bằng chứng</h4><p>Build hiện tại báo Firestore 622,85 kB và charts 432,11 kB. Ngưỡng warning 650 kB chưa tạo release gate.</p></div><div><h4>Hướng xử lý</h4><p>Đo Lighthouse trên route thật, lazy load chart theo tab và thêm script bundle budget trong CI.</p></div></div><div class="evidence"><a class="code-link" href="../vite.config.ts">vite.config.ts</a><a class="code-link" href="../package.json">package.json</a></div></div>
+          </article>
+
+          <article class="finding" data-severity="p3" data-area="quality" data-status="open" data-search="large components maintainability minified scores 474 451 430">
+            <button class="finding-toggle" type="button" aria-expanded="false"><span class="priority">P3</span><span><h3 class="finding-title">Một số component và service khó bảo trì</h3><p class="finding-sub">Các file UI lớn nhất có 430 đến 474 dòng; <code>scores.ts</code> bị nén thành dòng rất dài.</p></span><span class="chevron">+</span></button>
+            <div class="finding-detail"><div class="detail-grid"><div><h4>Tác động</h4><p>Khó review thay đổi nhỏ, khó viết test cô lập và dễ trộn validation, query, state với rendering.</p></div><div><h4>Bằng chứng</h4><p><code>ClassForm.tsx</code> 474 dòng, <code>StudentsList.tsx</code> 451 dòng, <code>StudentInfoDialog.tsx</code> 430 dòng.</p></div><div><h4>Hướng xử lý</h4><p>Chỉ tách theo ranh giới nghiệp vụ thật: form sections, query hooks và presentational panels. Không refactor hàng loạt.</p></div></div><div class="evidence"><a class="code-link" href="../src/features/classes/components/ClassForm.tsx">ClassForm.tsx</a><a class="code-link" href="../src/services/firestore/scores.ts">scores.ts</a></div></div>
+          </article>
+
+          <article class="finding" data-severity="p2" data-area="integration" data-status="external" data-search="messenger meta app review smoke production outbox worker external">
+            <button class="finding-toggle" type="button" aria-expanded="false"><span class="priority">P2</span><span><h3 class="finding-title">Messenger mới sẵn sàng ở mức local</h3><p class="finding-sub">Worker test đạt nhưng luồng thật còn phụ thuộc Meta App Review, webhook và production smoke test.</p></span><span class="chevron">+</span></button>
+            <div class="finding-detail"><div class="detail-grid"><div><h4>Tác động</h4><p>Không thể coi gửi Messenger là kênh vận hành chính cho đến khi kiểm tra một tin thật và đối chiếu outbox.</p></div><div><h4>Bằng chứng</h4><p>Tài liệu tích hợp còn các checklist Meta App Live, quyền pages_messaging, webhook production và smoke test chưa hoàn thành.</p></div><div><h4>Hướng xử lý</h4><p>Release core Spark trước. Chỉ bật URL Worker sau khi hoàn tất Meta, gửi thử và xác nhận rollback bằng cách tắt cấu hình Worker.</p></div></div><div class="evidence"><a class="code-link" href="KE-HOACH-NANG-CAP-SPARK-CLIENT-MESSENGER-15-07-2026.md">Kế hoạch Messenger</a><a class="code-link" href="messenger-api-setup.md">Hướng dẫn setup</a></div></div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="spark">
+      <div class="shell">
+        <div class="section-head"><div><p class="kicker">Ràng buộc kiến trúc</p><h2>Core đáp ứng Firebase Spark và client-side</h2></div><p class="section-note">Security Rules là lớp tin cậy. Firebase public config được phép nằm trong client, nhưng debug token và secret tích hợp không được xuất hiện trong bundle.</p></div>
+        <div class="architecture" aria-label="Sơ đồ kiến trúc Edumatrix">
+          <div class="arch-card"><h3>Trình duyệt</h3><p>React, Vite, Firebase Web SDK, React Query và cache cục bộ. Không chứa Meta token hoặc service account.</p></div>
+          <div class="arch-arrow" aria-hidden="true">&gt;</div>
+          <div class="arch-card"><h3>Firebase Spark</h3><p>Hosting, Authentication, Firestore, indexes, App Check và deny-by-default Security Rules.</p></div>
+          <div class="arch-arrow" aria-hidden="true">&gt;</div>
+          <div class="arch-card optional"><h3>Worker tùy chọn</h3><p>Cloudflare Worker giữ Meta secret. Core quản lý lớp vẫn hoạt động khi Worker không được cấu hình.</p></div>
+        </div>
+        <div class="matrix">
+          <div class="matrix-item"><strong>Cloud Functions</strong><span>Không sử dụng</span></div>
+          <div class="matrix-item"><strong>Firebase Storage</strong><span>Không dùng làm kho file nghiệp vụ</span></div>
+          <div class="matrix-item"><strong>Realtime listener</strong><span>Chỉ dùng cho hồ sơ người dùng đăng nhập</span></div>
+          <div class="matrix-item"><strong>Messenger</strong><span>Ngoài core, có thể tắt độc lập</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="roadmap">
+      <div class="shell">
+        <div class="section-head"><div><p class="kicker">Kế hoạch cần làm</p><h2>Sáu giai đoạn có cổng nghiệm thu</h2></div><p class="section-note">Ưu tiên tính đúng của dữ liệu trước khi thêm tính năng. Mỗi giai đoạn chỉ chuyển trạng thái khi có test và bằng chứng tương ứng.</p></div>
+        <div class="roadmap">
+          <nav class="roadmap-nav" aria-label="Giai đoạn roadmap">
+            <a href="#phase-security">Bảo mật và P1</a><a href="#phase-operations">Nghiệp vụ còn thiếu</a><a href="#phase-appearance">Appearance</a><a href="#phase-ui">UI hiện đại</a><a href="#phase-quality">Test và release</a><a href="#phase-messenger">Messenger</a>
+          </nav>
+          <div class="phases">
+            <article class="phase" id="phase-security"><div class="phase-head"><div><h3>Bảo mật cấu hình và toàn vẹn dữ liệu</h3><p>Khóa bốn phát hiện P1 trước mọi mở rộng.</p></div><span class="phase-tag">Ưu tiên đầu tiên</span></div><ul><li>Ignore file môi trường và tách App Check debug token.</li><li>Validation điểm toàn lớp trước khi ghi, không biến ô trống thành 0.</li><li>Tạo assignment và summary trong cùng batch.</li><li>Thiết kế lifecycle resolved cho cảnh báo điểm danh.</li></ul></article>
+            <article class="phase" id="phase-operations"><div class="phase-head"><div><h3>Hoàn thiện bề mặt dữ liệu và vận hành</h3><p>Biến các collection đã có thành workflow quản trị đầy đủ.</p></div><span class="phase-tag">Sau P1</span></div><ul><li>Notification read-state tối ưu lượt đọc.</li><li>Audit log UI chỉ dành cho Admin, có filter và pagination.</li><li>Import CSV có preview, validation, dry-run và batch write.</li><li>Backup, export và runbook trước thao tác dữ liệu lớn.</li></ul></article>
+            <article class="phase" id="phase-appearance"><div class="phase-head"><div><h3>Chốt phạm vi Appearance</h3><p>Không tiếp tục hiển thị control chỉ lưu mà không áp dụng.</p></div><span class="phase-tag">Quyết định sản phẩm</span></div><ul><li>Nếu triển khai: dùng semantic tokens, system preference và lưu lựa chọn.</li><li>Nếu chưa triển khai: ẩn dark mode và English khỏi Settings.</li><li>Không thêm i18n nửa vời theo từng trang.</li></ul></article>
+            <article class="phase" id="phase-ui"><div class="phase-head"><div><h3>Hiện đại hóa UI có kiểm soát</h3><p>Giữ nhận diện xanh, route và luồng nghiệp vụ hiện tại.</p></div><span class="phase-tag">Variance 6 / Motion 5</span></div><ul><li>Chuẩn hóa form label, error gần trường, loading, empty và recovery.</li><li>Responsive thực tế tại 375, 768, 1024 và 1440px.</li><li>Motion 150 đến 280ms, chỉ dùng cho feedback và chuyển trạng thái.</li><li>Tách component lớn theo ranh giới nghiệp vụ, không rewrite toàn repo.</li></ul></article>
+            <article class="phase" id="phase-quality"><div class="phase-head"><div><h3>Mở rộng kiểm thử và release gate</h3><p>Chứng minh luồng hoạt động, không chỉ chứng minh TypeScript hợp lệ.</p></div><span class="phase-tag">Bắt buộc trên PR</span></div><ul><li>Component test cho gradebook, attendance, assignment và payment.</li><li>E2E trên emulator cho Admin, Teacher và Viewer.</li><li>Bundle budget và Lighthouse cho các route chính.</li><li>Worker production dry-run, roadmap evidence và Definition of Done trong CI.</li></ul></article>
+            <article class="phase" id="phase-messenger"><div class="phase-head"><div><h3>Bật Messenger sau cùng</h3><p>Giữ notification nội bộ là đường vận hành an toàn.</p></div><span class="phase-tag">Chờ bên ngoài</span></div><ul><li>Meta App Live, App Review và webhook production.</li><li>Gửi thử một tin thật, kiểm tra message_outbox và lỗi retry.</li><li>Diễn tập tắt Worker URL mà core app vẫn hoạt động.</li></ul></article>
+          </div>
+        </div>
+
+        <div class="checklist-shell">
+          <div class="checklist-head"><strong id="progressText">0 / 12 hạng mục hoàn thành</strong><div class="progress" aria-label="Tiến độ roadmap"><div class="progress-fill" id="progressFill"></div></div><div><button class="control" id="copyRoadmap" type="button">Sao chép</button> <button class="control" id="resetRoadmap" type="button">Đặt lại</button></div></div>
+          <ul class="tasks" id="taskList">
+            <li class="task"><input id="task-1" type="checkbox"><label for="task-1"><strong>Khóa file môi trường khỏi Git</strong><span>Ignore, tách debug token và kiểm tra lịch sử.</span></label><span class="task-tag">P1</span></li>
+            <li class="task"><input id="task-2" type="checkbox"><label for="task-2"><strong>Sửa lưu điểm cả lớp</strong><span>Validation trước ghi, trạng thái rỗng và kết quả nguyên tử hoặc minh bạch.</span></label><span class="task-tag">P1</span></li>
+            <li class="task"><input id="task-3" type="checkbox"><label for="task-3"><strong>Batch assignment cùng summary</strong><span>Không để lại document mồ côi.</span></label><span class="task-tag">P1</span></li>
+            <li class="task"><input id="task-4" type="checkbox"><label for="task-4"><strong>Giải quyết cảnh báo điểm danh cũ</strong><span>Thêm lifecycle resolved và Rules test.</span></label><span class="task-tag">P1</span></li>
+            <li class="task"><input id="task-5" type="checkbox"><label for="task-5"><strong>Thêm notification read-state</strong><span>Không coi tất cả thông báo là chưa đọc.</span></label><span class="task-tag">PRODUCT</span></li>
+            <li class="task"><input id="task-6" type="checkbox"><label for="task-6"><strong>Hoàn thiện Audit log UI</strong><span>Admin filter theo actor, action và ngày.</span></label><span class="task-tag">ADMIN</span></li>
+            <li class="task"><input id="task-7" type="checkbox"><label for="task-7"><strong>Import CSV có preview</strong><span>Validate và dry-run trước batch write.</span></label><span class="task-tag">OPS</span></li>
+            <li class="task"><input id="task-8" type="checkbox"><label for="task-8"><strong>Chốt Appearance</strong><span>Làm thật hoặc tạm ẩn control.</span></label><span class="task-tag">UX</span></li>
+            <li class="task"><input id="task-9" type="checkbox"><label for="task-9"><strong>Audit responsive và form</strong><span>Kiểm tra bốn breakpoint và WCAG AA.</span></label><span class="task-tag">UI</span></li>
+            <li class="task"><input id="task-10" type="checkbox"><label for="task-10"><strong>Thêm component test và E2E</strong><span>Phủ ba vai trò bằng emulator.</span></label><span class="task-tag">QA</span></li>
+            <li class="task"><input id="task-11" type="checkbox"><label for="task-11"><strong>Thêm bundle budget và release gate</strong><span>Không để vendor chunk tăng âm thầm.</span></label><span class="task-tag">CI</span></li>
+            <li class="task"><input id="task-12" type="checkbox"><label for="task-12"><strong>Smoke test Messenger production</strong><span>Meta, webhook, outbox và rollback.</span></label><span class="task-tag">EXTERNAL</span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="proposals">
+      <div class="shell">
+        <div class="section-head"><div><p class="kicker">Đề xuất phát triển</p><h2>Ba quyết định tạo giá trị lớn nhất</h2></div><p class="section-note">Không mở rộng tính năng theo chiều ngang trước khi dữ liệu và vận hành có thể đo lường, phục hồi và kiểm thử.</p></div>
+        <div class="proposal-grid">
+          <article class="proposal featured"><h3>Ưu tiên độ tin cậy của hồ sơ học tập</h3><p>Điểm, điểm danh và học phí là dữ liệu nhạy cảm. Mọi thao tác bulk cần validation trước ghi, idempotency và thông báo kết quả không mơ hồ.</p><ul><li>Audit trail có màn hình đọc.</li><li>Undo hoặc trạng thái resolved cho thao tác sửa sai.</li><li>Không báo thành công nếu chỉ hoàn thành một phần.</li></ul></article>
+          <article class="proposal"><h3>Thiết kế theo công việc hằng ngày</h3><p>Dashboard nên ưu tiên việc cần xử lý thay vì tăng số lượng biểu đồ.</p><ul><li>Chấm bài chưa xong.</li><li>Buổi học thiếu điểm danh.</li><li>Hóa đơn chờ xác nhận.</li><li>Thông báo gửi thất bại.</li></ul></article>
+          <article class="proposal"><h3>Tối ưu Spark bằng dữ liệu tổng hợp có kiểm soát</h3><p>Tiếp tục dùng summary documents nhưng mọi cặp document liên quan phải được ghi nguyên tử và có test chống lệch.</p><ul><li>Giới hạn query rõ ràng.</li><li>Pagination theo cursor.</li><li>Không mở realtime listener tràn lan.</li></ul></article>
+          <article class="proposal"><h3>Đo trước khi thêm motion hoặc chart</h3><p>UI hiện đại đến từ hierarchy, feedback và tốc độ. Motion chỉ phục vụ trạng thái; chart chỉ xuất hiện khi hỗ trợ quyết định.</p><ul><li>Lighthouse theo route.</li><li>Profiler cho màn hình danh sách lớn.</li><li>Reduced motion là đường chạy chính thức.</li></ul></article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer"><div class="shell footer-inner"><span>Edumatrix VN | Audit source, Firebase Spark và UX</span><span>Không thay đổi API, schema, Rules, route hoặc type trong đợt báo cáo này.</span></div></footer>
+  <div class="toast" id="toast" role="status" aria-live="polite">Đã sao chép roadmap</div>
+
+  <script>
+    (() => {
+      const storage = {
+        theme: "edumatrix-audit-theme-2026-07-16",
+        tasks: "edumatrix-audit-tasks-2026-07-16"
+      };
+
+      const root = document.documentElement;
+      const themeButton = document.getElementById("themeToggle");
+      const savedTheme = localStorage.getItem(storage.theme);
+      const initialTheme = savedTheme || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+
+      function applyTheme(theme) {
+        root.dataset.theme = theme;
+        themeButton.textContent = theme === "dark" ? "Chế độ sáng" : "Chế độ tối";
+        themeButton.setAttribute("aria-label", theme === "dark" ? "Chuyển sang giao diện sáng" : "Chuyển sang giao diện tối");
+      }
+      applyTheme(initialTheme);
+      themeButton.addEventListener("click", () => {
+        const next = root.dataset.theme === "dark" ? "light" : "dark";
+        localStorage.setItem(storage.theme, next);
+        applyTheme(next);
+      });
+
+      document.getElementById("printReport").addEventListener("click", () => window.print());
+
+      const findings = [...document.querySelectorAll(".finding")];
+      const toggles = [...document.querySelectorAll(".finding-toggle")];
+      toggles.forEach((button) => button.addEventListener("click", () => {
+        const card = button.closest(".finding");
+        card.classList.toggle("open");
+        button.setAttribute("aria-expanded", String(card.classList.contains("open")));
+      }));
+
+      let severity = "all";
+      const search = document.getElementById("findingSearch");
+      const area = document.getElementById("areaFilter");
+      const status = document.getElementById("statusFilter");
+      const summary = document.getElementById("filterSummary");
+
+      function normalize(value) {
+        return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+      }
+      function filterFindings() {
+        const term = normalize(search.value);
+        let visible = 0;
+        findings.forEach((card) => {
+          const matchesSeverity = severity === "all" || card.dataset.severity === severity;
+          const matchesArea = area.value === "all" || card.dataset.area === area.value;
+          const matchesStatus = status.value === "all" || card.dataset.status === status.value;
+          const matchesSearch = !term || normalize(card.textContent + " " + card.dataset.search).includes(term);
+          const show = matchesSeverity && matchesArea && matchesStatus && matchesSearch;
+          card.classList.toggle("hidden", !show);
+          if (show) visible += 1;
+        });
+        summary.textContent = `Đang hiển thị ${visible} / ${findings.length} phát hiện`;
+      }
+      document.querySelectorAll(".filter-button").forEach((button) => button.addEventListener("click", () => {
+        severity = button.dataset.filter;
+        document.querySelectorAll(".filter-button").forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
+        filterFindings();
+      }));
+      search.addEventListener("input", filterFindings);
+      area.addEventListener("change", filterFindings);
+      status.addEventListener("change", filterFindings);
+
+      const expand = document.getElementById("expandAll");
+      expand.addEventListener("click", () => {
+        const visibleCards = findings.filter((card) => !card.classList.contains("hidden"));
+        const shouldOpen = visibleCards.some((card) => !card.classList.contains("open"));
+        visibleCards.forEach((card) => {
+          card.classList.toggle("open", shouldOpen);
+          card.querySelector(".finding-toggle").setAttribute("aria-expanded", String(shouldOpen));
+        });
+        expand.textContent = shouldOpen ? "Thu gọn tất cả" : "Mở tất cả";
+      });
+
+      const taskInputs = [...document.querySelectorAll(".task input")];
+      const progressText = document.getElementById("progressText");
+      const progressFill = document.getElementById("progressFill");
+      function loadTasks() {
+        let state = {};
+        try { state = JSON.parse(localStorage.getItem(storage.tasks) || "{}"); } catch { state = {}; }
+        taskInputs.forEach((input) => { input.checked = Boolean(state[input.id]); });
+      }
+      function updateTasks(save = true) {
+        const state = Object.fromEntries(taskInputs.map((input) => [input.id, input.checked]));
+        if (save) localStorage.setItem(storage.tasks, JSON.stringify(state));
+        const done = taskInputs.filter((input) => input.checked).length;
+        progressText.textContent = `${done} / ${taskInputs.length} hạng mục hoàn thành`;
+        progressFill.style.width = `${done / taskInputs.length * 100}%`;
+      }
+      loadTasks();
+      updateTasks(false);
+      taskInputs.forEach((input) => input.addEventListener("change", () => updateTasks(true)));
+      document.getElementById("resetRoadmap").addEventListener("click", () => {
+        taskInputs.forEach((input) => { input.checked = false; });
+        updateTasks(true);
+      });
+
+      const toast = document.getElementById("toast");
+      let toastTimer;
+      function showToast(message) {
+        toast.textContent = message;
+        toast.classList.add("show");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove("show"), 2600);
+      }
+      async function copyText(text) {
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch {
+          const textarea = document.createElement("textarea");
+          textarea.value = text;
+          textarea.style.position = "fixed";
+          textarea.style.opacity = "0";
+          document.body.appendChild(textarea);
+          textarea.select();
+          document.execCommand("copy");
+          textarea.remove();
+        }
+      }
+      document.getElementById("copyRoadmap").addEventListener("click", async () => {
+        const text = taskInputs.map((input) => {
+          const label = document.querySelector(`label[for="${input.id}"] strong`).textContent;
+          return `${input.checked ? "[x]" : "[ ]"} ${label}`;
+        }).join("\n");
+        await copyText(text);
+        showToast("Đã sao chép roadmap");
+      });
+
+      filterFindings();
+    })();
+  </script>
+</body>
+</html>

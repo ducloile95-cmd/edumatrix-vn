@@ -41,7 +41,7 @@ export interface ClassRecurrence {
   startTime: string;
   /** "HH:mm" 24h. */
   endTime: string;
-  /** Ngay khai giang. */
+  /** Mốc bắt đầu tìm buổi học; buổi đầu tiên phải khớp daysOfWeek. */
   startDate: Timestamp;
   /** Ngay be giang - tu tinh tu buoi cuoi cung. */
   endDate: Timestamp;
@@ -114,6 +114,13 @@ export interface LessonPlanSection { title: string; content: string; }
 export interface LessonPlanObjectives { knowledge: string; skills: string; attitude: string; }
 export interface LessonPlanPreparation { teacher: string; student: string; }
 export interface LessonPlanActivity { name: string; durationMinutes: number; content: string; expectedOutcome: string; }
+export interface LessonPlanDriveAttachment {
+  driveFileId: string;
+  driveFileName: string;
+  driveMimeType: string;
+  driveWebViewLink: string;
+  driveModifiedTime: string;
+}
 export interface LessonPlanDoc {
   title: string;
   classId: string | null;
@@ -128,6 +135,12 @@ export interface LessonPlanDoc {
   /** Link tai lieu dinh kem (Drive/OneDrive da chia se) - KHONG dung Firebase Storage (A: Spark plan da bo Storage tu 03/02/2026). */
   attachmentUrl: string | null;
   attachmentLabel: string;
+  /** Metadata Drive rieng tu; khong sao chep sang lesson_plan_public. */
+  driveFileId?: string | null;
+  driveFileName?: string | null;
+  driveMimeType?: string | null;
+  driveWebViewLink?: string | null;
+  driveModifiedTime?: string | null;
   publicSummary: string;
   status: LessonPlanStatus;
   createdBy: string;

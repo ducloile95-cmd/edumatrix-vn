@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Plus, X } from "lucide-react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   addDays,
@@ -19,16 +17,16 @@ import {
 import { AppShell } from "@/components/layouts/AppShell";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Modal } from "@/components/ui/Modal";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
 import { ErrorState } from "@/components/feedback/ErrorState";
+import { useToast } from "@/components/feedback/toastContext";
 import { listClasses } from "@/services/firestore/classes";
 import { listCourses } from "@/services/firestore/courses";
-import { createSessions, listSessions, updateSession } from "@/services/firestore/sessions";
+import { createSessions, listSessions, updateSession, type CreateSessionsInput } from "@/services/firestore/sessions";
 import { listSubjects } from "@/services/firestore/subjects";
 import { listUsersByRole } from "@/services/firestore/users";
 import { USER_ROLES } from "@/constants/roles";
-import { sessionFormSchema, type SessionFormValues } from "@/schemas/session";
+import { CreateSessionModal } from "@/features/sessions/components/CreateSessionModal";
 import { FitWeekTimetable } from "@/features/sessions/components/FitWeekTimetable";
 import { TimetableGrid, type TimetableSession } from "@/features/sessions/components/TimetableGrid";
 import { MonthGrid } from "@/features/sessions/components/MonthGrid";
@@ -36,8 +34,6 @@ import { SessionDetailModal } from "@/features/sessions/components/SessionDetail
 import type { SessionStatus } from "@/types/academic";
 
 type TimetableView = "fit-week" | "day" | "week" | "month";
-
-const INPUT = "min-h-touch w-full rounded-input border border-neutral-300 px-3 text-sm focus:border-primary-500";
 
 /**
  * Lich hoc (Staff) - chi con Timetable (khong con tab "Danh sach lop": nhanh do da gop vao
@@ -52,6 +48,7 @@ export default function SessionsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedSession, setSelectedSession] = useState<TimetableSession | null>(null);
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
   const today = useMemo(() => new Date(), []);
 
   const range = useMemo(() => {
@@ -139,22 +136,30 @@ export default function SessionsPage() {
     return map;
   }, [sessionsQuery.data, classFilter]);
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<SessionFormValues>({
-    resolver: zodResolver(sessionFormSchema),
-    defaultValues: { classId: "", title: "Buổi học", startAt: "", endAt: "", location: "", note: "", repeatCount: 1, makeUpForSessionId: null },
-  });
   const createMutation = useMutation({
-    mutationFn: (values: SessionFormValues) =>
-      createSessions({ ...values, startAt: new Date(values.startAt), endAt: new Date(values.endAt) }),
-    onSuccess: () => {
-      reset();
+    mutationFn: (input: CreateSessionsInput) => createSessions(input),
+    onSuccess: (_, input) => {
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
       setCreateOpen(false);
+      showToast({
+        tone: "success",
+        title: input.occurrences.length > 1 ? "Đã tạo lịch học" : "Đã tạo buổi học",
+        description: `Đã tạo thành công ${input.occurrences.length} buổi học.`,
+      });
     },
+    onError: () => showToast({
+      tone: "error",
+      title: "Không thể tạo lịch học",
+      description: "Vui lòng kiểm tra quyền truy cập và thử lại.",
+    }),
   });
   const updateMutation = useMutation({
     mutationFn: ({ id, changes }: { id: string; changes: Parameters<typeof updateSession>[1] }) => updateSession(id, changes),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["sessions"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      showToast({ tone: "success", title: "Đã cập nhật buổi học" });
+    },
+    onError: () => showToast({ tone: "error", title: "Không thể cập nhật buổi học" }),
   });
 
   function shiftPeriod(dir: 1 | -1) {
@@ -177,13 +182,13 @@ export default function SessionsPage() {
       ? format(anchor, "dd/MM/yyyy")
       : timetableView === "month"
         ? format(anchor, "'Tháng' M/yyyy")
-        : `${format(range.from, "dd/MM")} – ${format(range.to, "dd/MM/yyyy")}`;
+        : `${format(range.from, "dd/MM")} - ${format(range.to, "dd/MM/yyyy")}`;
 
   return (
     <AppShell>
       <PageHeader
         actions={
-          <Button variant="primary" onClick={() => setCreateOpen(true)} icon={<Plus size={18} />}>
+          <Button variant="primary" onClick={() => { createMutation.reset(); setCreateOpen(true); }} icon={<Plus size={18} />}>
             Tạo buổi học
           </Button>
         }
@@ -304,59 +309,15 @@ export default function SessionsPage() {
         }}
       />
 
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} size="lg" title="Tạo lịch học" description="Tạo một hoặc chuỗi buổi học lặp theo tuần.">
-        <form onSubmit={handleSubmit((values) => createMutation.mutate(values))}>
-          <div className="grid gap-3 md:grid-cols-2">
-            <div>
-              <label htmlFor="session-classId" className="mb-1 block text-sm font-medium text-neutral-700">Lớp học<span className="ml-0.5 text-danger-500">*</span></label>
-              <select id="session-classId" {...register("classId")} className={INPUT}>
-                <option value="">Chọn lớp</option>
-                {classesQuery.data?.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="session-title" className="mb-1 block text-sm font-medium text-neutral-700">Tên buổi học</label>
-              <input id="session-title" {...register("title")} className={INPUT} />
-            </div>
-            <div>
-              <label htmlFor="session-startAt" className="mb-1 block text-sm font-medium text-neutral-700">Bắt đầu<span className="ml-0.5 text-danger-500">*</span></label>
-              <input id="session-startAt" type="datetime-local" {...register("startAt")} className={INPUT} />
-            </div>
-            <div>
-              <label htmlFor="session-endAt" className="mb-1 block text-sm font-medium text-neutral-700">Kết thúc<span className="ml-0.5 text-danger-500">*</span></label>
-              <input id="session-endAt" type="datetime-local" {...register("endAt")} className={INPUT} />
-            </div>
-            <div>
-              <label htmlFor="session-location" className="mb-1 block text-sm font-medium text-neutral-700">Địa điểm</label>
-              <input id="session-location" placeholder="Địa điểm" {...register("location")} className={INPUT} />
-            </div>
-            <div>
-              <label htmlFor="session-repeatCount" className="mb-1 block text-sm font-medium text-neutral-700">Số tuần lặp</label>
-              <input id="session-repeatCount" type="number" min={1} max={52} {...register("repeatCount")} className={INPUT} />
-            </div>
-            <div className="md:col-span-2">
-              <label htmlFor="session-note" className="mb-1 block text-sm font-medium text-neutral-700">Ghi chú</label>
-              <input id="session-note" placeholder="Ghi chú" {...register("note")} className={INPUT} />
-            </div>
-            <div className="md:col-span-2">
-              <label htmlFor="session-makeup" className="mb-1 block text-sm font-medium text-neutral-700">Buổi học gốc cần học bù</label>
-              <select id="session-makeup" {...register("makeUpForSessionId")} className={INPUT}>
-                <option value="">Không phải buổi học bù</option>
-                {sessionsQuery.data?.filter((item) => item.status === "cancelled").map((item) => (
-                  <option key={item.id} value={item.id}>Học bù: {item.title} - {format(item.startAt.toDate(), "dd/MM")}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          {Object.keys(errors).length > 0 && <p role="alert" className="mt-2 text-sm text-danger-700">Vui lòng kiểm tra thời gian và thông tin bắt buộc.</p>}
-          <div className="mt-4 flex justify-end gap-2">
-            <Button variant="secondary" onClick={() => setCreateOpen(false)}>Hủy</Button>
-            <Button type="submit" variant="primary" disabled={createMutation.isPending}>
-              {createMutation.isPending ? "Đang tạo..." : "Tạo buổi học"}
-            </Button>
-          </div>
-        </form>
-      </Modal>
+      <CreateSessionModal
+        open={createOpen}
+        classes={classesQuery.data ?? []}
+        cancelledSessions={(sessionsQuery.data ?? []).filter((item) => item.status === "cancelled")}
+        isPending={createMutation.isPending}
+        isError={createMutation.isError}
+        onClose={() => { createMutation.reset(); setCreateOpen(false); }}
+        onSubmit={(input) => createMutation.mutate(input)}
+      />
     </AppShell>
   );
 }

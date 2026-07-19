@@ -5,7 +5,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { doc, getDoc, setDoc, Timestamp, updateDoc } from "firebase/firestore";
+import { doc, getDoc, serverTimestamp, setDoc, Timestamp, updateDoc, writeBatch } from "firebase/firestore";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -66,6 +66,18 @@ beforeEach(async () => {
       studentIds: ["student-2"],
       scheduleText: "",
       location: "",
+      status: "active",
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    await setDoc(doc(db, "students", "student-available"), {
+      studentCode: "student-available",
+      fullName: "Available Student",
+      dateOfBirth: "2012-01-01",
+      parentUids: [],
+      currentClassIds: [],
+      teacherIds: [],
+      staffNote: "",
       status: "active",
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
@@ -141,6 +153,54 @@ describe("teacher scope by assigned class", () => {
   test("teacher reads only assigned classes", async () => {
     await assertSucceeds(getDoc(doc(asTeacher(assignedTeacher), "classes", "class-owned")));
     await assertFails(getDoc(doc(asTeacher(otherTeacher), "classes", "class-owned")));
+  });
+
+  test("teacher can read enrollment candidates", async () => {
+    await assertSucceeds(getDoc(doc(asTeacher(assignedTeacher), "students", "student-available")));
+  });
+
+  test("teacher enrolls a student only into an assigned class", async () => {
+    const ownedDb = asTeacher(assignedTeacher);
+    const ownedBatch = writeBatch(ownedDb);
+    ownedBatch.set(doc(ownedDb, "enrollments", "class-owned_student-available"), {
+      classId: "class-owned",
+      courseId: "course-1",
+      studentId: "student-available",
+      status: "active",
+      joinedAt: serverTimestamp(),
+      endedAt: null,
+    });
+    ownedBatch.update(doc(ownedDb, "classes", "class-owned"), {
+      studentIds: ["student-1", "student-available"],
+      updatedAt: serverTimestamp(),
+    });
+    ownedBatch.update(doc(ownedDb, "students", "student-available"), {
+      currentClassIds: ["class-owned"],
+      teacherIds: [assignedTeacher],
+      updatedAt: serverTimestamp(),
+    });
+    await assertSucceeds(ownedBatch.commit());
+
+    const otherDb = asTeacher(assignedTeacher);
+    const otherBatch = writeBatch(otherDb);
+    otherBatch.set(doc(otherDb, "enrollments", "class-other_student-available"), {
+      classId: "class-other",
+      courseId: "course-1",
+      studentId: "student-available",
+      status: "active",
+      joinedAt: serverTimestamp(),
+      endedAt: null,
+    });
+    otherBatch.update(doc(otherDb, "classes", "class-other"), {
+      studentIds: ["student-2", "student-available"],
+      updatedAt: serverTimestamp(),
+    });
+    otherBatch.update(doc(otherDb, "students", "student-available"), {
+      currentClassIds: ["class-owned", "class-other"],
+      teacherIds: [assignedTeacher, otherTeacher],
+      updatedAt: serverTimestamp(),
+    });
+    await assertFails(otherBatch.commit());
   });
 
   test("teacher creates sessions only for assigned classes", async () => {

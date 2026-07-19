@@ -138,11 +138,15 @@ curl https://edumatrix-messenger.<account>.workers.dev/health
    - **Subscription fields**: tích `messages`, `messaging_postbacks`, `messaging_referrals`.
 2. Tạo link m.me cho phụ huynh (hiển thị trong app phụ huynh):
    ```
-   https://m.me/<PAGE_USERNAME>?ref=<FIREBASE_UID>
+   POST /api/messenger/referral { "parentUid": "<FIREBASE_UID>", "studentId": "<STUDENT_ID>" }
+   # Worker kiểm tra parent-student và phạm vi giáo viên, rồi trả nonce dùng một lần; frontend tạo:
+   https://m.me/<PAGE_USERNAME>?ref=<ONE_TIME_NONCE>
    ```
    Khi phụ huynh bấm và nhắn, Meta gọi webhook; Worker `extractReferralLinks()` đọc `referral.ref` (= UID) + `sender.id` (= PSID) và ghi:
    ```
+   messenger_link_nonces/{nonce} = { uid, status: "used", usedAt, usedByPsid }
    messenger_connections/{uid} = { uid, facebookPsid, pageId, status: "active", linkedAt }
+   messenger_psid_links/{psid} = { uid, pageId, status: "active", updatedAt }
    ```
 3. Từ đó, khi gửi chat, lấy `facebookPsid` của phụ huynh trong `messenger_connections/{uid}` để truyền vào `recipientPsid`.
 

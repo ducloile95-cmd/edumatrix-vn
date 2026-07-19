@@ -1,185 +1,171 @@
-import { useMemo } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { eachDayOfInterval, format, isSameDay, subDays } from "date-fns";
-import { CalendarDays, ChevronRight, ClipboardCheck, UserX, Wallet } from "lucide-react";
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { format } from "date-fns";
+import { Bar, BarChart, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { AlertTriangle, BookOpenCheck, CalendarDays, ChevronRight, ClipboardCheck, Cloud, GraduationCap, MessageCircle, QrCode, RefreshCw, Settings2, SlidersHorizontal, UserRound, UserX, type LucideIcon } from "lucide-react";
 import { AppShell } from "@/components/layouts/AppShell";
-import { EmptyState } from "@/components/feedback/EmptyState";
-import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
-import { ErrorState } from "@/components/feedback/ErrorState";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { StatCard } from "@/components/ui/StatCard";
 import { ChartPanel } from "@/components/charts/ChartPanel";
-import { ChartGradientDefs, CHART_DEPTH_FILTER, CHART_GLOW_FILTER, CHART_GRADIENT } from "@/components/charts/ChartGradientDefs";
 import { CHART_AXIS_TICK, CHART_PRIMARY, CHART_TOOLTIP_STYLE } from "@/components/charts/chartTheme";
+import { EmptyState } from "@/components/feedback/EmptyState";
+import { ErrorState } from "@/components/feedback/ErrorState";
+import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
+import { Button } from "@/components/ui/Button";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { ROUTES } from "@/constants/routes";
-import { getStaffDashboard } from "@/services/firestore/staffDashboard";
-import { listSessions } from "@/services/firestore/sessions";
-import { listAttendanceSummariesBySessionIds } from "@/services/firestore/attendance";
-import { listInvoices } from "@/services/firestore/invoices";
-import type { InvoiceStatus } from "@/types/academic";
+import { USER_ROLES } from "@/constants/roles";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { listClasses } from "@/services/firestore/classes";
+import { listCourses } from "@/services/firestore/courses";
+import { listInvoices } from "@/services/firestore/invoices";
+import { getAcademicSettings, getIntegrationSettings, getPaymentSettings } from "@/services/firestore/settings";
+import { dashboardRange, getAdminDashboard, getDashboardLearning, getTeacherDashboard, type AdminDashboardData, type DashboardFilters, type TeacherDashboardData } from "@/services/firestore/staffDashboard";
+import { listUsersByRole } from "@/services/firestore/users";
+import { isGoogleDriveConfigured } from "@/services/integrations/googleDrive";
+import { buildFinanceMetrics } from "@/utils/dashboardMetrics";
+import { DEFAULT_RANK_THRESHOLDS } from "@/utils/ranking";
 
-type Tone = "primary" | "warning" | "accent" | "danger";
+const FIELD_CLASS = "min-h-10 min-w-0 rounded-input border border-neutral-200 bg-neutral-50 px-3 text-sm font-medium text-neutral-700 outline-none transition hover:border-neutral-300 focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-100";
 
-const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = {
-  paid: "Đã thanh toán",
-  pending: "Chờ xác nhận",
-  unpaid: "Chưa thanh toán",
-  overdue: "Quá hạn",
-  rejected: "Từ chối",
-};
-
-function ActionRow({ to, tone, title, hint }: { to: string; tone: Tone; title: string; hint: string; }) {
-  const dot = { primary: "bg-primary-500", warning: "bg-warning-500", accent: "bg-accent-500", danger: "bg-danger-500" }[tone];
-  return (
-    <Link to={to} className="flex min-h-touch items-center gap-3 border-t border-neutral-100 py-3 first:border-t-0 hover:bg-neutral-50">
-      <span className={`h-2.5 w-2.5 flex-none rounded-full ${dot}`} aria-hidden="true" />
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-medium text-neutral-800">{title}</span>
-        <span className="block text-xs text-neutral-500">{hint}</span>
-      </span>
-      <ChevronRight size={17} className="flex-none text-neutral-300" aria-hidden="true" />
-    </Link>
-  );
+function Panel({ title, description, children, action }: { title: string; description?: string; children: ReactNode; action?: ReactNode }) {
+  return <section className="min-w-0 overflow-hidden rounded-card border border-neutral-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,.04)]"><div className="flex flex-wrap items-start justify-between gap-3 border-b border-neutral-100 px-5 py-4"><div><h2 className="text-base font-bold tracking-tight text-neutral-900">{title}</h2>{description && <p className="mt-1 text-xs leading-5 text-neutral-500">{description}</p>}</div>{action}</div>{children}</section>;
 }
 
+function SectionHeader({ title, description }: { title: string; description: string }) {
+  return <div className="flex flex-col gap-1 pt-2 sm:flex-row sm:items-end sm:justify-between"><h2 className="text-lg font-bold tracking-tight text-neutral-950">{title}</h2><p className="text-xs leading-5 text-neutral-500">{description}</p></div>;
+}
+
+function MetricCell({ icon: Icon, value, label, hint, tone = "primary" }: { icon: LucideIcon; value: ReactNode; label: string; hint: string; tone?: "primary" | "warning" | "accent" }) {
+  const colors = tone === "warning" ? "bg-warning-50 text-warning-700" : tone === "accent" ? "bg-accent-50 text-accent-700" : "bg-primary-50 text-primary-700";
+  return <div className="min-w-0 px-4 py-4 sm:px-5"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-xs font-semibold text-neutral-500">{label}</p><p className="mt-1 text-2xl font-black tracking-tight text-neutral-950 tabular-nums">{value}</p></div><span className={`grid size-9 shrink-0 place-items-center rounded-input ${colors}`}><Icon size={17} strokeWidth={1.8} /></span></div><p className="mt-2 truncate text-xs text-neutral-500" title={hint}>{hint}</p></div>;
+}
+
+function QueryPanel({ loading, error, retry, children }: { loading: boolean; error: boolean; retry: () => void; children: ReactNode }) {
+  if (loading) return <LoadingSkeleton rows={4} />;
+  if (error) return <ErrorState message="Không tải được khu vực này." onRetry={retry} />;
+  return <>{children}</>;
+}
+
+function money(value: number): string { return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(value); }
+
+const ACTION_ROUTES = {
+  attendance: ROUTES.STAFF_ATTENDANCE,
+  grading: ROUTES.STAFF_ASSIGNMENTS,
+  homework: ROUTES.STAFF_ASSIGNMENTS,
+  leave: ROUTES.STAFF_ATTENDANCE,
+  lesson: ROUTES.STAFF_LESSON_PLANS,
+};
+
 export default function StaffDashboardPage() {
+  const { firebaseUser, role } = useAuth();
+  const isAdmin = role === USER_ROLES.ADMIN;
   const reducedMotion = useReducedMotion();
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["staff-dashboard"],
-    queryFn: () => getStaffDashboard(),
+  const [days, setDays] = useState<7 | 30 | 90>(30);
+  const [filters, setFilters] = useState<DashboardFilters>({});
+  const range = useMemo(() => dashboardRange(days), [days]);
+
+  const classes = useQuery({ queryKey: ["dashboard-filter-classes", role, firebaseUser?.uid], queryFn: listClasses, enabled: !!firebaseUser });
+  const courses = useQuery({ queryKey: ["dashboard-filter-courses"], queryFn: listCourses, enabled: isAdmin });
+  const teachers = useQuery({ queryKey: ["dashboard-filter-teachers"], queryFn: () => listUsersByRole("teacher"), enabled: isAdmin });
+  const academic = useQuery({ queryKey: ["settings", "academic"], queryFn: getAcademicSettings, enabled: !!firebaseUser });
+  const overview = useQuery<AdminDashboardData | TeacherDashboardData>({
+    queryKey: ["staff-dashboard", "overview", role, firebaseUser?.uid, days, filters],
+    queryFn: () => isAdmin ? getAdminDashboard(range, filters) : getTeacherDashboard(firebaseUser?.uid ?? "", range, filters),
+    enabled: !!firebaseUser && (isAdmin || role === USER_ROLES.TEACHER),
   });
-
-  const rangeStart = useMemo(() => subDays(new Date(), 13), []);
-  const sessions14 = useQuery({ queryKey: ["dashboard-sessions-14"], queryFn: () => listSessions(rangeStart, new Date()) });
-  const sessionIds14 = useMemo(() => sessions14.data?.map((item) => item.id) ?? [], [sessions14.data]);
-  const summaries14 = useQuery({
-    queryKey: ["dashboard-attendance-summaries", sessionIds14],
-    queryFn: () => listAttendanceSummariesBySessionIds(sessionIds14),
-    enabled: sessionIds14.length > 0,
+  const learning = useQuery({
+    queryKey: ["staff-dashboard", "learning", role, firebaseUser?.uid, days, filters, academic.data?.rankThresholds],
+    queryFn: () => getDashboardLearning(range, filters, academic.data?.rankThresholds ?? DEFAULT_RANK_THRESHOLDS),
+    enabled: !!firebaseUser && academic.isSuccess,
   });
-  const invoicesAll = useQuery({ queryKey: ["dashboard-invoices"], queryFn: listInvoices });
+  const finance = useQuery({
+    queryKey: ["staff-dashboard", "finance", role, firebaseUser?.uid, days, filters.classId, filters.courseId, filters.teacherId],
+    queryFn: listInvoices,
+    enabled: !!firebaseUser,
+  });
+  const integrationSettings = useQuery({ queryKey: ["settings", "integrations"], queryFn: getIntegrationSettings, enabled: isAdmin });
+  const paymentSettings = useQuery({ queryKey: ["settings", "payment"], queryFn: getPaymentSettings, enabled: isAdmin });
+  const filteredFinanceInvoices = useMemo(() => {
+    const scopedClasses = (classes.data ?? []).filter((klass) =>
+      (!filters.classId || klass.id === filters.classId) &&
+      (!filters.courseId || klass.courseId === filters.courseId) &&
+      (!filters.teacherId || klass.teacherIds.includes(filters.teacherId)),
+    );
+    const scopedStudentIds = new Set(scopedClasses.flatMap((klass) => klass.studentIds));
+    return (finance.data ?? []).filter((invoice) =>
+      (!filters.courseId || invoice.courseId === filters.courseId) &&
+      ((!filters.classId && !filters.teacherId) || scopedStudentIds.has(invoice.studentId)),
+    );
+  }, [classes.data, filters.classId, filters.courseId, filters.teacherId, finance.data]);
+  const financeMetrics = useMemo(() => buildFinanceMetrics(filteredFinanceInvoices), [filteredFinanceInvoices]);
+  const teacherWorkload = useMemo(() => (teachers.data ?? []).map((teacher) => {
+    const assignedClasses = (classes.data ?? []).filter((klass) => klass.teacherIds.includes(teacher.uid) && (!filters.courseId || klass.courseId === filters.courseId));
+    return { uid: teacher.uid, name: teacher.displayName, classes: assignedClasses.length, students: new Set(assignedClasses.flatMap((klass) => klass.studentIds)).size };
+  }), [classes.data, filters.courseId, teachers.data]);
+  const refreshAll = () => Promise.all([overview.refetch(), learning.refetch(), finance.refetch()]);
 
-  const attendanceTrend = useMemo(() => {
-    const days = eachDayOfInterval({ start: rangeStart, end: new Date() });
-    const sessionById = new Map((sessions14.data ?? []).map((item) => [item.id, item]));
-    return days.map((day) => {
-      let present = 0;
-      let total = 0;
-      summaries14.data?.forEach((summary) => {
-        const session = sessionById.get(summary.sessionId);
-        if (session && isSameDay(session.startAt.toDate(), day)) {
-          present += summary.present;
-          total += summary.total;
-        }
-      });
-      return { date: format(day, "dd/MM"), rate: total > 0 ? Math.round((present / total) * 100) : 0 };
-    });
-  }, [rangeStart, sessions14.data, summaries14.data]);
+  return <AppShell>
+    <PageHeader title={isAdmin ? "Điều hành trung tâm" : "Tổng quan giảng dạy"} description={isAdmin ? "Vận hành, chất lượng học tập và tài chính trong một góc nhìn." : "Lịch dạy, việc cần xử lý và tiến độ của các lớp được phân công."} actions={<Button icon={<RefreshCw size={16} className={overview.isFetching || learning.isFetching ? "animate-spin" : ""} />} onClick={refreshAll}>Làm mới</Button>} />
 
-  const invoiceStatusData = useMemo(() => {
-    const counts: Record<InvoiceStatus, number> = { unpaid: 0, pending: 0, paid: 0, overdue: 0, rejected: 0 };
-    invoicesAll.data?.forEach((invoice) => { counts[invoice.status] += 1; });
-    return (Object.keys(counts) as InvoiceStatus[]).map((status) => ({ status: INVOICE_STATUS_LABEL[status], count: counts[status] }));
-  }, [invoicesAll.data]);
-
-  const actions: { to: string; tone: Tone; title: string; hint: string }[] = [];
-  if (data) {
-    if (data.ungraded > 0) actions.push({ to: ROUTES.STAFF_ASSIGNMENTS, tone: "accent", title: `Chấm ${data.ungraded} bài tập`, hint: "học sinh đã nộp, chờ chấm" });
-    if (data.pendingInvoices > 0) actions.push({ to: ROUTES.STAFF_INVOICES, tone: "danger", title: `Xác nhận ${data.pendingInvoices} hóa đơn`, hint: "phụ huynh đã báo chuyển khoản" });
-    if (data.absentToday > 0) actions.push({ to: ROUTES.STAFF_ATTENDANCE, tone: "warning", title: `${data.absentToday} lượt vắng/đi muộn hôm nay`, hint: "xem lại và nhắn phụ huynh" });
-  }
-
-  return (
-    <AppShell>
-      <PageHeader title="Tổng quan" description="Những việc cần chú ý hôm nay, lịch lớp sắp tới và tiến độ học tập." />
-      {isLoading && <div><LoadingSkeleton rows={4} /></div>}
-      {isError && <div><ErrorState message="Không tải được dữ liệu tổng quan." onRetry={() => refetch()} /></div>}
-
-      {data && (
-        <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <StatCard icon={CalendarDays} tone="primary" value={data.today.total} label="Lớp hôm nay" hint={`${data.today.done} đã xong · ${data.today.upcoming} sắp tới`} />
-            <StatCard icon={UserX} tone="warning" value={data.absentToday} label="Vắng/muộn hôm nay" hint="trên các buổi đã điểm danh" />
-            <StatCard icon={ClipboardCheck} tone="accent" value={data.ungraded} label="Bài chưa chấm" hint="tổng các lớp" />
-            <StatCard icon={Wallet} tone="danger" value={data.pendingInvoices} label="Hóa đơn chờ" hint="cần đối soát" />
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-[1.4fr_1fr]">
-            <section className="rounded-card border border-neutral-200 bg-neutral-0 p-4">
-              <h2 className="mb-2 text-xl font-semibold text-neutral-900">Lớp sắp diễn ra hôm nay</h2>
-              {data.upcomingSessions.length === 0 ? (
-                <EmptyState title="Hôm nay không còn lớp nào" description="Các buổi hôm nay đã kết thúc hoặc chưa có lịch." />
-              ) : (
-                <ul className="divide-y divide-neutral-100">
-                  {data.upcomingSessions.map((session) => (
-                    <li key={session.id} className="flex items-center gap-3 py-3">
-                      <span className="min-w-[52px] rounded-input bg-primary-50 px-2 py-1 text-center text-xs font-bold tabular-nums text-primary-700">
-                        {format(session.startAt, "HH:mm")}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-neutral-800">{session.className}</p>
-                        <p className="truncate text-xs text-neutral-500">{session.title}{session.location ? ` · ${session.location}` : ""}</p>
-                      </div>
-                      <Link
-                        to={`${ROUTES.STAFF_ATTENDANCE}?session=${session.id}`}
-                        className="flex min-h-touch items-center rounded-input bg-primary-500 px-3 text-xs font-semibold text-white hover:bg-primary-600"
-                      >
-                        Điểm danh
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-
-            <section className="rounded-card border border-neutral-200 bg-neutral-0 p-4">
-              <h2 className="mb-2 text-xl font-semibold text-neutral-900">Cần xử lý</h2>
-              {actions.length === 0 ? (
-                <EmptyState title="Không có việc cần xử lý" description="Bạn đã chấm bài, đối soát hóa đơn và điểm danh xong." />
-              ) : (
-                <div>
-                  {actions.map((action) => (
-                    <ActionRow key={action.title} to={action.to} tone={action.tone} title={action.title} hint={action.hint} />
-                  ))}
-                </div>
-              )}
-            </section>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-[1.4fr_1fr]">
-            <ChartPanel title="Xu hướng chuyên cần 14 ngày" description="Tỉ lệ có mặt theo ngày" className="min-h-[280px]">
-              <div className="h-56">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={attendanceTrend} aria-label="Biểu đồ tỉ lệ có mặt theo ngày trong 14 ngày gần đây">
-                    {ChartGradientDefs()}
-                    <XAxis dataKey="date" tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} />
-                    <YAxis unit="%" domain={[0, 100]} tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number) => [`${value}%`, "Tỉ lệ có mặt"]} />
-                    <Line type="monotone" dataKey="rate" stroke={CHART_GRADIENT.primary} strokeWidth={4} dot={false} activeDot={{ r: 6, fill: "#fff", stroke: CHART_PRIMARY, strokeWidth: 3, filter: CHART_GLOW_FILTER }} filter={CHART_GLOW_FILTER} isAnimationActive={!reducedMotion} animationDuration={280} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </ChartPanel>
-
-            <ChartPanel title="Hóa đơn theo trạng thái" description="Khối lượng hóa đơn cần theo dõi" className="min-h-[280px]">
-              <div className="h-56">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={invoiceStatusData} layout="vertical" aria-label="Biểu đồ số lượng hóa đơn theo trạng thái">
-                    {ChartGradientDefs()}
-                    <XAxis type="number" allowDecimals={false} hide />
-                    <YAxis type="category" dataKey="status" width={100} tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} />
-                    <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number) => [`${value} hóa đơn`, "Số lượng"]} />
-                    <Bar dataKey="count" fill={CHART_GRADIENT.primary} filter={CHART_DEPTH_FILTER} radius={[0, 10, 10, 0]} barSize={18} isAnimationActive={!reducedMotion} animationDuration={280} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </ChartPanel>
-          </div>
+    <section className="mb-5 rounded-card border border-neutral-200/80 bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,.04)]" aria-label="Bộ lọc Dashboard">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex items-center gap-2 text-xs font-bold text-neutral-700"><SlidersHorizontal size={16} className="text-primary-600" />Phạm vi dữ liệu</div>
+        <div className={`grid min-w-0 flex-1 gap-2 sm:grid-cols-2 ${isAdmin ? "xl:max-w-5xl xl:grid-cols-[auto_repeat(3,minmax(150px,1fr))]" : "xl:w-auto xl:flex-none xl:grid-cols-[auto_minmax(260px,1fr)]"}`}>
+          <div className="flex rounded-input bg-neutral-100 p-1 xl:col-start-1" aria-label="Khoảng thời gian">{([7, 30, 90] as const).map((value) => <button key={value} type="button" onClick={() => setDays(value)} className={`min-h-8 flex-1 rounded-[7px] px-3 text-xs font-bold transition ${days === value ? "bg-white text-primary-700 shadow-sm" : "text-neutral-500 hover:text-neutral-800"}`}>{value} ngày</button>)}</div>
+          {isAdmin && <select aria-label="Khóa học" value={filters.courseId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, courseId: event.target.value || undefined, classId: undefined }))} className={`${FIELD_CLASS} xl:col-start-2`}><option value="">Tất cả khóa học</option>{courses.data?.map((course) => <option key={course.id} value={course.id}>{course.name}</option>)}</select>}
+          <select aria-label="Lớp học" value={filters.classId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, classId: event.target.value || undefined }))} className={`${FIELD_CLASS} ${isAdmin ? "xl:col-start-3" : "xl:col-start-2"}`}><option value="">{isAdmin ? "Tất cả lớp" : "Lớp phụ trách"}</option>{classes.data?.filter((klass) => !filters.courseId || klass.courseId === filters.courseId).map((klass) => <option key={klass.id} value={klass.id}>{klass.name}</option>)}</select>
+          {isAdmin && <select aria-label="Giáo viên" value={filters.teacherId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, teacherId: event.target.value || undefined }))} className={`${FIELD_CLASS} xl:col-start-4`}><option value="">Tất cả giáo viên</option>{teachers.data?.map((teacher) => <option key={teacher.uid} value={teacher.uid}>{teacher.displayName}</option>)}</select>}
         </div>
-      )}
-    </AppShell>
-  );
+      </div>
+    </section>
+
+    <div className="space-y-4">
+      <QueryPanel loading={overview.isLoading} error={overview.isError} retry={() => overview.refetch()}>
+        {overview.data && <>
+          <SectionHeader title="Nhịp vận hành hôm nay" description="Các chỉ số cần xem trước khi bắt đầu công việc." />
+          <section className="mt-3 grid overflow-hidden rounded-card border border-neutral-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,.04)] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 [&>*]:border-neutral-100 [&>*:not(:last-child)]:border-b sm:[&>*]:border-b sm:[&>*]:border-r xl:[&>*]:border-b-0">
+            <MetricCell icon={CalendarDays} value={overview.data.today.total} label={isAdmin ? "Buổi học hôm nay" : "Buổi dạy hôm nay"} hint={`${overview.data.today.done} đã xong · ${overview.data.today.upcoming} sắp tới`} />
+            <MetricCell icon={GraduationCap} value={overview.data.activeClasses} label="Lớp đang hoạt động" hint={isAdmin ? "Theo bộ lọc hiện tại" : "Được phân công"} />
+            <MetricCell icon={UserRound} value={overview.data.activeStudents} label={isAdmin ? "Học sinh active" : "Học sinh phụ trách"} hint="Không trùng học sinh" />
+            <MetricCell icon={UserX} value={overview.data.absentLateToday} label="Vắng hoặc muộn" hint="Các buổi hôm nay" tone="warning" />
+            <MetricCell icon={ClipboardCheck} value={overview.data.ungraded} label="Bài chờ chấm" hint="Đã nộp, chưa chấm" tone="accent" />
+            <MetricCell icon={BookOpenCheck} value={overview.data.lessonPlanGaps} label="Thiếu giáo án" hint="Trong 7 ngày tới" tone="warning" />
+          </section>
+
+          <div className="mt-4 grid gap-4 xl:grid-cols-[1.35fr_.65fr]">
+            <Panel title={isAdmin ? "Lịch hôm nay" : "Lịch giảng dạy hôm nay"} description="Giờ, lớp, địa điểm và sĩ số."><div className="p-4">{overview.data.sessions.length === 0 ? <EmptyState title="Không có lịch hôm nay" description="Không có buổi học phù hợp với bộ lọc." /> : <ul className="divide-y divide-neutral-100">{overview.data.sessions.map((session) => <li key={session.id} className="flex flex-wrap items-center gap-3 py-3"><span className="min-w-14 rounded-input bg-primary-50 px-2 py-1.5 text-center text-xs font-bold tabular-nums text-primary-700">{format(session.startAt, "HH:mm")}</span><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-neutral-900">{session.className}</p><p className="truncate text-xs text-neutral-500">{session.location || "Chưa có địa điểm"} · {session.studentCount} học sinh</p></div><Link to={`${ROUTES.STAFF_ATTENDANCE}?session=${session.id}`} className="inline-flex min-h-10 items-center rounded-input bg-primary-600 px-3 text-xs font-bold text-white hover:bg-primary-700">Điểm danh</Link></li>)}</ul>}</div></Panel>
+            <Panel title="Hàng đợi xử lý" description="Mỗi mục dẫn tới module đã lọc."><div className="px-5">{overview.data.actions.length === 0 ? <EmptyState title="Không còn việc tồn" description="Các tác vụ hiện tại đã được xử lý." /> : overview.data.actions.map((action) => <Link key={action.id} to={`${ACTION_ROUTES[action.kind]}?dashboard=${action.kind}`} className="flex min-h-touch items-center gap-3 border-b border-neutral-100 py-3 last:border-0 hover:bg-neutral-50"><span className="grid size-8 shrink-0 place-items-center rounded-full bg-warning-50 text-sm font-black text-warning-800">{action.count}</span><span className="min-w-0 flex-1"><span className="block text-sm font-bold text-neutral-900">{action.label}</span><span className="block truncate text-xs text-neutral-500">{action.detail}</span></span><ChevronRight size={16} className="text-neutral-300" /></Link>)}</div></Panel>
+          </div>
+        </>}
+      </QueryPanel>
+
+      <QueryPanel loading={learning.isLoading} error={learning.isError || academic.isError} retry={() => { academic.refetch(); learning.refetch(); }}>
+        {learning.data && <>
+          <SectionHeader title="Chất lượng học tập" description={`Tổng hợp theo phạm vi ${days} ngày và bộ lọc hiện tại.`} />
+          <section className="mt-3 grid overflow-hidden rounded-card border border-neutral-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,.04)] sm:grid-cols-3 [&>*:not(:last-child)]:border-b sm:[&>*:not(:last-child)]:border-b-0 sm:[&>*:not(:last-child)]:border-r [&>*]:border-neutral-100">
+            <MetricCell icon={CalendarDays} value={`${learning.data.attendanceRate}%`} label="Tỉ lệ chuyên cần" hint={`Trong ${days} ngày`} />
+            <MetricCell icon={ClipboardCheck} value={`${learning.data.assignmentRate}%`} label="Hoàn thành bài tập" hint={`Trong ${days} ngày`} tone="accent" />
+            <MetricCell icon={GraduationCap} value={`${learning.data.averageScore}%`} label="Điểm trung bình" hint="Theo điểm đã công bố" />
+          </section>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <ChartPanel title={`Chuyên cần ${days} ngày`} description="Tỉ lệ có mặt theo ngày" className="min-h-[300px]"><div className="h-60"><ResponsiveContainer width="100%" height="100%"><LineChart data={learning.data.attendanceTrend}><XAxis dataKey="date" tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} minTickGap={22} /><YAxis domain={[0, 100]} unit="%" tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} /><Tooltip contentStyle={CHART_TOOLTIP_STYLE} /><Line type="monotone" dataKey="rate" stroke={CHART_PRIMARY} strokeWidth={3} dot={false} isAnimationActive={!reducedMotion} /></LineChart></ResponsiveContainer></div></ChartPanel>
+            <ChartPanel title="Phân bố xếp hạng S/A/B/D" description="Dùng thang chung do Admin cấu hình" className="min-h-[300px]"><div className="h-60"><ResponsiveContainer width="100%" height="100%"><BarChart data={learning.data.rankDistribution}><XAxis dataKey="rank" tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} /><YAxis allowDecimals={false} tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} /><Tooltip contentStyle={CHART_TOOLTIP_STYLE} /><Bar dataKey="count" fill={CHART_PRIMARY} radius={[8, 8, 0, 0]} isAnimationActive={!reducedMotion} /></BarChart></ResponsiveContainer></div></ChartPanel>
+          </div>
+          <div className="grid gap-4 xl:grid-cols-[1.15fr_.85fr]">
+            <Panel title={isAdmin ? "So sánh chất lượng theo lớp" : "Chất lượng các lớp phụ trách"} description="Chuyên cần, bài tập và điểm trung bình."><div className="overflow-x-auto"><table className="w-full min-w-[560px] text-left text-sm"><thead className="bg-neutral-50 text-xs text-neutral-500"><tr><th className="px-5 py-3">Lớp</th><th className="px-4 py-3">Chuyên cần</th><th className="px-4 py-3">Bài tập</th><th className="px-4 py-3">Điểm TB</th></tr></thead><tbody>{learning.data.classMetrics.map((item) => <tr key={item.classId} className="border-t border-neutral-100"><td className="px-5 py-3 font-bold text-neutral-900">{item.className}</td><td className="px-4 py-3 tabular-nums">{item.attendance}%</td><td className="px-4 py-3 tabular-nums">{item.assignments}%</td><td className="px-4 py-3 tabular-nums">{item.averageScore}%</td></tr>)}</tbody></table></div></Panel>
+            <Panel title="Học sinh cần chú ý" description="Hiển thị từng nguyên nhân để có thể xử lý ngay."><div className="max-h-[390px] overflow-y-auto px-5">{learning.data.atRiskStudents.length === 0 ? <EmptyState title="Chưa có cảnh báo" description="Không có học sinh chạm ngưỡng cảnh báo." /> : <ul>{learning.data.atRiskStudents.slice(0, 20).map((student) => <li key={student.id} className="border-b border-neutral-100 py-4 last:border-0"><div className="flex items-center justify-between gap-2"><div className="min-w-0"><p className="truncate font-bold text-neutral-900">{student.name}</p><p className="mt-0.5 truncate text-xs text-neutral-500">{student.classNames.join(", ") || "Chưa có lớp"}</p></div>{student.rank && <span className="shrink-0 rounded-input bg-warning-50 px-2 py-1 text-xs font-black text-warning-800">Hạng {student.rank}</span>}</div><ul className="mt-2 space-y-1 text-xs text-warning-900">{student.reasons.map((reason) => <li key={reason} className="flex gap-1.5"><AlertTriangle size={13} className="mt-0.5 shrink-0" />{reason}</li>)}</ul></li>)}</ul>}</div></Panel>
+          </div>
+          {!isAdmin && <Panel title="Phân tích từng học sinh" description="Xu hướng điểm, chuyên cần, bài tập, số lần làm lại và nhận xét gần nhất."><div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead className="bg-neutral-50 text-xs text-neutral-500"><tr><th className="px-5 py-3">Học sinh</th><th className="px-4 py-3">Hạng</th><th className="px-4 py-3">Chuyên cần</th><th className="px-4 py-3">Bài tập</th><th className="px-4 py-3">3 điểm gần nhất</th><th className="px-4 py-3">Làm lại</th><th className="px-4 py-3">Nhận xét</th></tr></thead><tbody>{learning.data.studentInsights.map((student) => <tr key={student.id} className="border-t border-neutral-100 transition hover:bg-neutral-50/70"><td className="px-5 py-3"><p className="font-bold text-neutral-900">{student.name}</p><p className="text-xs text-neutral-500">{student.classNames.join(", ")}</p></td><td className="px-4 py-3 font-black">{student.rank ?? "Chưa có"}</td><td className="px-4 py-3 tabular-nums">{student.attendanceRate}%</td><td className="px-4 py-3 tabular-nums">{student.assignmentRate}%</td><td className="px-4 py-3 tabular-nums">{student.scoreTrend.length ? student.scoreTrend.join(" → ") : "Chưa có"}</td><td className="px-4 py-3 tabular-nums">{student.redoCount}</td><td className="max-w-56 truncate px-4 py-3 text-xs text-neutral-600" title={student.latestComment}>{student.latestComment || "Chưa có"}</td></tr>)}</tbody></table></div></Panel>}
+          {isAdmin && <Panel title="Khối lượng giảng dạy theo Teacher" description="Số lớp và học sinh không trùng của mỗi giáo viên."><div className="divide-y divide-neutral-100 px-5">{teacherWorkload.map((teacher) => <div key={teacher.uid} className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-5 py-3.5"><p className="truncate text-sm font-bold text-neutral-900">{teacher.name}</p><p className="text-xs text-neutral-500"><b className="text-base text-primary-700 tabular-nums">{teacher.classes}</b> lớp</p><p className="text-xs text-neutral-500"><b className="text-base text-primary-700 tabular-nums">{teacher.students}</b> học sinh</p></div>)}</div></Panel>}
+        </>}
+      </QueryPanel>
+
+      <QueryPanel loading={finance.isLoading} error={finance.isError} retry={() => finance.refetch()}>
+        <><SectionHeader title="Tài chính" description={isAdmin ? "Theo dõi thu học phí và tuổi nợ toàn trung tâm." : "Dữ liệu chỉ đọc của học sinh thuộc lớp phụ trách."} /><Panel title={isAdmin ? "Tài chính và công nợ" : "Tài chính học sinh phụ trách"} description={isAdmin ? "Các số liệu tài chính theo phạm vi đã chọn." : "Teacher không thể tạo hóa đơn hoặc đối soát thanh toán."} action={<Link to={ROUTES.STAFF_INVOICES} className="inline-flex min-h-9 items-center rounded-input px-3 text-xs font-bold text-primary-700 hover:bg-primary-50">Mở module học phí</Link>}><div className="grid divide-y divide-neutral-100 sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4"><div className="p-5"><p className="text-xs font-semibold text-neutral-500">Chưa thu</p><p className="mt-1 text-xl font-black text-neutral-900">{money(financeMetrics.outstandingAmount)}</p></div><div className="p-5"><p className="text-xs font-semibold text-neutral-500">Quá hạn</p><p className="mt-1 text-xl font-black text-danger-700">{money(financeMetrics.overdueAmount)}</p></div><div className="p-5"><p className="text-xs font-semibold text-neutral-500">Chờ xác nhận</p><p className="mt-1 text-xl font-black text-neutral-900">{financeMetrics.pendingCount}</p></div>{isAdmin && <div className="p-5"><p className="text-xs font-semibold text-neutral-500">Tỉ lệ thu</p><p className="mt-1 text-xl font-black text-success-700">{financeMetrics.collectionRate}%</p></div>}</div>{isAdmin && <div className="h-52 border-t border-neutral-100 p-4"><ResponsiveContainer width="100%" height="100%"><BarChart data={financeMetrics.aging} layout="vertical"><XAxis type="number" hide /><YAxis type="category" dataKey="label" width={90} tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} /><Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number) => money(value)} /><Bar dataKey="amount" fill={CHART_PRIMARY} radius={[0, 8, 8, 0]} isAnimationActive={!reducedMotion} /></BarChart></ResponsiveContainer></div>}</Panel></>
+      </QueryPanel>
+
+      {isAdmin && <Panel title="Trạng thái vận hành" description="Các kết nối dành riêng cho Admin." action={<Link to={`${ROUTES.STAFF_SETTINGS}?section=integrations`} className="inline-flex items-center gap-1 text-xs font-bold text-primary-700"><Settings2 size={14} />Quản lý</Link>}><div className="grid md:grid-cols-3"><div className="flex items-center gap-3 border-b border-neutral-100 px-5 py-4 md:border-b-0 md:border-r"><Cloud size={18} className="text-primary-600" /><p className="text-xs font-bold">Google Drive<br /><span className="font-normal text-neutral-500">{isGoogleDriveConfigured() && integrationSettings.data?.driveFolderId ? "Sẵn sàng" : "Cần cấu hình"}</span></p></div><div className="flex items-center gap-3 border-b border-neutral-100 px-5 py-4 md:border-b-0 md:border-r"><MessageCircle size={18} className="text-primary-600" /><p className="text-xs font-bold">Messenger Worker<br /><span className="font-normal text-neutral-500">{import.meta.env.VITE_MESSENGER_WORKER_URL ? "Đã kết nối" : "Thiếu endpoint"}</span></p></div><div className="flex items-center gap-3 px-5 py-4"><QrCode size={18} className="text-primary-600" /><p className="text-xs font-bold">VietQR<br /><span className="font-normal text-neutral-500">{paymentSettings.data?.accountNumber ? "Đã thiết lập" : "Cần thiết lập"}</span></p></div></div></Panel>}
+    </div>
+  </AppShell>;
 }

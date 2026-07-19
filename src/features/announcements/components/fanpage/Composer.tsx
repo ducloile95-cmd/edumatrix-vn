@@ -4,7 +4,7 @@ import { Facebook, Send } from "lucide-react";
 import { ImageUrlInput } from "@/features/announcements/components/fanpage/ImageUrlInput";
 import { PostPreviewCard } from "@/features/announcements/components/fanpage/PostPreviewCard";
 import { createFanpagePost } from "@/services/firestore/fanpagePosts";
-import { postToPage } from "@/services/messenger/client";
+import { postToPage } from "@/services/integrations/messenger";
 
 type Mode = "now" | "later";
 

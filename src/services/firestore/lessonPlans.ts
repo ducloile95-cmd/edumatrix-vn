@@ -1,15 +1,19 @@
-import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, limit, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
+import { addDoc, collection, doc, getDoc, getDocs, limit, orderBy, query, serverTimestamp, updateDoc, where, writeBatch } from "firebase/firestore";
 import { db } from "@/services/firebase/firestoreClient";
 import { COLLECTIONS } from "@/constants/collections";
 import { listSessionsByClass } from "@/services/firestore/sessions";
+import { getCurrentUserDoc, isAdminUser, isTeacherUser } from "@/services/firestore/authz";
+import { listClasses } from "@/services/firestore/classes";
 import { normalizeLessonPlan, normalizeLessonPlanTemplate } from "@/utils/lessonPlan";
-import type { LessonPlanDoc, LessonPlanTemplateDoc, SessionDoc } from "@/types/academic";
+import type { LessonPlanDoc, LessonPlanDriveAttachment, LessonPlanTemplateDoc, SessionDoc } from "@/types/academic";
 import type { LessonPlanFormValues } from "@/schemas/lessonPlan";
 
 function nullable(value: string | null): string | null { return value || null; }
 
 export async function createLessonPlan(input: LessonPlanFormValues, actorUid: string): Promise<void> {
-  const ref = await addDoc(collection(db, COLLECTIONS.LESSON_PLANS), {
+  const ref = doc(collection(db, COLLECTIONS.LESSON_PLANS));
+  const batch = writeBatch(db);
+  batch.set(ref, {
     ...input,
     classId: nullable(input.classId),
     courseId: nullable(input.courseId),
@@ -20,11 +24,15 @@ export async function createLessonPlan(input: LessonPlanFormValues, actorUid: st
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
-  if (input.status === "published" && input.classId) await publishSummary(ref.id, input);
+  if (input.status === "published" && input.classId) {
+    batch.set(doc(db, COLLECTIONS.LESSON_PLAN_PUBLIC, ref.id), publicSummary(ref.id, input));
+  }
+  await batch.commit();
 }
 
 export async function updateLessonPlan(id: string, input: LessonPlanFormValues): Promise<void> {
-  await updateDoc(doc(db, COLLECTIONS.LESSON_PLANS, id), {
+  const batch = writeBatch(db);
+  batch.update(doc(db, COLLECTIONS.LESSON_PLANS, id), {
     ...input,
     classId: nullable(input.classId),
     courseId: nullable(input.courseId),
@@ -33,12 +41,25 @@ export async function updateLessonPlan(id: string, input: LessonPlanFormValues):
     attachmentUrl: nullable(input.attachmentUrl),
     updatedAt: serverTimestamp(),
   });
-  if (input.status === "published" && input.classId) await publishSummary(id, input);
-  else await deleteDoc(doc(db, COLLECTIONS.LESSON_PLAN_PUBLIC, id));
+  const summaryRef = doc(db, COLLECTIONS.LESSON_PLAN_PUBLIC, id);
+  if (input.status === "published" && input.classId) batch.set(summaryRef, publicSummary(id, input));
+  else batch.delete(summaryRef);
+  await batch.commit();
 }
 
-async function publishSummary(id: string, input: LessonPlanFormValues): Promise<void> {
-  await setDoc(doc(db, COLLECTIONS.LESSON_PLAN_PUBLIC, id), {
+export async function updateLessonPlanDriveAttachment(id: string, metadata: LessonPlanDriveAttachment | null): Promise<void> {
+  await updateDoc(doc(db, COLLECTIONS.LESSON_PLANS, id), {
+    driveFileId: metadata?.driveFileId ?? null,
+    driveFileName: metadata?.driveFileName ?? null,
+    driveMimeType: metadata?.driveMimeType ?? null,
+    driveWebViewLink: metadata?.driveWebViewLink ?? null,
+    driveModifiedTime: metadata?.driveModifiedTime ?? null,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+function publicSummary(id: string, input: LessonPlanFormValues) {
+  return {
     lessonPlanId: id,
     title: input.title,
     classId: input.classId,
@@ -47,12 +68,30 @@ async function publishSummary(id: string, input: LessonPlanFormValues): Promise<
     sessionId: nullable(input.sessionId),
     publicSummary: input.publicSummary,
     publishedAt: serverTimestamp(),
-  });
+  };
 }
 
 export async function listLessonPlans(): Promise<(LessonPlanDoc & { id: string })[]> {
-  const snapshot = await getDocs(query(collection(db, COLLECTIONS.LESSON_PLANS), orderBy("updatedAt", "desc"), limit(200)));
-  return snapshot.docs.map((item) => ({ id: item.id, ...normalizeLessonPlan(item.data() as LessonPlanDoc) }));
+  const currentUser = await getCurrentUserDoc();
+  if (!currentUser || (!isAdminUser(currentUser) && !isTeacherUser(currentUser))) return [];
+
+  if (isAdminUser(currentUser)) {
+    const snapshot = await getDocs(query(collection(db, COLLECTIONS.LESSON_PLANS), orderBy("updatedAt", "desc"), limit(200)));
+    return snapshot.docs.map((item) => ({ id: item.id, ...normalizeLessonPlan(item.data() as LessonPlanDoc) }));
+  }
+
+  const classes = await listClasses();
+  const snapshots = await Promise.all([
+    getDocs(query(collection(db, COLLECTIONS.LESSON_PLANS), where("createdBy", "==", currentUser.uid), limit(200))),
+    ...classes.map((klass) => getDocs(
+      query(collection(db, COLLECTIONS.LESSON_PLANS), where("classId", "==", klass.id), limit(200)),
+    )),
+  ]);
+  const plans = new Map<string, LessonPlanDoc & { id: string }>();
+  snapshots.forEach((snapshot) => snapshot.docs.forEach((item) => {
+    plans.set(item.id, { id: item.id, ...normalizeLessonPlan(item.data() as LessonPlanDoc) });
+  }));
+  return [...plans.values()].sort((a, b) => b.updatedAt.toMillis() - a.updatedAt.toMillis());
 }
 
 export async function copyLessonPlan(id: string, actorUid: string): Promise<void> {
@@ -63,6 +102,11 @@ export async function copyLessonPlan(id: string, actorUid: string): Promise<void
     ...source,
     title: `${source.title} (ban sao)`,
     status: "draft",
+    driveFileId: null,
+    driveFileName: null,
+    driveMimeType: null,
+    driveWebViewLink: null,
+    driveModifiedTime: null,
     createdBy: actorUid,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),

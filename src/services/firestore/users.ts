@@ -4,13 +4,11 @@ import {
   documentId,
   getDoc,
   getDocs,
-  increment,
   limit,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
-  setDoc,
   updateDoc,
   where,
   writeBatch,
@@ -21,8 +19,7 @@ import { COLLECTIONS } from "@/constants/collections";
 import { normalizeEmail } from "@/utils/email";
 import { writeAuditLog } from "@/services/firestore/auditLog";
 import { getCurrentUserDoc, isAdminUser, isTeacherUser } from "@/services/firestore/authz";
-import { recordFirestoreUsage } from "@/services/firestore/usage";
-import type { AccountActivityDoc, InviteDoc, UserDoc, UserRole, UserStatus } from "@/types/user";
+import type { InviteDoc, UserDoc, UserRole, UserStatus } from "@/types/user";
 
 export type ClaimFailureReason = "email_not_verified" | "no_invite" | "error";
 
@@ -98,10 +95,8 @@ export async function attemptClaimInvite(firebaseUser: User): Promise<ClaimResul
 
 /** Danh sach tai khoan cho man hinh Admin - khong realtime, co limit (A14). */
 export async function listUsers(): Promise<(UserDoc & { uid: string })[]> {
-  const startedAt = performance.now();
   const q = query(collection(db, COLLECTIONS.USERS), orderBy("createdAt", "desc"), limit(100));
   const snap = await getDocs(q);
-  recordFirestoreUsage({ collectionId: COLLECTIONS.USERS, reads: snap.size, latencyMs: performance.now() - startedAt });
   return snap.docs.map((d) => ({ uid: d.id, ...(d.data() as UserDoc) }));
 }
 
@@ -143,7 +138,6 @@ export function subscribeUsers(
 ): () => void {
   const q = query(collection(db, COLLECTIONS.USERS), orderBy("createdAt", "desc"), limit(100));
   return onSnapshot(q, (snap) => {
-    recordFirestoreUsage({ collectionId: COLLECTIONS.USERS, reads: snap.size });
     onData(snap.docs.map((entry) => ({ uid: entry.id, ...(entry.data() as UserDoc) })));
   }, (error) => onError?.(error));
 }
@@ -156,54 +150,11 @@ export async function updateUserAccount(actor: User, uid: string, input: UpdateU
     studentIds: [...new Set(input.studentIds)],
     updatedAt: serverTimestamp(),
   });
-  recordFirestoreUsage({ collectionId: COLLECTIONS.USERS, writes: 1 });
   await writeAuditLog(actor, "user_account_updated", "user", uid, {
     role: input.role,
     status: input.status,
     studentCount: String(input.studentIds.length),
   });
-}
-
-function localDateKey(date = new Date()): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-export async function recordAccountActivity(uid: string, minutes: number): Promise<void> {
-  const dateKey = localDateKey();
-  const activityRef = doc(db, COLLECTIONS.ACCOUNT_ACTIVITY, `${uid}_${dateKey}`);
-  const safeMinutes = Math.min(5, Math.max(0, minutes));
-  try {
-    await updateDoc(activityRef, {
-      activeMinutes: increment(safeMinutes),
-      lastSeenAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-    return;
-  } catch (error) {
-    if (!(error instanceof Error) || !("code" in error) || error.code !== "not-found") throw error;
-  }
-  await setDoc(activityRef, {
-    uid,
-    dateKey,
-    activeMinutes: safeMinutes,
-    lastSeenAt: serverTimestamp(),
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
-}
-
-export async function listAccountActivity(): Promise<(AccountActivityDoc & { id: string })[]> {
-  const q = query(
-    collection(db, COLLECTIONS.ACCOUNT_ACTIVITY),
-    orderBy("dateKey", "desc"),
-    limit(500),
-  );
-  const snap = await getDocs(q);
-  recordFirestoreUsage({ collectionId: COLLECTIONS.ACCOUNT_ACTIVITY, reads: snap.size });
-  return snap.docs.map((entry) => ({ id: entry.id, ...(entry.data() as AccountActivityDoc) }));
 }
 
 /**
@@ -229,7 +180,6 @@ export async function updateNotificationPrefs(uid: string, prefs: Record<string,
     notificationPrefs: prefs,
     updatedAt: serverTimestamp(),
   });
-  recordFirestoreUsage({ collectionId: COLLECTIONS.USERS, writes: 1 });
 }
 
 /** Danh sach tai khoan active theo role - dung de chon Giao vien khi tao/sua lop (Phase 3). */
@@ -237,12 +187,7 @@ export async function listUsersByRole(role: UserRole): Promise<(UserDoc & { uid:
   const currentUser = await getCurrentUserDoc();
   if (!currentUser) return [];
 
-  if (!isAdminUser(currentUser)) {
-    if (isTeacherUser(currentUser) && role === currentUser.role && currentUser.status === "active") {
-      return [currentUser];
-    }
-    return [];
-  }
+  if (!isAdminUser(currentUser) && (!isTeacherUser(currentUser) || role === "admin")) return [];
 
   const q = query(
     collection(db, COLLECTIONS.USERS),
@@ -251,6 +196,5 @@ export async function listUsersByRole(role: UserRole): Promise<(UserDoc & { uid:
     limit(50),
   );
   const snap = await getDocs(q);
-  recordFirestoreUsage({ collectionId: COLLECTIONS.USERS, reads: snap.size });
   return snap.docs.map((d) => ({ uid: d.id, ...(d.data() as UserDoc) }));
 }

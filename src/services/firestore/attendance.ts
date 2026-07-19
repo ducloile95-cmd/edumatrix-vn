@@ -84,6 +84,17 @@ export async function listAttendanceBySession(sessionId: string): Promise<(Atten
 export async function listAttendanceBySessionIds(sessionIds: string[], pageSize = 500): Promise<(AttendanceDoc & { id: string })[]> {
   const uniqueIds = [...new Set(sessionIds)].filter(Boolean);
   if (uniqueIds.length === 0) return [];
+  const currentUser = await getCurrentUserDoc();
+  if (isTeacherUser(currentUser)) {
+    const sessionIdSet = new Set(uniqueIds);
+    const classes = await listClasses();
+    const snapshots = await Promise.all(classes.map((klass) => getDocs(
+      query(collection(db, COLLECTIONS.ATTENDANCE), where("classId", "==", klass.id), limit(pageSize)),
+    )));
+    return snapshots.flatMap((snapshot) => snapshot.docs
+      .map((item) => ({ id: item.id, ...(item.data() as AttendanceDoc) }))
+      .filter((item) => sessionIdSet.has(item.sessionId)));
+  }
   const groups: (AttendanceDoc & { id: string })[][] = [];
 
   for (let offset = 0; offset < uniqueIds.length; offset += 30) {
@@ -107,6 +118,17 @@ export async function listAttendanceSummariesBySessionIds(
   sessionIds: string[],
 ): Promise<(AttendanceSummaryDoc & { id: string })[]> {
   const uniqueIds = [...new Set(sessionIds)].filter(Boolean);
+  const currentUser = await getCurrentUserDoc();
+  if (isTeacherUser(currentUser)) {
+    const sessionIdSet = new Set(uniqueIds);
+    const classes = await listClasses();
+    const snapshots = await Promise.all(classes.map((klass) => getDocs(
+      query(collection(db, COLLECTIONS.ATTENDANCE_SUMMARIES), where("classId", "==", klass.id), limit(300)),
+    )));
+    return snapshots.flatMap((snapshot) => snapshot.docs
+      .map((item) => ({ id: item.id, ...(item.data() as AttendanceSummaryDoc) }))
+      .filter((item) => sessionIdSet.has(item.sessionId)));
+  }
   const groups: (AttendanceSummaryDoc & { id: string })[][] = [];
 
   for (let offset = 0; offset < uniqueIds.length; offset += 30) {

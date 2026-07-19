@@ -1,11 +1,33 @@
 import { describe, expect, test } from "vitest";
-import worker, { buildMessengerPayload, extractBearer, extractInboundMessages, extractReferralLinks, isMessengerTagShape, verifyMetaSignature, type Env } from "../src/index";
+import worker, { buildMessengerPayload, extractBearer, extractInboundMessages, extractReferralLinks, isMessengerTagShape, referralClaimUid, referralTargetAllowed, verifyMetaSignature, type Env } from "../src/index";
 const env={FIREBASE_PROJECT_ID:"project",FIREBASE_CLIENT_EMAIL:"email",FIREBASE_PRIVATE_KEY:"key",META_PAGE_ACCESS_TOKEN:"token",META_APP_SECRET:"app-secret",META_WEBHOOK_VERIFY_TOKEN:"verify-me",META_GRAPH_VERSION:"v22.0",ALLOWED_ORIGIN:"http://localhost:5173"}satisfies Env;
 describe("messenger worker",()=>{
 test("extracts bearer",()=>expect(extractBearer("Bearer abc.def")).toBe("abc.def"));test("rejects malformed bearer",()=>expect(extractBearer("Basic abc")).toBeNull());
 test("accepts valid HMAC",async()=>{const raw="{\"object\":\"page\"}";const key=await crypto.subtle.importKey("raw",new TextEncoder().encode(env.META_APP_SECRET),{name:"HMAC",hash:"SHA-256"},false,["sign"]);const bytes=await crypto.subtle.sign("HMAC",key,new TextEncoder().encode(raw));const signature="sha256="+[...new Uint8Array(bytes)].map(v=>v.toString(16).padStart(2,"0")).join("");expect(await verifyMetaSignature(raw,signature,env.META_APP_SECRET)).toBe(true)});
 test("rejects invalid HMAC",async()=>expect(await verifyMetaSignature("{}","sha256=bad",env.META_APP_SECRET)).toBe(false));
-test("extracts referral",()=>expect(extractReferralLinks({entry:[{messaging:[{sender:{id:"psid"},recipient:{id:"page"},referral:{ref:"uid"}}]}]})).toEqual([{uid:"uid",psid:"psid",pageId:"page"}]));test("ignores missing referral",()=>expect(extractReferralLinks({entry:[{messaging:[{sender:{id:"psid"}}]}]})).toEqual([]));
+test("extracts a referral nonce",()=>expect(extractReferralLinks({entry:[{messaging:[{sender:{id:"psid"},recipient:{id:"page"},referral:{ref:"abcdefghijklmnopqrstuv"}}]}]})).toEqual([{nonce:"abcdefghijklmnopqrstuv",psid:"psid",pageId:"page"}]));test("ignores missing or UID-shaped referral",()=>{expect(extractReferralLinks({entry:[{messaging:[{sender:{id:"psid"}}]}]})).toEqual([]);expect(extractReferralLinks({entry:[{messaging:[{sender:{id:"psid"},recipient:{id:"page"},referral:{ref:"uid"}}]}]})).toEqual([])});
+test("claims only an active unused referral nonce without overwriting links",()=>{
+  const future=new Date(Date.now()+60_000).toISOString();
+  const past=new Date(Date.now()-60_000).toISOString();
+  const nonce=(overrides:Record<string,unknown>={})=>({fields:{uid:{stringValue:"parent-1"},status:{stringValue:"active"},expiresAt:{timestampValue:future},usedAt:{nullValue:null},...overrides}});
+  const connection=(psid:string)=>({fields:{facebookPsid:{stringValue:psid}}});
+  const psidLink=(uid:string)=>({fields:{uid:{stringValue:uid}}});
+  expect(referralClaimUid(nonce(),null,null,"psid-1")).toBe("parent-1");
+  expect(referralClaimUid(null,null,null,"psid-1")).toBeNull();
+  expect(referralClaimUid(nonce({expiresAt:{timestampValue:past}}),null,null,"psid-1")).toBeNull();
+  expect(referralClaimUid(nonce({status:{stringValue:"used"}}),null,null,"psid-1")).toBeNull();
+  expect(referralClaimUid(nonce({usedAt:{timestampValue:new Date().toISOString()}}),null,null,"psid-1")).toBeNull();
+  expect(referralClaimUid(nonce(),connection("another-psid"),null,"psid-1")).toBeNull();
+  expect(referralClaimUid(nonce(),null,psidLink("another-parent"),"psid-1")).toBeNull();
+});
+test("limits referral creation to the parent-student relation and teacher assignment",()=>{
+  const context={studentId:"student-1",studentName:"Student",classId:"class-1",className:"Class",assignedTeacherIds:["teacher-1"]};
+  expect(referralTargetAllowed({role:"admin"},"admin-1",["student-1"],"student-1",context)).toBe(true);
+  expect(referralTargetAllowed({role:"teacher"},"teacher-1",["student-1"],"student-1",context)).toBe(true);
+  expect(referralTargetAllowed({role:"teacher"},"teacher-other",["student-1"],"student-1",context)).toBe(false);
+  expect(referralTargetAllowed({role:"admin"},"admin-1",["student-other"],"student-1",context)).toBe(false);
+  expect(referralTargetAllowed({role:"admin"},"admin-1",["student-1"],"student-1",null)).toBe(false);
+});
 test("extracts inbound text messages",()=>expect(extractInboundMessages({entry:[{messaging:[{sender:{id:"psid"},recipient:{id:"page"},timestamp:123,message:{mid:"mid-1",text:" Xin chao "}}]}]})).toEqual([{psid:"psid",pageId:"page",timestamp:123,messageId:"mid-1",text:"Xin chao"}]));
 test("ignores message echoes",()=>expect(extractInboundMessages({entry:[{messaging:[{sender:{id:"page"},recipient:{id:"psid"},message:{mid:"mid-2",text:"echo",is_echo:true}}]}]})).toEqual([]));
 test("builds response payload by default",()=>expect(buildMessengerPayload({recipientPsid:"psid",text:"Xin chao"})).toEqual({recipient:{id:"psid"},messaging_type:"RESPONSE",message:{text:"Xin chao"}}));

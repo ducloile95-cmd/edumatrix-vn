@@ -1,6 +1,7 @@
 import { ExternalLink, Printer } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { DriveLessonPlanAttachment } from "@/features/lesson-plans/components/DriveLessonPlanAttachment";
 import type { LessonPlanDoc, LessonPlanStatus } from "@/types/academic";
 
 interface LessonPlanDetailProps {
@@ -145,6 +146,8 @@ export function LessonPlanDetail({ plan, classLabel, sessionLabel }: LessonPlanD
           </a>
         </section>
       )}
+
+      <DriveLessonPlanAttachment plan={plan} />
 
       <section>
         <h4 className="mb-2 border-b border-neutral-200 pb-1.5 text-xs font-bold uppercase tracking-wide text-primary-700">Tóm tắt công khai (phụ huynh xem)</h4>

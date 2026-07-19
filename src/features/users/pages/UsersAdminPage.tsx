@@ -26,7 +26,7 @@ import { RolesPermissionsPanel } from "@/features/users/components/RolesPermissi
 import { createInvite, listInvites, revokeInvite } from "@/services/firestore/invites";
 import { listStudents } from "@/services/firestore/students";
 import {
-  listAccountActivity, listUsers, subscribeUsers, updateUserAccount,
+  listUsers, subscribeUsers, updateUserAccount,
 } from "@/services/firestore/users";
 import type { StudentDoc } from "@/types/academic";
 import type { InviteDoc, UserDoc, UserRole, UserStatus } from "@/types/user";
@@ -90,7 +90,7 @@ function CompactList({ title, description, action, children }: { title: string; 
   return <section className="rounded-card border border-neutral-200 bg-white p-5 shadow-[var(--shadow-1)]"><div className="flex items-start justify-between gap-3"><div><h2 className="text-sm font-semibold text-neutral-900">{title}</h2><p className="mt-1 text-xs text-neutral-500">{description}</p></div>{action}</div><ul className="mt-3 divide-y divide-neutral-100">{children}</ul></section>;
 }
 
-function Overview({ users, invites, activity, onOpenStaff }: { users: UserRecord[]; invites: InviteDoc[]; activity: Awaited<ReturnType<typeof listAccountActivity>>; onOpenStaff: () => void }) {
+function Overview({ users, invites, onOpenStaff }: { users: UserRecord[]; invites: InviteDoc[]; onOpenStaff: () => void }) {
   const activeUsers = users.filter((user) => user.status === "active");
   const accepted = invites.filter((invite) => invite.status === "claimed").length;
   const eligibleInvites = invites.filter((invite) => invite.status !== "revoked").length;
@@ -103,14 +103,13 @@ function Overview({ users, invites, activity, onOpenStaff }: { users: UserRecord
   const usage = Array.from({ length: 7 }, (_, index) => {
     const date = subDays(new Date(), 6 - index);
     const dateKey = format(date, "yyyy-MM-dd");
-    const records = activity.filter((entry) => entry.dateKey === dateKey);
-    const active = new Set(records.map((entry) => entry.uid)).size;
-    const minutes = records.reduce((sum, entry) => sum + entry.activeMinutes, 0);
-    return { day: format(date, "dd/MM"), active, rate: activeUsers.length ? Math.round((active / activeUsers.length) * 100) : 0, minutes };
+    const active = activeUsers.filter((user) => user.lastLoginAt?.toDate && format(user.lastLoginAt.toDate(), "yyyy-MM-dd") === dateKey).length;
+    return { day: format(date, "dd/MM"), active, rate: activeUsers.length ? Math.round((active / activeUsers.length) * 100) : 0 };
   });
   const recentUsers = users.slice(0, 5);
   const staff = users.filter((user) => user.role !== USER_ROLES.VIEWER).slice(0, 5);
-  const sevenDayUsers = new Set(activity.filter((entry) => entry.dateKey >= format(subDays(new Date(), 6), "yyyy-MM-dd")).map((entry) => entry.uid)).size;
+  const sevenDayThreshold = subDays(new Date(), 6).getTime();
+  const sevenDayUsers = activeUsers.filter((user) => (user.lastLoginAt?.toDate().getTime() ?? 0) >= sevenDayThreshold).length;
   const sevenDayRate = activeUsers.length ? Math.round((sevenDayUsers / activeUsers.length) * 100) : 0;
 
   return <div className="motion-content-enter space-y-4">
@@ -159,7 +158,6 @@ export default function UsersAdminPage() {
   const usersQuery = useQuery({ queryKey: ["users"], queryFn: listUsers });
   const invitesQuery = useQuery({ queryKey: ["invites"], queryFn: listInvites });
   const studentsQuery = useQuery({ queryKey: ["students"], queryFn: listStudents });
-  const activityQuery = useQuery({ queryKey: ["account-activity"], queryFn: listAccountActivity });
   const [tab, setTab] = useState<MainTab>("overview");
   const [inviteOpen, setInviteOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserRecord | null>(null);
@@ -188,14 +186,14 @@ export default function UsersAdminPage() {
     onSuccess: () => { client.invalidateQueries({ queryKey: ["users"] }); setSelectedUser(null); },
   });
 
-  const loading = usersQuery.isLoading || invitesQuery.isLoading || studentsQuery.isLoading || activityQuery.isLoading;
-  const failed = usersQuery.isError || invitesQuery.isError || studentsQuery.isError || activityQuery.isError;
+  const loading = usersQuery.isLoading || invitesQuery.isLoading || studentsQuery.isLoading;
+  const failed = usersQuery.isError || invitesQuery.isError || studentsQuery.isError;
   const users = usersQuery.data ?? [];
   const invites = invitesQuery.data ?? [];
   const students = studentsQuery.data ?? [];
   const studentById = new Map(students.map((student) => [student.id, student]));
 
-  return <AppShell><PageHeader actions={<Button variant="primary" icon={<UserPlus size={17} />} onClick={() => setInviteOpen(true)}>Mời tài khoản</Button>} /><TabBar value={tab} onChange={setTab} />{loading && tab !== "permissions" && <div className="rounded-card border border-neutral-200 bg-white p-5"><LoadingSkeleton rows={7} /></div>}{failed && tab !== "permissions" && <ErrorState message="Không tải được dữ liệu module Người dùng." onRetry={() => { usersQuery.refetch(); invitesQuery.refetch(); studentsQuery.refetch(); activityQuery.refetch(); }} />}{tab === "permissions" && <RolesPermissionsPanel />}{!loading && !failed && tab === "overview" && <Overview users={users} invites={invites} activity={activityQuery.data ?? []} onOpenStaff={() => setTab("staff")} />}{!loading && !failed && tab === "staff" && <StaffTable users={users} onEdit={setSelectedUser} />}{!loading && !failed && tab === "families" && <FamilyTable users={users} invites={invites} students={students} onView={setSelectedUser} onRevoke={(email) => revokeMutation.mutate(email)} />}
+  return <AppShell><PageHeader actions={<Button variant="primary" icon={<UserPlus size={17} />} onClick={() => setInviteOpen(true)}>Mời tài khoản</Button>} /><TabBar value={tab} onChange={setTab} />{loading && tab !== "permissions" && <div className="rounded-card border border-neutral-200 bg-white p-5"><LoadingSkeleton rows={7} /></div>}{failed && tab !== "permissions" && <ErrorState message="Không tải được dữ liệu module Người dùng." onRetry={() => { usersQuery.refetch(); invitesQuery.refetch(); studentsQuery.refetch(); }} />}{tab === "permissions" && <RolesPermissionsPanel />}{!loading && !failed && tab === "overview" && <Overview users={users} invites={invites} onOpenStaff={() => setTab("staff")} />}{!loading && !failed && tab === "staff" && <StaffTable users={users} onEdit={setSelectedUser} />}{!loading && !failed && tab === "families" && <FamilyTable users={users} invites={invites} students={students} onView={setSelectedUser} onRevoke={(email) => revokeMutation.mutate(email)} />}
 
     <Modal open={inviteOpen} onClose={() => setInviteOpen(false)} title="Mời tài khoản mới" description="Chọn đúng vai trò và học sinh liên kết trước khi gửi." size="lg"><InviteForm students={students} pending={inviteMutation.isPending} onSubmit={(input) => inviteMutation.mutate(input)} onClose={() => setInviteOpen(false)} />{inviteMutation.isError && <p role="alert" className="mt-3 text-sm font-semibold text-danger-700">Không thể gửi lời mời. Kiểm tra email và thử lại.</p>}</Modal>
 

@@ -9,6 +9,7 @@ import { listCourses } from "@/services/firestore/courses";
 import { listSubjects } from "@/services/firestore/subjects";
 import { listUsersByRole } from "@/services/firestore/users";
 import { USER_ROLES } from "@/constants/roles";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { generateRecurringSessions } from "@/utils/recurrence";
 import type { ClassDoc } from "@/types/academic";
 
@@ -50,6 +51,10 @@ const DEFAULT_RECURRENCE: RecurrenceFormState = {
 export function ClassForm({ editingClass, onDone }: ClassFormProps) {
   const queryClient = useQueryClient();
   const isEditing = !!editingClass;
+  const { firebaseUser, role } = useAuth();
+  const isAdmin = role === USER_ROLES.ADMIN;
+  const ownTeacherUid = firebaseUser?.uid;
+  const ownTeacherIds = useMemo(() => ownTeacherUid ? [ownTeacherUid] : [], [ownTeacherUid]);
 
   const [useSmartSchedule, setUseSmartSchedule] = useState(false);
   const [recurrence, setRecurrence] = useState<RecurrenceFormState>(DEFAULT_RECURRENCE);
@@ -104,19 +109,22 @@ export function ClassForm({ editingClass, onDone }: ClassFormProps) {
         status: editingClass.status,
       });
     } else {
-      reset(DEFAULT_VALUES);
+      reset({ ...DEFAULT_VALUES, teacherIds: isAdmin ? [] : ownTeacherIds });
     }
-  }, [editingClass, reset]);
+  }, [editingClass, isAdmin, ownTeacherIds, reset]);
 
   const mutation = useMutation({
     mutationFn: async (values: ClassFormValues): Promise<void> => {
+      const scopedValues = isAdmin
+        ? values
+        : { ...values, teacherIds: editingClass?.teacherIds ?? ownTeacherIds };
       if (editingClass) {
-        await updateClass(editingClass.id, values);
+        await updateClass(editingClass.id, scopedValues);
         return;
       }
       if (useSmartSchedule && recurrencePreview) {
         await createClassWithSchedule({
-          ...values,
+          ...scopedValues,
           recurrence: {
             daysOfWeek: recurrence.daysOfWeek,
             startTime: recurrence.startTime,
@@ -127,7 +135,7 @@ export function ClassForm({ editingClass, onDone }: ClassFormProps) {
         });
         return;
       }
-      await createClass(values);
+      await createClass(scopedValues);
     },
     onSuccess: () => {
       reset(DEFAULT_VALUES);
@@ -253,7 +261,7 @@ export function ClassForm({ editingClass, onDone }: ClassFormProps) {
 
         <div>
           <span className="mb-1 block text-sm font-medium text-neutral-700">Giáo viên phụ trách</span>
-          <Controller
+          {isAdmin ? <Controller
             control={control}
             name="teacherIds"
             render={({ field }) => (
@@ -282,8 +290,16 @@ export function ClassForm({ editingClass, onDone }: ClassFormProps) {
                 })}
               </div>
             )}
-          />
-          <p className="mt-1 text-xs text-neutral-500">Bấm để chọn/bỏ chọn, có thể chọn nhiều giáo viên.</p>
+          /> : (
+            <p className="rounded-input border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm text-neutral-700">
+              {editingClass
+                ? (teachers ?? []).filter((teacher) => editingClass.teacherIds.includes(teacher.uid)).map((teacher) => teacher.displayName).join(", ") || "Lớp của bạn"
+                : "Bạn sẽ được gán làm giáo viên phụ trách lớp này."}
+            </p>
+          )}
+          <p className="mt-1 text-xs text-neutral-500">
+            {isAdmin ? "Bấm để chọn/bỏ chọn, có thể chọn nhiều giáo viên." : "Giáo viên không thể thay đổi phân công của lớp."}
+          </p>
         </div>
       </div>
 
@@ -324,7 +340,7 @@ export function ClassForm({ editingClass, onDone }: ClassFormProps) {
         </div>
       </div>
 
-      {!isEditing && (
+      {!isEditing && isAdmin && (
         <div className="mt-4 rounded-card border border-neutral-200 bg-white p-4 sm:p-5">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-xs font-bold uppercase tracking-wide text-primary-700">Lịch học thông minh</h3>
@@ -343,7 +359,7 @@ export function ClassForm({ editingClass, onDone }: ClassFormProps) {
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <label htmlFor="recurrence-start-date" className="mb-1 block text-sm font-medium text-neutral-700">
-                  Ngày khai giảng<span className="ml-0.5 text-danger-500">*</span>
+                  Bắt đầu tìm từ ngày<span className="ml-0.5 text-danger-500">*</span>
                 </label>
                 <input
                   id="recurrence-start-date"
@@ -436,7 +452,7 @@ export function ClassForm({ editingClass, onDone }: ClassFormProps) {
                     {recurrencePreview.sessions.length} buổi
                   </>
                 ) : (
-                  "Điền đủ ngày khai giảng, các thứ trong tuần, giờ học và tổng số buổi để xem trước lịch."
+                  "Điền đủ ngày bắt đầu, các thứ trong tuần, giờ học và tổng số buổi để xem trước lịch."
                 )}
               </div>
             </div>

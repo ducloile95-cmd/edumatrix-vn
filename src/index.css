@@ -58,6 +58,7 @@
   .modal-backdrop[data-state="closed"] { animation: backdrop-out var(--motion-fast) linear both; }
   .modal-panel { animation: modal-in var(--motion-emphasis) var(--ease-enter) both; transform-origin: center; }
   .modal-panel[data-state="closed"] { animation: modal-out var(--motion-fast) var(--ease-exit) both; }
+  .toast-lifecycle { animation: toast-lifecycle 3s var(--ease-enter) both; }
   .skeleton-shimmer { position: relative; overflow: hidden; background: linear-gradient(90deg, theme(colors.neutral.200) 25%, theme(colors.neutral.100) 50%, theme(colors.neutral.200) 75%); background-size: 220% 100%; animation: skeleton-shimmer 1.25s linear infinite; }
   .edumatrix-chart .recharts-cartesian-axis-tick-value { @apply fill-neutral-500 text-[10px]; }
   .edumatrix-chart .recharts-legend-item-text { @apply text-xs text-neutral-600; }
@@ -104,6 +105,7 @@
 @keyframes backdrop-out { from { opacity: 1; } to { opacity: 0; } }
 @keyframes modal-in { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes modal-out { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(5px) scale(.99); } }
+@keyframes toast-lifecycle { 0% { opacity: 0; transform: translateY(-18px); } 8%, 88% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-8px); } }
 @keyframes skeleton-shimmer { from { background-position: 100% 0; } to { background-position: -120% 0; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
 

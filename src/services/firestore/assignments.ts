@@ -1,7 +1,7 @@
 import {
-  addDoc,
   collection,
   doc,
+  getDoc,
   getDocs,
   limit,
   orderBy,
@@ -14,7 +14,7 @@ import {
 } from "firebase/firestore";
 import { COLLECTIONS } from "@/constants/collections";
 import { db } from "@/services/firebase/firestoreClient";
-import { getCurrentUserDoc, isTeacherUser } from "@/services/firestore/authz";
+import { getCurrentUserDoc, isAdminUser, isTeacherUser } from "@/services/firestore/authz";
 import { listClasses } from "@/services/firestore/classes";
 import { assignmentScoreId } from "@/utils/idempotency";
 import type { AssignmentDoc, AssignmentSummaryDoc, ScoreDoc, SubmissionDoc, SubmissionStatus } from "@/types/academic";
@@ -23,13 +23,14 @@ export async function createAssignment(
   input: Omit<AssignmentDoc, "createdAt" | "updatedAt">,
   totalStudents: number,
 ): Promise<void> {
-  const ref = await addDoc(collection(db, COLLECTIONS.ASSIGNMENTS), {
+  const ref = doc(collection(db, COLLECTIONS.ASSIGNMENTS));
+  const batch = writeBatch(db);
+  batch.set(ref, {
     ...input,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
-
-  await setDoc(doc(db, COLLECTIONS.ASSIGNMENT_SUMMARIES, ref.id), {
+  batch.set(doc(db, COLLECTIONS.ASSIGNMENT_SUMMARIES, ref.id), {
     assignmentId: ref.id,
     totalStudents,
     submittedCount: 0,
@@ -37,18 +38,45 @@ export async function createAssignment(
     redoCount: 0,
     updatedAt: serverTimestamp(),
   });
+  await batch.commit();
 }
 
 export async function listAssignments(): Promise<(AssignmentDoc & { id: string })[]> {
-  const snap = await getDocs(
-    query(collection(db, COLLECTIONS.ASSIGNMENTS), orderBy("dueAt", "desc"), limit(200)),
-  );
-  return snap.docs.map((item) => ({ id: item.id, ...(item.data() as AssignmentDoc) }));
+  const currentUser = await getCurrentUserDoc();
+  if (!currentUser || (!isAdminUser(currentUser) && !isTeacherUser(currentUser))) return [];
+
+  if (isAdminUser(currentUser)) {
+    const snap = await getDocs(
+      query(collection(db, COLLECTIONS.ASSIGNMENTS), orderBy("dueAt", "desc"), limit(200)),
+    );
+    return snap.docs.map((item) => ({ id: item.id, ...(item.data() as AssignmentDoc) }));
+  }
+
+  const classes = await listClasses();
+  const groups = await Promise.all(classes.map(async (klass) => {
+    const snap = await getDocs(
+      query(collection(db, COLLECTIONS.ASSIGNMENTS), where("classId", "==", klass.id), limit(200)),
+    );
+    return snap.docs.map((item) => ({ id: item.id, ...(item.data() as AssignmentDoc) }));
+  }));
+  return groups.flat().sort((a, b) => b.dueAt.toMillis() - a.dueAt.toMillis());
 }
 
 export async function listAssignmentSummaries(): Promise<(AssignmentSummaryDoc & { id: string })[]> {
   const snap = await getDocs(query(collection(db, COLLECTIONS.ASSIGNMENT_SUMMARIES), limit(300)));
   return snap.docs.map((item) => ({ id: item.id, ...(item.data() as AssignmentSummaryDoc) }));
+}
+
+export async function listAssignmentSummariesByIds(
+  assignmentIds: string[],
+): Promise<(AssignmentSummaryDoc & { id: string })[]> {
+  const uniqueIds = [...new Set(assignmentIds)].filter(Boolean);
+  const snapshots = await Promise.all(
+    uniqueIds.map((assignmentId) => getDoc(doc(db, COLLECTIONS.ASSIGNMENT_SUMMARIES, assignmentId))),
+  );
+  return snapshots
+    .filter((snapshot) => snapshot.exists())
+    .map((snapshot) => ({ id: snapshot.id, ...(snapshot.data() as AssignmentSummaryDoc) }));
 }
 
 export async function listAssignmentsByClass(classId: string, pageSize = 100): Promise<(AssignmentDoc & { id: string })[]> {
@@ -87,9 +115,14 @@ export async function submitAssignment(
   );
 }
 
-export async function listSubmissions(assignmentId: string): Promise<(SubmissionDoc & { id: string })[]> {
+export async function listSubmissions(assignmentId: string, classId: string): Promise<(SubmissionDoc & { id: string })[]> {
   const snap = await getDocs(
-    query(collection(db, COLLECTIONS.SUBMISSIONS), where("assignmentId", "==", assignmentId), limit(200)),
+    query(
+      collection(db, COLLECTIONS.SUBMISSIONS),
+      where("assignmentId", "==", assignmentId),
+      where("classId", "==", classId),
+      limit(200),
+    ),
   );
   return snap.docs.map((item) => ({ id: item.id, ...(item.data() as SubmissionDoc) }));
 }
@@ -226,7 +259,7 @@ export async function gradeSubmission(
 }
 
 export async function remindMissing(assignment: AssignmentDoc & { id: string }, studentIds: string[]): Promise<void> {
-  const submissions = await listSubmissions(assignment.id);
+  const submissions = await listSubmissions(assignment.id, assignment.classId);
   const submitted = new Set(submissions.map((item) => item.studentId));
   const missing = studentIds.filter((id) => !submitted.has(id));
 

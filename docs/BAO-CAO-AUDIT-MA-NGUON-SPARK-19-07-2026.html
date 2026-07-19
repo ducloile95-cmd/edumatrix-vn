@@ -1,0 +1,1372 @@
+<!doctype html>
+<html lang="vi" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="Báo cáo audit sau sửa chữa mã nguồn EduMatrix VN, Firebase Spark, Google Drive, Frontend Admin và checklist production.">
+  <title>EduMatrix VN | Báo cáo audit sau sửa chữa</title>
+  <script>
+    const savedTheme = localStorage.getItem("edumatrix-audit-theme");
+    const systemDark = matchMedia("(prefers-color-scheme: dark)").matches;
+    document.documentElement.dataset.theme = savedTheme || (systemDark ? "dark" : "light");
+  </script>
+  <style>
+    :root {
+      --canvas: #f3f5f4;
+      --surface: #ffffff;
+      --surface-soft: #e9eeeb;
+      --surface-strong: #dce4df;
+      --ink: #17201b;
+      --body: #4b5a51;
+      --muted: #697970;
+      --line: #cbd5cf;
+      --line-strong: #9fafa6;
+      --accent: #16724a;
+      --accent-soft: #d9eee3;
+      --accent-ink: #0d4d31;
+      --critical: #a43737;
+      --critical-soft: #f4dddd;
+      --high: #a65b14;
+      --high-soft: #f5e6d5;
+      --medium: #77630b;
+      --medium-soft: #efe9cc;
+      --good: #16724a;
+      --good-soft: #d9eee3;
+      --code: #243029;
+      --focus: #0d65d9;
+      --shadow: 0 18px 60px rgba(24, 54, 38, 0.09);
+      --radius-card: 16px;
+      --radius-control: 10px;
+      --max: 1440px;
+    }
+
+    html[data-theme="dark"] {
+      --canvas: #121815;
+      --surface: #18211c;
+      --surface-soft: #202c25;
+      --surface-strong: #2a392f;
+      --ink: #eef4f0;
+      --body: #bdc9c1;
+      --muted: #91a097;
+      --line: #33453a;
+      --line-strong: #51665a;
+      --accent: #55c78d;
+      --accent-soft: #183d2a;
+      --accent-ink: #b7f0d1;
+      --critical: #ff8f8f;
+      --critical-soft: #452424;
+      --high: #ffb66f;
+      --high-soft: #472e1c;
+      --medium: #e4cd68;
+      --medium-soft: #3c361c;
+      --good: #55c78d;
+      --good-soft: #183d2a;
+      --code: #d9e7de;
+      --focus: #7eb8ff;
+      --shadow: 0 18px 60px rgba(0, 0, 0, 0.24);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--canvas);
+      color: var(--ink);
+      font-family: Aptos, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+      line-height: 1.55;
+      text-rendering: optimizeLegibility;
+    }
+    button, input, select { font: inherit; }
+    button, a, input, select, summary { -webkit-tap-highlight-color: transparent; }
+    a { color: var(--accent); text-underline-offset: 3px; }
+    a:hover { text-decoration-thickness: 2px; }
+    :focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+    ::selection { background: var(--accent); color: var(--surface); }
+
+    .skip-link {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      z-index: 100;
+      transform: translateY(-150%);
+      background: var(--ink);
+      color: var(--surface);
+      padding: 10px 14px;
+      border-radius: var(--radius-control);
+    }
+    .skip-link:focus { transform: translateY(0); }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      border-bottom: 1px solid var(--line);
+      background: color-mix(in srgb, var(--canvas) 92%, transparent);
+      backdrop-filter: blur(14px);
+    }
+    .topbar-inner {
+      width: min(calc(100% - 32px), var(--max));
+      min-height: 68px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+      font-weight: 780;
+      letter-spacing: -0.02em;
+    }
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      border-radius: 10px;
+      background: var(--accent);
+      color: var(--surface);
+      font-weight: 850;
+    }
+    .brand span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .top-actions { display: flex; align-items: center; gap: 8px; }
+    .control {
+      min-height: 42px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-control);
+      background: var(--surface);
+      color: var(--ink);
+      padding: 9px 13px;
+      cursor: pointer;
+      font-weight: 700;
+      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+    }
+    .control:hover { border-color: var(--accent); background: var(--accent-soft); }
+    .control:active { transform: translateY(1px); }
+
+    .layout {
+      width: min(calc(100% - 32px), var(--max));
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 240px minmax(0, 1fr);
+      gap: 44px;
+    }
+    .side-nav {
+      position: sticky;
+      top: 92px;
+      align-self: start;
+      max-height: calc(100dvh - 116px);
+      overflow: auto;
+      padding: 10px 0 28px;
+    }
+    .side-nav strong {
+      display: block;
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 0.76rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .side-nav a {
+      display: block;
+      margin: 3px 0;
+      padding: 9px 10px;
+      border-radius: 8px;
+      color: var(--body);
+      text-decoration: none;
+      font-size: 0.91rem;
+      font-weight: 650;
+    }
+    .side-nav a:hover, .side-nav a.active { background: var(--accent-soft); color: var(--accent-ink); }
+
+    main { min-width: 0; padding-bottom: 90px; }
+    section { scroll-margin-top: 92px; }
+    .hero {
+      min-height: min(760px, calc(100dvh - 68px));
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.75fr);
+      gap: 50px;
+      align-items: center;
+      padding: 72px 0 56px;
+    }
+    .eyebrow {
+      margin: 0 0 18px;
+      color: var(--accent);
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    h1, h2, h3 { text-wrap: balance; }
+    h1 {
+      max-width: 900px;
+      margin: 0;
+      font-size: clamp(3rem, 6.2vw, 6.8rem);
+      line-height: 0.94;
+      letter-spacing: -0.065em;
+      font-weight: 790;
+    }
+    .hero-lede {
+      max-width: 62ch;
+      margin: 26px 0 0;
+      color: var(--body);
+      font-size: clamp(1.06rem, 1.7vw, 1.35rem);
+    }
+    .hero-verdict {
+      padding: 28px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-card);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    .hero-verdict .grade {
+      display: block;
+      color: var(--high);
+      font-size: clamp(3.8rem, 8vw, 7.5rem);
+      line-height: 0.9;
+      letter-spacing: -0.08em;
+      font-weight: 830;
+    }
+    .hero-verdict h2 { margin: 18px 0 7px; font-size: 1.25rem; }
+    .hero-verdict p { margin: 0; color: var(--body); }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr;
+      gap: 18px;
+      margin: 0 0 92px;
+    }
+    .summary-panel {
+      min-height: 220px;
+      padding: 28px;
+      border-radius: var(--radius-card);
+      background: var(--surface);
+      border: 1px solid var(--line);
+    }
+    .summary-panel.accent { background: var(--accent); color: #f4fff8; border-color: transparent; }
+    .summary-panel h2 { margin: 0 0 14px; font-size: clamp(1.55rem, 3vw, 2.4rem); letter-spacing: -0.035em; }
+    .summary-panel p { max-width: 66ch; margin: 0; color: var(--body); }
+    .summary-panel.accent p { color: #daf4e5; }
+    .metric-cluster { display: grid; grid-template-columns: repeat(2, 1fr); gap: 22px; }
+    .metric strong { display: block; font-size: 2.2rem; letter-spacing: -0.05em; }
+    .metric span { color: var(--muted); font-size: 0.86rem; font-weight: 650; }
+
+    .section-head { max-width: 780px; margin: 0 0 28px; }
+    .section-head h2 {
+      margin: 0;
+      font-size: clamp(2rem, 4.4vw, 4rem);
+      line-height: 1;
+      letter-spacing: -0.055em;
+    }
+    .section-head p { margin: 16px 0 0; color: var(--body); font-size: 1.05rem; }
+    .section-block { margin: 0 0 104px; }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) auto;
+      gap: 12px;
+      margin: 24px 0;
+    }
+    .search {
+      width: 100%;
+      min-height: 46px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-control);
+      background: var(--surface);
+      color: var(--ink);
+      padding: 10px 14px;
+    }
+    .search::placeholder { color: var(--muted); }
+    .filter-group { display: flex; gap: 8px; flex-wrap: wrap; }
+    .filter-group[aria-label="Lọc trạng thái xử lý"] { grid-column: 1 / -1; }
+    .filter-button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #f4fff8; }
+
+    .status-overview {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 18px;
+      align-items: center;
+      margin: 0 0 22px;
+      padding: 20px 22px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-card);
+      background: var(--accent-soft);
+      color: var(--accent-ink);
+    }
+    .status-overview strong { display: block; margin-bottom: 4px; font-size: 1.05rem; }
+    .status-overview p { margin: 0; max-width: 72ch; }
+    .status-overview a { font-weight: 760; white-space: nowrap; }
+
+    .findings { display: grid; gap: 14px; }
+    .finding {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-card);
+      background: var(--surface);
+      overflow: clip;
+      transition: border-color 180ms ease, transform 180ms ease;
+    }
+    .finding:hover { border-color: var(--line-strong); }
+    .finding[hidden] { display: none; }
+    .finding summary {
+      list-style: none;
+      cursor: pointer;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 15px;
+      align-items: center;
+      padding: 19px 20px;
+    }
+    .finding summary::-webkit-details-marker { display: none; }
+    .finding summary::after { content: "+"; color: var(--muted); font-size: 1.45rem; font-weight: 400; }
+    .finding[open] summary::after { content: "−"; }
+    .finding h3 { margin: 0; font-size: 1.05rem; letter-spacing: -0.015em; }
+    .finding-meta { margin-top: 4px; color: var(--muted); font-size: 0.82rem; }
+    .finding summary > div::after {
+      display: inline-flex;
+      margin-top: 9px;
+      padding: 4px 8px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      font-size: 0.7rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .finding[data-status="resolved"] summary > div::after { content: "Đã xử lý trong mã nguồn"; background: var(--good-soft); color: var(--good); border-color: color-mix(in srgb, var(--good) 28%, var(--line)); }
+    .finding[data-status="external"] summary > div::after { content: "Chờ xác nhận production"; background: var(--high-soft); color: var(--high); border-color: color-mix(in srgb, var(--high) 28%, var(--line)); }
+    .finding[data-status="monitored"] summary > div::after { content: "Chấp nhận và theo dõi"; background: var(--medium-soft); color: var(--medium); border-color: color-mix(in srgb, var(--medium) 28%, var(--line)); }
+    .finding[data-status="resolved"] { border-color: color-mix(in srgb, var(--good) 32%, var(--line)); }
+    .severity {
+      min-width: 74px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      text-align: center;
+      font-size: 0.73rem;
+      font-weight: 850;
+      letter-spacing: 0.06em;
+    }
+    .severity.critical { background: var(--critical-soft); color: var(--critical); }
+    .severity.high { background: var(--high-soft); color: var(--high); }
+    .severity.medium { background: var(--medium-soft); color: var(--medium); }
+    .finding-body { padding: 0 20px 22px 109px; color: var(--body); }
+    .finding-body p:first-child { margin-top: 0; }
+    .finding-body h4 { margin: 22px 0 8px; color: var(--ink); font-size: 0.92rem; }
+    .finding-body ul { margin: 8px 0; padding-left: 21px; }
+    .finding-body li { margin: 6px 0; }
+    code {
+      border-radius: 5px;
+      background: var(--surface-soft);
+      color: var(--code);
+      padding: 2px 5px;
+      font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+      font-size: 0.9em;
+    }
+    .recommendation {
+      margin-top: 18px;
+      padding: 16px 18px;
+      border-left: 4px solid var(--accent);
+      border-radius: 0 var(--radius-control) var(--radius-control) 0;
+      background: var(--accent-soft);
+      color: var(--accent-ink);
+    }
+    .recommendation strong { display: block; margin-bottom: 4px; }
+    .resolution-note {
+      margin: 0 0 18px;
+      padding: 14px 16px;
+      border: 1px solid color-mix(in srgb, var(--good) 32%, var(--line));
+      border-radius: var(--radius-control);
+      background: var(--good-soft);
+      color: var(--good);
+      font-weight: 680;
+    }
+
+    .good-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .good-item {
+      min-height: 150px;
+      padding: 22px;
+      border-radius: var(--radius-card);
+      border: 1px solid var(--line);
+      background: var(--surface);
+    }
+    .good-item:nth-child(4n + 1) { background: var(--accent-soft); }
+    .good-item h3 { margin: 0 0 8px; font-size: 1rem; }
+    .good-item p { margin: 0; color: var(--body); font-size: 0.92rem; }
+
+    .spark-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .spark-card {
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-card);
+      background: var(--surface);
+    }
+    .spark-card h3 { margin: 0 0 14px; font-size: 1.1rem; }
+    .spark-card dl { margin: 0; }
+    .spark-card dl div { display: grid; grid-template-columns: 1fr auto; gap: 16px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+    .spark-card dl div:last-child { border-bottom: 0; }
+    .spark-card dt { color: var(--body); }
+    .spark-card dd { margin: 0; font-weight: 760; text-align: right; }
+    .callout {
+      grid-column: 1 / -1;
+      padding: 24px;
+      border-radius: var(--radius-card);
+      background: var(--critical-soft);
+      color: var(--critical);
+      border: 1px solid color-mix(in srgb, var(--critical) 35%, var(--line));
+    }
+    .callout h3 { margin: 0 0 7px; }
+    .callout p { margin: 0; max-width: 78ch; }
+
+    .checks {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .check-card {
+      padding: 20px;
+      border-radius: var(--radius-card);
+      border: 1px solid var(--line);
+      background: var(--surface);
+    }
+    .check-card h3 { margin: 0 0 14px; font-size: 1rem; }
+    .result-row { display: flex; justify-content: space-between; gap: 18px; padding: 7px 0; }
+    .result-row span:first-child { color: var(--body); }
+    .result { font-weight: 800; }
+    .result.pass { color: var(--good); }
+    .result.fail { color: var(--critical); }
+
+    .roadmap-shell {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+    .roadmap-phase {
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-card);
+      background: var(--surface);
+    }
+    .roadmap-phase[data-priority="P0"] { border-color: color-mix(in srgb, var(--critical) 48%, var(--line)); }
+    .roadmap-phase[data-priority="P1"] { border-color: color-mix(in srgb, var(--high) 48%, var(--line)); }
+    .roadmap-phase h3 { margin: 0; font-size: 1.2rem; }
+    .phase-meta { display: flex; justify-content: space-between; gap: 18px; margin: 7px 0 18px; color: var(--muted); font-size: 0.83rem; }
+    .task-list { display: grid; gap: 10px; }
+    .task {
+      display: grid;
+      grid-template-columns: 22px minmax(0, 1fr);
+      gap: 11px;
+      align-items: start;
+      padding: 11px 0;
+      cursor: pointer;
+    }
+    .task + .task { border-top: 1px solid var(--line); }
+    .task input {
+      width: 20px;
+      height: 20px;
+      margin: 2px 0 0;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+    .task strong { display: block; font-size: 0.93rem; }
+    .task small { display: block; margin-top: 3px; color: var(--muted); line-height: 1.4; }
+    .task:has(input:checked) strong { color: var(--muted); text-decoration: line-through; }
+
+    .progress-dock {
+      position: sticky;
+      bottom: 18px;
+      z-index: 12;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-top: 22px;
+      padding: 15px 18px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-card);
+      background: color-mix(in srgb, var(--surface) 94%, transparent);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+    .progress-copy strong { display: block; }
+    .progress-copy span { color: var(--muted); font-size: 0.84rem; }
+    .progress-number { color: var(--accent); font-size: 1.65rem; font-weight: 830; letter-spacing: -0.045em; }
+
+    .references {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .reference {
+      display: block;
+      min-height: 100px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-card);
+      background: var(--surface);
+      color: var(--ink);
+      text-decoration: none;
+    }
+    .reference:hover { border-color: var(--accent); }
+    .reference strong { display: block; }
+    .reference span { display: block; margin-top: 6px; color: var(--muted); font-size: 0.87rem; }
+
+    .empty-state {
+      display: none;
+      padding: 34px;
+      border: 1px dashed var(--line-strong);
+      border-radius: var(--radius-card);
+      text-align: center;
+      color: var(--body);
+    }
+    .empty-state.visible { display: block; }
+    .reveal { opacity: 0; transform: translateY(16px); }
+    .reveal.visible { opacity: 1; transform: translateY(0); transition: opacity 520ms ease, transform 520ms ease; }
+
+    footer {
+      margin-top: 90px;
+      padding: 28px 0 40px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 0.86rem;
+    }
+
+    @media (max-width: 980px) {
+      .layout { display: block; }
+      .side-nav { display: none; }
+      .hero { grid-template-columns: 1fr; min-height: auto; padding: 64px 0; }
+      .hero-verdict { max-width: 520px; }
+      .summary-grid, .spark-layout, .roadmap-shell { grid-template-columns: 1fr; }
+      .callout { grid-column: auto; }
+    }
+    @media (max-width: 680px) {
+      .topbar-inner, .layout { width: min(calc(100% - 22px), var(--max)); }
+      .brand span:last-child { max-width: 150px; }
+      .top-actions .print-button { display: none; }
+      h1 { font-size: clamp(2.75rem, 14vw, 4.6rem); }
+      .hero { gap: 30px; padding-top: 48px; }
+      .summary-grid, .good-grid, .checks, .references { grid-template-columns: 1fr; }
+      .toolbar { grid-template-columns: 1fr; }
+      .status-overview { grid-template-columns: 1fr; }
+      .finding summary { grid-template-columns: auto minmax(0, 1fr) auto; padding: 16px; }
+      .finding-body { padding: 0 16px 18px; }
+      .progress-dock { align-items: flex-start; }
+      .progress-number { font-size: 1.35rem; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+      .reveal { opacity: 1; transform: none; }
+    }
+    @media print {
+      :root { --canvas: #ffffff; --surface: #ffffff; --ink: #111713; --body: #344039; --line: #ccd3cf; }
+      .topbar, .side-nav, .toolbar, .progress-dock, .skip-link { display: none !important; }
+      .layout { display: block; width: 100%; }
+      main { padding: 0; }
+      .hero { min-height: auto; padding: 20px 0 34px; }
+      .section-block { break-inside: avoid; margin-bottom: 50px; }
+      .finding { break-inside: avoid; }
+      .finding:not([open]) .finding-body { display: block; }
+      .reveal { opacity: 1; transform: none; }
+      a { color: inherit; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">Bỏ qua điều hướng</a>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand" aria-label="EduMatrix VN Audit">
+        <span class="brand-mark" aria-hidden="true">E</span>
+        <span>EduMatrix VN Audit</span>
+      </div>
+      <div class="top-actions">
+        <button class="control print-button" type="button" data-print>In báo cáo</button>
+        <button class="control" type="button" data-theme-toggle aria-label="Chuyển giao diện sáng hoặc tối">Đổi giao diện</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="side-nav" aria-label="Mục lục báo cáo">
+      <strong>Nội dung</strong>
+      <a href="#tong-quan">Tổng quan</a>
+      <a href="#phat-hien">Phát hiện</a>
+      <a href="#diem-tot">Điểm hợp lý</a>
+      <a href="#spark">Firebase Spark</a>
+      <a href="#google-drive">Google Drive</a>
+      <a href="#admin-frontend">Frontend Admin</a>
+      <a href="#api-architecture">Nhánh kết nối API</a>
+      <a href="#kiem-tra">Kiểm tra tự động</a>
+      <a href="#roadmap">Roadmap</a>
+      <a href="#tai-lieu">Tài liệu đối chiếu</a>
+    </nav>
+
+    <main id="main">
+      <section class="hero" id="tong-quan">
+        <div>
+          <p class="eyebrow">Audit sau sửa chữa · cập nhật 19/07/2026</p>
+          <h1>Mã nguồn đã sẵn sàng triển khai.</h1>
+          <p class="hero-lede">Toàn bộ hạng mục sửa code đã hoàn tất và kiểm thử xanh. Phát hành thật còn cần cấu hình Firebase, Google và Meta trong Console.</p>
+        </div>
+        <aside class="hero-verdict" aria-label="Kết luận tổng thể">
+          <span class="grade">A-</span>
+          <h2>Local-ready, kiểm thử xanh</h2>
+          <p>Không còn P0 hoặc P1 mở trong mã nguồn. Năm xác nhận production được giữ riêng và chưa đánh dấu hoàn tất.</p>
+        </aside>
+      </section>
+
+      <section class="summary-grid reveal" aria-label="Tóm tắt kết quả">
+        <article class="summary-panel accent">
+          <h2>Kết luận điều hành</h2>
+          <p>Giữ nguyên React, Vite, Firebase Auth, Firestore và Hosting. Messenger tiếp tục qua Worker với nonce dùng một lần; Google Drive hoạt động phía client với token chỉ giữ trong bộ nhớ.</p>
+        </article>
+        <article class="summary-panel metric-cluster">
+          <div class="metric"><strong>0</strong><span>P0/P1 còn mở trong code</span></div>
+          <div class="metric"><strong>28/33</strong><span>Roadmap hoàn tất bằng mã nguồn</span></div>
+          <div class="metric"><strong>51/51</strong><span>Frontend unit tests pass</span></div>
+          <div class="metric"><strong>18/18</strong><span>Worker tests pass</span></div>
+        </article>
+      </section>
+
+      <section class="section-block" id="phat-hien">
+        <div class="section-head reveal">
+          <h2>Phát hiện và trạng thái xử lý</h2>
+          <p>Nội dung chi tiết lưu lại bằng chứng tại thời điểm audit ban đầu. Nhãn trạng thái cho biết kết quả sau khi remediation hoàn tất.</p>
+        </div>
+
+        <aside class="status-overview reveal">
+          <div><strong>28 hạng mục đã hoàn tất bằng thay đổi mã nguồn</strong><p>Năm mục còn lại cần quyền production thật: App Check enforcement, cảnh báo Spark, Google Cloud, cấu hình Drive công khai và QA Admin có đăng nhập.</p></div>
+          <a href="./CHECKLIST-TRIEN-KHAI-PRODUCTION.md">Mở checklist production</a>
+        </aside>
+
+        <div class="toolbar reveal" role="search">
+          <input class="search" type="search" data-search placeholder="Tìm Messenger, query, điểm số, quota" aria-label="Tìm trong các phát hiện">
+          <div class="filter-group" aria-label="Lọc mức độ">
+            <button class="control filter-button" type="button" data-filter="all" aria-pressed="true">Tất cả</button>
+            <button class="control filter-button" type="button" data-filter="critical" aria-pressed="false">P0</button>
+            <button class="control filter-button" type="button" data-filter="high" aria-pressed="false">P1</button>
+            <button class="control filter-button" type="button" data-filter="medium" aria-pressed="false">P2</button>
+          </div>
+          <div class="filter-group" aria-label="Lọc trạng thái xử lý">
+            <button class="control filter-button" type="button" data-status-filter="all" aria-pressed="true">Mọi trạng thái</button>
+            <button class="control filter-button" type="button" data-status-filter="resolved" aria-pressed="false">Đã xử lý</button>
+            <button class="control filter-button" type="button" data-status-filter="external" aria-pressed="false">Chờ production</button>
+            <button class="control filter-button" type="button" data-status-filter="monitored" aria-pressed="false">Theo dõi</button>
+          </div>
+        </div>
+
+        <div class="findings" data-findings>
+          <details class="finding reveal" data-severity="critical" data-status="resolved" open>
+            <summary>
+              <span class="severity critical">P0</span>
+              <div><h3>Liên kết Messenger có thể bị chiếm</h3><div class="finding-meta">Ranh giới danh tính và dữ liệu phụ huynh · đã sửa bằng nonce 128 bit và kiểm tra teacher scope</div></div>
+            </summary>
+            <div class="finding-body">
+              <div class="resolution-note">Đã xử lý: frontend yêu cầu Worker tạo nonce 128 bit hạn 24 giờ; webhook tiêu thụ nonce bằng atomic commit, chặn tái sử dụng, ghi đè PSID và giáo viên ngoài phạm vi phân công.</div>
+              <p>Frontend đưa Firebase UID trực tiếp vào tham số referral. Worker tin UID nhận từ Meta rồi dùng service account ghi kết nối. Meta signature chỉ chứng minh webhook đến từ Meta, không chứng minh người gửi sở hữu UID đó.</p>
+              <h4>Bằng chứng mã nguồn</h4>
+              <ul>
+                <li><a href="../src/services/integrations/messenger.ts">src/services/integrations/messenger.ts</a> chỉ tạo link từ nonce Worker trả về.</li>
+                <li><a href="../workers/messenger/src/index.ts">workers/messenger/src/index.ts</a> xác thực nonce, parent-student và teacher scope.</li>
+              </ul>
+              <div class="recommendation"><strong>Đề xuất nổi bật</strong>Dùng nonce ngẫu nhiên 128 bit, hết hạn và chỉ tiêu thụ một lần. Worker ánh xạ nonce sang UID rồi xóa hoặc đánh dấu đã dùng.</div>
+            </div>
+          </details>
+
+          <details class="finding reveal" data-severity="critical" data-status="resolved" open>
+            <summary>
+              <span class="severity critical">P0</span>
+              <div><h3>Workspace từng không build được</h3><div class="finding-meta">Đã hoàn thiện notification_reads, Rules và toàn bộ cổng kiểm thử</div></div>
+            </summary>
+            <div class="finding-body">
+              <div class="resolution-note">Đã xử lý: bổ sung collection constant, Security Rules, index và rules tests. Lint, typecheck, 51 unit tests, Rules emulator và production build đều pass.</div>
+              <p><code>notifications.ts</code> dùng <code>COLLECTIONS.NOTIFICATION_READS</code> nhưng constant chưa tồn tại. Sau khi thêm constant, Firestore vẫn từ chối vì chưa có rule cho collection mới.</p>
+              <h4>Bằng chứng mã nguồn</h4>
+              <ul>
+                <li><a href="../src/services/firestore/notifications.ts#L65">src/services/firestore/notifications.ts:65</a> và dòng 93 sử dụng constant thiếu.</li>
+                <li><a href="../src/constants/collections.ts#L5">src/constants/collections.ts:5</a> chưa khai báo collection.</li>
+                <li><a href="../firebase/firestore.rules#L833">firebase/firestore.rules:833</a> deny mặc định mọi collection chưa khai báo.</li>
+              </ul>
+              <div class="recommendation"><strong>Đề xuất nổi bật</strong>Hoàn thiện cả constant, Security Rules, rules test và query index trong cùng một thay đổi. Nếu tính năng chưa cần, gỡ code notification mới để khôi phục build trước.</div>
+            </div>
+          </details>
+
+          <details class="finding reveal" data-severity="high" data-status="resolved">
+            <summary>
+              <span class="severity high">P1</span>
+              <div><h3>Query bài tập của Teacher từng không khớp Rules</h3><div class="finding-meta">Đã scope theo classId và có list-query emulator tests</div></div>
+            </summary>
+            <div class="finding-body">
+              <div class="resolution-note">Đã xử lý: assignments được query theo danh sách lớp giáo viên phụ trách; emulator chứng minh Admin, Teacher và Viewer chỉ nhận đúng tập dữ liệu.</div>
+              <p>Rules chỉ cho Teacher đọc bài tập thuộc lớp được phân công, nhưng <code>listAssignments()</code> query toàn bộ collection. Firestore đánh giá tập kết quả tiềm năng và có thể từ chối toàn bộ query.</p>
+              <ul>
+                <li><a href="../src/services/firestore/assignments.ts#L42">src/services/firestore/assignments.ts:42</a> query toàn bộ assignments.</li>
+                <li><a href="../firebase/firestore.rules#L667">firebase/firestore.rules:667</a> giới hạn quyền theo class.</li>
+              </ul>
+              <div class="recommendation"><strong>Đề xuất nổi bật</strong>Lấy danh sách lớp được phân công rồi query assignments theo từng <code>classId</code>. Dùng cùng pattern đang có trong <code>listSessions()</code>.</div>
+            </div>
+          </details>
+
+          <details class="finding reveal" data-severity="high" data-status="resolved">
+            <summary>
+              <span class="severity high">P1</span>
+              <div><h3>Giáo án và submissions từng sai query scope</h3><div class="finding-meta">Đã đồng bộ điều kiện query với Security Rules</div></div>
+            </summary>
+            <div class="finding-body">
+              <div class="resolution-note">Đã xử lý: giáo án và submissions dùng class scope/createdBy phù hợp; query rules tests chạy list query thật thay vì chỉ đọc document đơn.</div>
+              <p><code>listLessonPlans()</code> tải toàn bộ giáo án trong khi Rules chỉ cho phép giáo án do Teacher tạo hoặc thuộc lớp được phân công. <code>listSubmissions()</code> chỉ lọc assignmentId dù quyền được xác định bởi classId.</p>
+              <ul>
+                <li><a href="../src/services/firestore/lessonPlans.ts#L53">src/services/firestore/lessonPlans.ts:53</a>.</li>
+                <li><a href="../src/services/firestore/assignments.ts#L90">src/services/firestore/assignments.ts:90</a>.</li>
+                <li><a href="../firebase/firestore.rules#L609">firebase/firestore.rules:609</a> và <a href="../firebase/firestore.rules#L680">dòng 680</a>.</li>
+              </ul>
+              <div class="recommendation"><strong>Đề xuất nổi bật</strong>Thêm query theo classId hoặc createdBy. Bổ sung emulator test cho list query thật, không chỉ document read.</div>
+            </div>
+          </details>
+
+          <details class="finding reveal" data-severity="high" data-status="resolved">
+            <summary>
+              <span class="severity high">P1</span>
+              <div><h3>Lưu điểm cả lớp từng có thể thành công một phần</h3><div class="finding-meta">Đã chuyển sang một transaction toàn lớp</div></div>
+            </summary>
+            <div class="finding-body">
+              <div class="resolution-note">Đã xử lý: validate toàn bộ đầu vào trước transaction, chặn studentId trùng, giới hạn 200 bản ghi và commit score cùng summary trong một transaction.</div>
+              <p>Mỗi học sinh mở một transaction riêng. Nếu một entry ở giữa lỗi, những entry trước đã commit. Hàm cũng chưa chặn studentId trùng và đang bị nén thành một dòng rất khó review.</p>
+              <ul>
+                <li><a href="../src/services/firestore/scores.ts#L6">src/services/firestore/scores.ts:6</a>.</li>
+                <li><a href="../src/services/firestore/scores.test.ts#L1">src/services/firestore/scores.test.ts</a> thể hiện kỳ vọng transaction toàn lớp và validation.</li>
+              </ul>
+              <div class="recommendation"><strong>Đề xuất nổi bật</strong>Validate toàn bộ input trước khi mở transaction, từ chối student trùng, rồi đọc và ghi tất cả score cùng summary trong một transaction.</div>
+            </div>
+          </details>
+
+          <details class="finding reveal" data-severity="high" data-status="resolved">
+            <summary>
+              <span class="severity high">P1</span>
+              <div><h3>Summary phía client từng thiếu xác thực Rules</h3><div class="finding-meta">Đã siết schema, range, totals và immutable fields</div></div>
+            </summary>
+            <div class="finding-body">
+              <div class="resolution-note">Đã xử lý: attendance, assignment và student summary có schema/range checks; totals và quan hệ class-student được kiểm thử trên emulator.</div>
+              <p>Staff có thể ghi count tùy ý vào các summary. Rules chưa kiểm tra count không âm, tổng trạng thái, quan hệ với document nguồn hoặc học sinh có thuộc lớp hay không.</p>
+              <ul>
+                <li><a href="../firebase/firestore.rules#L654">attendance_summaries tại dòng 654</a>.</li>
+                <li><a href="../firebase/firestore.rules#L709">assignment_summaries tại dòng 709</a>.</li>
+                <li><a href="../firebase/firestore.rules#L734">student_summaries tại dòng 734</a>.</li>
+              </ul>
+              <div class="recommendation"><strong>Đề xuất nổi bật</strong>Thêm schema, range và immutable checks. Với summary quan trọng, dùng transaction hoặc <code>getAfter()</code> để xác thực trạng thái sau batch.</div>
+            </div>
+          </details>
+
+          <details class="finding reveal" data-severity="high" data-status="resolved">
+            <summary>
+              <span class="severity high">P1</span>
+              <div><h3>Các nghiệp vụ liên quan từng chưa atomic</h3><div class="finding-meta">Đã batch assignment, summary, lesson plan và announcement</div></div>
+            </summary>
+            <div class="finding-body">
+              <div class="resolution-note">Đã xử lý: các write không cần đọc dữ liệu hiện tại dùng batch; score và summary phụ thuộc trạng thái hiện tại dùng transaction.</div>
+              <p>Tạo assignment và summary, cập nhật session và announcement, publish lesson plan và public summary đều chạy thành các write độc lập.</p>
+              <ul>
+                <li><a href="../src/services/firestore/assignments.ts#L22">assignments.ts:22</a>.</li>
+                <li><a href="../src/services/firestore/sessions.ts#L78">sessions.ts:78</a>.</li>
+                <li><a href="../src/services/firestore/lessonPlans.ts#L11">lessonPlans.ts:11</a>.</li>
+                <li><a href="../src/services/firestore/attendance.ts#L47">attendance.ts:47</a>.</li>
+              </ul>
+              <div class="recommendation"><strong>Đề xuất nổi bật</strong>Tạo document reference trước rồi dùng write batch cho các write không cần đọc. Chỉ dùng transaction khi kết quả phụ thuộc dữ liệu hiện tại.</div>
+            </div>
+          </details>
+
+          <details class="finding reveal" data-severity="medium" data-status="monitored">
+            <summary>
+              <span class="severity medium">P2</span>
+              <div><h3>Audit log không phải bằng chứng đáng tin cậy</h3><div class="finding-meta">Bất biến nhưng vẫn do client tự khai báo</div></div>
+            </summary>
+            <div class="finding-body">
+              <p>Rules chỉ khóa actorUid. Client vẫn tự chọn action, actorEmail, targetId, meta và createdAt. Ghi log chạy sau thao tác chính và lỗi bị bỏ qua.</p>
+              <ul>
+                <li><a href="../firebase/firestore.rules#L464">firebase/firestore.rules:464</a>.</li>
+                <li><a href="../src/services/firestore/auditLog.ts#L11">src/services/firestore/auditLog.ts:11</a>.</li>
+              </ul>
+              <div class="recommendation"><strong>Đề xuất</strong>Đổi cách gọi thành activity log nếu vẫn client-only. Chỉ dùng log Worker hoặc backend cho sự kiện cần bằng chứng kiểm toán.</div>
+            </div>
+          </details>
+
+          <details class="finding reveal" data-severity="medium" data-status="resolved">
+            <summary>
+              <span class="severity medium">P2</span>
+              <div><h3>Telemetry từng tiêu tốn quota Spark</h3><div class="finding-meta">Đã xóa usage telemetry và giảm heartbeat còn một lần mỗi phiên</div></div>
+            </summary>
+            <div class="finding-body">
+              <div class="resolution-note">Đã xử lý: xóa usage_events/account_activity writes khỏi client, giữ lastLoginAt một lần mỗi phiên và dùng Firebase Console làm nguồn quota.</div>
+              <p>Mỗi tab active ghi account activity sau mỗi 5 phút. Khoảng 200 người dùng mở 8 giờ tạo gần 19.200 writes mỗi ngày, chưa tính nghiệp vụ. Usage telemetry còn dùng transaction để ghi số read/write ước tính.</p>
+              <ul>
+                <li><a href="../src/features/auth/context/AuthContext.tsx#L120">AuthContext.tsx:120</a>.</li>
+                <li><a href="../src/services/firestore/usage.ts#L57">usage.ts:57</a>.</li>
+              </ul>
+              <div class="recommendation"><strong>Đề xuất nổi bật</strong>Bỏ usage telemetry tự ghi. Chỉ giữ lastLoginAt hoặc heartbeat một lần mỗi phiên, vì Firebase Console mới là nguồn quota chính thức.</div>
+            </div>
+          </details>
+
+          <details class="finding reveal" data-severity="medium" data-status="monitored">
+            <summary>
+              <span class="severity medium">P2</span>
+              <div><h3>Messenger không phải kiến trúc client-only</h3><div class="finding-meta">Cloudflare Worker là ngoại lệ cần thiết</div></div>
+            </summary>
+            <div class="finding-body">
+              <p>Worker giữ Meta access token, app secret và Firebase private key. Đây là server-side code, nhưng chuyển các secret này xuống client sẽ tạo lỗi bảo mật nghiêm trọng.</p>
+              <div class="recommendation"><strong>Đề xuất</strong>Ghi rõ ngoại lệ kiến trúc: nghiệp vụ lõi client-side, tích hợp Messenger chạy qua Worker. Nếu yêu cầu tuyệt đối không backend, tắt module Messenger.</div>
+            </div>
+          </details>
+
+          <details class="finding reveal" data-severity="medium" data-status="external">
+            <summary>
+              <span class="severity medium">P2</span>
+              <div><h3>App Check cần enforcement trong Console</h3><div class="finding-meta">SDK đã khởi tạo nhưng chưa chứng minh enforcement</div></div>
+            </summary>
+            <div class="finding-body">
+              <p>Code khởi tạo reCAPTCHA v3 đúng hướng. Tuy nhiên request chỉ bị bắt buộc có App Check token sau khi bật enforcement trong Firebase Console.</p>
+              <ul><li><a href="../src/services/firebase/app.ts#L30">src/services/firebase/app.ts:30</a>.</li></ul>
+              <div class="recommendation"><strong>Đề xuất</strong>Kiểm tra metrics trước, bật enforcement cho Firestore và Authentication, rồi cân nhắc reCAPTCHA Enterprise cho integration mới.</div>
+            </div>
+          </details>
+
+          <details class="finding reveal" data-severity="medium" data-status="monitored">
+            <summary>
+              <span class="severity medium">P2</span>
+              <div><h3>Fan-out query có trần tăng trưởng thấp</h3><div class="finding-meta">Nhiều query theo từng lớp hoặc từng học sinh</div></div>
+            </summary>
+            <div class="finding-body">
+              <p>Viewer dashboard và Teacher overview chạy nhiều query song song theo classId hoặc studentId. Cách này hợp lý ở quy mô nhỏ nhưng số reads và latency tăng tuyến tính theo số con, số lớp và số phiên.</p>
+              <div class="recommendation"><strong>Đề xuất</strong>Giữ mô hình hiện tại trên Spark. Chỉ tạo materialized view khi đo được số query thực tế vượt ngưỡng, không thêm abstraction trước.</div>
+            </div>
+          </details>
+
+          <details class="finding reveal" data-severity="high" data-status="external">
+            <summary>
+              <span class="severity high">P1</span>
+              <div><h3>Google Drive đã hoàn tất ở mức code-ready</h3><div class="finding-meta">Đã có OAuth token-memory, Picker, upload, metadata và Rules; chờ Google Cloud production</div></div>
+            </summary>
+            <div class="finding-body">
+              <div class="resolution-note">Đã hoàn tất phần mã nguồn: Google Identity Services, scope drive.file, Picker, multipart upload, files.get, metadata Firestore và Rules bảo vệ liên kết riêng tư. Còn cấu hình Google Cloud production.</div>
+              <p>Giao diện giáo án hiện cho phép kết nối Google, chọn tệp bằng Picker, upload tệp mới vào thư mục quản lý, làm mới metadata, mở tệp và gỡ liên kết. Access token không được lưu vào Firestore hoặc localStorage.</p>
+              <ul>
+                <li><a href="../src/services/integrations/googleDrive.ts">googleDrive.ts</a> quản lý GIS token, Picker, upload và files.get.</li>
+                <li><a href="../src/features/lesson-plans/components/DriveLessonPlanAttachment.tsx">DriveLessonPlanAttachment.tsx</a> cung cấp đầy đủ trạng thái kết nối và lỗi.</li>
+                <li><a href="../src/services/firestore/lessonPlans.ts">lessonPlans.ts</a> lưu metadata Drive có cấu trúc.</li>
+              </ul>
+              <div class="recommendation"><strong>Bước production còn lại</strong>Bật Drive API và Picker API, cấu hình OAuth origins/API-key restrictions, điền ba biến public và lưu <code>driveFolderId</code> trong workspace Tích hợp.</div>
+            </div>
+          </details>
+        </div>
+        <div class="empty-state" data-empty>Không có phát hiện phù hợp bộ lọc hiện tại.</div>
+      </section>
+
+      <section class="section-block" id="diem-tot">
+        <div class="section-head reveal">
+          <h2>Những quyết định hợp lý</h2>
+          <p>Các nền tảng này nên được giữ nguyên trong quá trình sửa lỗi. Không cần viết lại kiến trúc.</p>
+        </div>
+        <div class="good-grid">
+          <article class="good-item reveal"><h3>Deny by default</h3><p>Collection không khai báo bị từ chối, route guard được xem đúng là UX chứ không phải bảo mật.</p></article>
+          <article class="good-item reveal"><h3>Ownership rõ ràng</h3><p>Admin, Teacher và Viewer được phân tách theo lớp, học sinh và vai trò.</p></article>
+          <article class="good-item reveal"><h3>ID xác định</h3><p>Enrollment, attendance, submission và payment dùng ID ổn định để hạn chế ghi trùng.</p></article>
+          <article class="good-item reveal"><h3>Batch đúng chỗ</h3><p>Enrollment, payment reconciliation và grading đã dùng batch hoặc transaction cho bất biến liên quan.</p></article>
+          <article class="good-item reveal"><h3>Query có giới hạn</h3><p>Phần lớn query có limit, dashboard Viewer đi theo student và class thay vì tải toàn bộ collection.</p></article>
+          <article class="good-item reveal"><h3>Cache có chủ đích</h3><p>React Query có staleTime, tắt refetch khi focus và Firestore bật offline persistence.</p></article>
+          <article class="good-item reveal"><h3>Secret được tách đúng</h3><p>Frontend chỉ chứa Firebase Web config công khai. Meta secret và service account nằm trong Worker secrets.</p></article>
+          <article class="good-item reveal"><h3>App Check sẵn sàng</h3><p>reCAPTCHA provider và debug token development được tách đúng môi trường.</p></article>
+          <article class="good-item reveal"><h3>Rules test có chiều sâu</h3><p>Emulator tests bao phủ nâng quyền, immutable fields, payment, teacher scope và ownership.</p></article>
+          <article class="good-item reveal"><h3>CI tách frontend và Worker</h3><p>Lint, typecheck, test, rules, build và worker audit đã có luồng kiểm tra riêng.</p></article>
+        </div>
+      </section>
+
+      <section class="section-block" id="spark">
+        <div class="section-head reveal">
+          <h2>Mức phù hợp Firebase Spark</h2>
+          <p>Auth, Firestore và Hosting phù hợp cho quy mô nhỏ nếu giảm write nền và không dùng Firebase Storage.</p>
+        </div>
+        <div class="spark-layout">
+          <article class="spark-card reveal">
+            <h3>Cloud Firestore miễn phí</h3>
+            <dl>
+              <div><dt>Document reads</dt><dd>50.000/ngày</dd></div>
+              <div><dt>Document writes</dt><dd>20.000/ngày</dd></div>
+              <div><dt>Document deletes</dt><dd>20.000/ngày</dd></div>
+              <div><dt>Dữ liệu lưu trữ</dt><dd>1 GiB</dd></div>
+              <div><dt>Outbound transfer</dt><dd>10 GiB/tháng</dd></div>
+            </dl>
+          </article>
+          <article class="spark-card reveal">
+            <h3>Hosting và Authentication</h3>
+            <dl>
+              <div><dt>Hosting storage</dt><dd>10 GB</dd></div>
+              <div><dt>Hosting transfer</dt><dd>10 GB/tháng</dd></div>
+              <div><dt>Password reset email</dt><dd>150/ngày</dd></div>
+              <div><dt>Verification email</dt><dd>1.000/ngày</dd></div>
+              <div><dt>App Check</dt><dd>Phù hợp</dd></div>
+            </dl>
+          </article>
+          <aside class="callout reveal">
+            <h3>Firebase Storage không còn dùng được trên Spark</h3>
+            <p>Từ 03/02/2026, Cloud Storage for Firebase yêu cầu Blaze. Repo hiện không import Storage nên chưa bị ảnh hưởng. Mọi tính năng upload tệp trong tương lai phải dùng dịch vụ khác hoặc nâng gói.</p>
+          </aside>
+        </div>
+      </section>
+
+      <section class="section-block" id="google-drive">
+        <div class="section-head reveal">
+          <h2>Tích hợp Google Drive cho giáo án</h2>
+          <p>Phần mã nguồn đã triển khai xong theo mô hình client-side và Firebase Spark. Mọi thao tác Drive đều do người dùng đã đăng nhập Google chủ động thực hiện.</p>
+        </div>
+
+        <div class="spark-layout">
+          <article class="spark-card reveal">
+            <h3>Luồng lưu giáo án</h3>
+            <dl>
+              <div><dt>1. Kết nối</dt><dd>Google Identity Services cấp access token ngắn hạn</dd></div>
+              <div><dt>2. Chọn hoặc tải lên</dt><dd>Google Picker và Drive REST API</dd></div>
+              <div><dt>3. Đặt vị trí</dt><dd><code>parents: [driveFolderId]</code></dd></div>
+              <div><dt>4. Lưu Firestore</dt><dd>File ID, tên, MIME type, link và thời gian sửa</dd></div>
+              <div><dt>5. Gọi lại</dt><dd>Kiểm tra metadata rồi mở <code>webViewLink</code></dd></div>
+            </dl>
+          </article>
+          <article class="spark-card reveal">
+            <h3>Dữ liệu cần lưu trong lesson plan</h3>
+            <dl>
+              <div><dt>driveFileId</dt><dd>ID ổn định để gọi lại tệp</dd></div>
+              <div><dt>driveFileName</dt><dd>Tên hiển thị trong giao diện</dd></div>
+              <div><dt>driveMimeType</dt><dd>Phân biệt Docs, PDF và tệp tải lên</dd></div>
+              <div><dt>driveWebViewLink</dt><dd>Liên kết mở trong Google Drive</dd></div>
+              <div><dt>driveModifiedTime</dt><dd>Phát hiện metadata đã thay đổi</dd></div>
+            </dl>
+          </article>
+          <aside class="callout reveal">
+            <h3>Nguyên tắc bảo mật bắt buộc</h3>
+            <p>Dùng scope <code>drive.file</code> thay vì quyền đọc toàn bộ Drive. Không lưu access token hoặc refresh token trong Firestore, localStorage hay source code. Tệp nằm trong thư mục Drive do nhà trường quản lý và chỉ chia sẻ cho đúng tài khoản nhân sự; không đưa liên kết riêng tư vào <code>lesson_plan_public</code>.</p>
+          </aside>
+        </div>
+
+        <div class="checks">
+          <article class="check-card reveal">
+            <h3>Client-only làm được</h3>
+            <div class="result-row"><span>Kết nối tài khoản khi bấm nút</span><span class="result pass">CÓ</span></div>
+            <div class="result-row"><span>Chọn tệp Drive hiện có</span><span class="result pass">CÓ</span></div>
+            <div class="result-row"><span>Tải tệp mới vào thư mục</span><span class="result pass">CÓ</span></div>
+            <div class="result-row"><span>Mở lại giáo án bằng file ID</span><span class="result pass">CÓ</span></div>
+          </article>
+          <article class="check-card reveal">
+            <h3>Cần Worker hoặc backend</h3>
+            <div class="result-row"><span>Đồng bộ nền khi không có người dùng</span><span class="result fail">KHÔNG</span></div>
+            <div class="result-row"><span>Giữ quyền truy cập dài hạn</span><span class="result fail">KHÔNG</span></div>
+            <div class="result-row"><span>Tự động chia sẻ theo lịch</span><span class="result fail">KHÔNG</span></div>
+            <div class="result-row"><span>Xử lý refresh token bí mật</span><span class="result fail">KHÔNG</span></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section-block" id="admin-frontend">
+        <div class="section-head reveal">
+          <h2>Frontend Admin sau cập nhật</h2>
+          <p>Đã redesign theo hướng targeted evolution: giữ route, AppShell, màu thương hiệu và thói quen điều hướng; nâng cấp thứ bậc thông tin, trạng thái tích hợp và khả năng xử lý lỗi.</p>
+        </div>
+
+        <div class="spark-layout">
+          <article class="spark-card reveal">
+            <h3>Giữ lại từ giao diện hiện tại</h3>
+            <dl>
+              <div><dt>Khung ứng dụng</dt><dd>AppShell, Sidebar responsive và điều hướng theo vai trò</dd></div>
+              <div><dt>Hệ thống nền</dt><dd>Tailwind token, Button, Panel, PageHeader và StatusBadge</dd></div>
+              <div><dt>Quản lý dữ liệu</dt><dd>React Query cho loading, error, cache và mutation</dd></div>
+              <div><dt>Nhận diện</dt><dd>Màu primary hiện tại, logo và cấu trúc route</dd></div>
+              <div><dt>Biểu tượng</dt><dd>Giữ Lucide để không trộn hai icon family trong một lần nâng cấp</dd></div>
+            </dl>
+          </article>
+          <article class="spark-card reveal">
+            <h3>Thay đổi trải nghiệm Admin</h3>
+            <dl>
+              <div><dt>Tổng quan</dt><dd>Công việc cần xử lý, trạng thái hệ thống và thao tác nhanh</dd></div>
+              <div><dt>Tích hợp</dt><dd>Một workspace riêng cho Drive, Messenger và VietQR</dd></div>
+              <div><dt>Điều hướng Settings</dt><dd>Đồng bộ section vào URL để mở đúng màn hình từ cảnh báo</dd></div>
+              <div><dt>Phản hồi thao tác</dt><dd>Đủ loading, empty, success, expired, denied và retry</dd></div>
+              <div><dt>Mobile</dt><dd>Một cột, hành động chính luôn rõ và không có bảng tràn ngang</dd></div>
+            </dl>
+          </article>
+          <aside class="callout reveal">
+            <h3>Hướng thiết kế được chọn</h3>
+            <p>Đây là product UI mật độ vừa, không phải landing page. Giữ hệ thống Tailwind sẵn có thay vì cài thêm Fluent hoặc Carbon. Mục tiêu là giảm rủi ro và tránh trộn design system. Thiết lập đề xuất: variance 4, motion 3, density 6.</p>
+          </aside>
+        </div>
+
+        <div class="checks">
+          <article class="check-card reveal">
+            <h3>Workspace tích hợp</h3>
+            <div class="result-row"><span>Trạng thái cấu hình từng adapter</span><span class="result pass">HOÀN TẤT</span></div>
+            <div class="result-row"><span>Kết nối, ngắt và kết nối lại Drive</span><span class="result pass">HOÀN TẤT</span></div>
+            <div class="result-row"><span>Lỗi gần nhất và hướng xử lý</span><span class="result pass">HOÀN TẤT</span></div>
+            <div class="result-row"><span>Không hiển thị token hoặc secret</span><span class="result pass">BẮT BUỘC</span></div>
+          </article>
+          <article class="check-card reveal">
+            <h3>Trạng thái giao diện bắt buộc</h3>
+            <div class="result-row"><span>Chưa cấu hình</span><span class="result pass">CÓ CTA</span></div>
+            <div class="result-row"><span>Đang kết nối</span><span class="result pass">CÓ LOADING</span></div>
+            <div class="result-row"><span>Cần cấp lại quyền</span><span class="result pass">CÓ HƯỚNG DẪN</span></div>
+            <div class="result-row"><span>Lỗi hoặc mất quyền truy cập</span><span class="result pass">CÓ RETRY</span></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section-block" id="api-architecture">
+        <div class="section-head reveal">
+          <h2>Nhánh kết nối API sau tái cấu trúc</h2>
+          <p>Mỗi tích hợp đã có adapter riêng và dùng chung lớp fetch nhỏ cho timeout, parse response và chuẩn hóa lỗi. Không thêm provider framework hoặc factory không cần thiết.</p>
+        </div>
+
+        <div class="spark-layout">
+          <article class="spark-card reveal">
+            <h3>Luồng dữ liệu đã triển khai</h3>
+            <dl>
+              <div><dt>UI Admin</dt><dd>Chỉ hiển thị trạng thái và phát sinh ý định người dùng</dd></div>
+              <div><dt>React Query hook</dt><dd>Cache, loading, retry có kiểm soát và invalidate</dd></div>
+              <div><dt>Integration adapter</dt><dd>Drive, Messenger hoặc VietQR tự quản payload riêng</dd></div>
+              <div><dt>requestJson</dt><dd>Timeout, JSON, status code và ApiError thống nhất</dd></div>
+              <div><dt>Đích gọi</dt><dd>Drive và VietQR gọi trực tiếp; Messenger đi qua Worker</dd></div>
+            </dl>
+          </article>
+          <article class="spark-card reveal">
+            <h3>Ranh giới xác thực</h3>
+            <dl>
+              <div><dt>Firebase ID token</dt><dd>Chỉ gửi đến Messenger Worker đã cấu hình</dd></div>
+              <div><dt>Drive access token</dt><dd>Chỉ giữ trong memory của phiên trình duyệt</dd></div>
+              <div><dt>Public config</dt><dd>Client ID, API key giới hạn origin và folder ID</dd></div>
+              <div><dt>Secret</dt><dd>Chỉ tồn tại trong Worker secret hoặc secure broker</dd></div>
+              <div><dt>Log</dt><dd>Chỉ ghi code lỗi và request ID, không ghi token hay payload nhạy cảm</dd></div>
+            </dl>
+          </article>
+          <aside class="callout reveal">
+            <h3>Hợp đồng lỗi chung, payload riêng</h3>
+            <p>Chuẩn hóa lỗi thành <code>code</code>, <code>message</code>, <code>status</code> và <code>retryable</code>. Không ép mọi API dùng chung một interface nghiệp vụ. GET có thể retry một lần; mutation không tự retry để tránh gửi trùng.</p>
+          </aside>
+        </div>
+
+        <div class="checks">
+          <article class="check-card reveal">
+            <h3>Cấu trúc tối thiểu</h3>
+            <div class="result-row"><span>services/api/request.ts</span><span class="result pass">DÙNG CHUNG</span></div>
+            <div class="result-row"><span>services/integrations/googleDrive.ts</span><span class="result pass">TRỰC TIẾP</span></div>
+            <div class="result-row"><span>services/integrations/messenger.ts</span><span class="result pass">WORKER</span></div>
+            <div class="result-row"><span>services/integrations/vietQr.ts</span><span class="result pass">TRỰC TIẾP</span></div>
+          </article>
+          <article class="check-card reveal">
+            <h3>Chính sách lỗi</h3>
+            <div class="result-row"><span>401 hoặc token hết hạn</span><span class="result pass">KẾT NỐI LẠI</span></div>
+            <div class="result-row"><span>403 hoặc sai quyền</span><span class="result pass">HƯỚNG DẪN QUYỀN</span></div>
+            <div class="result-row"><span>404 tệp đã xóa</span><span class="result pass">GỠ LIÊN KẾT</span></div>
+            <div class="result-row"><span>429 hoặc lỗi tạm thời</span><span class="result pass">BACKOFF</span></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section-block" id="kiem-tra">
+        <div class="section-head reveal">
+          <h2>Kết quả kiểm tra tự động</h2>
+          <p>Kết quả được chạy lại trực tiếp trên workspace sau khi hoàn tất remediation ngày 19/07/2026.</p>
+        </div>
+        <div class="checks">
+          <article class="check-card reveal">
+            <h3>Frontend</h3>
+            <div class="result-row"><span>ESLint</span><span class="result pass">PASS</span></div>
+            <div class="result-row"><span>Mojibake check</span><span class="result pass">PASS</span></div>
+            <div class="result-row"><span>Unit tests</span><span class="result pass">51/51</span></div>
+            <div class="result-row"><span>Typecheck</span><span class="result pass">PASS</span></div>
+            <div class="result-row"><span>Production build</span><span class="result pass">PASS</span></div>
+            <div class="result-row"><span>Production dependency audit</span><span class="result pass">0 lỗi</span></div>
+            <div class="result-row"><span>Git diff format check</span><span class="result pass">PASS</span></div>
+          </article>
+          <article class="check-card reveal">
+            <h3>Firebase và Worker</h3>
+            <div class="result-row"><span>Rules emulator</span><span class="result pass">PASS</span></div>
+            <div class="result-row"><span>Worker tests</span><span class="result pass">18/18</span></div>
+            <div class="result-row"><span>Worker dependency audit</span><span class="result pass">0 lỗi</span></div>
+            <div class="result-row"><span>Tracked frontend secrets</span><span class="result pass">Không có</span></div>
+            <div class="result-row"><span>Default deny rule</span><span class="result pass">Có</span></div>
+            <div class="result-row"><span>App Check initialization</span><span class="result pass">Có</span></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section-block" id="roadmap">
+        <aside class="callout reveal"><strong>Cập nhật thực thi 19/07/2026:</strong> checklist mặc định đã đồng bộ với mã nguồn. Các mục cần quyền Console/production vẫn để trống cho đến khi có bằng chứng triển khai; xem <code>CHECKLIST-TRIEN-KHAI-PRODUCTION.md</code>.</aside>
+        <div class="section-head reveal">
+          <h2>Roadmap và checklist triển khai</h2>
+          <p>Đánh dấu công việc đã hoàn tất. Tiến độ được lưu trong localStorage của trình duyệt này.</p>
+        </div>
+
+        <div class="roadmap-shell">
+          <article class="roadmap-phase reveal" data-priority="P0">
+            <h3>Đóng ranh giới tin cậy</h3>
+            <div class="phase-meta"><span>Ưu tiên P0</span><span data-phase-count>P0: 0/3</span></div>
+            <div class="task-list">
+              <label class="task"><input type="checkbox" data-task="messenger-nonce"><span><strong>Thay UID referral bằng nonce</strong><small>Nonce 128 bit, hết hạn, dùng một lần và không ghi đè connection ngoài quy trình.</small></span></label>
+              <label class="task"><input type="checkbox" data-task="messenger-tests"><span><strong>Thêm test chống chiếm liên kết</strong><small>Kiểm tra nonce sai, hết hạn, tái sử dụng và ghi đè UID khác.</small></span></label>
+              <label class="task"><input type="checkbox" data-task="notification-complete"><span><strong>Hoàn thiện notification_reads</strong><small>Constant, Rules, rules test, index và unit test phải đi cùng nhau.</small></span></label>
+            </div>
+          </article>
+
+          <article class="roadmap-phase reveal" data-priority="P1">
+            <h3>Khôi phục tính đúng đắn</h3>
+            <div class="phase-meta"><span>Ưu tiên P1</span><span data-phase-count>P1: 0/4</span></div>
+            <div class="task-list">
+              <label class="task"><input type="checkbox" data-task="teacher-assignment-query"><span><strong>Scope assignments theo classId</strong><small>Teacher chỉ query các lớp được phân công.</small></span></label>
+              <label class="task"><input type="checkbox" data-task="teacher-plan-query"><span><strong>Scope lesson plans và submissions</strong><small>Query phải chứng minh được cùng điều kiện với Rules.</small></span></label>
+              <label class="task"><input type="checkbox" data-task="query-rules-tests"><span><strong>Thêm query rules tests</strong><small>Chạy list query thật cho Admin, Teacher và Viewer.</small></span></label>
+              <label class="task"><input type="checkbox" data-task="build-green"><span><strong>Làm CI xanh hoàn toàn</strong><small>Lint, typecheck, unit, rules, worker và build đều pass.</small></span></label>
+            </div>
+          </article>
+
+          <article class="roadmap-phase reveal" data-priority="P1">
+            <h3>Làm write nguyên tử</h3>
+            <div class="phase-meta"><span>Ưu tiên P1</span><span data-phase-count>P1: 0/4</span></div>
+            <div class="task-list">
+              <label class="task"><input type="checkbox" data-task="scores-transaction"><span><strong>Transaction toàn bộ lần lưu điểm</strong><small>Validate trước, chặn trùng và không để thành công một phần.</small></span></label>
+              <label class="task"><input type="checkbox" data-task="assignment-batch"><span><strong>Batch assignment và summary</strong><small>Tạo document reference trước khi commit.</small></span></label>
+              <label class="task"><input type="checkbox" data-task="lesson-session-batch"><span><strong>Batch public summary và announcement</strong><small>Gộp các write liên quan nếu không cần đọc dữ liệu hiện tại.</small></span></label>
+              <label class="task"><input type="checkbox" data-task="summary-rules"><span><strong>Siết schema summary trong Rules</strong><small>Range, immutable fields, total và quan hệ class/student.</small></span></label>
+            </div>
+          </article>
+
+          <article class="roadmap-phase reveal" data-priority="P2">
+            <h3>Bảo vệ ngân sách Spark</h3>
+            <div class="phase-meta"><span>Ưu tiên P2</span><span data-phase-count>P2: 0/4</span></div>
+            <div class="task-list">
+              <label class="task"><input type="checkbox" data-task="remove-usage"><span><strong>Bỏ usage telemetry tự ghi</strong><small>Dùng Firebase Console làm nguồn quota chính thức.</small></span></label>
+              <label class="task"><input type="checkbox" data-task="reduce-heartbeat"><span><strong>Giảm account heartbeat</strong><small>Chỉ ghi last login hoặc một lần mỗi phiên.</small></span></label>
+              <label class="task"><input type="checkbox" data-task="appcheck-enforce"><span><strong>Bật App Check enforcement</strong><small>Theo dõi metrics trước khi enforce Firestore và Authentication.</small></span></label>
+              <label class="task"><input type="checkbox" data-task="spark-alerts"><span><strong>Thiết lập ngưỡng vận hành</strong><small>Cảnh báo nội bộ trước 70% read, write và Hosting transfer quota.</small></span></label>
+            </div>
+          </article>
+
+          <article class="roadmap-phase reveal" data-priority="P1">
+            <h3>Kết nối Google Drive</h3>
+            <div class="phase-meta"><span>Ưu tiên P1</span><span data-phase-count>P1: 0/6</span></div>
+            <div class="task-list">
+              <label class="task"><input type="checkbox" data-task="drive-cloud-config"><span><strong>Cấu hình Google Cloud</strong><small>Bật Drive API và Picker API, cấu hình OAuth consent cùng authorized JavaScript origins.</small></span></label>
+              <label class="task"><input type="checkbox" data-task="drive-public-config"><span><strong>Khai báo cấu hình public</strong><small>Thêm Google client ID, Picker API key và driveFolderId; tuyệt đối không thêm client secret.</small></span></label>
+              <label class="task"><input type="checkbox" data-task="drive-token-client"><span><strong>Tạo token client trong bộ nhớ</strong><small>Xin scope drive.file từ thao tác bấm nút và yêu cầu kết nối lại khi token hết hạn.</small></span></label>
+              <label class="task"><input type="checkbox" data-task="drive-picker-upload"><span><strong>Tích hợp Picker và upload</strong><small>Cho phép chọn tệp hiện có hoặc tải tệp mới vào thư mục giáo án.</small></span></label>
+              <label class="task"><input type="checkbox" data-task="drive-schema-rules"><span><strong>Mở rộng schema và Rules</strong><small>Lưu metadata Drive có cấu trúc, giữ attachmentUrl trong giai đoạn chuyển đổi và không công khai link riêng tư.</small></span></label>
+              <label class="task"><input type="checkbox" data-task="drive-error-tests"><span><strong>Kiểm thử lỗi Drive</strong><small>Bao phủ hủy đăng nhập, token hết hạn, tệp bị xóa, sai quyền, upload lỗi và thư mục không tồn tại.</small></span></label>
+            </div>
+          </article>
+
+          <article class="roadmap-phase reveal" data-priority="P1">
+            <h3>Nâng cấp Frontend Admin</h3>
+            <div class="phase-meta"><span>Ưu tiên P1</span><span data-phase-count>P1: 0/6</span></div>
+            <div class="task-list">
+              <label class="task"><input type="checkbox" data-task="admin-ui-baseline"><span><strong>Chốt UI baseline</strong><small>Ghi lại route, token, component, breakpoint và hành vi cần giữ trước khi redesign.</small></span></label>
+              <label class="task"><input type="checkbox" data-task="admin-overview-redesign"><span><strong>Sắp xếp lại Admin Overview</strong><small>Ưu tiên việc cần xử lý, trạng thái vận hành và thao tác thường dùng.</small></span></label>
+              <label class="task"><input type="checkbox" data-task="admin-integration-workspace"><span><strong>Tạo workspace Tích hợp</strong><small>Drive, Messenger và VietQR có trạng thái, hành động và lỗi riêng.</small></span></label>
+              <label class="task"><input type="checkbox" data-task="admin-settings-url"><span><strong>Đồng bộ Settings với URL</strong><small>Cho phép deep-link đến integrations và giữ tab khi tải lại trang.</small></span></label>
+              <label class="task"><input type="checkbox" data-task="admin-ui-states"><span><strong>Hoàn thiện trạng thái UI</strong><small>Loading, empty, success, expired, denied, retry và keyboard focus.</small></span></label>
+              <label class="task"><input type="checkbox" data-task="admin-responsive-qa"><span><strong>QA desktop và mobile</strong><small>Kiểm tra 360, 768, 1024 và 1440 px, light mode, dark mode cùng reduced motion.</small></span></label>
+            </div>
+          </article>
+
+          <article class="roadmap-phase reveal" data-priority="P1">
+            <h3>Chuẩn hóa nhánh API</h3>
+            <div class="phase-meta"><span>Ưu tiên P1</span><span data-phase-count>P1: 0/6</span></div>
+            <div class="task-list">
+              <label class="task"><input type="checkbox" data-task="api-request-core"><span><strong>Tạo requestJson tối thiểu</strong><small>Timeout, AbortSignal, JSON parsing và ApiError; không thêm axios.</small></span></label>
+              <label class="task"><input type="checkbox" data-task="api-drive-adapter"><span><strong>Tạo Google Drive adapter</strong><small>Token, Picker, files.create, files.get và metadata mapping.</small></span></label>
+              <label class="task"><input type="checkbox" data-task="api-existing-adapters"><span><strong>Di chuyển API hiện có</strong><small>Đưa Messenger và VietQR vào integrations mà không đổi payload nghiệp vụ.</small></span></label>
+              <label class="task"><input type="checkbox" data-task="api-result-contract"><span><strong>Chuẩn hóa hợp đồng lỗi</strong><small>Code, message, status và retryable dùng nhất quán trên UI.</small></span></label>
+              <label class="task"><input type="checkbox" data-task="api-auth-boundaries"><span><strong>Kiểm tra ranh giới token</strong><small>Firebase token đến Worker, Drive token ở memory và không log dữ liệu nhạy cảm.</small></span></label>
+              <label class="task"><input type="checkbox" data-task="api-failure-tests"><span><strong>Kiểm thử failure matrix</strong><small>401, 403, 404, 429, timeout, invalid JSON, abort và mutation không gửi trùng.</small></span></label>
+            </div>
+          </article>
+        </div>
+
+        <div class="progress-dock" aria-live="polite">
+          <div class="progress-copy"><strong>Tiến độ remediation</strong><span data-progress-detail>0 trong 33 hạng mục hoàn tất</span></div>
+          <div class="top-actions">
+            <span class="progress-number" data-progress-number>0%</span>
+            <button class="control" type="button" data-reset>Đặt lại</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="section-block" id="tai-lieu">
+        <div class="section-head reveal">
+          <h2>Tài liệu đối chiếu chính thức</h2>
+          <p>Các giới hạn Spark, Security Rules và mô hình kết nối Google Drive được đối chiếu với tài liệu chính thức hiện hành.</p>
+        </div>
+        <div class="references">
+          <a class="reference reveal" href="https://firebase.google.com/docs/firestore/quotas" target="_blank" rel="noreferrer"><strong>Cloud Firestore quotas</strong><span>Free quota, storage, reads, writes và transfer.</span></a>
+          <a class="reference reveal" href="https://firebase.google.com/docs/firestore/security/rules-query" target="_blank" rel="noreferrer"><strong>Securely query data</strong><span>Rules are not filters và cách query phải khớp Rules.</span></a>
+          <a class="reference reveal" href="https://firebase.google.com/docs/firestore/manage-data/transactions" target="_blank" rel="noreferrer"><strong>Transactions and batched writes</strong><span>Atomic writes, retry và giới hạn document access trong Rules.</span></a>
+          <a class="reference reveal" href="https://firebase.google.com/docs/projects/billing/firebase-pricing-plans" target="_blank" rel="noreferrer"><strong>Firebase pricing plans</strong><span>Khả năng và giới hạn của Spark so với Blaze.</span></a>
+          <a class="reference reveal" href="https://firebase.google.com/docs/hosting/usage-quotas-pricing" target="_blank" rel="noreferrer"><strong>Firebase Hosting quotas</strong><span>Storage, transfer và hành vi khi Spark vượt quota.</span></a>
+          <a class="reference reveal" href="https://firebase.google.com/docs/auth/limits" target="_blank" rel="noreferrer"><strong>Firebase Authentication limits</strong><span>Email verification, password reset và account limits.</span></a>
+          <a class="reference reveal" href="https://firebase.google.com/docs/app-check/web/recaptcha-provider" target="_blank" rel="noreferrer"><strong>App Check for Web</strong><span>Provider, metrics, debug và enforcement.</span></a>
+          <a class="reference reveal" href="https://firebase.google.com/docs/storage/faqs-storage-changes-announced-sept-2024" target="_blank" rel="noreferrer"><strong>Cloud Storage billing requirement</strong><span>Blaze bắt buộc từ 03/02/2026.</span></a>
+          <a class="reference reveal" href="https://developers.google.com/identity/oauth2/web/guides/use-token-model" target="_blank" rel="noreferrer"><strong>Google Identity token model</strong><span>Access token ngắn hạn cho ứng dụng web client-side.</span></a>
+          <a class="reference reveal" href="https://developers.google.com/workspace/drive/api/guides/api-specific-auth" target="_blank" rel="noreferrer"><strong>Google Drive scopes</strong><span>Phạm vi drive.file và nguyên tắc xin quyền tối thiểu.</span></a>
+          <a class="reference reveal" href="https://developers.google.com/workspace/drive/api/guides/picker" target="_blank" rel="noreferrer"><strong>Google Picker</strong><span>Chọn và tải tệp Drive từ ứng dụng web.</span></a>
+          <a class="reference reveal" href="https://developers.google.com/workspace/drive/api/reference/rest/v3/files/create" target="_blank" rel="noreferrer"><strong>Drive files.create</strong><span>Media, multipart và resumable upload.</span></a>
+        </div>
+      </section>
+
+      <footer>
+        Báo cáo tạo từ audit trực tiếp workspace EduMatrix VN ngày 19/07/2026. Phạm vi: Frontend Admin React/Vite, nhánh API, Google Drive, Firebase Auth, Firestore Rules, Cloudflare Messenger Worker, tests, build và giới hạn Spark.
+      </footer>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      const storageKey = "edumatrix-audit-roadmap-2026-07-19-remediated-v2";
+      const themeKey = "edumatrix-audit-theme";
+      const root = document.documentElement;
+      const tasks = Array.from(document.querySelectorAll("[data-task]"));
+      const findings = Array.from(document.querySelectorAll(".finding"));
+      const search = document.querySelector("[data-search]");
+      const empty = document.querySelector("[data-empty]");
+      const completedByCode = new Set([
+        "messenger-nonce", "messenger-tests", "notification-complete",
+        "teacher-assignment-query", "teacher-plan-query", "query-rules-tests", "build-green",
+        "scores-transaction", "assignment-batch", "lesson-session-batch", "summary-rules",
+        "remove-usage", "reduce-heartbeat", "drive-token-client", "drive-picker-upload",
+        "drive-schema-rules", "drive-error-tests", "admin-ui-baseline",
+        "admin-overview-redesign", "admin-integration-workspace", "admin-settings-url",
+        "admin-ui-states", "api-request-core", "api-drive-adapter", "api-existing-adapters",
+        "api-result-contract", "api-auth-boundaries", "api-failure-tests"
+      ]);
+      let activeFilter = "all";
+      let activeStatusFilter = "all";
+
+      function readState() {
+        try {
+          return JSON.parse(localStorage.getItem(storageKey) || "{}");
+        } catch {
+          return {};
+        }
+      }
+
+      function saveState() {
+        const state = Object.fromEntries(tasks.map((task) => [task.dataset.task, task.checked]));
+        localStorage.setItem(storageKey, JSON.stringify(state));
+      }
+
+      function updateProgress() {
+        const done = tasks.filter((task) => task.checked).length;
+        const percent = tasks.length ? Math.round((done / tasks.length) * 100) : 0;
+        document.querySelector("[data-progress-number]").textContent = `${percent}%`;
+        document.querySelector("[data-progress-detail]").textContent = `${done} trong ${tasks.length} hạng mục hoàn tất`;
+
+        document.querySelectorAll(".roadmap-phase").forEach((phase) => {
+          const phaseTasks = Array.from(phase.querySelectorAll("[data-task]"));
+          const phaseDone = phaseTasks.filter((task) => task.checked).length;
+          const label = phase.dataset.priority;
+          phase.querySelector("[data-phase-count]").textContent = `${label}: ${phaseDone}/${phaseTasks.length}`;
+        });
+      }
+
+      const state = readState();
+      tasks.forEach((task) => {
+        task.checked = Object.hasOwn(state, task.dataset.task)
+          ? Boolean(state[task.dataset.task])
+          : completedByCode.has(task.dataset.task);
+        task.addEventListener("change", () => {
+          saveState();
+          updateProgress();
+        });
+      });
+      updateProgress();
+
+      function applyFindingFilter() {
+        const term = search.value.trim().toLocaleLowerCase("vi");
+        let visible = 0;
+        findings.forEach((finding) => {
+          const severityMatch = activeFilter === "all" || finding.dataset.severity === activeFilter;
+          const statusMatch = activeStatusFilter === "all" || finding.dataset.status === activeStatusFilter;
+          const textMatch = !term || finding.textContent.toLocaleLowerCase("vi").includes(term);
+          finding.hidden = !(severityMatch && statusMatch && textMatch);
+          if (!finding.hidden) visible += 1;
+        });
+        empty.classList.toggle("visible", visible === 0);
+      }
+
+      search.addEventListener("input", applyFindingFilter);
+      document.querySelectorAll("[data-filter]").forEach((button) => {
+        button.addEventListener("click", () => {
+          activeFilter = button.dataset.filter;
+          document.querySelectorAll("[data-filter]").forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
+          applyFindingFilter();
+        });
+      });
+      document.querySelectorAll("[data-status-filter]").forEach((button) => {
+        button.addEventListener("click", () => {
+          activeStatusFilter = button.dataset.statusFilter;
+          document.querySelectorAll("[data-status-filter]").forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
+          applyFindingFilter();
+        });
+      });
+
+      document.querySelector("[data-theme-toggle]").addEventListener("click", () => {
+        const next = root.dataset.theme === "dark" ? "light" : "dark";
+        root.dataset.theme = next;
+        localStorage.setItem(themeKey, next);
+      });
+
+      let printOpenState = [];
+      addEventListener("beforeprint", () => {
+        printOpenState = findings.map((finding) => finding.open);
+        findings.forEach((finding) => { finding.open = true; });
+      });
+      addEventListener("afterprint", () => {
+        findings.forEach((finding, index) => { finding.open = printOpenState[index]; });
+      });
+      document.querySelector("[data-print]").addEventListener("click", () => window.print());
+      document.querySelector("[data-reset]").addEventListener("click", () => {
+        if (!confirm("Đặt lại toàn bộ tiến độ checklist?")) return;
+        localStorage.removeItem(storageKey);
+        tasks.forEach((task) => { task.checked = completedByCode.has(task.dataset.task); });
+        updateProgress();
+      });
+
+      const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const revealItems = document.querySelectorAll(".reveal");
+      if (reducedMotion || !("IntersectionObserver" in window)) {
+        revealItems.forEach((item) => item.classList.add("visible"));
+      } else {
+        const observer = new IntersectionObserver((entries) => {
+          entries.forEach((entry) => {
+            if (!entry.isIntersecting) return;
+            entry.target.classList.add("visible");
+            observer.unobserve(entry.target);
+          });
+        }, { threshold: 0.08 });
+        revealItems.forEach((item) => observer.observe(item));
+      }
+
+      const navLinks = Array.from(document.querySelectorAll(".side-nav a"));
+      const sections = navLinks.map((link) => document.querySelector(link.getAttribute("href"))).filter(Boolean);
+      if ("IntersectionObserver" in window) {
+        const sectionObserver = new IntersectionObserver((entries) => {
+          const visibleEntry = entries.filter((entry) => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+          if (!visibleEntry) return;
+          navLinks.forEach((link) => link.classList.toggle("active", link.getAttribute("href") === `#${visibleEntry.target.id}`));
+        }, { rootMargin: "-20% 0px -65%", threshold: [0.01, 0.2] });
+        sections.forEach((section) => sectionObserver.observe(section));
+      }
+    })();
+  </script>
+</body>
+</html>

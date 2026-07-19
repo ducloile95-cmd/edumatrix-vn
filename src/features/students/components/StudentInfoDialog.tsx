@@ -5,6 +5,8 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { linkParentToStudent, setStudentStatus, updateStudent } from "@/services/firestore/students";
 import { listUsersByIds, updateParentProfile, type ParentProfileInput } from "@/services/firestore/users";
+import { listClasses } from "@/services/firestore/classes";
+import { listCourses } from "@/services/firestore/courses";
 import type { StudentDoc, StudentStatus } from "@/types/academic";
 
 type StudentWithId = StudentDoc & { id: string };
@@ -54,6 +56,25 @@ export function StudentInfoDialog({ canManageLinks, onClose, open, student }: St
   });
 
   const primaryParent = parentProfilesQuery.data?.[0] ?? null;
+
+  const classesQuery = useQuery({
+    queryKey: ["classes"],
+    queryFn: listClasses,
+    enabled: open && !!student,
+    staleTime: 60_000,
+  });
+  const coursesQuery = useQuery({
+    queryKey: ["courses"],
+    queryFn: listCourses,
+    enabled: open && !!student,
+    staleTime: 60_000,
+  });
+  const teacherProfilesQuery = useQuery({
+    queryKey: ["student-teacher-profiles", student?.teacherIds ?? []],
+    queryFn: () => listUsersByIds(student?.teacherIds ?? []),
+    enabled: open && !!student && student.teacherIds.length > 0,
+    staleTime: 60_000,
+  });
 
   useEffect(() => {
     if (!open || !primaryParent) return;
@@ -151,6 +172,11 @@ export function StudentInfoDialog({ canManageLinks, onClose, open, student }: St
 
   const isActive = statusDraft === "active";
   const canSubmit = fullName.trim().length > 0 && !updateMutation.isPending;
+  const linkedClasses = (classesQuery.data ?? []).filter((klass) => student.currentClassIds.includes(klass.id));
+  const courseById = new Map((coursesQuery.data ?? []).map((course) => [course.id, course.name]));
+  const classNames = linkedClasses.map((klass) => klass.name);
+  const courseNames = [...new Set(linkedClasses.map((klass) => courseById.get(klass.courseId)).filter(Boolean))];
+  const teacherNames = (teacherProfilesQuery.data ?? []).map((teacher) => teacher.displayName);
 
   const submitForm = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -287,11 +313,17 @@ export function StudentInfoDialog({ canManageLinks, onClose, open, student }: St
                     </div>
                   ) : (
                     <div className="grid gap-0 overflow-hidden rounded-input border border-neutral-200">
-                      <InfoLine label="Tên phụ huynh" value={primaryParent?.displayName ?? "Chưa cập nhật"} />
-                      <InfoLine label="Số điện thoại" value={primaryParent?.phone ?? "Chưa cập nhật"} />
-                      <InfoLine label="Email liên kết" value={primaryParent?.email ?? "Chưa cập nhật"} />
-                      <InfoLine label="Facebook" value={primaryParent?.facebookUrl ?? "Chưa cập nhật"} />
-                      <InfoLine label="Địa chỉ" value={primaryParent?.address ?? "Chưa cập nhật"} />
+                      {parentProfilesQuery.isError ? (
+                        <p role="alert" className="p-3 text-sm font-medium text-danger-700">Không tải được thông tin phụ huynh.</p>
+                      ) : (
+                        <>
+                          <InfoLine label="Tên phụ huynh" value={primaryParent?.displayName ?? "Chưa cập nhật"} />
+                          <InfoLine label="Số điện thoại" value={primaryParent?.phone ?? "Chưa cập nhật"} />
+                          <InfoLine label="Email liên kết" value={primaryParent?.email ?? "Chưa cập nhật"} />
+                          <InfoLine label="Facebook" value={primaryParent?.facebookUrl ?? "Chưa cập nhật"} />
+                          <InfoLine label="Địa chỉ" value={primaryParent?.address ?? "Chưa cập nhật"} />
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
@@ -301,9 +333,9 @@ export function StudentInfoDialog({ canManageLinks, onClose, open, student }: St
             <section className="grid content-start gap-4">
               <Panel title="Lớp học và khóa học" meta="linked records">
                 <div className="grid gap-0">
-                  <InfoLine label="Lớp học" value={student.currentClassIds.length ? student.currentClassIds.join(", ") : "Chưa có lớp"} mono />
-                  <InfoLine label="Khóa học" value={student.currentClassIds.length ? "Cần join classes/courses để lấy tên khóa học" : "Chưa cập nhật"} />
-                  <InfoLine label="Giáo viên" value={student.teacherIds.length ? student.teacherIds.join(", ") : "Chưa phân giáo viên"} mono />
+                  <InfoLine label="Lớp học" value={classNames.length ? classNames.join(", ") : "Chưa có lớp"} />
+                  <InfoLine label="Khóa học" value={courseNames.length ? courseNames.join(", ") : "Chưa cập nhật"} />
+                  <InfoLine label="Giáo viên" value={teacherNames.length ? teacherNames.join(", ") : "Chưa phân giáo viên"} />
                   <InfoLine label="Cập nhật gần nhất" value={formatTimestamp(student.updatedAt)} />
                 </div>
               </Panel>

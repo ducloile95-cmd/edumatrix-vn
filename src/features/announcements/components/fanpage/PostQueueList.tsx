@@ -6,7 +6,7 @@ import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { cancelScheduledFanpagePost, createFanpagePost, listFanpagePosts, markFanpagePostResult } from "@/services/firestore/fanpagePosts";
-import { postToPage } from "@/services/messenger/client";
+import { postToPage } from "@/services/integrations/messenger";
 import type { FanpagePostDoc } from "@/types/chat";
 
 type Post = FanpagePostDoc & { id: string };

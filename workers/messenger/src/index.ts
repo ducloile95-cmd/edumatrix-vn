@@ -64,8 +64,8 @@ export async function verifyMetaSignature(raw: string, signature: string | null,
   return diff === 0;
 }
 
-export function extractReferralLinks(payload: unknown): Array<{ uid: string; psid: string; pageId: string }> {
-  const result: Array<{ uid: string; psid: string; pageId: string }> = [];
+export function extractReferralLinks(payload: unknown): Array<{ nonce: string; psid: string; pageId: string }> {
+  const result: Array<{ nonce: string; psid: string; pageId: string }> = [];
   if (!payload || typeof payload !== "object") return result;
   const entries = (payload as { entry?: unknown[] }).entry ?? [];
   for (const entry of entries) {
@@ -73,8 +73,8 @@ export function extractReferralLinks(payload: unknown): Array<{ uid: string; psi
     for (const event of (entry as { messaging?: unknown[] }).messaging ?? []) {
       if (!event || typeof event !== "object") continue;
       const value = event as { sender?: { id?: string }; recipient?: { id?: string }; referral?: { ref?: string }; postback?: { referral?: { ref?: string } } };
-      const uid = value.referral?.ref ?? value.postback?.referral?.ref;
-      if (uid && value.sender?.id && value.recipient?.id) result.push({ uid, psid: value.sender.id, pageId: value.recipient.id });
+      const nonce = value.referral?.ref ?? value.postback?.referral?.ref;
+      if (nonce && /^[A-Za-z0-9_-]{22,64}$/.test(nonce) && value.sender?.id && value.recipient?.id) result.push({ nonce, psid: value.sender.id, pageId: value.recipient.id });
     }
   }
   return result;
@@ -161,6 +161,81 @@ async function writeDocument(collectionPath: string, id: string, data: Record<st
   if (!response.ok) throw new Error("firestore_write_failed");
 }
 
+function documentUpdateTime(document: unknown): string | undefined {
+  return (document as { updateTime?: string } | null)?.updateTime;
+}
+
+function documentName(collectionId: string, id: string, env: Env): string {
+  return `projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/${collectionId}/${id}`;
+}
+
+function randomNonce(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+export function referralClaimUid(
+  nonceDocument: unknown,
+  existingConnection: unknown,
+  existingPsidLink: unknown,
+  psid: string,
+  now = new Date(),
+): string | null {
+  const uid = fieldString(nonceDocument, "uid");
+  const expiresAt = fieldTimestamp(nonceDocument, "expiresAt");
+  if (!uid || fieldString(nonceDocument, "status") !== "active" || !expiresAt || expiresAt.getTime() <= now.getTime()) return null;
+  if (fieldTimestamp(nonceDocument, "usedAt")) return null;
+  const connectedPsid = fieldString(existingConnection, "facebookPsid");
+  if (connectedPsid && connectedPsid !== psid) return null;
+  const linkedUid = fieldString(existingPsidLink, "uid");
+  if (linkedUid && linkedUid !== uid) return null;
+  return uid;
+}
+
+async function claimReferralNonce(nonce: string, psid: string, pageId: string, token: string, env: Env): Promise<boolean> {
+  const nonceDocument = await readDocument("messenger_link_nonces", nonce, token, env);
+  if (!nonceDocument) return false;
+  const targetUid = fieldString(nonceDocument, "uid");
+  if (!targetUid) return false;
+  const [existingConnection, existingPsidLink] = await Promise.all([
+    readDocument("messenger_connections", targetUid, token, env),
+    readDocument("messenger_psid_links", psid, token, env),
+  ]);
+  const uid = referralClaimUid(nonceDocument, existingConnection, existingPsidLink, psid);
+  if (!uid) return false;
+  const nonceUpdateTime = documentUpdateTime(nonceDocument);
+  if (!nonceUpdateTime) return false;
+
+  const connectionPrecondition = documentUpdateTime(existingConnection)
+    ? { updateTime: documentUpdateTime(existingConnection) }
+    : { exists: false };
+  const psidPrecondition = documentUpdateTime(existingPsidLink)
+    ? { updateTime: documentUpdateTime(existingPsidLink) }
+    : { exists: false };
+  const now = new Date();
+  const writes = [
+    {
+      update: { name: documentName("messenger_link_nonces", nonce, env), fields: firestoreFields({ status: "used", usedAt: now, usedByPsid: psid, usedByPageId: pageId }) },
+      updateMask: { fieldPaths: ["status", "usedAt", "usedByPsid", "usedByPageId"] },
+      currentDocument: { updateTime: nonceUpdateTime },
+    },
+    {
+      update: { name: documentName("messenger_connections", uid, env), fields: firestoreFields({ uid, facebookPsid: psid, pageId, status: "active", linkedAt: now }) },
+      currentDocument: connectionPrecondition,
+    },
+    {
+      update: { name: documentName("messenger_psid_links", psid, env), fields: firestoreFields({ uid, pageId, status: "active", updatedAt: now }) },
+      currentDocument: psidPrecondition,
+    },
+  ];
+  const response = await fetch(`https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:commit`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ writes }),
+  });
+  return response.ok;
+}
+
 async function findConnectionByPsid(psid: string, token: string, env: Env): Promise<string | null> {
   const response = await fetch(`https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:runQuery`, {
     method: "POST",
@@ -203,6 +278,17 @@ async function threadContext(studentId: string, serviceToken: string, env: Env):
 async function assertStudentScope(profile: StaffProfile, uid: string, context: ThreadContext | null): Promise<void> {
   if (!context) throw new Error("student_not_found");
   if (profile.role === "teacher" && !context.assignedTeacherIds.includes(uid)) throw new Error("student_scope_denied");
+}
+
+export function referralTargetAllowed(
+  profile: StaffProfile,
+  staffUid: string,
+  parentStudentIds: string[],
+  requestedStudentId: string,
+  context: ThreadContext | null,
+): boolean {
+  if (!parentStudentIds.includes(requestedStudentId) || !context) return false;
+  return profile.role === "admin" || context.assignedTeacherIds.includes(staffUid);
 }
 
 async function resolveRecipients(studentId: string, serviceToken: string, env: Env): Promise<Recipient[]> {
@@ -321,6 +407,31 @@ async function handlePost(request: Request, env: Env): Promise<Response> {
   }
 }
 
+async function handleCreateReferral(request: Request, env: Env): Promise<Response> {
+  const idToken = extractBearer(request.headers.get("authorization"));
+  if (!idToken) return new Response(JSON.stringify({ error: "missing_bearer_token" }), { status: 401, headers: corsHeaders(env) });
+  const claims = await verifyFirebaseToken(idToken, env);
+  const profile = await requireStaff(claims.sub, idToken, env);
+  const body = await request.json<{ parentUid?: string; studentId?: string }>();
+  if (!body.parentUid || !/^[A-Za-z0-9_-]{1,128}$/.test(body.parentUid) || !body.studentId || !/^[A-Za-z0-9_-]{1,128}$/.test(body.studentId)) return new Response(JSON.stringify({ error: "invalid_referral_target" }), { status: 400, headers: corsHeaders(env) });
+  const serviceToken = await serviceAccessToken(env);
+  const parent = await readDocument("users", body.parentUid, serviceToken, env);
+  if (fieldString(parent, "role") !== "viewer" || fieldString(parent, "status") !== "active") return new Response(JSON.stringify({ error: "parent_not_found" }), { status: 404, headers: corsHeaders(env) });
+  const context = await threadContext(body.studentId, serviceToken, env);
+  if (!referralTargetAllowed(profile, claims.sub, fieldStringArray(parent, "studentIds"), body.studentId, context)) return new Response(JSON.stringify({ error: "parent_scope_denied" }), { status: 403, headers: corsHeaders(env) });
+  const nonce = randomNonce();
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  await writeDocument("messenger_link_nonces", nonce, {
+    uid: body.parentUid,
+    status: "active",
+    createdBy: claims.sub,
+    createdAt: new Date(),
+    expiresAt,
+    usedAt: null,
+  }, serviceToken, env);
+  return new Response(JSON.stringify({ nonce, expiresAt: expiresAt.toISOString() }), { headers: corsHeaders(env) });
+}
+
 async function handleWebhook(request: Request, env: Env): Promise<Response> {
   if (request.method === "GET") {
     const url = new URL(request.url);
@@ -332,8 +443,7 @@ async function handleWebhook(request: Request, env: Env): Promise<Response> {
   const payload = JSON.parse(raw) as unknown;
   const serviceToken = await serviceAccessToken(env);
   for (const link of extractReferralLinks(payload)) {
-    await writeDocument("messenger_connections", link.uid, { uid: link.uid, facebookPsid: link.psid, pageId: link.pageId, status: "active", linkedAt: new Date() }, serviceToken, env);
-    await writeDocument("messenger_psid_links", link.psid, { uid: link.uid, pageId: link.pageId, status: "active", updatedAt: new Date() }, serviceToken, env);
+    await claimReferralNonce(link.nonce, link.psid, link.pageId, serviceToken, env);
   }
   for (const message of extractInboundMessages(payload)) {
     const link = await readDocument("messenger_psid_links", message.psid, serviceToken, env);
@@ -357,6 +467,7 @@ export default {
       if (path === "/health") return new Response(JSON.stringify({ ok: true }), { headers: corsHeaders(env) });
       if (path === "/api/messenger/send" && request.method === "POST") return handleSend(request, env);
       if (path === "/api/messenger/post" && request.method === "POST") return handlePost(request, env);
+      if (path === "/api/messenger/referral" && request.method === "POST") return handleCreateReferral(request, env);
       if (path === "/webhook") return handleWebhook(request, env);
       return new Response("Not found", { status: 404 });
     } catch (error) {

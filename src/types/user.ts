@@ -34,12 +34,3 @@ export interface InviteDoc {
   createdAt: Timestamp;
   claimedAt?: Timestamp;
 }
-
-export interface AccountActivityDoc {
-  uid: string;
-  dateKey: string;
-  activeMinutes: number;
-  lastSeenAt: Timestamp;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-}

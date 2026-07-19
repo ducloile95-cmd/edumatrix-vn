@@ -74,9 +74,9 @@ export function TimetableGrid({ days, sessions, today, onSessionClick }: Timetab
         })}
 
         <div className="sticky left-0 z-[1] border-r border-neutral-200 bg-white">
-          {hourLabels().map((label) => (
+          {hourLabels().map((label, index) => (
             <div key={label} className="relative" style={{ height: HOUR_HEIGHT_PX }}>
-              <span className="absolute -top-[7px] right-2 bg-white px-0.5 text-[10px] font-semibold text-neutral-500">
+              <span className={`absolute right-2 bg-white px-0.5 text-[10px] font-semibold text-neutral-500 ${index === 0 ? "top-1" : "-top-[7px]"}`}>
                 {label}
               </span>
             </div>
@@ -125,7 +125,7 @@ export function TimetableGrid({ days, sessions, today, onSessionClick }: Timetab
                   >
                     <p className={`truncate font-bold leading-tight ${wide ? "text-[13px]" : "text-[11px]"}`}>{session.className}</p>
                     <p className={`truncate font-semibold ${wide ? "text-[11px]" : "text-[10px]"}`}>
-                      {format(layout.startAt, "HH:mm")}–{format(layout.endAt, "HH:mm")}
+                      {format(layout.startAt, "HH:mm")}-{format(layout.endAt, "HH:mm")}
                       {wide && session.location ? ` · ${session.location}` : ""}
                     </p>
                     {tone.tagLabel && (
