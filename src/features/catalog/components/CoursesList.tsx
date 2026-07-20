@@ -197,13 +197,13 @@ export function CoursesList({ onEdit, subjectFilter, onClearSubjectFilter }: Cou
                             {shownNames.map((name) => (
                               <span
                                 key={name}
-                                className="rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-semibold text-primary-700"
+                                className="rounded-full bg-primary-50 px-2 py-0.5 text-2xs font-semibold text-primary-700"
                               >
                                 {name}
                               </span>
                             ))}
                             {extraCount > 0 && (
-                              <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-semibold text-neutral-500">
+                              <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-2xs font-semibold text-neutral-500">
                                 +{extraCount}
                               </span>
                             )}

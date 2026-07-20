@@ -4,6 +4,8 @@ dist-ssr/
 .env
 .env.local
 .env.*.local
+.env.real
+.env.emulator
 .dev.vars
 .dev.vars.*
 !.dev.vars.example

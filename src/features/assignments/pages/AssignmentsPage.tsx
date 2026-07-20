@@ -7,8 +7,12 @@ import { AppShell } from "@/components/layouts/AppShell";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { EmptyState } from "@/components/feedback/EmptyState";
+import { ErrorState } from "@/components/feedback/ErrorState";
+import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { listClasses } from "@/services/firestore/classes";
+import { listStudents } from "@/services/firestore/students";
 import { listSessionsByClass } from "@/services/firestore/sessions";
 import { listLessonPlans } from "@/services/firestore/lessonPlans";
 import { formatSessionLabel } from "@/utils/lessonPlan";
@@ -19,6 +23,8 @@ export default function AssignmentsPage({ embedded = false }: { embedded?: boole
   const { firebaseUser } = useAuth();
   const client = useQueryClient();
   const classes = useQuery({ queryKey: ["classes"], queryFn: listClasses });
+  const students = useQuery({ queryKey: ["students"], queryFn: listStudents });
+  const studentNames = new Map(students.data?.map((student) => [student.id, student.fullName]));
   const assignments = useQuery({ queryKey: ["assignments"], queryFn: listAssignments });
   const [selected, setSelected] = useState<(AssignmentDoc & { id: string }) | null>(null);
   const submissions = useQuery({ queryKey: ["submissions", selected?.id], queryFn: () => listSubmissions(selected?.id ?? "", selected?.classId ?? ""), enabled: !!selected });
@@ -109,9 +115,9 @@ export default function AssignmentsPage({ embedded = false }: { embedded?: boole
             </option>
           ))}
         </select>
-        <button disabled={create.isPending} className="min-h-touch rounded-input bg-primary-500 px-5 text-white disabled:opacity-50">
+        <Button type="submit" variant="primary" disabled={create.isPending}>
           {create.isPending ? "Đang giao..." : "Giao bài"}
-        </button>
+        </Button>
         {create.isError && (
           <p role="alert" className="text-sm text-danger-700 md:col-span-3">
             Không thể giao bài. Dữ liệu vẫn còn, vui lòng thử lại.
@@ -126,6 +132,13 @@ export default function AssignmentsPage({ embedded = false }: { embedded?: boole
             <h2 className="text-sm font-semibold">Danh sách bài</h2>
             <span className="text-xs text-neutral-500">{assignments.data?.length ?? 0} bài</span>
           </div>
+          {assignments.isLoading && <div className="p-4"><LoadingSkeleton rows={4} /></div>}
+          {assignments.isError && (
+            <div className="p-4"><ErrorState message="Không thể tải danh sách bài tập. Vui lòng kiểm tra kết nối và thử lại." onRetry={() => assignments.refetch()} /></div>
+          )}
+          {!assignments.isLoading && !assignments.isError && (assignments.data?.length ?? 0) === 0 && (
+            <div className="p-4"><EmptyState title="Chưa có bài tập nào" description="Bấm 'Tạo bài tập' để giao bài đầu tiên." /></div>
+          )}
           <ul className="divide-y">
             {assignments.data?.map((item) => (
               <li key={item.id} className={selected?.id === item.id ? "bg-primary-50 shadow-[inset_3px_0_0_theme(colors.primary.500)]" : ""}>
@@ -141,18 +154,24 @@ export default function AssignmentsPage({ embedded = false }: { embedded?: boole
           <div className="flex items-start justify-between gap-3 border-b border-neutral-200 px-4 py-4">
             <div><h2 className="text-base font-semibold">{selected ? selected.title : "Chọn bài tập để chấm"}</h2>{selected && <p className="mt-1 text-xs text-neutral-500">Thang điểm {selected.maxScore} · Hạn {format(selected.dueAt.toDate(), "dd/MM HH:mm")}</p>}</div>
             {selected && (
-              <button
-                type="button"
+              <Button
+                variant="secondary"
                 onClick={() => remindMissing(selected, classes.data?.find((item) => item.id === selected.classId)?.studentIds ?? [])}
-                className="min-h-touch rounded-input border px-3 text-sm"
               >
                 Nhắc chưa nộp
-              </button>
+              </Button>
             )}
           </div>
+          {selected && submissions.isLoading && <div className="p-4"><LoadingSkeleton rows={3} /></div>}
+          {selected && submissions.isError && (
+            <div className="p-4"><ErrorState message="Không thể tải bài nộp. Vui lòng kiểm tra kết nối và thử lại." onRetry={() => submissions.refetch()} /></div>
+          )}
+          {selected && !submissions.isLoading && !submissions.isError && (submissions.data?.length ?? 0) === 0 && (
+            <div className="p-4"><EmptyState title="Chưa có bài nộp nào" description="Khi học sinh nộp bài, danh sách sẽ hiển thị ở đây." /></div>
+          )}
           <ul className="divide-y px-4">
             {submissions.data?.map((item) => (
-              <SubmissionRow key={item.id} item={item} maxScore={selected?.maxScore ?? 10} onGrade={(score, comment, status) => grade.mutate({ id: item.id, score, comment, status })} />
+              <SubmissionRow key={item.id} item={item} studentName={studentNames.get(item.studentId) ?? item.studentId} maxScore={selected?.maxScore ?? 10} onGrade={(score, comment, status) => grade.mutate({ id: item.id, score, comment, status })} />
             ))}
           </ul>
         </section>
@@ -166,10 +185,12 @@ export default function AssignmentsPage({ embedded = false }: { embedded?: boole
 
 function SubmissionRow({
   item,
+  studentName,
   maxScore,
   onGrade,
 }: {
   item: Awaited<ReturnType<typeof listSubmissions>>[number];
+  studentName: string;
   maxScore: number;
   onGrade: (score: number | null, comment: string, status: SubmissionStatus) => void;
 }) {
@@ -178,18 +199,18 @@ function SubmissionRow({
   return (
     <li className="grid gap-2 py-3 md:grid-cols-[1fr_100px_1fr_auto]">
       <div>
-        <p className="text-sm font-medium">{item.studentId}</p>
+        <p className="text-sm font-medium">{studentName}</p>
         <p className="text-xs">{item.submissionText || item.submissionUrl}</p>
       </div>
       <input aria-label="Điểm" type="number" min={0} max={maxScore} value={score} onChange={(e) => setScore(e.target.value)} className="min-h-touch rounded-input border px-2" />
       <input aria-label="Nhận xét" value={comment} onChange={(e) => setComment(e.target.value)} className="min-h-touch rounded-input border px-2" />
       <div className="flex gap-2">
-        <button onClick={() => onGrade(score ? Number(score) : null, comment, "graded")} className="rounded-input bg-primary-500 px-3 text-sm text-white">
+        <Button variant="primary" onClick={() => onGrade(score ? Number(score) : null, comment, "graded")}>
           Chấm
-        </button>
-        <button onClick={() => onGrade(null, comment, "redo_required")} className="rounded-input border px-3 text-sm">
+        </Button>
+        <Button variant="secondary" onClick={() => onGrade(null, comment, "redo_required")}>
           Làm lại
-        </button>
+        </Button>
       </div>
     </li>
   );

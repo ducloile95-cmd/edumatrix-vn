@@ -32,7 +32,7 @@ vi.mock("@/services/firebase/firestoreClient", () => ({ db: {} }));
 vi.mock("@/services/firestore/authz", () => ({ getCurrentUserDoc, isAdminUser, isTeacherUser }));
 vi.mock("@/services/firestore/classes", () => ({ listClasses }));
 
-import { createAssignment, listAssignments } from "@/services/firestore/assignments";
+import { createAssignment, listAssignments, listSubmissionsByStudents } from "@/services/firestore/assignments";
 
 describe("createAssignment", () => {
   beforeEach(() => {
@@ -82,5 +82,19 @@ describe("createAssignment", () => {
     expect(where).toHaveBeenCalledWith("classId", "==", "class-1");
     expect(where).toHaveBeenCalledWith("classId", "==", "class-2");
     expect(result.map((item) => item.id)).toEqual(["assignment-2", "assignment-1"]);
+  });
+
+  test("filters submissions server-side with studentId in-clause per class for a teacher", async () => {
+    getCurrentUserDoc.mockResolvedValue({ uid: "teacher-1", role: "teacher" });
+    isTeacherUser.mockReturnValue(true);
+    listClasses.mockResolvedValue([{ id: "class-1" }]);
+    getDocs.mockResolvedValueOnce({ docs: [{ id: "sub-1", data: () => ({ studentId: "student-1" }) }] });
+
+    const result = await listSubmissionsByStudents(["student-1", "student-2"]);
+
+    expect(getDocs).toHaveBeenCalledTimes(1);
+    expect(where).toHaveBeenCalledWith("classId", "==", "class-1");
+    expect(where).toHaveBeenCalledWith("studentId", "in", ["student-1", "student-2"]);
+    expect(result.map((item) => item.id)).toEqual(["sub-1"]);
   });
 });

@@ -1,15 +1,12 @@
 import { useState } from "react";
-import { Plus } from "lucide-react";
 import { AppShell } from "@/components/layouts/AppShell";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { LessonPlanList } from "@/features/lesson-plans/components/LessonPlanList";
 import { LessonPlanForm } from "@/features/lesson-plans/components/LessonPlanForm";
 import type { LessonPlanDoc } from "@/types/academic";
 
 export default function LessonPlansPage() {
-  const [formOpen, setFormOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(() => new URLSearchParams(window.location.search).get("create") === "lesson-plan");
   const [editingPlan, setEditingPlan] = useState<(LessonPlanDoc & { id: string }) | null>(null);
 
   function openCreate() {
@@ -27,16 +24,6 @@ export default function LessonPlansPage() {
 
   return (
     <AppShell>
-      <PageHeader
-        title="Giáo án"
-        description="Soạn giáo án theo mẫu chuyên nghiệp, gắn buổi học thật và theo dõi buổi học còn thiếu giáo án."
-        actions={(
-          <Button variant="primary" onClick={openCreate} icon={<Plus size={18} />}>
-            Soạn giáo án mới
-          </Button>
-        )}
-      />
-
       <LessonPlanList onEdit={openEdit} onCreateNew={openCreate} />
 
       <Modal

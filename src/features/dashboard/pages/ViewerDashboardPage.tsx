@@ -166,8 +166,6 @@ export default function ViewerDashboardPage() {
   return (
     <ViewerShell>
       <PageHeader
-        title="Tổng quan học tập"
-        description="Theo dõi tiến độ, chuyên cần và những việc cần chú ý của con."
         actions={(
           <Button
             icon={<RefreshCw size={16} className={dashboard.isFetching ? "animate-spin" : ""} />}
@@ -236,13 +234,13 @@ export default function ViewerDashboardPage() {
                 <div>
                   <p className="flex items-center gap-2 text-xs font-bold text-primary-100"><Trophy size={16} />Xếp hạng từ Teacher</p>
                   <div className="mt-2 flex items-end gap-3">
-                    <strong className="text-6xl font-black leading-none tracking-tighter">{overview.rank ?? "–"}</strong>
+                    <strong className="text-5xl font-black leading-none tracking-tighter">{overview.rank ?? "–"}</strong>
                     <span className="pb-1 text-sm font-semibold text-primary-100">
                       {overview.rank ? RANK_META[overview.rank].label : "Chưa đủ dữ liệu"}
                     </span>
                   </div>
                 </div>
-                <p className="max-w-[180px] text-right text-[11px] leading-5 text-primary-100 lg:text-left">
+                <p className="max-w-[180px] text-right text-2xs leading-5 text-primary-100 lg:text-left">
                   Theo điểm đã công bố: S ≥ {academicSettings.data?.rankThresholds.S ?? DEFAULT_RANK_THRESHOLDS.S} · A ≥ {academicSettings.data?.rankThresholds.A ?? DEFAULT_RANK_THRESHOLDS.A} · B ≥ {academicSettings.data?.rankThresholds.B ?? DEFAULT_RANK_THRESHOLDS.B} · D thấp hơn
                 </p>
               </div>

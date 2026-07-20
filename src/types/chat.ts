@@ -37,6 +37,8 @@ export interface MessageOutboxDoc {
   status: "sent" | "failed";
   /** Tag Meta Message Tag da dung khi gui (vd ACCOUNT_UPDATE), null neu gui kieu RESPONSE thuong. */
   messageTag: string | null;
+  /** Ma loi Meta khi status="failed" (Worker ghi, vd chua JSON co "code":190 khi token het han). */
+  error?: string | null;
   actorUid: string;
   createdAt: Timestamp | string;
 }

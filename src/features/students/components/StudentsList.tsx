@@ -245,26 +245,26 @@ export function StudentsList() {
                   <li key={student.id} className="px-4 py-3 transition hover:bg-neutral-50">
                     <div className="grid gap-3 xl:items-center" style={{ gridTemplateColumns: STUDENT_TABLE_COLUMNS }}>
                       <div>
-                        <p className="text-[11px] font-semibold text-neutral-900">{student.fullName}</p>
-                        <p className="mt-0.5 font-mono text-[11px] text-neutral-500">{student.studentCode}</p>
+                        <p className="text-2xs font-semibold text-neutral-900">{student.fullName}</p>
+                        <p className="mt-0.5 font-mono text-2xs text-neutral-500">{student.studentCode}</p>
                       </div>
 
                       <div className="flex justify-center">
-                        <span className={`inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${student.status === "active" ? "bg-success-50 text-success-700" : "bg-neutral-100 text-neutral-600"}`}>
+                        <span className={`inline-block rounded-full px-2.5 py-0.5 text-2xs font-semibold ${student.status === "active" ? "bg-success-50 text-success-700" : "bg-neutral-100 text-neutral-600"}`}>
                           {student.status === "active" ? "Đang học" : "Đã nghỉ"}
                         </span>
                       </div>
 
                       <div>
-                        <p className="font-mono text-[11px] font-semibold text-neutral-900">{primaryClassId || "--"}</p>
-                        <p className="mt-0.5 text-[11px] text-neutral-500">
+                        <p className="font-mono text-2xs font-semibold text-neutral-900">{primaryClassId || "--"}</p>
+                        <p className="mt-0.5 text-2xs text-neutral-500">
                           {primaryClass?.name ?? "Chưa có lớp"}
                         </p>
                       </div>
 
                       <div>
-                        <p className="text-[11px] font-semibold text-neutral-900">{primaryCourse?.name ?? "Chưa có khóa"}</p>
-                        <p className="mt-0.5 font-mono text-[11px] text-neutral-500">
+                        <p className="text-2xs font-semibold text-neutral-900">{primaryCourse?.name ?? "Chưa có khóa"}</p>
+                        <p className="mt-0.5 font-mono text-2xs text-neutral-500">
                           {primaryClass?.courseId ?? "--"}
                         </p>
                       </div>
@@ -281,7 +281,7 @@ export function StudentsList() {
                         <button
                           type="button"
                           onClick={() => setViewingStudent(student)}
-                          className="min-h-touch rounded-input border border-neutral-300 bg-white px-3 text-[11px] font-semibold text-neutral-700 transition hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 active:scale-[.98]"
+                          className="min-h-touch rounded-input border border-neutral-300 bg-white px-3 text-2xs font-semibold text-neutral-700 transition hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 active:scale-[.98]"
                         >
                           Thông tin
                         </button>
@@ -384,15 +384,15 @@ function ProgressCell({ progress }: { progress: ReturnType<typeof getLearningPro
   return (
     <div>
       <div className="mb-2 flex items-center justify-between gap-2">
-        <span className="text-[11px] font-semibold text-neutral-500">Ngày bắt đầu</span>
-        <span className="text-[11px] font-semibold text-neutral-900">{progress.startDate}</span>
+        <span className="text-2xs font-semibold text-neutral-500">Ngày bắt đầu</span>
+        <span className="text-2xs font-semibold text-neutral-900">{progress.startDate}</span>
       </div>
       <div className="h-2.5 overflow-hidden rounded-full bg-neutral-100">
         <div className={`h-full rounded-full transition-all duration-500 ${fillClass}`} style={{ width: `${progress.percent}%` }} />
       </div>
       <div className="mt-2 flex items-center justify-between gap-2">
-        <span className={`text-[11px] font-semibold ${textClass}`}>{progress.percent}%</span>
-        <span className="text-[11px] text-neutral-500">{progress.remaining} buổi còn lại</span>
+        <span className={`text-2xs font-semibold ${textClass}`}>{progress.percent}%</span>
+        <span className="text-2xs text-neutral-500">{progress.remaining} buổi còn lại</span>
       </div>
     </div>
   );
@@ -432,12 +432,12 @@ function ScoreRing({
         }}
       >
         <div className="grid size-6 place-items-center rounded-full bg-white">
-          <span className={`text-[11px] font-bold ${palette.text}`}>{grade ?? (value === null ? "--" : value)}</span>
+          <span className={`text-2xs font-bold ${palette.text}`}>{grade ?? (value === null ? "--" : value)}</span>
         </div>
       </div>
       <div className="min-w-0">
-        <p className="truncate text-[11px] font-semibold leading-4 text-neutral-700">{label}</p>
-        <p className="truncate text-[11px] leading-3 text-neutral-500">{total ? `${total} lần` : "Chưa có"}</p>
+        <p className="truncate text-2xs font-semibold leading-4 text-neutral-700">{label}</p>
+        <p className="truncate text-2xs leading-3 text-neutral-500">{total ? `${total} lần` : "Chưa có"}</p>
       </div>
     </div>
   );

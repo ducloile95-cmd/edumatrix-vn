@@ -106,7 +106,7 @@ export default function LoginPage() {
           <Logo className="mx-auto h-20 w-auto" />
 
           <form onSubmit={onSubmit} className="mx-auto mt-4 flex w-full max-w-sm flex-1 flex-col justify-center">
-            <h1 className="text-center text-[26px] font-bold text-primary-900">{title}</h1>
+            <h1 className="text-center text-2xl font-bold text-primary-900">{title}</h1>
             <p className="mt-1.5 mb-6 text-center text-sm text-neutral-500">{subtitle}</p>
 
             <label className={labelCls} htmlFor="email">Email</label>
@@ -195,7 +195,7 @@ export default function LoginPage() {
             )}
           </form>
 
-          <div className="mt-6 flex items-center justify-between border-t border-neutral-100 pt-4 text-[11px] text-neutral-500">
+          <div className="mt-6 flex items-center justify-between border-t border-neutral-100 pt-4 text-2xs text-neutral-500">
             <span>© 2026 EduMatrix VN</span>
             <a href="#" className="hover:text-neutral-700">Chính sách bảo mật</a>
           </div>
@@ -208,7 +208,7 @@ export default function LoginPage() {
             <span className="h-2 w-2 rounded-full bg-accent-500" />EduMatrix VN
           </span>
           <div className="relative z-10">
-            <h2 className="text-[26px] font-bold leading-snug text-white">Quản lý lớp học, điểm danh và học phí — một nơi duy nhất.</h2>
+            <h2 className="text-2xl font-bold leading-snug text-white">Quản lý lớp học, điểm danh và học phí — một nơi duy nhất.</h2>
             <p className="mt-3 max-w-md text-sm leading-relaxed text-white/80">Đăng nhập để vào bảng điều khiển giáo viên hoặc cổng phụ huynh.</p>
           </div>
         </div>
@@ -230,7 +230,7 @@ export default function LoginPage() {
               <span className="flex h-10 w-10 items-center justify-center rounded-input bg-accent-50 text-accent-700"><Users size={20} /></span>
               <span><span className="block text-sm font-semibold text-neutral-900">Phụ huynh / Học sinh</span><span className="block text-xs text-neutral-500">Xem lịch, bài tập, điểm, học phí</span></span>
             </button>
-            <p className="mt-4 text-[11px] text-neutral-500">EduMatrix VN — 2026</p>
+            <p className="mt-4 text-2xs text-neutral-500">EduMatrix VN — 2026</p>
           </div>
         </div>
       )}

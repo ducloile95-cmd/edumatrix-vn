@@ -7,7 +7,6 @@ import {
   LogOut,
   MoreHorizontal,
   Search,
-  SlidersHorizontal,
   X,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
@@ -64,7 +63,7 @@ function Leaf({
 }) {
   const pad = variant === "child" ? "pl-5 pr-2" : "px-2.5";
   const iconSize = variant === "child" ? 13 : 16;
-  const textSize = variant === "child" ? "text-[11.75px]" : "text-[12.5px]";
+  const textSize = variant === "child" ? "text-2xs" : "text-xs";
   const rowHeight = variant === "child" ? "h-[30px]" : "h-8";
   const inactiveColor =
     variant === "child"
@@ -84,7 +83,7 @@ function Leaf({
       >
         <item.icon size={iconSize} className="shrink-0" aria-hidden="true" />
         {label}
-        {!collapsed && <span className="rounded-full bg-neutral-200/80 px-1.5 py-0.5 text-[10px] font-semibold text-neutral-500">Sắp có</span>}
+        {!collapsed && <span className="rounded-full bg-neutral-200/80 px-1.5 py-0.5 text-3xs font-semibold text-neutral-500">Sắp có</span>}
       </span>
     );
   }
@@ -130,7 +129,7 @@ function Group({
         onClick={onToggle}
         aria-expanded={open}
         title={collapsed ? group.label : undefined}
-        className={`flex h-8 w-full items-center gap-2 rounded-input px-2.5 text-[12.5px] font-semibold transition-colors ${
+        className={`flex h-8 w-full items-center gap-2 rounded-input px-2.5 text-xs font-semibold transition-colors ${
           hasActive ? "bg-primary-50 text-primary-800" : "text-primary-700 hover:bg-primary-50 hover:text-primary-800"
         }`}
         style={{ transitionDuration: "var(--motion-duration)" }}
@@ -166,16 +165,16 @@ function Group({
             {group.children.map((child) => (
               <li key={child.label}>
                 {child.disabled ? (
-                  <span className="flex items-center gap-2 rounded-input px-2 py-1.5 text-[12px] text-neutral-400">
+                  <span className="flex items-center gap-2 rounded-input px-2 py-1.5 text-xs text-neutral-400">
                     {child.label}
-                    <span className="rounded-full bg-neutral-200/80 px-1.5 text-[10px] font-semibold">Sắp có</span>
+                    <span className="rounded-full bg-neutral-200/80 px-1.5 text-3xs font-semibold">Sắp có</span>
                   </span>
                 ) : (
                   <NavLink
                     to={child.to}
                     onClick={onClose}
                     className={({ isActive }) =>
-                      `block rounded-input px-2 py-1.5 text-[12px] ${
+                      `block rounded-input px-2 py-1.5 text-xs ${
                         isActive ? "bg-primary-50 font-medium text-primary-700" : "text-neutral-700 hover:bg-neutral-100 hover:text-primary-700"
                       }`
                     }
@@ -267,8 +266,6 @@ export function Sidebar({ collapsed, mobileOpen, onClose, onToggle }: SidebarPro
               placeholder="Tìm kiếm..."
               className="min-w-0 flex-1 bg-transparent text-xs font-medium text-neutral-800 outline-none placeholder:text-neutral-400 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
             />
-            <span className="rounded-md bg-neutral-200/80 px-1.5 py-0.5 text-[10px] font-semibold text-neutral-500">F</span>
-            <SlidersHorizontal size={15} className="shrink-0 rounded-md bg-neutral-200/70 p-0.5 text-neutral-500" />
           </label>
         </div>
 
@@ -289,7 +286,7 @@ export function Sidebar({ collapsed, mobileOpen, onClose, onToggle }: SidebarPro
         <div ref={accountRef} className="relative p-3">
           {accountOpen && (
             <div className="absolute inset-x-3 bottom-full mb-2 rounded-card border border-neutral-200 bg-white p-2 shadow-[var(--shadow-3)]">
-              <button type="button" onClick={() => signOut(auth)} className="flex h-9 w-full items-center gap-2 rounded-input px-2.5 text-[13px] font-medium text-danger-700 transition hover:bg-danger-50">
+              <button type="button" onClick={() => signOut(auth)} className="flex h-9 w-full items-center gap-2 rounded-input px-2.5 text-sm font-medium text-danger-700 transition hover:bg-danger-50">
                 <LogOut size={16} />
                 Đăng xuất
               </button>
@@ -306,8 +303,8 @@ export function Sidebar({ collapsed, mobileOpen, onClose, onToggle }: SidebarPro
               {userDoc?.displayName?.trim().charAt(0).toUpperCase() || "E"}
             </span>
             <span className={`min-w-0 flex-1 transition-opacity ${collapsed ? "lg:pointer-events-none lg:opacity-0" : "opacity-100"}`}>
-              <span className="block truncate text-[13px] font-semibold text-neutral-900">{userDoc?.displayName ?? "Tài khoản"}</span>
-              <span className="block truncate text-[11px] text-neutral-500">{userDoc ? ROLE_LABELS[userDoc.role] : ""}</span>
+              <span className="block truncate text-sm font-semibold text-neutral-900">{userDoc?.displayName ?? "Tài khoản"}</span>
+              <span className="block truncate text-2xs text-neutral-500">{userDoc ? ROLE_LABELS[userDoc.role] : ""}</span>
             </span>
             {accountOpen ? <ChevronUp size={15} className={`shrink-0 text-neutral-400 ${collapsed ? "lg:hidden" : ""}`} /> : <MoreHorizontal size={16} className={`shrink-0 text-neutral-400 ${collapsed ? "lg:hidden" : ""}`} />}
           </button>

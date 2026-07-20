@@ -132,27 +132,26 @@ export async function listSubmissionsByStudents(studentIds: string[], pageSize =
   if (uniqueIds.length === 0) return [];
 
   const currentUser = await getCurrentUserDoc();
-  if (isTeacherUser(currentUser)) {
-    const studentSet = new Set(uniqueIds);
-    const classes = await listClasses();
-    const groups = await Promise.all(
-      classes.map(async (klass) => {
-        const snap = await getDocs(
-          query(collection(db, COLLECTIONS.SUBMISSIONS), where("classId", "==", klass.id), limit(pageSize)),
-        );
-        return snap.docs
-          .map((item) => ({ id: item.id, ...(item.data() as SubmissionDoc) }))
-          .filter((item) => studentSet.has(item.studentId));
-      }),
-    );
-    return groups.flat();
-  }
-
   const chunks = uniqueIds.reduce<string[][]>((acc, studentId, index) => {
     if (index % 30 === 0) acc.push([]);
     acc[acc.length - 1].push(studentId);
     return acc;
   }, []);
+
+  if (isTeacherUser(currentUser)) {
+    // Giu classId == de Rules chung minh duoc canManageClass (1 get/lop);
+    // them studentId in de loc tai server thay vi tai ve toan bo bai nop cua lop.
+    const classes = await listClasses();
+    const groups = await Promise.all(
+      classes.flatMap((klass) => chunks.map(async (chunk) => {
+        const snap = await getDocs(
+          query(collection(db, COLLECTIONS.SUBMISSIONS), where("classId", "==", klass.id), where("studentId", "in", chunk), limit(pageSize)),
+        );
+        return snap.docs.map((item) => ({ id: item.id, ...(item.data() as SubmissionDoc) }));
+      })),
+    );
+    return groups.flat();
+  }
 
   const groups = await Promise.all(
     chunks.map(async (chunk) => {

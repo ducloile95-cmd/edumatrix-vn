@@ -5,7 +5,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { doc, getDoc, serverTimestamp, setDoc, Timestamp, updateDoc, writeBatch } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, Timestamp, updateDoc, where, writeBatch } from "firebase/firestore";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -85,6 +85,18 @@ beforeEach(async () => {
     await setDoc(doc(db, "sessions", "session-owned"), {
       classId: "class-owned",
       title: "Session",
+      startAt: Timestamp.now(),
+      endAt: Timestamp.now(),
+      location: "",
+      status: "scheduled",
+      note: "",
+      makeUpForSessionId: null,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    await setDoc(doc(db, "sessions", "session-other"), {
+      classId: "class-other",
+      title: "Other session",
       startAt: Timestamp.now(),
       endAt: Timestamp.now(),
       location: "",
@@ -248,6 +260,69 @@ describe("teacher scope by assigned class", () => {
         updatedAt: Timestamp.now(),
       }),
     );
+  });
+
+  test("teacher saves classroom drafts only for assigned sessions", async () => {
+    const ownedDb = asTeacher(assignedTeacher);
+    await assertSucceeds(getDoc(doc(ownedDb, "session_interactions", "session-owned")));
+    await assertSucceeds(setDoc(doc(ownedDb, "session_interactions", "session-owned"), {
+      sessionId: "session-owned",
+      classId: "class-owned",
+      courseId: "course-1",
+      teacherId: assignedTeacher,
+      workflowStatus: "draft",
+      taughtContent: "Lesson content",
+      quickSummary: "Class summary",
+      homeworkText: "Homework",
+      version: 1,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    }));
+
+    const otherDb = asTeacher(assignedTeacher);
+    await assertFails(setDoc(doc(otherDb, "session_interactions", "session-other"), {
+      sessionId: "session-other",
+      classId: "class-other",
+      courseId: "course-1",
+      teacherId: assignedTeacher,
+      workflowStatus: "draft",
+      taughtContent: "No access",
+      quickSummary: "",
+      homeworkText: "",
+      version: 1,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    }));
+  });
+
+  test("teacher saves student reviews only for roster students in assigned classes", async () => {
+    const teacherDb = asTeacher(assignedTeacher);
+    await assertSucceeds(setDoc(doc(teacherDb, "session_student_reviews", "session-owned_student-1"), {
+      sessionId: "session-owned",
+      classId: "class-owned",
+      studentId: "student-1",
+      attendanceStatus: "present",
+      previousHomeworkStatus: "done",
+      individualComment: "Good",
+      updatedBy: assignedTeacher,
+      updatedAt: Timestamp.now(),
+    }));
+    await assertSucceeds(getDocs(query(
+      collection(teacherDb, "session_student_reviews"),
+      where("classId", "==", "class-owned"),
+      where("sessionId", "==", "session-owned"),
+    )));
+
+    await assertFails(setDoc(doc(teacherDb, "session_student_reviews", "session-owned_student-2"), {
+      sessionId: "session-owned",
+      classId: "class-owned",
+      studentId: "student-2",
+      attendanceStatus: "present",
+      previousHomeworkStatus: "done",
+      individualComment: "Wrong roster",
+      updatedBy: assignedTeacher,
+      updatedAt: Timestamp.now(),
+    }));
   });
 
   test("teacher grades submissions only for assigned classes", async () => {

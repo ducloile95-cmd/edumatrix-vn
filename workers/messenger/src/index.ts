@@ -22,7 +22,7 @@ interface ThreadContext {
   assignedTeacherIds: string[];
 }
 export interface SendBody { recipientPsid?: string; text: string; type?: string; studentId?: string; tag?: string }
-interface PostBody { message: string; link?: string }
+export interface PostBody { message: string; link?: string; imageUrls?: string[] }
 export interface InboundMessage { psid: string; pageId: string; text: string; messageId: string; timestamp: number }
 
 export function corsHeaders(env: Env) {
@@ -335,13 +335,26 @@ async function writeChatEvent(input: { context: ThreadContext; parentUid: string
   }, serviceToken, env);
 }
 
+/** Ma loi Meta doc duoc: object -> JSON (giu "code":190... de client chan doan token), con lai -> chuoi. */
+export function metaErrorCode(data: Record<string, unknown>, status: number): string {
+  if (data.error && typeof data.error === "object") return JSON.stringify(data.error).slice(0, 200);
+  return String(data.error ?? status);
+}
+
 async function sendGraph(body: SendBody, env: Env): Promise<{ message_id?: string; recipient_id?: string }> {
   const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/me/messages?access_token=${encodeURIComponent(env.META_PAGE_ACCESS_TOKEN)}`;
   const request = () => fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(buildMessengerPayload(body)) });
   let response = await request();
-  if (response.status >= 500) response = await request();
+  if (response.status >= 500 || response.status === 429) {
+    // 429: doi theo Retry-After (chan tren 5s) roi thu lai dung 1 lan; 5xx: thu lai ngay.
+    if (response.status === 429) {
+      const retryAfterSeconds = Math.min(Number(response.headers.get("retry-after")) || 2, 5);
+      await new Promise((resolve) => setTimeout(resolve, retryAfterSeconds * 1000));
+    }
+    response = await request();
+  }
   const data = await response.json<Record<string, unknown>>();
-  if (!response.ok) throw new Error(`meta_${String(data.error ?? response.status)}`);
+  if (!response.ok) throw new Error(`meta_${metaErrorCode(data, response.status)}`);
   return data;
 }
 
@@ -377,13 +390,37 @@ async function handleSend(request: Request, env: Env): Promise<Response> {
   return new Response(JSON.stringify({ id: results[0].id, status: sent ? "sent" : "failed", sent, total: results.length, results, error: sent ? undefined : results[0].error }), { status: sent ? 200 : 502, headers: corsHeaders(env) });
 }
 
-async function postGraph(body: PostBody, env: Env): Promise<{ id?: string }> {
-  const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/me/feed?access_token=${encodeURIComponent(env.META_PAGE_ACCESS_TOKEN)}`;
-  const payload: Record<string, string> = { message: body.message };
-  if (body.link) payload.link = body.link;
-  const response = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
+export function validPostImages(value: unknown): boolean {
+  if (value == null) return true;
+  return Array.isArray(value) && value.length <= 4 && value.every((url) => typeof url === "string" && /^https?:\/\//i.test(url));
+}
+
+/** Graph API tu choi khi gui ca `link` va `attached_media` trong cung mot bai -> khi co anh, noi link vao cuoi message (van bam duoc). */
+export function buildFeedPayload(body: PostBody, photoIds: string[]): Record<string, unknown> {
+  const payload: Record<string, unknown> = { message: body.message };
+  if (photoIds.length) {
+    payload.attached_media = photoIds.map((photoId) => ({ media_fbid: photoId }));
+    if (body.link) payload.message = `${body.message}\n${body.link}`;
+  } else if (body.link) {
+    payload.link = body.link;
+  }
+  return payload;
+}
+
+async function uploadPhoto(imageUrl: string, env: Env): Promise<string> {
+  const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/me/photos?access_token=${encodeURIComponent(env.META_PAGE_ACCESS_TOKEN)}`;
+  const response = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url: imageUrl, published: false }) });
   const data = await response.json<Record<string, unknown>>();
-  if (!response.ok) throw new Error(`meta_${String(data.error ?? response.status)}`);
+  if (!response.ok || typeof data.id !== "string") throw new Error(`meta_photo_${metaErrorCode(data, response.status)}`);
+  return data.id;
+}
+
+async function postGraph(body: PostBody, env: Env): Promise<{ id?: string }> {
+  const photoIds = await Promise.all((body.imageUrls ?? []).map((imageUrl) => uploadPhoto(imageUrl, env)));
+  const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/me/feed?access_token=${encodeURIComponent(env.META_PAGE_ACCESS_TOKEN)}`;
+  const response = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(buildFeedPayload(body, photoIds)) });
+  const data = await response.json<Record<string, unknown>>();
+  if (!response.ok) throw new Error(`meta_${metaErrorCode(data, response.status)}`);
   return data;
 }
 
@@ -395,6 +432,7 @@ async function handlePost(request: Request, env: Env): Promise<Response> {
   if (profile.role !== "admin") return new Response(JSON.stringify({ error: "admin_required" }), { status: 403, headers: corsHeaders(env) });
   const body = await request.json<PostBody>();
   if (!body.message?.trim() || body.message.length > 5000) return new Response(JSON.stringify({ error: "invalid_post" }), { status: 400, headers: corsHeaders(env) });
+  if (!validPostImages(body.imageUrls)) return new Response(JSON.stringify({ error: "invalid_post_images" }), { status: 400, headers: corsHeaders(env) });
   const serviceToken = await serviceAccessToken(env);
   const id = crypto.randomUUID();
   try {

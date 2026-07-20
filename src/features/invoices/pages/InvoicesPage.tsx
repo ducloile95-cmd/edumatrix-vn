@@ -17,6 +17,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { StatCard } from "@/components/ui/StatCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { Tab, Tabs } from "@/components/ui/Tabs";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { createInvoice, listInvoices, listPayments, reconcilePayment } from "@/services/firestore/invoices";
 import { getPaymentSettings } from "@/services/firestore/settings";
@@ -27,24 +28,9 @@ import { formatVnd } from "@/utils/currency";
 import type { InvoiceStatus } from "@/types/academic";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { USER_ROLES } from "@/constants/roles";
+import { INVOICE_STATUS_LABEL, INVOICE_STATUS_TONE } from "@/features/invoices/constants";
 
 type FinanceTab = "overview" | "invoices" | "reconcile";
-
-const INVOICE_STATUS_TONE: Record<InvoiceStatus, "success" | "warning" | "danger" | "info" | "neutral"> = {
-  paid: "success",
-  pending: "info",
-  unpaid: "neutral",
-  overdue: "danger",
-  rejected: "warning",
-};
-
-const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = {
-  paid: "Đã thanh toán",
-  pending: "Chờ xác nhận",
-  unpaid: "Chưa thanh toán",
-  overdue: "Quá hạn",
-  rejected: "Từ chối",
-};
 
 const STATUS_FILTER_OPTIONS: { value: InvoiceStatus | "all"; label: string }[] = [
   { value: "all", label: "Tất cả trạng thái" },
@@ -210,24 +196,20 @@ export default function InvoicesPage() {
         actions={isAdmin ? <Button variant="primary" icon={<Plus size={17} />} onClick={() => setCreateOpen(true)}>Tạo hóa đơn</Button> : undefined}
       />
 
-      <div className="mb-5 flex gap-1 overflow-x-auto border-b border-neutral-200" role="tablist" aria-label="Điều hướng tài chính">
+      <Tabs label="Điều hướng tài chính" className="mb-5">
         {TABS.filter((tab) => isAdmin || tab.value !== "reconcile").map((tab) => (
-          <button
+          <Tab
             key={tab.value}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === tab.value}
+            active={activeTab === tab.value}
             onClick={() => setActiveTab(tab.value)}
-            className={`relative min-h-touch shrink-0 px-4 text-sm font-semibold transition ${activeTab === tab.value ? "text-primary-700" : "text-neutral-500 hover:text-neutral-800"}`}
           >
             {tab.label}
             {tab.value === "reconcile" && financeSummary.pendingCount > 0 && (
-              <span className="ml-2 rounded-full bg-danger-50 px-2 py-0.5 text-[11px] font-bold text-danger-700">{financeSummary.pendingCount}</span>
+              <span className="ml-2 rounded-full bg-danger-50 px-2 py-0.5 text-2xs font-bold text-danger-700">{financeSummary.pendingCount}</span>
             )}
-            {activeTab === tab.value && <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-primary-500" />}
-          </button>
+          </Tab>
         ))}
-      </div>
+      </Tabs>
 
       {activeTab === "overview" && (
         <div className="motion-content-enter space-y-4">
@@ -304,7 +286,7 @@ export default function InvoicesPage() {
             {!isLoading && filteredInvoices.length > 0 && (
               <table className="w-full min-w-[880px] border-collapse text-sm">
                 <thead className="sticky top-0 z-10 bg-neutral-50">
-                  <tr className="border-b border-neutral-200 text-left text-[11px] font-bold uppercase tracking-[0.08em] text-neutral-500">
+                  <tr className="border-b border-neutral-200 text-left text-2xs font-bold uppercase tracking-[0.08em] text-neutral-500">
                     <th className="px-5 py-3">Hóa đơn</th><th className="px-4 py-3">Học sinh</th><th className="px-4 py-3">Hạn thanh toán</th><th className="px-4 py-3 text-right">Số tiền</th><th className="px-5 py-3 text-right">Trạng thái</th>
                   </tr>
                 </thead>

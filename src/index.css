@@ -25,7 +25,7 @@
     scroll-behavior: smooth;
   }
   body {
-    @apply bg-neutral-50 font-sans antialiased;
+    @apply bg-neutral-50 font-sans text-sm antialiased;
     min-width: 320px;
     background: var(--grad-page);
     background-attachment: fixed;
@@ -60,7 +60,7 @@
   .modal-panel[data-state="closed"] { animation: modal-out var(--motion-fast) var(--ease-exit) both; }
   .toast-lifecycle { animation: toast-lifecycle 3s var(--ease-enter) both; }
   .skeleton-shimmer { position: relative; overflow: hidden; background: linear-gradient(90deg, theme(colors.neutral.200) 25%, theme(colors.neutral.100) 50%, theme(colors.neutral.200) 75%); background-size: 220% 100%; animation: skeleton-shimmer 1.25s linear infinite; }
-  .edumatrix-chart .recharts-cartesian-axis-tick-value { @apply fill-neutral-500 text-[10px]; }
+  .edumatrix-chart .recharts-cartesian-axis-tick-value { @apply fill-neutral-500 text-3xs; }
   .edumatrix-chart .recharts-legend-item-text { @apply text-xs text-neutral-600; }
   .edumatrix-chart .recharts-surface { overflow: visible; }
   .edumatrix-chart :is(.recharts-bar-rectangle, .recharts-line-curve, .recharts-area-area) { transition: opacity var(--motion-standard) var(--ease-standard), filter var(--motion-fast) var(--ease-standard); }

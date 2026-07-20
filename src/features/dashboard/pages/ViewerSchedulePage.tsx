@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { addDays, addWeeks, endOfDay, endOfWeek, format, startOfDay, startOfWeek, subDays } from "date-fns";
 import { ViewerShell } from "@/components/layouts/ViewerShell";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { getStudent } from "@/services/firestore/students";
@@ -112,7 +111,6 @@ export default function ViewerSchedulePage() {
 
   return (
     <ViewerShell>
-      <PageHeader title="Lịch học" description="Các buổi học sắp tới của con bạn." />
 
       {students.length > 1 && (
         <div className="mb-3 flex flex-wrap gap-2">

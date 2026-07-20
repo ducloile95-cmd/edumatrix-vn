@@ -67,7 +67,7 @@ export function ImageUrlInput({ value, onChange, disabled }: ImageUrlInputProps)
           {value.map((url, index) => (
             <div key={`${index}-${url}`} className="relative aspect-square overflow-hidden rounded-input border border-neutral-200 bg-neutral-100">
               {broken.has(index) ? (
-                <div className="flex h-full items-center justify-center px-1 text-center text-[9px] font-semibold leading-tight text-danger-700">Ảnh lỗi</div>
+                <div className="flex h-full items-center justify-center px-1 text-center text-4xs font-semibold leading-tight text-danger-700">Ảnh lỗi</div>
               ) : (
                 <img
                   src={url}
@@ -88,7 +88,7 @@ export function ImageUrlInput({ value, onChange, disabled }: ImageUrlInputProps)
           ))}
         </div>
       )}
-      <p className="mt-2 text-[11px] leading-5 text-neutral-500">
+      <p className="mt-2 text-2xs leading-5 text-neutral-500">
         Dán đường dẫn ảnh đã có sẵn công khai trên Internet (ảnh trên website trường, Google Drive đã bật chia sẻ công khai, ảnh từ bài đăng cũ...).
         Facebook tự tải ảnh từ đường dẫn này khi đăng — hệ thống không lưu file, chỉ lưu đường dẫn.
       </p>

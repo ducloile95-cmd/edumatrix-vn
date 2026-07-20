@@ -124,7 +124,7 @@ export default function ClassDetailPage() {
 function HeroItem({ label, value, tabular }: { label: string; value: string; tabular?: boolean }) {
   return (
     <div>
-      <p className="text-[11px] font-bold uppercase tracking-wide text-neutral-400">{label}</p>
+      <p className="text-2xs font-bold uppercase tracking-wide text-neutral-400">{label}</p>
       <p className={`mt-1 text-sm font-semibold text-neutral-900 ${tabular ? "tabular-nums" : ""}`}>{value}</p>
     </div>
   );

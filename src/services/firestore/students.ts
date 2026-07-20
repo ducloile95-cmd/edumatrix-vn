@@ -13,9 +13,9 @@ import {
   where,
   writeBatch,
 } from "firebase/firestore";
-import { auth } from "@/services/firebase/authClient";
 import { db } from "@/services/firebase/firestoreClient";
 import { COLLECTIONS } from "@/constants/collections";
+import { getCurrentUserDoc } from "@/services/firestore/authz";
 import { normalizeEmail } from "@/utils/email";
 import type { StudentDoc, StudentStatus } from "@/types/academic";
 import type { UserDoc } from "@/types/user";
@@ -72,19 +72,15 @@ export async function setStudentStatus(studentDocId: string, status: StudentStat
 
 /** Danh sach hoc sinh (<50 theo quy mo du an) - khong can pagination that su (A14). */
 export async function listStudents(): Promise<(StudentDoc & { id: string })[]> {
-  const currentUser = auth.currentUser;
+  const currentUser = await getCurrentUserDoc();
   let q = query(collection(db, COLLECTIONS.STUDENTS), orderBy("fullName"), limit(200));
 
-  if (currentUser) {
-    const userSnap = await getDoc(doc(db, COLLECTIONS.USERS, currentUser.uid));
-    const user = userSnap.exists() ? (userSnap.data() as UserDoc) : null;
-    if (user?.role === "teacher") {
-      q = query(
-        collection(db, COLLECTIONS.STUDENTS),
-        where("teacherIds", "array-contains", currentUser.uid),
-        limit(200),
-      );
-    }
+  if (currentUser?.role === "teacher") {
+    q = query(
+      collection(db, COLLECTIONS.STUDENTS),
+      where("teacherIds", "array-contains", currentUser.uid),
+      limit(200),
+    );
   }
 
   const snap = await getDocs(q);

@@ -45,17 +45,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     let unsubscribe: (() => void) | undefined;
 
-    Promise.all([import("firebase/firestore"), import("@/services/firebase/firestoreClient")])
-      .then(([{ doc, onSnapshot }, { db }]) => {
+    Promise.all([import("firebase/firestore"), import("@/services/firebase/firestoreClient"), import("@/services/firestore/authz")])
+      .then(([{ doc, onSnapshot }, { db }, { setCachedUserDoc }]) => {
         if (cancelled) return;
         unsubscribe = onSnapshot(
           doc(db, COLLECTIONS.USERS, firebaseUser.uid),
           (snapshot) => {
-            setUserDoc(snapshot.exists() ? (snapshot.data() as UserDoc) : null);
+            const data = snapshot.exists() ? (snapshot.data() as UserDoc) : null;
+            setUserDoc(data);
+            setCachedUserDoc(data ? { uid: firebaseUser.uid, ...data } : null);
             setProfileResolved(true);
           },
           () => {
             setUserDoc(null);
+            setCachedUserDoc(null);
             setProfileResolved(true);
           },
         );

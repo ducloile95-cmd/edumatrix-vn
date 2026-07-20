@@ -1,6 +1,5 @@
 import { useQueries } from "@tanstack/react-query";
 import { ViewerShell } from "@/components/layouts/ViewerShell";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
@@ -21,7 +20,6 @@ export default function ViewerAnnouncementsPage() {
 
   return (
     <ViewerShell>
-      <PageHeader title="Thông báo" description="Thông tin mới nhất từ giáo viên và nhà trường." />
       {isLoading && <LoadingSkeleton rows={3} />}
       {!isLoading && firstError && (
         <ErrorState

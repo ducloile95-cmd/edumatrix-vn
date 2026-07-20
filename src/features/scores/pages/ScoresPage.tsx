@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/layouts/AppShell";
+import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/feedback/EmptyState";
+import { ErrorState } from "@/components/feedback/ErrorState";
+import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { listClasses, getClass } from "@/services/firestore/classes";
 import { listStudents } from "@/services/firestore/students";
@@ -64,6 +68,18 @@ export default function ScoresPage({ embedded = false }: { embedded?: boolean })
           if (!save.isPending) save.mutate();
         }}
       >
+        {classId && (klass.isLoading || students.isLoading) && <div className="mt-4"><LoadingSkeleton rows={4} /></div>}
+        {classId && (klass.isError || students.isError) && (
+          <div className="mt-4">
+            <ErrorState
+              message="Không thể tải danh sách học sinh. Vui lòng kiểm tra kết nối và thử lại."
+              onRetry={() => { klass.refetch(); students.refetch(); }}
+            />
+          </div>
+        )}
+        {classId && !klass.isLoading && !students.isLoading && !klass.isError && !students.isError && classStudents.length === 0 && (
+          <div className="mt-4"><EmptyState title="Lớp chưa có học sinh" description="Thêm học sinh vào lớp trước khi nhập điểm." /></div>
+        )}
         <ul className="mt-4 divide-y">
           {classStudents.map((student) => (
             <li key={student.id} className="grid gap-2 py-3 md:grid-cols-[1fr_120px_1fr]">
@@ -89,9 +105,9 @@ export default function ScoresPage({ embedded = false }: { embedded?: boolean })
         </ul>
 
         {classStudents.length > 0 && (
-          <button type="submit" disabled={save.isPending} className="mt-3 min-h-touch rounded-input bg-primary-500 px-5 text-white disabled:opacity-50">
+          <Button type="submit" variant="primary" disabled={save.isPending} className="mt-3">
             {save.isPending ? "Đang lưu..." : "Lưu điểm cả lớp"}
-          </button>
+          </Button>
         )}
         {save.isError && (
           <p role="alert" className="mt-2 text-sm text-danger-700">

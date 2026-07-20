@@ -109,7 +109,7 @@ export function DriveLessonPlanAttachment({ plan }: { plan: LessonPlanDoc & { id
             <p className="mt-1 text-xs leading-5 text-neutral-500">Token chỉ tồn tại trong bộ nhớ của tab; liên kết Drive không xuất hiện ở trang phụ huynh.</p>
           </div>
         </div>
-        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${connected ? "bg-success-50 text-success-700" : "bg-neutral-100 text-neutral-600"}`}><ShieldCheck size={13} />{connected ? "Đã kết nối" : "Chưa kết nối"}</span>
+        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-2xs font-bold ${connected ? "bg-success-50 text-success-700" : "bg-neutral-100 text-neutral-600"}`}><ShieldCheck size={13} />{connected ? "Đã kết nối" : "Chưa kết nối"}</span>
       </div>
 
       {!configured && <p role="alert" className="mt-4 rounded-input border border-warning-100 bg-warning-50 px-3 py-2 text-xs leading-5 text-warning-800">Thiếu VITE_GOOGLE_CLIENT_ID, VITE_GOOGLE_PICKER_API_KEY hoặc VITE_GOOGLE_PICKER_APP_ID.</p>}

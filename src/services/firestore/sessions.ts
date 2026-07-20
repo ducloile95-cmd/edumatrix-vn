@@ -69,6 +69,11 @@ export async function listSessions(from: Date, to: Date): Promise<(SessionDoc & 
   const snapshot = await getDocs(q);
   return snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as SessionDoc) }));
 }
+
+export async function getSession(sessionId: string): Promise<(SessionDoc & { id: string }) | null> {
+  const snapshot = await getDoc(doc(db, COLLECTIONS.SESSIONS, sessionId));
+  return snapshot.exists() ? { id: snapshot.id, ...(snapshot.data() as SessionDoc) } : null;
+}
 export async function listSessionsByClass(classId:string,from:Date,to:Date,pageSize=100):Promise<(SessionDoc&{id:string})[]>{const q=query(collection(db,COLLECTIONS.SESSIONS),where("classId","==",classId),where("startAt",">=",Timestamp.fromDate(from)),where("startAt","<=",Timestamp.fromDate(to)),orderBy("startAt"),limit(pageSize));const snap=await getDocs(q);return snap.docs.map(i=>({id:i.id,...(i.data()as SessionDoc)}));}
 
 export async function updateSession(

@@ -223,7 +223,7 @@ export function AttendanceMarkPanel({ presetSessionId }: AttendanceMarkPanelProp
             </div>
           </div>
 
-          <div className="hidden grid-cols-[minmax(190px,1.15fr)_minmax(300px,1.5fr)_minmax(170px,.8fr)_minmax(180px,1fr)] gap-4 border-b border-neutral-100 bg-neutral-50 px-5 py-2.5 text-[11px] font-bold uppercase tracking-[0.1em] text-neutral-500 lg:grid">
+          <div className="hidden grid-cols-[minmax(190px,1.15fr)_minmax(300px,1.5fr)_minmax(170px,.8fr)_minmax(180px,1fr)] gap-4 border-b border-neutral-100 bg-neutral-50 px-5 py-2.5 text-2xs font-bold uppercase tracking-[0.1em] text-neutral-500 lg:grid">
             <span>Học sinh</span><span>Tình trạng điểm danh</span><span>Đánh giá chuyên cần</span><span>Ghi chú</span>
           </div>
 
@@ -240,14 +240,14 @@ export function AttendanceMarkPanel({ presetSessionId }: AttendanceMarkPanelProp
                     <div className="min-w-0">
                       <p className="truncate text-sm font-bold text-neutral-900">{student.fullName}</p>
                       <p className="mt-0.5 text-xs text-neutral-500">{student.studentCode} · {formatBirthDate(student.dateOfBirth)}</p>
-                      <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${student.status === "active" ? "bg-success-50 text-success-700" : "bg-neutral-100 text-neutral-600"}`}>
+                      <span className={`mt-1 inline-block rounded-full px-2 py-0.5 text-2xs font-semibold ${student.status === "active" ? "bg-success-50 text-success-700" : "bg-neutral-100 text-neutral-600"}`}>
                         {student.status === "active" ? "Đang học" : "Tạm dừng"}
                       </span>
                     </div>
                   </div>
 
                   <div>
-                    <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-neutral-500 lg:hidden">Tình trạng điểm danh</p>
+                    <p className="mb-2 text-2xs font-bold uppercase tracking-[0.08em] text-neutral-500 lg:hidden">Tình trạng điểm danh</p>
                     <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
                       {STATUS_OPTIONS.map((option) => {
                         const active = (entries[student.id]?.status ?? "present") === option.value;
@@ -269,20 +269,20 @@ export function AttendanceMarkPanel({ presetSessionId }: AttendanceMarkPanelProp
                   </div>
 
                   <div>
-                    <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-neutral-500 lg:hidden">Đánh giá chuyên cần</p>
+                    <p className="mb-2 text-2xs font-bold uppercase tracking-[0.08em] text-neutral-500 lg:hidden">Đánh giá chuyên cần</p>
                     <div className="flex items-center gap-2">
                       <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${insight.tone}`}>
                         {insight.rate === null ? "Mới" : `${insight.rate}%`}
                       </span>
                       <div>
                         <p className="text-xs font-semibold text-neutral-800">{insight.label}</p>
-                        <p className="mt-0.5 text-[11px] text-neutral-500">Vắng {insight.absent} · Muộn {insight.late}</p>
+                        <p className="mt-0.5 text-2xs text-neutral-500">Vắng {insight.absent} · Muộn {insight.late}</p>
                       </div>
                     </div>
                   </div>
 
                   <div>
-                    <label htmlFor={`attendance-note-${student.id}`} className="mb-2 block text-[11px] font-bold uppercase tracking-[0.08em] text-neutral-500 lg:hidden">Ghi chú</label>
+                    <label htmlFor={`attendance-note-${student.id}`} className="mb-2 block text-2xs font-bold uppercase tracking-[0.08em] text-neutral-500 lg:hidden">Ghi chú</label>
                     <input
                       id={`attendance-note-${student.id}`}
                       placeholder="Nhập nhận xét ngắn"
@@ -337,7 +337,7 @@ function InfoCell({
     <div className={`min-w-0 p-4 sm:p-5 ${accent ? "bg-primary-500 text-white" : "bg-white"}`}>
       <div className="flex items-center gap-2">
         <Icon size={16} className={accent ? "text-primary-100" : "text-primary-500"} />
-        <p className={`text-[11px] font-bold uppercase tracking-[0.1em] ${accent ? "text-primary-100" : "text-neutral-500"}`}>{label}</p>
+        <p className={`text-2xs font-bold uppercase tracking-[0.1em] ${accent ? "text-primary-100" : "text-neutral-500"}`}>{label}</p>
       </div>
       <p className={`mt-2 truncate text-sm font-bold ${accent ? "text-white" : "text-neutral-900"}`}>{value}</p>
       <p className={`mt-1 truncate text-xs ${accent ? "text-primary-100" : "text-neutral-500"}`}>{detail}</p>

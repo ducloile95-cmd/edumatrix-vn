@@ -180,6 +180,34 @@ export interface AttendanceSummaryDoc {
   updatedAt: Timestamp;
 }
 
+export type ClassroomWorkflowStatus = "draft" | "ready" | "published" | "amended";
+export type PreviousHomeworkStatus = "done" | "partial" | "not_done" | "not_assigned";
+
+export interface SessionInteractionDoc {
+  sessionId: string;
+  classId: string;
+  courseId: string;
+  teacherId: string;
+  workflowStatus: ClassroomWorkflowStatus;
+  taughtContent: string;
+  quickSummary: string;
+  homeworkText: string;
+  version: number;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface SessionStudentReviewDoc {
+  sessionId: string;
+  classId: string;
+  studentId: string;
+  attendanceStatus: AttendanceStatus;
+  previousHomeworkStatus: PreviousHomeworkStatus;
+  individualComment: string;
+  updatedBy: string;
+  updatedAt: Timestamp;
+}
+
 export type AssignmentStatus = "draft" | "published" | "closed";
 export type SubmissionStatus = "submitted" | "reviewing" | "graded" | "redo_required";
 export interface AssignmentDoc { title: string; description: string; classId: string; subjectId?: string; lessonPlanId: string | null; sessionId: string | null; dueAt: Timestamp; submissionType: "link" | "text"; maxScore: number; status: AssignmentStatus; createdBy: string; createdAt: Timestamp; updatedAt: Timestamp; }

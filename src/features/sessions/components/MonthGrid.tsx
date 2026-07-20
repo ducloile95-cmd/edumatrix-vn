@@ -17,7 +17,7 @@ export function MonthGrid({ month, sessionCountByDay, today, onSelectDate }: Mon
   return (
     <div className="grid grid-cols-7 gap-px border border-neutral-200 bg-neutral-200">
       {DOW_LABEL.map((label) => (
-        <div key={label} className="bg-neutral-50 py-2 text-center text-[10px] font-bold uppercase tracking-wide text-neutral-500">
+        <div key={label} className="bg-neutral-50 py-2 text-center text-3xs font-bold uppercase tracking-wide text-neutral-500">
           {label}
         </div>
       ))}
@@ -39,7 +39,7 @@ export function MonthGrid({ month, sessionCountByDay, today, onSelectDate }: Mon
               {format(day, "d")}
             </span>
             {count > 0 && (
-              <span className="inline-flex w-fit items-center gap-1 rounded-full bg-primary-50 px-1.5 py-0.5 text-[10px] font-bold text-primary-700">
+              <span className="inline-flex w-fit items-center gap-1 rounded-full bg-primary-50 px-1.5 py-0.5 text-3xs font-bold text-primary-700">
                 {count} buổi
               </span>
             )}

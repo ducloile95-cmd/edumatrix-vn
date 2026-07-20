@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueries, useQuery } from "@tanstack/react-query";
 import { ViewerShell } from "@/components/layouts/ViewerShell";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
@@ -9,6 +8,8 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
 import { getStudent } from "@/services/firestore/students";
 import { listAssignmentsByClass, listSubmissionsByStudents, submitAssignment } from "@/services/firestore/assignments";
 import type { AssignmentDoc } from "@/types/academic";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { SUBMISSION_STATUS_LABEL, SUBMISSION_STATUS_TONE } from "@/features/assignments/constants";
 
 export default function ViewerAssignmentsPage() {
   const { userDoc } = useAuth();
@@ -24,7 +25,6 @@ export default function ViewerAssignmentsPage() {
 
   return (
     <ViewerShell>
-      <PageHeader title="Bài tập" description="Theo dõi bài cần nộp và gửi bài làm cho giáo viên." />
       {isLoading && <LoadingSkeleton rows={3} />}
       {!isLoading && firstError && (
         <ErrorState
@@ -90,8 +90,8 @@ function ViewerAssignment({
       </button>
       {saved && (
         <p className="mt-2 text-xs text-neutral-500">
-          Trạng thái: {saved.status}
-          {saved.score != null ? ` · ${saved.score}/${assignment.maxScore}` : ""} {saved.teacherComment}
+          <StatusBadge tone={SUBMISSION_STATUS_TONE[saved.status]}>{SUBMISSION_STATUS_LABEL[saved.status]}</StatusBadge>
+          {saved.score != null ? ` ${saved.score}/${assignment.maxScore}` : ""} {saved.teacherComment}
         </p>
       )}
     </article>

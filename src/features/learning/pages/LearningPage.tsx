@@ -4,6 +4,7 @@ import AssignmentsPage from "@/features/assignments/pages/AssignmentsPage";
 import ScoresPage from "@/features/scores/pages/ScoresPage";
 import { LearningOverview } from "@/features/learning/components/LearningOverview";
 import { MotionTabPanel } from "@/components/motion/MotionTabPanel";
+import { Tab, Tabs } from "@/components/ui/Tabs";
 
 type LearningTab = "overview" | "assignments" | "gradebook";
 
@@ -20,43 +21,17 @@ export default function LearningPage() {
 
   return (
     <AppShell>
-      <div className="mb-5 flex gap-1 border-b border-neutral-200" role="tablist" aria-label="Bài tập và điểm học tập">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "overview"}
-          onClick={() => selectTab("overview")}
-          className={`min-h-touch border-b-2 px-1 pb-2 text-sm font-semibold transition ${tab === "overview" ? "border-primary-500 text-primary-700" : "border-transparent text-neutral-500 hover:text-primary-700"}`}
-        >
+      <Tabs label="Bài tập và điểm học tập" className="mb-5">
+        <Tab active={tab === "overview"} onClick={() => selectTab("overview")}>
           Tổng quan
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "assignments"}
-          onClick={() => selectTab("assignments")}
-          className={`ml-4 min-h-touch border-b-2 px-1 pb-2 text-sm font-semibold transition ${
-            tab === "assignments"
-              ? "border-primary-500 text-primary-700"
-              : "border-transparent text-neutral-500 hover:text-primary-700"
-          }`}
-        >
+        </Tab>
+        <Tab active={tab === "assignments"} onClick={() => selectTab("assignments")}>
           Bài tập
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "gradebook"}
-          onClick={() => selectTab("gradebook")}
-          className={`ml-4 min-h-touch border-b-2 px-1 pb-2 text-sm font-semibold transition ${
-            tab === "gradebook"
-              ? "border-primary-500 text-primary-700"
-              : "border-transparent text-neutral-500 hover:text-primary-700"
-          }`}
-        >
+        </Tab>
+        <Tab active={tab === "gradebook"} onClick={() => selectTab("gradebook")}>
           Sổ điểm
-        </button>
-      </div>
+        </Tab>
+      </Tabs>
 
       <MotionTabPanel motionKey={tab}>
         {tab === "overview" && <LearningOverview onOpenAssignments={() => selectTab("assignments")} />}

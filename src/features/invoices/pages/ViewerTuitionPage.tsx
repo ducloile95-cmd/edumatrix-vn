@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ViewerShell } from "@/components/layouts/ViewerShell";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { Modal } from "@/components/ui/Modal";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { ErrorState } from "@/components/feedback/ErrorState";
@@ -10,6 +9,8 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
 import { listInvoicesByStudents, reportPayment } from "@/services/firestore/invoices";
 import { buildVietQrImageUrl } from "@/utils/payment";
 import { formatVnd } from "@/utils/currency";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { INVOICE_STATUS_LABEL, INVOICE_STATUS_TONE } from "@/features/invoices/constants";
 import type { InvoiceDoc } from "@/types/academic";
 
 export default function ViewerTuitionPage() {
@@ -26,7 +27,6 @@ export default function ViewerTuitionPage() {
 
   return (
     <ViewerShell>
-      <PageHeader title="Học phí" description="Theo dõi khoản cần thanh toán và xác nhận chuyển khoản." />
       {invoices.isLoading && <LoadingSkeleton rows={3} />}
       {invoices.error && (
         <ErrorState message="Không thể tải danh sách học phí. Vui lòng kiểm tra kết nối và thử lại." onRetry={() => invoices.refetch()} />
@@ -42,7 +42,8 @@ export default function ViewerTuitionPage() {
                 <div>
                   <h2 className="text-xl font-semibold text-neutral-900">{invoice.title}</h2>
                   <p className="text-sm">
-                    {formatVnd(invoice.amount)} · {invoice.status}
+                    {formatVnd(invoice.amount)}{" "}
+                    <StatusBadge tone={INVOICE_STATUS_TONE[invoice.status]}>{INVOICE_STATUS_LABEL[invoice.status]}</StatusBadge>
                   </p>
                 </div>
                 <button

@@ -26,4 +26,5 @@ describe("Phase 4 session ownership", () => {
   test("linked viewer reads a session", async () => assertSucceeds(getDoc(doc(env.authenticatedContext("viewer").firestore(), "sessions", "session-1"))));
   test("unlinked viewer cannot read a session", async () => assertFails(getDoc(doc(env.authenticatedContext("other").firestore(), "sessions", "session-1"))));
   test("viewer cannot create a session", async () => assertFails(setDoc(doc(env.authenticatedContext("viewer").firestore(), "sessions", "session-2"), session)));
+  test("staff cannot create a session ending before it starts", async () => assertFails(setDoc(doc(env.authenticatedContext("admin").firestore(), "sessions", "session-2"), { ...session, startAt: Timestamp.fromMillis(Date.now()), endAt: Timestamp.fromMillis(Date.now() - 60_000) })));
 });

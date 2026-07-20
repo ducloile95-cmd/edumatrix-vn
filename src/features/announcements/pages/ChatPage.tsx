@@ -11,6 +11,7 @@ import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
 import { Modal } from "@/components/ui/Modal";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { Tab, Tabs } from "@/components/ui/Tabs";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { FanpagePanel } from "@/features/announcements/components/fanpage/FanpagePanel";
 import { listChatThreads, listMessageOutbox, subscribeChatMessages } from "@/services/firestore/chat";
@@ -161,9 +162,9 @@ function ConversationPanel({ thread, configured, onBack }: { thread: Thread; con
           <div className="mx-auto max-w-3xl space-y-3">
             {messageError ? <ErrorState message="Không tải được lịch sử hội thoại." /> : messages.length ? messages.map((message) => (
               <div key={message.id} className={`flex ${message.direction === "outbound" ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-[82%] rounded-[14px] px-3.5 py-2.5 text-sm leading-5 shadow-sm sm:max-w-[70%] ${message.direction === "outbound" ? "rounded-br-[4px] bg-primary-600 text-white" : "rounded-bl-[4px] border border-neutral-200 bg-white"}`}>
+                <div className={`max-w-[82%] rounded-chat-bubble px-3.5 py-2.5 text-sm leading-5 shadow-sm sm:max-w-[70%] ${message.direction === "outbound" ? "rounded-br-chat-tail bg-primary-600 text-white" : "rounded-bl-chat-tail border border-neutral-200 bg-white"}`}>
                   <p>{message.text}</p>
-                  <div className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${message.direction === "outbound" ? "text-primary-100" : "text-neutral-400"}`}>
+                  <div className={`mt-1 flex items-center justify-end gap-1 text-3xs ${message.direction === "outbound" ? "text-primary-100" : "text-neutral-400"}`}>
                     <span>{time(message.createdAt)}</span>
                     {message.status === "sent" && <CheckCheck size={12} />}
                     {message.status === "failed" && <FileWarning size={12} />}
@@ -314,12 +315,12 @@ function NewConversationPicker({ open, onClose, configured, onSent }: { open: bo
   );
 }
 
-function Conversations({ threads, configured }: { threads: Thread[]; configured: boolean }) {
+function Conversations({ threads, configured, initialPickerOpen = false }: { threads: Thread[]; configured: boolean; initialPickerOpen?: boolean }) {
   const [selectedId, setSelectedId] = useState(threads[0]?.id ?? "");
   const [mobileThreadOpen, setMobileThreadOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "unread">("all");
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(initialPickerOpen);
   const [pendingStudentId, setPendingStudentId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -361,8 +362,8 @@ function Conversations({ threads, configured }: { threads: Thread[]; configured:
           ) : filtered.map((thread) => (
             <button key={thread.id} type="button" onClick={() => { setSelectedId(thread.id); setMobileThreadOpen(true); }} className={`flex w-full gap-3 border-b border-neutral-100 px-3 py-3 text-left ${thread.id === selectedId ? "bg-primary-50" : "hover:bg-neutral-50"}`}>
               <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-bold text-primary-700">{initials(thread.parentName)}</span>
-              <span className="min-w-0 flex-1"><span className="flex justify-between"><b className="truncate text-sm">{thread.parentName}</b><span className="text-[10px] text-neutral-400">{time(thread.lastMessageAt)}</span></span><span className="block truncate text-xs text-neutral-600">{thread.studentName} · {thread.className}</span><span className="mt-1 block truncate text-xs text-neutral-500">{thread.lastMessagePreview}</span></span>
-              {thread.unreadStaffCount > 0 && <span className="mt-8 flex size-5 items-center justify-center rounded-full bg-primary-600 text-[10px] font-bold text-white">{thread.unreadStaffCount}</span>}
+              <span className="min-w-0 flex-1"><span className="flex justify-between"><b className="truncate text-sm">{thread.parentName}</b><span className="text-3xs text-neutral-400">{time(thread.lastMessageAt)}</span></span><span className="block truncate text-xs text-neutral-600">{thread.studentName} · {thread.className}</span><span className="mt-1 block truncate text-xs text-neutral-500">{thread.lastMessagePreview}</span></span>
+              {thread.unreadStaffCount > 0 && <span className="mt-8 flex size-5 items-center justify-center rounded-full bg-primary-600 text-3xs font-bold text-white">{thread.unreadStaffCount}</span>}
             </button>
           ))}
         </div>
@@ -387,7 +388,7 @@ function Outbox({ role, uid }: { role: "admin" | "teacher"; uid: string }) {
       <div className="mx-auto max-w-6xl overflow-hidden rounded-card border border-neutral-200 bg-white">
         <header className="border-b border-neutral-200 px-4 py-4"><h2 className="text-sm font-bold">Nhật ký gửi</h2><p className="mt-1 text-xs text-neutral-500">{role === "admin" ? "Toàn bộ kết quả gửi gần nhất." : "Chỉ các tin do bạn gửi."}</p></header>
         <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-sm"><thead className="bg-neutral-50 text-left text-xs font-bold text-neutral-500"><tr><th className="px-4 py-3">Mã gửi</th><th className="px-4 py-3">Học sinh</th><th className="px-4 py-3">Nội dung</th><th className="px-4 py-3">Loại gửi</th><th className="px-4 py-3">Thời gian</th><th className="px-4 py-3 text-right">Trạng thái</th></tr></thead><tbody>
-          {result.data?.length ? result.data.map((row) => <tr key={row.id} className="border-t border-neutral-100"><td className="px-4 py-3 font-mono text-xs">{row.id.slice(0, 14)}</td><td className="px-4 py-3">{row.studentId ?? "Fanpage"}</td><td className="max-w-sm truncate px-4 py-3 text-neutral-600">{row.content}</td><td className="px-4 py-3">{row.messageTag ? <span className="rounded-full bg-info-50 px-2 py-0.5 text-[11px] font-semibold text-info-700">TAG · {row.messageTag}</span> : <span className="text-xs text-neutral-400">RESPONSE</span>}</td><td className="px-4 py-3 text-neutral-500">{time(row.createdAt)}</td><td className="px-4 py-3 text-right"><StatusBadge tone={row.status === "sent" ? "success" : "danger"}>{row.status === "sent" ? "Đã gửi" : "Thất bại"}</StatusBadge></td></tr>) : <tr><td colSpan={6} className="px-4 py-12 text-center text-neutral-500">Chưa có nhật ký gửi.</td></tr>}
+          {result.data?.length ? result.data.map((row) => <tr key={row.id} className="border-t border-neutral-100"><td className="px-4 py-3 font-mono text-xs">{row.id.slice(0, 14)}</td><td className="px-4 py-3">{row.studentId ?? "Fanpage"}</td><td className="max-w-sm truncate px-4 py-3 text-neutral-600">{row.content}</td><td className="px-4 py-3">{row.messageTag ? <span className="rounded-full bg-info-50 px-2 py-0.5 text-2xs font-semibold text-info-700">TAG · {row.messageTag}</span> : <span className="text-xs text-neutral-400">RESPONSE</span>}</td><td className="px-4 py-3 text-neutral-500">{time(row.createdAt)}</td><td className="px-4 py-3 text-right"><StatusBadge tone={row.status === "sent" ? "success" : "danger"}>{row.status === "sent" ? "Đã gửi" : "Thất bại"}</StatusBadge></td></tr>) : <tr><td colSpan={6} className="px-4 py-12 text-center text-neutral-500">Chưa có nhật ký gửi.</td></tr>}
         </tbody></table></div>
       </div>
     </div>
@@ -399,6 +400,7 @@ export default function ChatPage() {
   const role = userDoc?.role === "admin" ? "admin" : "teacher";
   const uid = firebaseUser?.uid ?? "";
   const configured = Boolean(import.meta.env.VITE_MESSENGER_WORKER_URL?.trim());
+  const initialPickerOpen = new URLSearchParams(window.location.search).get("create") === "message";
   const [section, setSection] = useState<Section>("conversations");
   const threads = useQuery({ queryKey: ["chat-threads", role, uid], queryFn: () => listChatThreads(role, uid), enabled: Boolean(uid) });
   const tabs = [
@@ -411,10 +413,10 @@ export default function ChatPage() {
     <AppShell>
       <div className="flex h-[calc(100dvh-112px)] min-h-[620px] flex-col overflow-hidden rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)]">
         <ConnectionBar configured={configured} />
-        <nav className="flex shrink-0 gap-1 overflow-x-auto border-b border-neutral-200 px-3" aria-label="Nhánh Chat">
-          {tabs.map(({ value, label, icon: Icon }) => <button key={value} type="button" onClick={() => setSection(value)} className={`relative flex min-h-[50px] shrink-0 items-center gap-2 px-3 text-sm font-semibold ${section === value ? "text-primary-700" : "text-neutral-500"}`}><Icon size={16} />{label}{section === value && <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-primary-600" />}</button>)}
-        </nav>
-        {section === "conversations" && (threads.isLoading ? <div className="p-5"><LoadingSkeleton rows={7} /></div> : threads.isError ? <div className="p-5"><ErrorState message="Không tải được hội thoại." onRetry={() => threads.refetch()} /></div> : <Conversations threads={threads.data ?? []} configured={configured} />)}
+        <Tabs label="Nhánh Chat" className="shrink-0 px-3">
+          {tabs.map(({ value, label, icon: Icon }) => <Tab key={value} active={section === value} onClick={() => setSection(value)} className="min-h-[50px]"><Icon size={16} />{label}</Tab>)}
+        </Tabs>
+        {section === "conversations" && (threads.isLoading ? <div className="p-5"><LoadingSkeleton rows={7} /></div> : threads.isError ? <div className="p-5"><ErrorState message="Không tải được hội thoại." onRetry={() => threads.refetch()} /></div> : <Conversations threads={threads.data ?? []} configured={configured} initialPickerOpen={initialPickerOpen} />)}
         {section === "outbox" && <Outbox role={role} uid={uid} />}
         {section === "fanpage" && role === "admin" && (
           <FanpagePanel configured={configured} actorUid={uid} actorName={userDoc?.displayName ?? "Admin"} />

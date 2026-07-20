@@ -94,6 +94,20 @@ export async function listLessonPlans(): Promise<(LessonPlanDoc & { id: string }
   return [...plans.values()].sort((a, b) => b.updatedAt.toMillis() - a.updatedAt.toMillis());
 }
 
+export async function getLessonPlanBySession(
+  classId: string,
+  sessionId: string,
+): Promise<(LessonPlanDoc & { id: string }) | null> {
+  const snapshot = await getDocs(query(
+    collection(db, COLLECTIONS.LESSON_PLANS),
+    where("classId", "==", classId),
+    where("sessionId", "==", sessionId),
+    limit(1),
+  ));
+  const item = snapshot.docs[0];
+  return item ? { id: item.id, ...normalizeLessonPlan(item.data() as LessonPlanDoc) } : null;
+}
+
 export async function copyLessonPlan(id: string, actorUid: string): Promise<void> {
   const snapshot = await getDoc(doc(db, COLLECTIONS.LESSON_PLANS, id));
   if (!snapshot.exists()) throw new Error("Lesson plan not found");

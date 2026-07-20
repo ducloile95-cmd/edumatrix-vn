@@ -114,7 +114,7 @@ export function Composer({ configured, actorUid, actorName }: ComposerProps) {
                 className={`min-h-[46px] rounded-input border text-xs font-bold transition ${mode === "now" ? "border-primary-500 bg-primary-50 text-primary-700" : "border-neutral-300 text-neutral-600"}`}
               >
                 Đăng ngay
-                <span className="mt-0.5 block text-[10px] font-medium text-neutral-400">Gửi lên Fanpage tức thì</span>
+                <span className="mt-0.5 block text-3xs font-medium text-neutral-400">Gửi lên Fanpage tức thì</span>
               </button>
               <button
                 type="button"
@@ -122,7 +122,7 @@ export function Composer({ configured, actorUid, actorName }: ComposerProps) {
                 className={`min-h-[46px] rounded-input border text-xs font-bold transition ${mode === "later" ? "border-info-500 bg-info-50 text-info-700" : "border-neutral-300 text-neutral-600"}`}
               >
                 Lên lịch
-                <span className="mt-0.5 block text-[10px] font-medium text-neutral-400">Thêm vào hàng chờ</span>
+                <span className="mt-0.5 block text-3xs font-medium text-neutral-400">Thêm vào hàng chờ</span>
               </button>
             </div>
             {mode === "later" && (

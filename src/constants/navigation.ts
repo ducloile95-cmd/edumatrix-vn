@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Bell, BookOpen, CalendarDays, ChartNoAxesCombined, ClipboardCheck, FileText,
-  FolderKanban, Home, LayoutDashboard, LayoutGrid, Library, Megaphone,
+  FolderKanban, Home, LayoutDashboard, LayoutGrid, Library, Megaphone, Presentation,
   MessagesSquare, NotebookPen, Settings, UserCog, Users, Wallet,
 } from "lucide-react";
 import { ROUTES } from "@/constants/routes";
@@ -32,6 +32,7 @@ const groupLopHoc: NavGroup = {
 const groupChucNang: NavGroup = {
   label: "Chức năng", icon: LayoutGrid,
   children: [
+    { to: ROUTES.STAFF_CLASSROOM, label: "Tương tác lớp học", icon: Presentation },
     { to: ROUTES.STAFF_LESSON_PLANS, label: "Giáo án", icon: NotebookPen },
     { to: ROUTES.STAFF_ATTENDANCE, label: "Điểm danh", icon: ClipboardCheck },
     { to: ROUTES.STAFF_LEARNING, label: "Bài tập & Điểm", icon: ChartNoAxesCombined },
@@ -89,6 +90,7 @@ const PAGE_DESCRIPTIONS: Record<string, string> = {
   [ROUTES.STAFF_CATALOG]: "Quản lý môn học và khóa học dùng để tạo lớp, học phí và lộ trình học.",
   [ROUTES.STAFF_SESSIONS]: "Xem lịch dạy theo Ngày, Tuần, Tháng và cập nhật lịch học.",
   [ROUTES.STAFF_LESSON_PLANS]: "Soạn giáo án theo phần, lưu nháp, gắn lớp và xuất bản tóm tắt công khai.",
+  [ROUTES.STAFF_CLASSROOM]: "Ghi nhận chuyên cần, bài tập và tổng kết theo từng buổi học.",
   [ROUTES.STAFF_ATTENDANCE]: "Tải danh sách lớp, điểm danh nhanh và lưu cả lớp trong một lần.",
   [ROUTES.STAFF_LEARNING]: "Giao bài, chấm và theo dõi kết quả học tập trong cùng một luồng.",
   [ROUTES.STAFF_ASSIGNMENTS]: "Giao bài, theo dõi bài nộp và phản hồi kết quả cho học sinh.",
@@ -111,11 +113,13 @@ const PAGE_DESCRIPTIONS: Record<string, string> = {
 export function findPageTitle(pathname: string): string {
   if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname];
   if (pathname.startsWith("/app/classes/")) return "Chi tiết lớp học";
+  if (pathname.startsWith(`${ROUTES.STAFF_CLASSROOM}/`)) return "Tương tác lớp học";
   return "Edumatrix-vn";
 }
 
 export function findPageDescription(pathname: string): string {
   if (PAGE_DESCRIPTIONS[pathname]) return PAGE_DESCRIPTIONS[pathname];
   if (pathname.startsWith("/app/classes/")) return "Quản lý học sinh, ghi danh và dữ liệu học tập của lớp.";
+  if (pathname.startsWith(`${ROUTES.STAFF_CLASSROOM}/`)) return "Workspace nhập liệu và tổng kết cho buổi học được phân công.";
   return "Edumatrix-vn · Quản lý lớp học thông minh";
 }

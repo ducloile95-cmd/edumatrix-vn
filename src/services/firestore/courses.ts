@@ -2,6 +2,7 @@ import {
   addDoc,
   collection,
   doc,
+  getDoc,
   getDocs,
   limit,
   orderBy,
@@ -73,4 +74,9 @@ export async function listCourses(): Promise<(CourseDoc & { id: string })[]> {
   const q = query(collection(db, COLLECTIONS.COURSES), orderBy("name"), limit(200));
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as CourseDoc) }));
+}
+
+export async function getCourse(courseId: string): Promise<(CourseDoc & { id: string }) | null> {
+  const snapshot = await getDoc(doc(db, COLLECTIONS.COURSES, courseId));
+  return snapshot.exists() ? { id: snapshot.id, ...(snapshot.data() as CourseDoc) } : null;
 }

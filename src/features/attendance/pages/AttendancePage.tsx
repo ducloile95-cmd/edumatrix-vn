@@ -4,6 +4,7 @@ import { Plus } from "lucide-react";
 import { AppShell } from "@/components/layouts/AppShell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
+import { Tab, Tabs } from "@/components/ui/Tabs";
 import { Modal } from "@/components/ui/Modal";
 import { MotionTabPanel } from "@/components/motion/MotionTabPanel";
 import { AttendanceOverview } from "@/features/attendance/components/AttendanceOverview";
@@ -27,8 +28,6 @@ export default function AttendancePage() {
   return (
     <AppShell>
       <PageHeader
-        title="Điểm danh"
-        description="Tổng quan chuyên cần toàn hệ thống, cảnh báo buổi chưa điểm danh và học sinh nghỉ không phép nhiều — cộng với luồng điểm danh theo buổi."
         actions={(
           <Button variant="primary" onClick={() => setLeaveModalOpen(true)} icon={<Plus size={18} />}>
             Đăng ký nghỉ học
@@ -36,30 +35,14 @@ export default function AttendancePage() {
         )}
       />
 
-      <div className="mb-5 flex gap-1 border-b border-neutral-200" role="tablist" aria-label="Chuyển tab Điểm danh">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "overview"}
-          onClick={() => setTab("overview")}
-          className={`min-h-touch border-b-2 px-1 pb-2 text-sm font-semibold transition ${
-            tab === "overview" ? "border-primary-500 text-primary-700" : "border-transparent text-neutral-500 hover:text-primary-700"
-          }`}
-        >
+      <Tabs label="Chuyển tab Điểm danh" className="mb-5">
+        <Tab active={tab === "overview"} onClick={() => setTab("overview")}>
           Tổng quan
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "mark"}
-          onClick={() => setTab("mark")}
-          className={`ml-4 min-h-touch border-b-2 px-1 pb-2 text-sm font-semibold transition ${
-            tab === "mark" ? "border-primary-500 text-primary-700" : "border-transparent text-neutral-500 hover:text-primary-700"
-          }`}
-        >
+        </Tab>
+        <Tab active={tab === "mark"} onClick={() => setTab("mark")}>
           Điểm danh theo buổi
-        </button>
-      </div>
+        </Tab>
+      </Tabs>
 
       <MotionTabPanel motionKey={tab}>
         {tab === "overview" ? (

@@ -7,10 +7,10 @@ interface AppearancePrefs {
   language: Language;
 }
 
-const THEME_OPTIONS: { value: Theme; label: string }[] = [
-  { value: "light", label: "Sáng" },
-  { value: "dark", label: "Tối" },
-  { value: "system", label: "Theo hệ thống" },
+const THEME_OPTIONS: { value: Theme; label: string; available: boolean }[] = [
+  { value: "light", label: "Sáng", available: true },
+  { value: "dark", label: "Tối", available: false },
+  { value: "system", label: "Theo hệ thống", available: false },
 ];
 
 const STORAGE_KEY = "edumatrix-appearance-prefs";
@@ -19,7 +19,10 @@ const DEFAULT_PREFS: AppearancePrefs = { theme: "light", language: "vi" };
 function loadPrefs(): AppearancePrefs {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return { ...DEFAULT_PREFS, ...(JSON.parse(raw) as Partial<AppearancePrefs>) };
+    if (raw) {
+      const stored = { ...DEFAULT_PREFS, ...(JSON.parse(raw) as Partial<AppearancePrefs>) };
+      return { ...stored, theme: stored.theme === "light" ? "light" : DEFAULT_PREFS.theme };
+    }
   } catch {
     // localStorage khong kha dung (private mode, quota...) - dung mac dinh.
   }
@@ -44,7 +47,7 @@ export function AppearanceTab() {
   return (
     <div>
       <p className="mb-4 rounded-input border border-warning-100 bg-warning-50 px-3 py-2 text-xs text-warning-700">
-        Lựa chọn được lưu trên trình duyệt này, nhưng chưa áp dụng lên toàn bộ giao diện. Giao diện tối và tiếng Anh sẽ có ở bản sau.
+        Giao diện tối, chế độ theo hệ thống và tiếng Anh chưa được hỗ trợ; các lựa chọn này được ghi rõ là sắp ra mắt.
       </p>
 
       <div className="mb-5">
@@ -55,14 +58,15 @@ export function AppearanceTab() {
               key={opt.value}
               type="button"
               aria-pressed={prefs.theme === opt.value}
-              onClick={() => save({ ...prefs, theme: opt.value })}
+              onClick={() => opt.available && save({ ...prefs, theme: opt.value })}
+              disabled={!opt.available}
               className={`rounded-card border px-3 py-3 text-center text-sm font-medium transition ${
                 prefs.theme === opt.value
                   ? "border-primary-500 bg-primary-50 text-primary-700"
-                  : "border-neutral-200 text-neutral-600 hover:border-neutral-300"
+                  : "border-neutral-200 text-neutral-600 hover:border-neutral-300 disabled:cursor-not-allowed disabled:bg-neutral-50 disabled:text-neutral-400"
               }`}
             >
-              {opt.label}
+              {opt.label}{!opt.available && <span className="mt-1 block text-3xs font-semibold uppercase">Sắp ra mắt</span>}
             </button>
           ))}
         </div>

@@ -263,7 +263,7 @@ export function ClassesList({ onDelete, onEdit, canDelete = false, canEdit = fal
                           {subjectNames.length > 0 && (
                             <div className="mt-1 flex flex-wrap gap-1">
                               {subjectNames.map((name) => (
-                                <span key={name} className="inline-block rounded-full bg-primary-50 px-2 py-0.5 text-[10px] font-semibold text-primary-700">
+                                <span key={name} className="inline-block rounded-full bg-primary-50 px-2 py-0.5 text-3xs font-semibold text-primary-700">
                                   {name}
                                 </span>
                               ))}

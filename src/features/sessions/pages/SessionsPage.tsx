@@ -246,7 +246,7 @@ export default function SessionsPage() {
           </div>
         )}
 
-        <div className="flex flex-wrap gap-4 border-b border-neutral-100 px-4 py-2.5 text-[11px] text-neutral-600 sm:px-5">
+        <div className="flex flex-wrap gap-4 border-b border-neutral-100 px-4 py-2.5 text-2xs text-neutral-600 sm:px-5">
           <span className="flex items-center gap-1.5"><span className="size-[9px] rounded-[3px] bg-info-500" />Đã lên lịch</span>
           <span className="flex items-center gap-1.5"><span className="size-[9px] rounded-[3px] bg-warning-500" />Đổi lịch / học bù</span>
           <span className="flex items-center gap-1.5"><span className="size-[9px] rounded-[3px] bg-success-500" />Đã học</span>

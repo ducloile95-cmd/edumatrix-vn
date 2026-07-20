@@ -9,6 +9,7 @@ const FRIENDLY_ERRORS: Record<string, string> = {
   student_not_found: "Không tìm thấy học sinh.",
   staff_required: "Tài khoản của bạn không có quyền gửi Messenger.",
   missing_bearer_token: "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.",
+  invalid_post_images: "Danh sách ảnh không hợp lệ (tối đa 4 URL, phải bắt đầu bằng http/https).",
 };
 
 export function friendlyMessengerError(message: string): string {

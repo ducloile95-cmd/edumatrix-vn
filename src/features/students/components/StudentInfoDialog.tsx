@@ -383,7 +383,7 @@ export function StudentInfoDialog({ canManageLinks, onClose, open, student }: St
               }`}
             >
               <span
-                className={`absolute top-1 grid size-7 place-items-center rounded-full bg-white text-[10px] font-bold shadow-[0_3px_10px_rgba(28,51,137,.22)] transition-all duration-300 ${
+                className={`absolute top-1 grid size-7 place-items-center rounded-full bg-white text-3xs font-bold shadow-[0_3px_10px_rgba(28,51,137,.22)] transition-all duration-300 ${
                   isActive ? "left-9 text-success-700" : "left-1 text-neutral-500"
                 }`}
               >

@@ -15,6 +15,8 @@ export const COLLECTIONS = {
   LESSON_PLAN_PUBLIC: "lesson_plan_public",
   LESSON_PLAN_TEMPLATES: "lesson_plan_templates",
   SESSIONS: "sessions",
+  SESSION_INTERACTIONS: "session_interactions",
+  SESSION_STUDENT_REVIEWS: "session_student_reviews",
 
   ATTENDANCE: "attendance",
   ATTENDANCE_SUMMARIES: "attendance_summaries",

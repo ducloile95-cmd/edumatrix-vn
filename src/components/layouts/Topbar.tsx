@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Bell, CloudSun, Menu } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Bell, ChevronDown, CloudSun, Menu, Plus, RefreshCw } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -75,7 +75,7 @@ function NotificationBell({ seeAllHref }: { seeAllHref: string }) {
     <div ref={ref} className="relative">
       <button type="button" aria-label={`Thông báo${unread ? ` (${unread} chưa đọc)` : ""}`} aria-expanded={open} onClick={() => setOpen((value) => !value)} className="icon-button relative flex">
         <Bell size={20} />
-        {unread > 0 && <span aria-live="polite" className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-gradient-to-br from-primary-500 to-primary-700 px-1 text-[10px] font-bold text-white ring-2 ring-white">{unread}</span>}
+        {unread > 0 && <span aria-live="polite" className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-gradient-to-br from-primary-500 to-primary-700 px-1 text-3xs font-bold text-white ring-2 ring-white">{unread}</span>}
       </button>
       {open && (
         <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-modal border border-neutral-200 bg-white shadow-[var(--shadow-3)]">
@@ -88,6 +88,38 @@ function NotificationBell({ seeAllHref }: { seeAllHref: string }) {
       )}
     </div>
   );
+}
+
+function StaffActions() {
+  const { role } = useAuth();
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const close = (event: MouseEvent) => { if (!ref.current?.contains(event.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, []);
+  const items = [
+    { label: "Học sinh", to: `${ROUTES.STAFF_STUDENTS}?create=student`, adminOnly: true },
+    { label: "Lớp học", to: `${ROUTES.STAFF_CLASSES}?create=class` },
+    { label: "Môn học", to: `${ROUTES.STAFF_CATALOG}?create=subject` },
+    { label: "Khóa học", to: `${ROUTES.STAFF_CATALOG}?create=course` },
+    { label: "Giáo án", to: `${ROUTES.STAFF_LESSON_PLANS}?create=lesson-plan` },
+    { label: "Thông báo", to: `${ROUTES.STAFF_CHAT}?create=message` },
+  ];
+  return <div className="flex items-center gap-2">
+    <button type="button" onClick={() => window.location.reload()} aria-label="Tải lại trang" title="Tải lại" className="motion-control grid size-9 shrink-0 place-items-center rounded-input border border-neutral-300 bg-white/80 text-neutral-600 hover:bg-white hover:text-primary-700 active:scale-[.96]"><RefreshCw size={16} /></button>
+    <div ref={ref} className="relative">
+      <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-haspopup="menu" className="motion-control inline-flex h-9 items-center gap-1.5 rounded-input bg-primary-600 px-3 text-xs font-bold text-white shadow-[0_5px_14px_rgba(35,72,214,.2)] hover:bg-primary-700 active:scale-[.98]"><Plus size={15} />Thêm<ChevronDown size={14} /></button>
+      {open && <div role="menu" className="absolute right-0 z-40 mt-2 w-48 overflow-hidden rounded-card border border-neutral-200 bg-white p-1.5 shadow-[var(--shadow-3)]">
+        {items.map((item) => {
+          const disabled = item.adminOnly && role !== "admin";
+          return <button key={item.label} type="button" role="menuitem" disabled={disabled} title={disabled ? "Chỉ Admin được tạo học sinh" : undefined} onClick={() => { setOpen(false); navigate(item.to); }} className="flex min-h-9 w-full items-center justify-between rounded-input px-3 text-left text-sm font-medium text-neutral-700 hover:bg-primary-50 hover:text-primary-700 disabled:cursor-not-allowed disabled:text-neutral-400 disabled:hover:bg-transparent">{item.label}{disabled && <span className="text-3xs font-semibold">Chỉ Admin</span>}</button>;
+        })}
+      </div>}
+    </div>
+  </div>;
 }
 
 export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
@@ -105,7 +137,8 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
       <div className="min-w-0"><h1 className="truncate text-lg font-semibold text-neutral-900">{title}</h1><p className="hidden max-w-[78ch] truncate text-xs text-neutral-500 sm:block">{description}</p></div>
     </div>
     <div className="flex items-center gap-2 sm:gap-3">
-      <div className="hidden text-right md:block"><p className="text-sm font-semibold tabular-nums text-neutral-800">{now.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}</p><p className="text-[11px] text-neutral-500">{now.toLocaleDateString("vi-VN", { weekday: "short", day: "2-digit", month: "2-digit" })}</p></div>
+      <StaffActions />
+      <div className="hidden text-right md:block"><p className="text-sm font-semibold tabular-nums text-neutral-800">{now.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}</p><p className="text-2xs text-neutral-500">{now.toLocaleDateString("vi-VN", { weekday: "short", day: "2-digit", month: "2-digit" })}</p></div>
       <div className="flex min-h-touch items-center gap-2 rounded-card bg-white/60 px-2.5 text-sm text-neutral-700"><CloudSun size={18} className="text-primary-600" /><span className="tabular-nums">{weather ? `${weather.temperature}°C` : "--°"}</span><span className="hidden text-xs text-neutral-500 xl:inline">Hà Nội</span></div>
       <NotificationBell seeAllHref={seeAllHref} />
     </div>

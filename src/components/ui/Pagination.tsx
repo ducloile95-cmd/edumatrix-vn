@@ -57,7 +57,7 @@ export function Pagination({
           title="Trang đầu"
           disabled={!canGoBack}
           onClick={() => onPageChange(1)}
-          className="flex size-9 items-center justify-center rounded-full border border-success-500 text-success-700 transition hover:bg-success-50 disabled:cursor-not-allowed disabled:border-neutral-300 disabled:text-neutral-300"
+          className="flex size-9 items-center justify-center rounded-full border border-primary-500 text-primary-700 transition hover:bg-primary-50 disabled:cursor-not-allowed disabled:border-neutral-300 disabled:text-neutral-300"
         >
           <ChevronsLeft aria-hidden="true" size={16} />
         </button>
@@ -67,7 +67,7 @@ export function Pagination({
           title="Trang trước"
           disabled={!canGoBack}
           onClick={() => onPageChange(page - 1)}
-          className="flex size-9 items-center justify-center rounded-full border border-success-500 text-success-700 transition hover:bg-success-50 disabled:cursor-not-allowed disabled:border-neutral-300 disabled:text-neutral-300"
+          className="flex size-9 items-center justify-center rounded-full border border-primary-500 text-primary-700 transition hover:bg-primary-50 disabled:cursor-not-allowed disabled:border-neutral-300 disabled:text-neutral-300"
         >
           <ChevronLeft aria-hidden="true" size={16} />
         </button>
@@ -80,7 +80,7 @@ export function Pagination({
           title="Trang sau"
           disabled={!canGoNext}
           onClick={() => onPageChange(page + 1)}
-          className="flex size-9 items-center justify-center rounded-full border border-success-500 text-success-700 transition hover:bg-success-50 disabled:cursor-not-allowed disabled:border-neutral-300 disabled:text-neutral-300"
+          className="flex size-9 items-center justify-center rounded-full border border-primary-500 text-primary-700 transition hover:bg-primary-50 disabled:cursor-not-allowed disabled:border-neutral-300 disabled:text-neutral-300"
         >
           <ChevronRight aria-hidden="true" size={16} />
         </button>
@@ -90,7 +90,7 @@ export function Pagination({
           title="Trang cuối"
           disabled={!canGoNext}
           onClick={() => onPageChange(totalPages)}
-          className="flex size-9 items-center justify-center rounded-full border border-success-500 text-success-700 transition hover:bg-success-50 disabled:cursor-not-allowed disabled:border-neutral-300 disabled:text-neutral-300"
+          className="flex size-9 items-center justify-center rounded-full border border-primary-500 text-primary-700 transition hover:bg-primary-50 disabled:cursor-not-allowed disabled:border-neutral-300 disabled:text-neutral-300"
         >
           <ChevronsRight aria-hidden="true" size={16} />
         </button>

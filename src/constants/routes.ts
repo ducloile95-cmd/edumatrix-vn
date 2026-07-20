@@ -11,6 +11,8 @@ export const ROUTES = {
   STAFF_CLASSES: "/app/classes",
   STAFF_CLASS_DETAIL: "/app/classes/:classId",
   STAFF_SESSIONS: "/app/sessions",
+  STAFF_CLASSROOM: "/app/classroom",
+  STAFF_CLASSROOM_DETAIL: "/app/classroom/:sessionId",
   STAFF_LESSON_PLANS: "/app/lesson-plans",
   STAFF_ATTENDANCE: "/app/attendance",
   STAFF_LEARNING: "/app/learning",
@@ -37,4 +39,8 @@ export function classDetailPath(classId: string): string {
 /** Mo Lich hoc (Timetable) da loc san theo 1 lop - dung tu nut "Xem lich" o Danh sach lop. */
 export function sessionsForClassPath(classId: string): string {
   return `${ROUTES.STAFF_SESSIONS}?classId=${classId}`;
+}
+
+export function classroomSessionPath(sessionId: string): string {
+  return `${ROUTES.STAFF_CLASSROOM}/${sessionId}`;
 }

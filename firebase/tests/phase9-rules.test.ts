@@ -66,6 +66,11 @@ beforeEach(async () => {
       studentIds: [],
     });
     await setDoc(doc(db, "invoices", "invoice-1"), invoice);
+    await setDoc(doc(db, "invoices", "invoice-other"), {
+      ...invoice,
+      invoiceCode: "HP-HS2-202607",
+      studentId: "student-2",
+    });
     await setDoc(doc(db, "payments", "payment-1"), {
       invoiceId: "invoice-1",
       studentId: "student-1",
@@ -125,6 +130,23 @@ describe("Phase 9 payment", () => {
     assertSucceeds(
       setDoc(doc(env.authenticatedContext("viewer").firestore(), "payments", "new"), {
         invoiceId: "invoice-1",
+        studentId: "student-1",
+        amount: 1000000,
+        transactionReference: "",
+        note: "",
+        status: "reported",
+        reportedBy: "viewer",
+        verifiedBy: null,
+        reportedAt: Timestamp.now(),
+        verifiedAt: null,
+        updatedAt: Timestamp.now(),
+      }),
+    ));
+
+  test("viewer cannot report payment against another student's invoice", async () =>
+    assertFails(
+      setDoc(doc(env.authenticatedContext("viewer").firestore(), "payments", "cross"), {
+        invoiceId: "invoice-other",
         studentId: "student-1",
         amount: 1000000,
         transactionReference: "",

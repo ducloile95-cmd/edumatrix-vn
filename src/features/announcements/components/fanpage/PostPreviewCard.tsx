@@ -16,7 +16,7 @@ export function PostPreviewCard({ message, link, imageUrls }: PostPreviewCardPro
         <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary-500 to-primary-700 text-xs font-extrabold text-white">EM</span>
         <div>
           <b className="block text-sm">Edumatrix Việt Nam</b>
-          <p className="mt-0.5 text-[11px] text-neutral-500">Vừa xong · Công khai</p>
+          <p className="mt-0.5 text-2xs text-neutral-500">Vừa xong · Công khai</p>
         </div>
       </div>
 

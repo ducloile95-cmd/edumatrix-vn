@@ -1,9 +1,7 @@
 import { useState } from "react";
-import { Plus } from "lucide-react";
 import { AppShell } from "@/components/layouts/AppShell";
-import { Button } from "@/components/ui/Button";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { Modal } from "@/components/ui/Modal";
+import { Tab, Tabs } from "@/components/ui/Tabs";
 import { MotionTabPanel } from "@/components/motion/MotionTabPanel";
 import { SubjectForm } from "@/features/catalog/components/SubjectForm";
 import { SubjectsList } from "@/features/catalog/components/SubjectsList";
@@ -15,13 +13,14 @@ import type { CourseDoc, SubjectDoc } from "@/types/academic";
 type CatalogTab = "dashboard" | "catalog";
 
 export default function CatalogPage() {
-  const [tab, setTab] = useState<CatalogTab>("dashboard");
+  const initialCreate = new URLSearchParams(window.location.search).get("create");
+  const [tab, setTab] = useState<CatalogTab>(initialCreate ? "catalog" : "dashboard");
 
-  const [courseModalOpen, setCourseModalOpen] = useState(false);
+  const [courseModalOpen, setCourseModalOpen] = useState(initialCreate === "course");
   const [editingCourse, setEditingCourse] = useState<(CourseDoc & { id: string }) | null>(null);
   const [presetSubjectId, setPresetSubjectId] = useState<string | undefined>(undefined);
 
-  const [subjectModalOpen, setSubjectModalOpen] = useState(false);
+  const [subjectModalOpen, setSubjectModalOpen] = useState(initialCreate === "subject");
   const [editingSubject, setEditingSubject] = useState<(SubjectDoc & { id: string }) | null>(null);
 
   const [subjectFilter, setSubjectFilter] = useState<string | null>(null);
@@ -66,44 +65,14 @@ export default function CatalogPage() {
 
   return (
     <AppShell>
-      <PageHeader
-        title="Môn học và khóa học"
-        description="Tổng quan chỉ số danh mục và quản lý khóa học gắn với môn học dùng để tạo lớp."
-        actions={
-          <Button variant="primary" onClick={() => openCreateCourse()} icon={<Plus size={18} />}>
-            Thêm khóa học
-          </Button>
-        }
-      />
-
-      <div className="mb-5 flex gap-1 border-b border-neutral-200" role="tablist" aria-label="Chuyển tab Môn học & khóa học">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "dashboard"}
-          onClick={() => setTab("dashboard")}
-          className={`min-h-touch border-b-2 px-1 pb-2 text-sm font-semibold transition ${
-            tab === "dashboard"
-              ? "border-primary-500 text-primary-700"
-              : "border-transparent text-neutral-500 hover:text-primary-700"
-          }`}
-        >
+      <Tabs label="Chuyển tab Môn học & khóa học" className="mb-5">
+        <Tab active={tab === "dashboard"} onClick={() => setTab("dashboard")}>
           Tổng quan
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "catalog"}
-          onClick={() => setTab("catalog")}
-          className={`ml-4 min-h-touch border-b-2 px-1 pb-2 text-sm font-semibold transition ${
-            tab === "catalog"
-              ? "border-primary-500 text-primary-700"
-              : "border-transparent text-neutral-500 hover:text-primary-700"
-          }`}
-        >
+        </Tab>
+        <Tab active={tab === "catalog"} onClick={() => setTab("catalog")}>
           Danh mục
-        </button>
-      </div>
+        </Tab>
+      </Tabs>
 
       <MotionTabPanel motionKey={tab}>
         {tab === "dashboard" ? (

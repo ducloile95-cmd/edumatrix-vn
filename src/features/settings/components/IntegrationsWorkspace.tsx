@@ -7,6 +7,7 @@ import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { getIntegrationSettings, getPaymentSettings, updateIntegrationSettings, type IntegrationSettingsInput } from "@/services/firestore/settings";
+import { listMessageOutbox } from "@/services/firestore/chat";
 import { connectGoogleDrive, disconnectGoogleDrive, driveErrorMessage, isGoogleDriveConfigured, isGoogleDriveConnected } from "@/services/integrations/googleDrive";
 
 const EMPTY: IntegrationSettingsInput = { facebookPageId: "", driveFolderId: "", webhookUrl: "" };
@@ -20,14 +21,23 @@ function IntegrationCard({ icon, title, description, configured, detail, childre
   detail: string;
   children?: ReactNode;
 }) {
-  return <article className="flex min-h-[240px] flex-col rounded-card border border-neutral-200 bg-white p-5 shadow-[var(--shadow-1)]"><div className="flex items-start justify-between gap-3"><span className="flex size-10 items-center justify-center rounded-input bg-primary-50 text-primary-700 ring-1 ring-primary-100">{icon}</span><span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${configured ? "bg-success-50 text-success-700" : "bg-warning-50 text-warning-800"}`}>{configured ? "Sẵn sàng" : "Cần cấu hình"}</span></div><h3 className="mt-5 text-base font-bold text-neutral-900">{title}</h3><p className="mt-1 text-sm leading-6 text-neutral-600">{description}</p><p className="mt-3 break-all rounded-input bg-neutral-50 px-3 py-2 text-xs leading-5 text-neutral-500">{detail}</p>{children && <div className="mt-auto flex flex-wrap gap-2 pt-4">{children}</div>}</article>;
+  return <article className="flex min-h-[240px] flex-col rounded-card border border-neutral-200 bg-white p-5 shadow-[var(--shadow-1)]"><div className="flex items-start justify-between gap-3"><span className="flex size-10 items-center justify-center rounded-input bg-primary-50 text-primary-700 ring-1 ring-primary-100">{icon}</span><span className={`rounded-full px-2.5 py-1 text-2xs font-bold ${configured ? "bg-success-50 text-success-700" : "bg-warning-50 text-warning-800"}`}>{configured ? "Sẵn sàng" : "Cần cấu hình"}</span></div><h3 className="mt-5 text-base font-bold text-neutral-900">{title}</h3><p className="mt-1 text-sm leading-6 text-neutral-600">{description}</p><p className="mt-3 break-all rounded-input bg-neutral-50 px-3 py-2 text-xs leading-5 text-neutral-500">{detail}</p>{children && <div className="mt-auto flex flex-wrap gap-2 pt-4">{children}</div>}</article>;
 }
 
 export function IntegrationsWorkspace() {
-  const { firebaseUser } = useAuth();
+  const { firebaseUser, userDoc } = useAuth();
   const queryClient = useQueryClient();
   const settings = useQuery({ queryKey: ["settings", "integrations"], queryFn: getIntegrationSettings });
   const payment = useQuery({ queryKey: ["settings", "payment"], queryFn: getPaymentSettings });
+  // Canh bao chu dong khi Meta token loi/het han - dua tren 50 ban ghi gui gan nhat (message_outbox do Worker ghi).
+  const outbox = useQuery({
+    queryKey: ["messenger-outbox-health"],
+    queryFn: () => listMessageOutbox(userDoc?.role ?? "viewer", firebaseUser?.uid ?? ""),
+    enabled: Boolean(firebaseUser && userDoc && userDoc.role !== "viewer"),
+  });
+  const failedSends = (outbox.data ?? []).filter((item) => item.status === "failed");
+  const tokenIssue = failedSends.some((item) => (item.error ?? "").includes('"code":190'));
+  const messengerUnhealthy = tokenIssue || failedSends.length >= 3;
   const [form, setForm] = useState(EMPTY);
   const [driveConnected, setDriveConnected] = useState(isGoogleDriveConnected());
 
@@ -81,6 +91,14 @@ export function IntegrationsWorkspace() {
         <Link to="?section=payment" className="inline-flex min-h-9 items-center rounded-input border border-neutral-300 px-3 text-xs font-bold text-neutral-700 hover:bg-neutral-50">Mở cấu hình thanh toán</Link>
       </IntegrationCard>
     </section>
+
+    {messengerUnhealthy && (
+      <p role="alert" className="rounded-input border border-danger-100 bg-danger-50 px-4 py-3 text-sm font-semibold text-danger-700">
+        {tokenIssue
+          ? "Messenger: Page Access Token có thể đã hết hạn hoặc không hợp lệ (Meta code 190). Tạo token System User mới và cập nhật secret của Worker (wrangler secret put META_PAGE_ACCESS_TOKEN)."
+          : `Messenger: ${failedSends.length}/${outbox.data?.length ?? 0} lượt gửi gần nhất thất bại. Kiểm tra Worker, quyền Meta và nhật ký gửi trong module Chat.`}
+      </p>
+    )}
 
     {drive.isError && <p role="alert" className="rounded-input border border-danger-100 bg-danger-50 px-4 py-3 text-sm font-semibold text-danger-700">{driveErrorMessage(drive.error)}</p>}
 

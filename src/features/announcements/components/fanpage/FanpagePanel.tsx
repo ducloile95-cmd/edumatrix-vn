@@ -36,7 +36,7 @@ export function FanpagePanel({ configured, actorUid, actorName }: FanpagePanelPr
           >
             Hàng chờ &amp; Lịch sử
             {pendingCount > 0 && (
-              <span className="flex min-w-[17px] items-center justify-center rounded-full bg-warning-500 px-1 text-[10px] font-extrabold text-white">{pendingCount}</span>
+              <span className="flex min-w-[17px] items-center justify-center rounded-full bg-warning-500 px-1 text-3xs font-extrabold text-white">{pendingCount}</span>
             )}
           </button>
         </div>

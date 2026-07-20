@@ -113,7 +113,7 @@ export function FitWeekTimetable({ days, sessions, today, onSessionClick, onSess
                 key={dayKey(day)}
                 className={`border-r border-neutral-200 px-3 py-2.5 last:border-r-0 ${isToday ? "bg-primary-50" : ""}`}
               >
-                <p className={`text-[10px] font-extrabold uppercase ${isToday ? "text-primary-600" : "text-neutral-500"}`}>
+                <p className={`text-3xs font-extrabold uppercase ${isToday ? "text-primary-600" : "text-neutral-500"}`}>
                   {DOW_LABEL[day.getDay()]}
                 </p>
                 <p className={`mt-0.5 text-base font-extrabold ${isToday ? "text-primary-700" : "text-neutral-900"}`}>
@@ -161,12 +161,12 @@ export function FitWeekTimetable({ days, sessions, today, onSessionClick, onSess
                         dropTarget === `${dayKey(day)}-${band}` ? "bg-primary-50 ring-2 ring-inset ring-primary-300" : ""
                       }`}
                     >
-                      <div className="mb-1.5 flex items-center justify-between gap-2 text-[10px] font-extrabold uppercase text-neutral-500">
+                      <div className="mb-1.5 flex items-center justify-between gap-2 text-3xs font-extrabold uppercase text-neutral-500">
                         <span>{BAND_META[band].label}</span>
                         <span className="text-neutral-400">{BAND_META[band].range}</span>
                       </div>
                       {bandSessions.length === 0 ? (
-                        <div className="grid min-h-[44px] place-items-center rounded-input border border-dashed border-neutral-200 text-[11px] font-semibold text-neutral-400">
+                        <div className="grid min-h-[44px] place-items-center rounded-input border border-dashed border-neutral-200 text-2xs font-semibold text-neutral-400">
                           Trống
                         </div>
                       ) : (
@@ -189,23 +189,23 @@ export function FitWeekTimetable({ days, sessions, today, onSessionClick, onSess
                                 } ${tone.border} ${tone.bg}`}
                               >
                                 <div className="flex min-w-0 items-center gap-1.5">
-                                  <span className="min-w-0 flex-1 truncate text-[12px] font-extrabold leading-tight text-neutral-900">
+                                  <span className="min-w-0 flex-1 truncate text-xs font-extrabold leading-tight text-neutral-900">
                                     {session.className}
                                   </span>
-                                  <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-extrabold uppercase text-white ${tone.pillBg}`}>
+                                  <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-4xs font-extrabold uppercase text-white ${tone.pillBg}`}>
                                     {tone.label}
                                   </span>
                                 </div>
-                                <p className="mt-1 truncate text-[10.5px] font-semibold text-neutral-600">
+                                <p className="mt-1 truncate text-3xs font-semibold text-neutral-600">
                                   {session.courseName ?? compactList(session.subjectNames, "Chưa gắn khóa học")}
                                 </p>
-                                <p className="mt-1 flex items-center gap-1 truncate text-[11px] font-extrabold text-neutral-900">
+                                <p className="mt-1 flex items-center gap-1 truncate text-2xs font-extrabold text-neutral-900">
                                   <span className="rounded-[6px] bg-neutral-100 px-1.5 py-0.5">
                                     {format(session.startAt.toDate(), "HH:mm")}-{format(session.endAt.toDate(), "HH:mm")}
                                   </span>
                                   <span className="min-w-0 truncate">{compactList(session.teacherNames, "Chưa gắn GV")}</span>
                                 </p>
-                                <p className="mt-1 truncate text-[10.5px] font-semibold text-neutral-500">
+                                <p className="mt-1 truncate text-3xs font-semibold text-neutral-500">
                                   {room} · {studentLabel}
                                 </p>
                               </button>

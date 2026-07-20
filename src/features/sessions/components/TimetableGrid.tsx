@@ -63,7 +63,7 @@ export function TimetableGrid({ days, sessions, today, onSessionClick }: Timetab
                 isToday ? "bg-primary-50" : "bg-white"
               }`}
             >
-              <p className={`text-[10px] font-bold uppercase tracking-wide ${isToday ? "text-primary-600" : "text-neutral-500"}`}>
+              <p className={`text-3xs font-bold uppercase tracking-wide ${isToday ? "text-primary-600" : "text-neutral-500"}`}>
                 {DOW_LABEL[day.getDay()]}
               </p>
               <p className={`mt-0.5 text-base font-bold ${isToday ? "text-primary-700" : "text-neutral-900"}`}>
@@ -76,7 +76,7 @@ export function TimetableGrid({ days, sessions, today, onSessionClick }: Timetab
         <div className="sticky left-0 z-[1] border-r border-neutral-200 bg-white">
           {hourLabels().map((label, index) => (
             <div key={label} className="relative" style={{ height: HOUR_HEIGHT_PX }}>
-              <span className={`absolute right-2 bg-white px-0.5 text-[10px] font-semibold text-neutral-500 ${index === 0 ? "top-1" : "-top-[7px]"}`}>
+              <span className={`absolute right-2 bg-white px-0.5 text-3xs font-semibold text-neutral-500 ${index === 0 ? "top-1" : "-top-[7px]"}`}>
                 {label}
               </span>
             </div>
@@ -123,13 +123,13 @@ export function TimetableGrid({ days, sessions, today, onSessionClick }: Timetab
                       width: `calc(${widthPct}% - 4px)`,
                     }}
                   >
-                    <p className={`truncate font-bold leading-tight ${wide ? "text-[13px]" : "text-[11px]"}`}>{session.className}</p>
-                    <p className={`truncate font-semibold ${wide ? "text-[11px]" : "text-[10px]"}`}>
+                    <p className={`truncate font-bold leading-tight ${wide ? "text-sm" : "text-2xs"}`}>{session.className}</p>
+                    <p className={`truncate font-semibold ${wide ? "text-2xs" : "text-3xs"}`}>
                       {format(layout.startAt, "HH:mm")}-{format(layout.endAt, "HH:mm")}
                       {wide && session.location ? ` · ${session.location}` : ""}
                     </p>
                     {tone.tagLabel && (
-                      <span className={`mt-0.5 inline-block rounded px-1 py-px text-[9px] font-extrabold uppercase tracking-wide text-white ${tone.tagBg}`}>
+                      <span className={`mt-0.5 inline-block rounded px-1 py-px text-4xs font-extrabold uppercase tracking-wide text-white ${tone.tagBg}`}>
                         {tone.tagLabel}
                       </span>
                     )}

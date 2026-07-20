@@ -91,6 +91,49 @@ service cloud.firestore {
       return isAdmin() || isAssignedTeacherForClass(classId);
     }
 
+    function sessionBelongsToClass(sessionId, classId) {
+      return exists(/databases/$(database)/documents/sessions/$(sessionId)) &&
+        get(/databases/$(database)/documents/sessions/$(sessionId)).data.classId == classId;
+    }
+
+    function validSessionInteraction(data, sessionId) {
+      return data.keys().hasOnly([
+          'sessionId', 'classId', 'courseId', 'teacherId', 'workflowStatus',
+          'taughtContent', 'quickSummary', 'homeworkText', 'version', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasAll([
+          'sessionId', 'classId', 'courseId', 'teacherId', 'workflowStatus',
+          'taughtContent', 'quickSummary', 'homeworkText', 'version', 'createdAt', 'updatedAt'
+        ]) &&
+        data.sessionId == sessionId &&
+        data.workflowStatus == 'draft' && data.version == 1 &&
+        data.taughtContent is string && data.taughtContent.size() <= 2000 &&
+        data.quickSummary is string && data.quickSummary.size() <= 2000 &&
+        data.homeworkText is string && data.homeworkText.size() <= 2000 &&
+        data.teacherId is string && (data.teacherId == request.auth.uid || isAdmin()) &&
+        data.createdAt is timestamp && data.updatedAt is timestamp &&
+        sessionBelongsToClass(sessionId, data.classId) &&
+        get(/databases/$(database)/documents/classes/$(data.classId)).data.courseId == data.courseId;
+    }
+
+    function validSessionStudentReview(data, reviewId) {
+      return data.keys().hasOnly([
+          'sessionId', 'classId', 'studentId', 'attendanceStatus',
+          'previousHomeworkStatus', 'individualComment', 'updatedBy', 'updatedAt'
+        ]) &&
+        data.keys().hasAll([
+          'sessionId', 'classId', 'studentId', 'attendanceStatus',
+          'previousHomeworkStatus', 'individualComment', 'updatedBy', 'updatedAt'
+        ]) &&
+        reviewId == data.sessionId + '_' + data.studentId &&
+        data.attendanceStatus in ['present', 'absent', 'late', 'excused'] &&
+        data.previousHomeworkStatus in ['done', 'partial', 'not_done', 'not_assigned'] &&
+        data.individualComment is string && data.individualComment.size() <= 1000 &&
+        data.updatedBy == request.auth.uid && data.updatedAt is timestamp &&
+        sessionBelongsToClass(data.sessionId, data.classId) &&
+        data.studentId in get(/databases/$(database)/documents/classes/$(data.classId)).data.studentIds;
+    }
+
     function keepsImmutable(fieldNames) {
       return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fieldNames);
     }
@@ -255,6 +298,7 @@ service cloud.firestore {
         data.title is string &&
         data.startAt is timestamp &&
         data.endAt is timestamp &&
+        data.endAt >= data.startAt &&
         data.location is string &&
         data.status in ['scheduled', 'rescheduled', 'cancelled', 'completed'] &&
         data.note is string &&
@@ -685,6 +729,30 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /session_interactions/{sessionId} {
+      allow get: if sessionBelongsToClass(
+          sessionId,
+          get(/databases/$(database)/documents/sessions/$(sessionId)).data.classId
+        ) && canManageClass(get(/databases/$(database)/documents/sessions/$(sessionId)).data.classId);
+      allow list: if canManageClass(resource.data.classId);
+      allow create: if canManageClass(request.resource.data.classId) &&
+        validSessionInteraction(request.resource.data, sessionId);
+      allow update: if canManageClass(resource.data.classId) &&
+        validSessionInteraction(request.resource.data, sessionId) &&
+        keepsImmutable(['sessionId', 'classId', 'courseId', 'teacherId', 'workflowStatus', 'version', 'createdAt']);
+      allow delete: if false;
+    }
+
+    match /session_student_reviews/{reviewId} {
+      allow read: if canManageClass(resource.data.classId);
+      allow create: if canManageClass(request.resource.data.classId) &&
+        validSessionStudentReview(request.resource.data, reviewId);
+      allow update: if canManageClass(resource.data.classId) &&
+        validSessionStudentReview(request.resource.data, reviewId) &&
+        keepsImmutable(['sessionId', 'classId', 'studentId']);
+      allow delete: if false;
+    }
+
     match /announcements/{announcementId} {
       allow read: if isStaff() || (
         isActive() && resource.data.studentId != null && ownsStudent(resource.data.studentId)
@@ -794,7 +862,8 @@ service cloud.firestore {
         submissionId == request.resource.data.assignmentId + '_' + request.resource.data.studentId &&
         request.resource.data.status == 'submitted' && request.resource.data.score == null && request.resource.data.teacherComment == '' &&
         validSubmissionData(request.resource.data) &&
-        get(/databases/$(database)/documents/assignments/$(request.resource.data.assignmentId)).data.classId == request.resource.data.classId;
+        get(/databases/$(database)/documents/assignments/$(request.resource.data.assignmentId)).data.classId == request.resource.data.classId &&
+        get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data.studentIds.hasAny([request.resource.data.studentId]);
       allow update: if keepsImmutable(['assignmentId', 'studentId', 'classId']) &&
         validSubmissionData(request.resource.data) &&
         (
@@ -889,7 +958,8 @@ service cloud.firestore {
         request.resource.data.reportedBy == request.auth.uid &&
         request.resource.data.verifiedBy == null &&
         validPaymentData(request.resource.data) &&
-        get(/databases/$(database)/documents/invoices/$(request.resource.data.invoiceId)).data.amount == request.resource.data.amount;
+        get(/databases/$(database)/documents/invoices/$(request.resource.data.invoiceId)).data.amount == request.resource.data.amount &&
+        get(/databases/$(database)/documents/invoices/$(request.resource.data.invoiceId)).data.studentId == request.resource.data.studentId;
       allow update: if validPaymentData(request.resource.data) && ((isAdmin() &&
         request.resource.data.status in ['verified', 'rejected'] &&
         keepsImmutable(['invoiceId', 'studentId', 'amount', 'reportedBy', 'reportedAt'])

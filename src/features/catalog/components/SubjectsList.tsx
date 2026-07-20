@@ -109,9 +109,9 @@ export function SubjectsList({ onEdit, onAdd, selectedSubjectId, onSelect }: Sub
                       className="min-w-0 flex-1 rounded-input px-2 py-1 text-left transition hover:bg-primary-50"
                     >
                       <p className="truncate text-sm font-semibold text-neutral-900">{subject.name}</p>
-                      <p className="font-mono text-[11px] text-neutral-500">{subject.code}</p>
+                      <p className="font-mono text-2xs text-neutral-500">{subject.code}</p>
                     </button>
-                    <span className="mt-1 shrink-0 rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-bold tabular-nums text-primary-700">
+                    <span className="mt-1 shrink-0 rounded-full bg-primary-50 px-2 py-0.5 text-2xs font-bold tabular-nums text-primary-700">
                       {count} khóa
                     </span>
                   </div>

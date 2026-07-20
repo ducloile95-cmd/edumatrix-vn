@@ -20,6 +20,7 @@ const StudentsPage = lazy(() => import("@/features/students/pages/StudentsPage")
 const ClassesPage = lazy(() => import("@/features/classes/pages/ClassesPage"));
 const ClassDetailPage = lazy(() => import("@/features/classes/pages/ClassDetailPage"));
 const SessionsPage = lazy(() => import("@/features/sessions/pages/SessionsPage"));
+const ClassroomInteractionPage = lazy(() => import("@/features/classroom/pages/ClassroomInteractionPage"));
 const LessonPlansPage = lazy(() => import("@/features/lesson-plans/pages/LessonPlansPage"));
 const AttendancePage = lazy(() => import("@/features/attendance/pages/AttendancePage"));
 const LearningPage = lazy(() => import("@/features/learning/pages/LearningPage"));
@@ -120,6 +121,16 @@ export function AppRouter() {
           <Route
             path={ROUTES.STAFF_SESSIONS}
             element={<RequireAuth><RequireRole roles={[USER_ROLES.ADMIN, USER_ROLES.TEACHER]}><SessionsPage /></RequireRole></RequireAuth>}
+          />
+
+          <Route
+            path={ROUTES.STAFF_CLASSROOM}
+            element={<RequireAuth><RequireRole roles={[USER_ROLES.ADMIN, USER_ROLES.TEACHER]}><ClassroomInteractionPage /></RequireRole></RequireAuth>}
+          />
+
+          <Route
+            path={ROUTES.STAFF_CLASSROOM_DETAIL}
+            element={<RequireAuth><RequireRole roles={[USER_ROLES.ADMIN, USER_ROLES.TEACHER]}><ClassroomInteractionPage /></RequireRole></RequireAuth>}
           />
 
           <Route

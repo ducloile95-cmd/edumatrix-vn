@@ -24,15 +24,30 @@ import type { AttendanceDoc, AttendanceStatus, AttendanceSummaryDoc, SessionDoc 
 
 export interface AttendanceEntry { studentId: string; status: AttendanceStatus; note: string; }
 
+/** Chia mang thanh cac nhom 30 phan tu - gioi han menh de "in" cua Firestore. */
+function chunk30(values: string[]): string[][] {
+  const chunks: string[][] = [];
+  for (let offset = 0; offset < values.length; offset += 30) chunks.push(values.slice(offset, offset + 30));
+  return chunks;
+}
+
 export async function saveAttendance(sessionId: string, classId: string, entries: AttendanceEntry[], actorUid: string): Promise<void> {
-  for (let offset = 0; offset < entries.length; offset += 200) {
-    const batch = writeBatch(db);
-    entries.slice(offset, offset + 200).forEach((entry) => {
-      const attendanceId = `${sessionId}_${entry.studentId}`;
-      batch.set(doc(db, COLLECTIONS.ATTENDANCE, attendanceId), { sessionId, classId, studentId: entry.studentId, status: entry.status, note: entry.note, markedBy: actorUid, markedAt: serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true });
-      if (entry.status === "absent" || entry.status === "late") batch.set(doc(db, COLLECTIONS.ANNOUNCEMENTS, `attendance_${attendanceId}`), { type: "attendance_alert", sessionId, classId, studentId: entry.studentId, title: entry.status === "absent" ? "Học sinh vắng mặt" : "Học sinh đi muộn", message: entry.note, createdAt: serverTimestamp() }, { merge: true });
-    });
-    await batch.commit();
+  // Chunk 200 entry (toi da 400 op/batch < gioi han 500). Voi si so thuc te
+  // <200 thi luon la 1 batch nguyen tu; neu >1 batch va loi giua chung,
+  // rebuild summary best-effort de summary khop voi phan da ghi roi nem loi.
+  try {
+    for (let offset = 0; offset < entries.length; offset += 200) {
+      const batch = writeBatch(db);
+      entries.slice(offset, offset + 200).forEach((entry) => {
+        const attendanceId = `${sessionId}_${entry.studentId}`;
+        batch.set(doc(db, COLLECTIONS.ATTENDANCE, attendanceId), { sessionId, classId, studentId: entry.studentId, status: entry.status, note: entry.note, markedBy: actorUid, markedAt: serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true });
+        if (entry.status === "absent" || entry.status === "late") batch.set(doc(db, COLLECTIONS.ANNOUNCEMENTS, `attendance_${attendanceId}`), { type: "attendance_alert", sessionId, classId, studentId: entry.studentId, title: entry.status === "absent" ? "Học sinh vắng mặt" : "Học sinh đi muộn", message: entry.note, createdAt: serverTimestamp() }, { merge: true });
+      });
+      await batch.commit();
+    }
+  } catch (error) {
+    await rebuildAttendanceSummary(sessionId, classId).catch(() => undefined);
+    throw error;
   }
   await rebuildAttendanceSummary(sessionId, classId);
 }
@@ -86,14 +101,13 @@ export async function listAttendanceBySessionIds(sessionIds: string[], pageSize 
   if (uniqueIds.length === 0) return [];
   const currentUser = await getCurrentUserDoc();
   if (isTeacherUser(currentUser)) {
-    const sessionIdSet = new Set(uniqueIds);
+    // Giu classId == de Rules chung minh duoc canManageClass (1 get/lop);
+    // them sessionId in de loc tai server thay vi tai ve toan bo lich su lop.
     const classes = await listClasses();
-    const snapshots = await Promise.all(classes.map((klass) => getDocs(
-      query(collection(db, COLLECTIONS.ATTENDANCE), where("classId", "==", klass.id), limit(pageSize)),
-    )));
-    return snapshots.flatMap((snapshot) => snapshot.docs
-      .map((item) => ({ id: item.id, ...(item.data() as AttendanceDoc) }))
-      .filter((item) => sessionIdSet.has(item.sessionId)));
+    const snapshots = await Promise.all(classes.flatMap((klass) => chunk30(uniqueIds).map((ids) => getDocs(
+      query(collection(db, COLLECTIONS.ATTENDANCE), where("classId", "==", klass.id), where("sessionId", "in", ids), limit(pageSize)),
+    ))));
+    return snapshots.flatMap((snapshot) => snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as AttendanceDoc) })));
   }
   const groups: (AttendanceDoc & { id: string })[][] = [];
 
@@ -120,14 +134,11 @@ export async function listAttendanceSummariesBySessionIds(
   const uniqueIds = [...new Set(sessionIds)].filter(Boolean);
   const currentUser = await getCurrentUserDoc();
   if (isTeacherUser(currentUser)) {
-    const sessionIdSet = new Set(uniqueIds);
     const classes = await listClasses();
-    const snapshots = await Promise.all(classes.map((klass) => getDocs(
-      query(collection(db, COLLECTIONS.ATTENDANCE_SUMMARIES), where("classId", "==", klass.id), limit(300)),
-    )));
-    return snapshots.flatMap((snapshot) => snapshot.docs
-      .map((item) => ({ id: item.id, ...(item.data() as AttendanceSummaryDoc) }))
-      .filter((item) => sessionIdSet.has(item.sessionId)));
+    const snapshots = await Promise.all(classes.flatMap((klass) => chunk30(uniqueIds).map((ids) => getDocs(
+      query(collection(db, COLLECTIONS.ATTENDANCE_SUMMARIES), where("classId", "==", klass.id), where("sessionId", "in", ids), limit(300)),
+    ))));
+    return snapshots.flatMap((snapshot) => snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as AttendanceSummaryDoc) })));
   }
   const groups: (AttendanceSummaryDoc & { id: string })[][] = [];
 
@@ -149,17 +160,14 @@ export async function listAttendanceByStudents(studentIds: string[], pageSize = 
 
   const currentUser = await getCurrentUserDoc();
   if (isTeacherUser(currentUser)) {
-    const studentSet = new Set(uniqueIds);
     const classes = await listClasses();
     const groups = await Promise.all(
-      classes.map(async (klass) => {
+      classes.flatMap((klass) => chunk30(uniqueIds).map(async (ids) => {
         const snapshot = await getDocs(
-          query(collection(db, COLLECTIONS.ATTENDANCE), where("classId", "==", klass.id), limit(pageSize)),
+          query(collection(db, COLLECTIONS.ATTENDANCE), where("classId", "==", klass.id), where("studentId", "in", ids), limit(pageSize)),
         );
-        return snapshot.docs
-          .map((item) => ({ id: item.id, ...(item.data() as AttendanceDoc) }))
-          .filter((item) => studentSet.has(item.studentId));
-      }),
+        return snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as AttendanceDoc) }));
+      })),
     );
     return groups.flat().sort((a, b) => b.markedAt.toMillis() - a.markedAt.toMillis());
   }
