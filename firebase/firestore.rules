@@ -426,7 +426,7 @@ service cloud.firestore {
     function validAnnouncementData(data) {
       return data.keys().hasAll(['type', 'title', 'message', 'createdAt']) &&
         data.keys().hasOnly(['type', 'sessionId', 'assignmentId', 'classId', 'studentId', 'title', 'message', 'createdAt']) &&
-        data.type in ['attendance_alert', 'schedule_change', 'homework_reminder'] &&
+        data.type in ['attendance_alert', 'schedule_change', 'homework_reminder', 'session_summary'] &&
         data.title is string &&
         data.message is string &&
         (!data.keys().hasAny(['sessionId']) || data.sessionId is string) &&
@@ -737,9 +737,34 @@ service cloud.firestore {
       allow list: if canManageClass(resource.data.classId);
       allow create: if canManageClass(request.resource.data.classId) &&
         validSessionInteraction(request.resource.data, sessionId);
-      allow update: if canManageClass(resource.data.classId) &&
-        validSessionInteraction(request.resource.data, sessionId) &&
-        keepsImmutable(['sessionId', 'classId', 'courseId', 'teacherId', 'workflowStatus', 'version', 'createdAt']);
+      allow update: if canManageClass(resource.data.classId) && (
+        (
+          validSessionInteraction(request.resource.data, sessionId) &&
+          keepsImmutable(['sessionId', 'classId', 'courseId', 'teacherId', 'workflowStatus', 'version', 'createdAt'])
+        ) || (
+          // Phat hanh: draft/amended -> published, version tang dung 1, khong doi noi dung.
+          resource.data.workflowStatus in ['draft', 'amended'] &&
+          request.resource.data.workflowStatus == 'published' &&
+          request.resource.data.version == resource.data.version + 1 &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['workflowStatus', 'version', 'updatedAt']) &&
+          request.resource.data.updatedAt is timestamp
+        ) || (
+          // Mo lai de dinh chinh: published -> amended, chi doi trang thai.
+          resource.data.workflowStatus == 'published' &&
+          request.resource.data.workflowStatus == 'amended' &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['workflowStatus', 'updatedAt']) &&
+          request.resource.data.updatedAt is timestamp
+        ) || (
+          // Sua noi dung khi dang dinh chinh (version > 1 nen khong qua validSessionInteraction).
+          resource.data.workflowStatus == 'amended' &&
+          request.resource.data.workflowStatus == 'amended' &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['taughtContent', 'quickSummary', 'homeworkText', 'updatedAt']) &&
+          request.resource.data.taughtContent is string && request.resource.data.taughtContent.size() <= 2000 &&
+          request.resource.data.quickSummary is string && request.resource.data.quickSummary.size() <= 2000 &&
+          request.resource.data.homeworkText is string && request.resource.data.homeworkText.size() <= 2000 &&
+          request.resource.data.updatedAt is timestamp
+        )
+      );
       allow delete: if false;
     }
 
@@ -760,8 +785,16 @@ service cloud.firestore {
       allow create: if isStaff() && validAnnouncementData(request.resource.data);
       allow update: if isStaff() &&
         validAnnouncementData(request.resource.data) &&
-        resource.data.type == 'attendance_alert' &&
-        announcementId == 'attendance_' + resource.data.sessionId + '_' + resource.data.studentId &&
+        (
+          (
+            resource.data.type == 'attendance_alert' &&
+            announcementId == 'attendance_' + resource.data.sessionId + '_' + resource.data.studentId
+          ) || (
+            // session_summary: phat hanh lai (dinh chinh) ghi de cung doc ID {sessionId}_{studentId}.
+            resource.data.type == 'session_summary' &&
+            announcementId == resource.data.sessionId + '_' + resource.data.studentId
+          )
+        ) &&
         keepsImmutable(['type', 'sessionId', 'classId', 'studentId']) &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'message', 'createdAt']);
       allow delete: if false;

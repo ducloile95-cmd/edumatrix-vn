@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Báo cáo Kiểm thử Chuyên sâu — Edumatrix VN — 22/07/2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --canvas: #f3f5f4;
+    --surface: #ffffff;
+    --surface-soft: #eef1f0;
+    --surface-strong: #dfe6e2;
+    --ink: #16201b;
+    --body: #49564e;
+    --muted: #6c7a72;
+    --line: #d8e0dc;
+    --line-strong: #a9b8b0;
+    --primary: #1c5b3f;
+    --primary-soft: #dcece2;
+    --primary-ink: #0e3d29;
+    --critical: #9c2b2b;
+    --critical-soft: #f6dcdc;
+    --high: #a2590f;
+    --high-soft: #f6e5cc;
+    --medium: #7a670a;
+    --medium-soft: #f0eacb;
+    --low: #3a6ea5;
+    --low-soft: #dde8f4;
+    --good: #1c7a4d;
+    --good-soft: #d9efe1;
+    --shadow: 0 18px 50px rgba(20,40,30,.08);
+    --radius-card: 16px;
+    --radius-ctrl: 10px;
+    --max: 1360px;
+    --font: 'Be Vietnam Pro', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', monospace;
+  }
+  html[data-theme="dark"] {
+    --canvas: #10140f;
+    --surface: #171f18;
+    --surface-soft: #1f2921;
+    --surface-strong: #2a362c;
+    --ink: #eef4f0;
+    --body: #bdcabf;
+    --muted: #8ba090;
+    --line: #2c3a2f;
+    --line-strong: #445649;
+    --primary: #4fbf8a;
+    --primary-soft: #17352a;
+    --primary-ink: #a8e9c8;
+    --critical: #ff8a8a;
+    --critical-soft: #402323;
+    --high: #ffb066;
+    --high-soft: #45301a;
+    --medium: #e3cf62;
+    --medium-soft: #3c351a;
+    --low: #7fb4f0;
+    --low-soft: #1c2e40;
+    --good: #4fbf8a;
+    --good-soft: #17352a;
+    --shadow: 0 18px 50px rgba(0,0,0,.35);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--canvas); color: var(--ink); font-family: var(--font); line-height: 1.6; transition: background .2s, color .2s; }
+  .wrap { max-width: var(--max); margin: 0 auto; padding: 0 20px 80px; }
+  code, .mono { font-family: var(--mono); }
+
+  header.top { position: sticky; top: 0; z-index: 30; background: color-mix(in srgb, var(--canvas) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+  .topbar { max-width: var(--max); margin: 0 auto; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 14px; }
+  .brand .dot { width: 10px; height: 10px; border-radius: 999px; background: var(--primary); }
+  .topbar nav { display: flex; gap: 4px; flex-wrap: wrap; }
+  .topbar nav a { font-size: 12.5px; font-weight: 600; color: var(--muted); text-decoration: none; padding: 7px 11px; border-radius: 999px; }
+  .topbar nav a:hover { background: var(--surface-soft); color: var(--ink); }
+  #themeToggle { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 7px 13px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: var(--font); }
+  #themeToggle:hover { border-color: var(--line-strong); }
+
+  .hero { padding: 44px 0 28px; }
+  .badge-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; padding: 5px 12px; border-radius: 999px; background: var(--surface-soft); border: 1px solid var(--line); color: var(--muted); }
+  .pill.primary { background: var(--primary-soft); color: var(--primary-ink); border-color: transparent; }
+  h1 { font-size: clamp(26px, 4vw, 38px); font-weight: 800; margin: 0 0 12px; letter-spacing: -.02em; }
+  .lede { font-size: 16px; color: var(--body); max-width: 780px; margin: 0; }
+  .meta-strip { display: flex; gap: 22px; flex-wrap: wrap; margin-top: 22px; font-size: 12.5px; color: var(--muted); }
+  .meta-strip strong { color: var(--ink); font-weight: 700; }
+
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 26px 0 40px; }
+  @media (max-width: 900px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+  .kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-card); padding: 18px; box-shadow: var(--shadow); }
+  .kpi .k-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .kpi .k-val { font-size: 28px; font-weight: 800; margin-top: 6px; letter-spacing: -.01em; }
+  .kpi .k-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .kpi.good .k-val { color: var(--good); }
+  .kpi.warn .k-val { color: var(--high); }
+
+  section { margin: 52px 0; scroll-margin-top: 74px; }
+  .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+  .section-head h2 { font-size: 21px; font-weight: 800; margin: 0; letter-spacing: -.01em; }
+  .section-head p { margin: 4px 0 0; color: var(--muted); font-size: 13px; max-width: 620px; }
+
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+  .chip { font-family: var(--font); font-size: 12.5px; font-weight: 700; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); cursor: pointer; transition: .15s; }
+  .chip:hover { border-color: var(--line-strong); color: var(--ink); }
+  .chip.active { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+  html[data-theme="dark"] .chip.active { background: var(--primary); color: #0b1a12; border-color: var(--primary); }
+
+  .findings { display: flex; flex-direction: column; gap: 10px; }
+  .finding { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-card); overflow: hidden; box-shadow: var(--shadow); transition: opacity .15s, transform .15s; }
+  .finding.hidden { display: none; }
+  .f-head { display: flex; align-items: center; gap: 12px; padding: 14px 16px; cursor: pointer; user-select: none; }
+  .f-head:hover { background: var(--surface-soft); }
+  .sev { flex-shrink: 0; font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; padding: 4px 9px; border-radius: 999px; }
+  .sev.cao { background: var(--high-soft); color: var(--high); }
+  .sev.trungbinh { background: var(--medium-soft); color: var(--medium); }
+  .sev.thap { background: var(--low-soft); color: var(--low); }
+  .status { flex-shrink: 0; font-size: 10.5px; font-weight: 800; padding: 4px 9px; border-radius: 999px; }
+  .status.fixed { background: var(--good-soft); color: var(--good); }
+  .status.open { background: var(--critical-soft); color: var(--critical); }
+  .status.new { background: var(--primary-soft); color: var(--primary-ink); }
+  .f-title { flex: 1; min-width: 0; font-weight: 700; font-size: 14.5px; }
+  .f-file { font-size: 11.5px; color: var(--muted); font-family: var(--mono); flex-shrink: 0; display: none; }
+  @media (min-width: 760px) { .f-file { display: block; } }
+  .chev { flex-shrink: 0; width: 18px; height: 18px; color: var(--muted); transition: transform .18s; }
+  .finding.open .chev { transform: rotate(180deg); }
+  .f-body { max-height: 0; overflow: hidden; transition: max-height .22s ease; }
+  .finding.open .f-body { max-height: 600px; }
+  .f-body-in { padding: 0 16px 18px 16px; border-top: 1px solid var(--line); margin-top: 0; padding-top: 14px; font-size: 13.5px; color: var(--body); }
+  .f-body-in .why { margin-top: 10px; padding: 10px 12px; background: var(--surface-soft); border-radius: 10px; font-size: 12.5px; }
+  .f-body-in .why b { color: var(--ink); }
+  .f-file-mobile { display: block; font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 8px; }
+  @media (min-width: 760px) { .f-file-mobile { display: none; } }
+
+  .role-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  @media (max-width: 860px) { .role-grid { grid-template-columns: 1fr; } }
+  .role-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-card); padding: 20px; box-shadow: var(--shadow); }
+  .role-card .r-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  .role-card .r-count { font-size: 26px; font-weight: 800; }
+  .role-card h3 { margin: 0; font-size: 15px; font-weight: 800; }
+  .role-card .r-sub { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+  .role-card ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .role-card li { font-size: 12.5px; display: flex; gap: 8px; align-items: flex-start; color: var(--body); }
+  .role-card li svg { flex-shrink: 0; margin-top: 2px; width: 14px; height: 14px; }
+  .ok-ic { color: var(--good); } .warn-ic { color: var(--high); }
+
+  .quota-grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 16px; }
+  @media (max-width: 900px) { .quota-grid { grid-template-columns: 1fr; } }
+  .quota-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-card); padding: 22px; box-shadow: var(--shadow); }
+  .gauge-row { margin-bottom: 20px; }
+  .gauge-row:last-child { margin-bottom: 0; }
+  .gauge-label { display: flex; justify-content: space-between; font-size: 12.5px; font-weight: 700; margin-bottom: 7px; }
+  .gauge-label span.sub { font-weight: 500; color: var(--muted); }
+  .gauge-track { height: 12px; border-radius: 999px; background: var(--surface-strong); overflow: hidden; position: relative; }
+  .gauge-fill { height: 100%; border-radius: 999px; background: var(--good); width: 0%; transition: width 1s cubic-bezier(.16,1,.3,1); }
+  .gauge-fill.warn70 { background: var(--high); }
+  .gauge-thresh { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--critical); opacity: .6; }
+  .gauge-note { font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .notes-list { display: flex; flex-direction: column; gap: 12px; }
+  .note-item { display: flex; gap: 10px; font-size: 13px; color: var(--body); }
+  .note-item svg { flex-shrink: 0; margin-top: 3px; width: 16px; height: 16px; color: var(--primary); }
+  .assump { background: var(--surface-soft); border-radius: 12px; padding: 14px; font-size: 12px; color: var(--muted); margin-top: 16px; }
+  .assump b { color: var(--ink); }
+
+  .verdict-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-card); padding: 24px; box-shadow: var(--shadow); }
+  .verdict-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px; }
+  @media (max-width: 860px) { .verdict-grid { grid-template-columns: 1fr; } }
+  .verdict-item h4 { margin: 0 0 6px; font-size: 13px; font-weight: 800; display: flex; align-items: center; gap: 6px; }
+  .verdict-item p { margin: 0; font-size: 12.5px; color: var(--body); }
+  .status-dot { width: 8px; height: 8px; border-radius: 999px; flex-shrink: 0; }
+  .status-dot.g { background: var(--good); } .status-dot.y { background: var(--high); }
+
+  .checklist { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-card); padding: 20px 22px; box-shadow: var(--shadow); }
+  .checklist ul { margin: 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .checklist li { display: flex; gap: 10px; font-size: 13px; color: var(--body); align-items: flex-start; }
+  .checklist li svg { flex-shrink: 0; margin-top: 3px; width: 16px; height: 16px; color: var(--high); }
+
+  footer.foot { margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--line); font-size: 11.5px; color: var(--muted); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="topbar">
+    <div class="brand"><span class="dot"></span> Edumatrix VN · QA Report</div>
+    <nav>
+      <a href="#tong-quan">Tổng quan</a>
+      <a href="#phat-hien">Phát hiện</a>
+      <a href="#nang-luc">Năng lực Spark</a>
+      <a href="#giao-dien">Giao diện</a>
+      <a href="#can-lam">Cần Lợi làm</a>
+    </nav>
+    <button id="themeToggle" onclick="toggleTheme()">🌙 Tối</button>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <section class="hero" id="tong-quan" style="margin-top:0;">
+    <div class="badge-row">
+      <span class="pill primary">Firebase Spark Plan</span>
+      <span class="pill">Client-side only</span>
+      <span class="pill">&lt;100 tài khoản</span>
+      <span class="pill">1 Admin · 3 Giáo viên · 15 Phụ huynh đồng thời</span>
+    </div>
+    <h1>Báo cáo Kiểm thử Chuyên sâu — Edumatrix VN</h1>
+    <p class="lede">Kiểm thử mã nguồn và khả năng vận hành dài hạn: rà soát trực tiếp trên source hiện tại (không chỉ dựa vào tài liệu cũ), chạy typecheck/lint, tính toán tải quota Firestore cho đúng quy mô người dùng, và đối chiếu giao diện 3 vai trò.</p>
+    <div class="meta-strip">
+      <span>Ngày thực hiện: <strong>22/07/2026</strong></span>
+      <span>Phạm vi: <strong>Toàn bộ dự án</strong></span>
+      <span>Phương pháp: <strong>Đọc trực tiếp mã nguồn + chạy static check, không sửa code</strong></span>
+    </div>
+  </section>
+
+  <div class="kpi-grid">
+    <div class="kpi good"><div class="k-label">Typecheck</div><div class="k-val">0 lỗi</div><div class="k-sub">tsc --noEmit sạch</div></div>
+    <div class="kpi good"><div class="k-label">Lint</div><div class="k-val">0 cảnh báo</div><div class="k-sub">eslint --max-warnings 0</div></div>
+    <div class="kpi"><div class="k-label">Phát hiện đã xác minh</div><div class="k-val">16</div><div class="k-sub">10 đã sửa · 6 còn mở</div></div>
+    <div class="kpi warn"><div class="k-label">Mức nghiêm trọng cao nhất còn mở</div><div class="k-val">Cao</div><div class="k-sub">1 phát hiện — module Tương tác lớp học</div></div>
+  </div>
+
+  <section id="phat-hien">
+    <div class="section-head">
+      <div>
+        <h2>Danh sách phát hiện</h2>
+        <p>Đã xác minh trực tiếp trên mã nguồn hiện tại (không suy đoán từ báo cáo cũ). Bấm vào mỗi dòng để xem chi tiết.</p>
+      </div>
+    </div>
+    <div class="filters">
+      <button class="chip active" data-filter="all">Tất cả (16)</button>
+      <button class="chip" data-filter="open">Còn mở (6)</button>
+      <button class="chip" data-filter="fixed">Đã sửa (10)</button>
+      <button class="chip" data-filter="new">Mới phát hiện hôm nay (3)</button>
+      <button class="chip" data-filter="cao">Mức Cao</button>
+      <button class="chip" data-filter="trungbinh">Mức Trung bình</button>
+      <button class="chip" data-filter="thap">Mức Thấp</button>
+    </div>
+    <div class="findings" id="findingsList"></div>
+  </section>
+
+  <section id="nang-luc">
+    <div class="section-head">
+      <div>
+        <h2>Năng lực Spark Plan cho quy mô hiện tại</h2>
+        <p>Ước tính minh họa dựa trên hành vi đọc/ghi thực tế trong mã nguồn — sandbox kiểm thử không chạy được tải thật (không có build/dev do node_modules dựng cho Windows), số liệu dưới đây là ước lượng có căn cứ, không phải đo trực tiếp.</p>
+      </div>
+    </div>
+    <div class="quota-grid">
+      <div class="quota-card">
+        <div class="gauge-row">
+          <div class="gauge-label"><span>Firestore reads / ngày</span><span class="sub">~2.600 / 50.000</span></div>
+          <div class="gauge-track"><div class="gauge-thresh" style="left:70%"></div><div class="gauge-fill" id="gaugeReads" style="width:0"></div></div>
+          <div class="gauge-note">Vạch đỏ = ngưỡng cảnh báo nội bộ 70% (35.000) theo <code class="mono">CHECKLIST-TRIEN-KHAI-PRODUCTION.md</code>. Ước tính hiện tại ~5% quota.</div>
+        </div>
+        <div class="gauge-row">
+          <div class="gauge-label"><span>Firestore writes / ngày</span><span class="sub">~450 / 20.000</span></div>
+          <div class="gauge-track"><div class="gauge-thresh" style="left:70%"></div><div class="gauge-fill" id="gaugeWrites" style="width:0"></div></div>
+          <div class="gauge-note">Điểm danh + tương tác lớp học là nguồn ghi chính (~2 write/học sinh/buổi). Dưới 3% quota.</div>
+        </div>
+        <div class="assump">
+          <b>Giả định ước tính:</b> 1 Admin + 3 Giáo viên đăng nhập trung bình 4–5 phiên/ngày (~60–90 đọc/phiên do đã có cache <code class="mono">getCurrentUserDoc()</code> + staleTime 60s); 15 Phụ huynh đăng nhập ~1–2 phiên/ngày (~30–50 đọc/phiên). Không tính các đợt đăng nhập đồng loạt bất thường.
+        </div>
+      </div>
+      <div class="quota-card">
+        <h3 style="margin-top:0;font-size:15px;">Nhận định</h3>
+        <div class="notes-list">
+          <div class="note-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg><span>Ở quy mô 19 người dùng đồng thời / &lt;100 tài khoản, <b>quota Spark không phải rủi ro trước mắt</b> — còn dư địa rất lớn.</span></div>
+          <div class="note-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg><span>Không có <code class="mono">setInterval</code>/polling nào trong toàn bộ mã nguồn; chỉ 4 <code class="mono">onSnapshot</code>, mỗi cái đều giới hạn 1 document hoặc có <code class="mono">limit()</code> — không có rủi ro rò rỉ listener dù tăng số người dùng.</span></div>
+          <div class="note-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg><span><b>Rủi ro thật không đến từ số người dùng đồng thời</b> mà từ dữ liệu tích lũy: truy vấn hóa đơn/giáo án theo Giáo viên vẫn đọc theo từng học sinh (kiến trúc bắt buộc do giới hạn Rules) — chi phí đọc mỗi phiên sẽ tăng dần theo số năm vận hành, không theo số tài khoản.</span></div>
+          <div class="note-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg><span>Không dùng Firebase Storage ở bất kỳ đâu trong mã nguồn (đã chuyển hẳn sang Google Drive) — phù hợp với việc Storage bị gỡ khỏi Spark.</span></div>
+          <div class="note-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg><span>Không dùng Cloud Functions — toàn bộ logic cần giữ bí mật (Facebook Messenger) đã tách đúng ra Cloudflare Worker riêng, không cần nâng Blaze.</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="giao-dien">
+    <div class="section-head">
+      <div>
+        <h2>Giao diện theo từng vai trò</h2>
+        <p>Đối chiếu trực tiếp trên mã nguồn hiện tại — không dựa vào báo cáo trước vì các lỗi giao diện đã ghi nhận trước đó đều đã được sửa.</p>
+      </div>
+    </div>
+    <div class="role-grid">
+      <div class="role-card">
+        <div class="r-head"><h3>Admin (1 người)</h3></div>
+        <p class="r-sub">Quản trị toàn hệ thống</p>
+        <ul>
+          <li><svg class="ok-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>Sidebar desktop, đầy đủ module, dùng chung component Tabs/Button/PageHeader.</li>
+          <li><svg class="ok-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>Cảnh báo chủ động khi token Facebook hết hạn, hiển thị ngay trong Cài đặt.</li>
+          <li><svg class="warn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>Tùy chọn Dark mode đã bị vô hiệu hóa kèm nhãn "Sắp ra mắt" — đúng đắn hơn là ẩn hoàn toàn nhưng chấp nhận được.</li>
+        </ul>
+      </div>
+      <div class="role-card">
+        <div class="r-head"><h3>Giáo viên (3 người)</h3></div>
+        <p class="r-sub">Điểm danh, bài tập, tương tác lớp học</p>
+        <ul>
+          <li><svg class="ok-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>Màn hình Bài tập/Điểm nay có loading/error/empty state và tên học sinh thật thay vì ID thô.</li>
+          <li><svg class="ok-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>Truy vấn điểm danh/bài tập theo lớp đã lọc tại server, không còn tải toàn bộ lịch sử.</li>
+          <li><svg class="warn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>Module mới "Tương tác lớp học" đã lên Sidebar/Dashboard/Lịch học nhưng nút "Hoàn tất và phát hành" bị khóa — xem phát hiện mức Cao bên dưới.</li>
+        </ul>
+      </div>
+      <div class="role-card">
+        <div class="r-head"><h3>Phụ huynh (15 người)</h3></div>
+        <p class="r-sub">Xem lịch, học phí, bài tập con em — chủ yếu dùng di động</p>
+        <ul>
+          <li><svg class="ok-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>Đã có bottom-navigation thật cho di động (5 tab, an toàn vùng notch/gesture bar) — không còn phải mở drawer desktop.</li>
+          <li><svg class="ok-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>Trạng thái hóa đơn/bài nộp hiển thị tiếng Việt qua StatusBadge, không còn enum tiếng Anh thô.</li>
+          <li><svg class="warn-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>Nếu giáo viên bắt đầu dùng "Tương tác lớp học", phụ huynh sẽ <b>không</b> nhận được thông báo tương ứng — luồng phát hành chưa hoạt động.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="tong-ket">
+    <div class="section-head"><div><h2>Đánh giá tổng thể vận hành dài hạn</h2></div></div>
+    <div class="verdict-card">
+      <p style="margin:0;font-size:14px;color:var(--body);">Ở quy mô hiện tại (&lt;100 tài khoản, 19 người dùng đồng thời cao điểm), kiến trúc <b>Spark + client-side + Cloudflare Worker riêng cho Messenger</b> hoàn toàn khả thi, không cần nâng Blaze hay thêm Cloud Functions. Toàn bộ lỗi mức Nghiêm trọng/Cao được phát hiện trong đợt review 20/07 đã được sửa và xác minh lại trực tiếp trên mã nguồn hôm nay. Rủi ro còn lại tập trung ở một tính năng mới (Tương tác lớp học) chưa hoàn thiện luồng phát hành, và vài khoảng trống Rules/kiến trúc mức Trung bình đã được đội ngũ trước ghi nhận có chủ đích.</p>
+      <div class="verdict-grid">
+        <div class="verdict-item"><h4><span class="status-dot g"></span>Firebase Spark</h4><p>An toàn ở quy mô này. Theo dõi quota Console sau 6–12 tháng khi dữ liệu lịch sử tích lũy.</p></div>
+        <div class="verdict-item"><h4><span class="status-dot g"></span>Code Client-side</h4><p>Kiến trúc nhất quán, không rò rỉ listener, Rules deny-by-default cho phần lớn collection cốt lõi.</p></div>
+        <div class="verdict-item"><h4><span class="status-dot y"></span>Tính năng mới nhất</h4><p>Tương tác lớp học cần hoàn thiện luồng phát hành trước khi giáo viên phụ thuộc vào nó để báo phụ huynh.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="can-lam">
+    <div class="section-head"><div><h2>Việc Lợi cần tự làm trên máy thật</h2><p>Sandbox kiểm thử không chạy được build/dev/test (node_modules dựng cho Windows) và thiếu JDK 21+ cho rules-test — các mục dưới đây không thể xác minh tự động trong phiên này.</p></div></div>
+    <div class="checklist">
+      <ul>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>Chạy <code class="mono">npm run test:rules</code> trên máy thật (cần JDK 21+) để xác nhận các Rules test âm (payments/submissions/sessions) vẫn PASS.</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>Chạy <code class="mono">npm test</code> trong <code class="mono">workers/messenger</code> và thử đăng 1 bài có ảnh thật lên Fanpage trước khi deploy Worker production.</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>Mở tài khoản Phụ huynh trên điện thoại thật để nghiệm thu bottom-navigation.</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>Quyết định: hoàn thiện luồng "Hoàn tất và phát hành" của Tương tác lớp học, hay tạm ẩn nút đó khỏi giao viên cho đến khi sẵn sàng — tránh giáo viên hiểu nhầm là đã gửi cho phụ huynh.</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <span>Phương pháp: đọc trực tiếp mã nguồn + <code class="mono">npm run typecheck</code>/<code class="mono">lint</code>, đối chiếu chéo với git log và các kế hoạch sửa lỗi trước đó — không chỉnh sửa code.</span>
+    <span>Edumatrix VN · Báo cáo tạo ngày 22/07/2026</span>
+  </footer>
+
+</div>
+
+<script>
+const FINDINGS = [
+  {sev:"cao", status:"new", title:"Tương tác lớp học: nút \"Hoàn tất và phát hành\" bị khóa cứng", file:"ClassroomInteractionPage.tsx:330", body:"Module mới đã lên Sidebar/Dashboard/Lịch học giáo viên và cho phép nhập điểm danh + tổng kết buổi học đầy đủ, nhưng nút hoàn tất luôn <code class=\"mono\">disabled</code> với ghi chú \"Luồng phát hành sẽ được kích hoạt ở giai đoạn tiếp theo\". Chỉ hàm lưu nháp (saveClassroomDraft) hoạt động — không có đoạn code nào tạo thông báo cho học sinh, xếp hàng gửi Messenger, hay đánh dấu buổi học hoàn tất như kế hoạch mô tả.", why:"Vì tính năng đã hiển thị đầy đủ trên điều hướng, giáo viên có thể tưởng đã gửi tổng kết buổi học cho phụ huynh trong khi thực tế chưa có gì được gửi đi."},
+  {sev:"trungbinh", status:"new", title:"Trùng lặp quy trình điểm danh giữa 2 màn hình", file:"attendance.ts ↔ classroomInteractions.ts", body:"Cả module Điểm danh độc lập và module Tương tác lớp học mới đều ghi vào cùng collection <code class=\"mono\">attendance</code> với cùng cấu trúc dữ liệu (đã xác minh field khớp nhau — không có xung đột dữ liệu). Nhưng đây là 2 màn hình khác nhau cho cùng một thao tác nghiệp vụ.", why:"Không phải lỗi dữ liệu, nhưng có thể gây nhầm lẫn quy trình: giáo viên không rõ nên dùng màn hình nào làm nguồn chính khi cả hai đều \"hoạt động\"."},
+  {sev:"thap", status:"new", title:"Tự động lưu nháp (debounce) chưa được cài đặt", file:"ClassroomInteractionPage.tsx", body:"Kế hoạch tính năng mô tả \"nội dung được tự lưu theo nhịp debounce\", nhưng mã nguồn hiện tại chỉ có nút \"Lưu bản nháp\" thủ công — không có auto-save.", why:"Rủi ro thấp (giáo viên có thể tự bấm lưu), nhưng lệch với tài liệu kế hoạch — nên cập nhật lại tài liệu hoặc bổ sung auto-save."},
+  {sev:"trungbinh", status:"open", title:"Rules scores/attendance/invoices thiếu hasOnly", file:"firestore.rules", body:"Các rule ghi cho 3 collection này không dùng <code class=\"mono\">hasOnly()</code> nên không chặn được field thừa khi ghi. Chỉ staff (Admin/Giáo viên đã xác thực) mới có quyền ghi các collection này.", why:"Rủi ro thấp vì client không phải tác nhân đe dọa chính (chỉ staff nội bộ ghi được), đội ngũ trước đã ghi nhận và chủ động để lại cho đợt sau."},
+  {sev:"trungbinh", status:"open", title:"Meta access_token truyền qua query string", file:"workers/messenger/src/index.ts", body:"Token truy cập Facebook Graph API được gắn vào query string của URL thay vì header — rủi ro token lọt vào access log nếu bật ghi log URL đầy đủ ở tầng hạ tầng.", why:"Cần kiểm tra kỹ hành vi Graph API trước khi đổi sang header nên đội ngũ trước để riêng, chưa sửa."},
+  {sev:"trungbinh", status:"open", title:"Truy vấn hóa đơn/giáo án theo Giáo viên vẫn đọc từng học sinh", file:"invoices.ts, lessonPlans.ts", body:"Nhánh Giáo viên gọi 1 truy vấn Firestore cho mỗi học sinh trong lớp phụ trách thay vì 1 truy vấn gộp — đây là giới hạn kiến trúc thật (Rules cần <code class=\"mono\">get()</code> cho từng học sinh để xác thực quyền, vượt quá 10 lượt truy cập tài liệu/yêu cầu nếu gộp bằng <code class=\"mono\">in</code>), không phải thiếu sót.", why:"Chi phí đọc sẽ tăng dần theo số học sinh và lịch sử tích lũy của mỗi giáo viên — cần theo dõi quota Console khi vận hành nhiều năm, không phải rủi ro tức thời ở quy mô 3 giáo viên hiện tại."},
+  {sev:"cao", status:"fixed", title:"[Đã sửa 20/07] ViewerShell không có mobile nav thật", file:"ViewerShell.tsx, BottomNavigation.tsx", body:"Trước đây ViewerShell chỉ alias AppShell (desktop). Đã xác minh: nay có component BottomNavigation.tsx thật với 5 tab từ NAVIGATION_BY_ROLE.viewer, hỗ trợ safe-area, chỉ hiện dưới breakpoint lg.", why:"Nhóm Phụ huynh dùng di động nhiều nhất — đã khắc phục đúng nhóm người dùng chịu ảnh hưởng nhiều nhất."},
+  {sev:"cao", status:"fixed", title:"[Đã sửa 20/07] AssignmentsPage hiển thị ID thô", file:"AssignmentsPage.tsx:174", body:"Trước đây render trực tiếp document ID thay vì tên học sinh. Đã xác minh: nay join qua listStudents, hiển thị studentName với fallback về ID khi chưa tải xong.", why:"Ảnh hưởng trực tiếp thao tác chấm bài hàng ngày của 3 giáo viên."},
+  {sev:"cao", status:"fixed", title:"[Đã sửa 20/07] Đăng ảnh lên Fanpage không hoạt động", file:"workers/messenger/src/index.ts", body:"Trước đây Worker bỏ hoàn toàn field ảnh khi đăng bài. Đã xác minh: PostBody nay có imageUrls, hàm uploadPhoto() gọi /me/photos lấy photo_id rồi gắn attached_media vào /me/feed.", why:"Tính năng thông báo phụ huynh qua Fanpage nay hoạt động đúng như giao diện hứa hẹn."},
+  {sev:"cao", status:"fixed", title:"[Đã sửa 20/07] Rules payments/submissions thiếu cross-check studentId", file:"firestore.rules:861-866, 956-962", body:"Đã xác minh trực tiếp: rule create của submissions nay kiểm tra classes.studentIds.hasAny([studentId]); rule create của payments nay kiểm tra invoices.studentId == request.resource.data.studentId.", why:"Đóng lỗ hổng lý thuyết cho phép phụ huynh tạo bản ghi trỏ tới hồ sơ của học sinh khác."},
+  {sev:"trungbinh", status:"fixed", title:"[Đã sửa 20/07] Rules sessions thiếu ràng buộc endAt >= startAt", file:"firestore.rules", body:"Ràng buộc này trước chỉ có ở UI. Đã xác minh có thêm điều kiện trong validSessionData ở tầng Rules — lớp bảo mật thật, không chỉ UX.", why:"Ngăn dữ liệu buổi học sai lệch được ghi trực tiếp qua API, bỏ qua UI."},
+  {sev:"cao", status:"fixed", title:"[Đã sửa 20/07] Gọi lặp getCurrentUserDoc() 7-8 lần/lượt tải Dashboard", file:"authz.ts", body:"Đã xác minh: nay có cache module-level được đồng bộ từ onSnapshot sẵn có của AuthContext — không caller nào cần sửa, cache tự cập nhật realtime.", why:"Giảm đáng kể số lượt đọc dư thừa mỗi lần Admin/Giáo viên mở Dashboard, càng quan trọng khi có 4 nhân sự dùng hàng ngày."},
+  {sev:"cao", status:"fixed", title:"[Đã sửa 20/07] Truy vấn Giáo viên tải toàn bộ lịch sử rồi lọc client", file:"attendance.ts, assignments.ts", body:"Đã xác minh nhánh Giáo viên nay lọc theo sessionId/studentId ngay tại truy vấn (chunk 30, dùng mệnh đề in) thay vì tải hết rồi lọc ở client.", why:"Đây là rủi ro dài hạn rõ nhất cho quota Spark theo kết luận review gốc — đã xử lý cho 2/4 module bị ảnh hưởng (invoices/lessonPlans còn lại do giới hạn kiến trúc Rules, xem mục Còn mở)."},
+  {sev:"cao", status:"fixed", title:"[Đã sửa 20/07] Race condition (TOCTOU) khi ghi danh học sinh", file:"enrollments.ts", body:"Đã xác minh: enrollStudent và unenrollStudent nay dùng runTransaction, đọc currentClassIds trong transaction thay vì query ngoài transaction rồi ghi đè toàn bộ mảng.", why:"Ngăn lost-update khi 2 thao tác ghi danh chạy đồng thời — quan trọng hơn khi nhiều giáo viên thao tác cùng lúc."},
+  {sev:"trungbinh", status:"fixed", title:"[Đã sửa 20/07] Nợ kỹ thuật CSS/UI (8 mục gộp)", file:"Tabs.tsx, PageHeader.tsx, Pagination.tsx, StatCard.tsx, Sidebar.tsx, tailwind.config.ts", body:"Đã xác minh gộp 8 mục: component Tabs dùng chung thay 2 kiểu tab bar song song; xóa dead prop title/description khỏi PageHeader; màu Pagination sửa từ success sang primary; token cỡ chữ nhỏ 2xs/3xs; StatCard tone primary đồng bộ độ đậm chữ; bỏ affordance giả (gợi ý phím tắt, icon lọc không hoạt động) ở Sidebar; token chat-bubble; Dark mode gắn nhãn Sắp ra mắt.", why:"Dọn nợ kỹ thuật tích lũy kiểu \"mỗi trang tự chế lại một chút\" — không chặn go-live nhưng cải thiện nhất quán trước khi hệ thống lớn hơn."},
+  {sev:"trungbinh", status:"fixed", title:"[Đã sửa 20/07] .env.real/.env.emulator không được .gitignore che", file:".gitignore", body:"Đã xác minh 2 file này nay có trong .gitignore. Chưa từng chứa secret thật nhưng cơ chế bảo vệ trước đó có lỗ hổng.", why:"Ngăn rủi ro commit nhầm secret thật trong tương lai nếu file này được điền giá trị thật."},
+];
+
+const listEl = document.getElementById('findingsList');
+function sevLabel(s){ return {cao:'Cao', trungbinh:'Trung bình', thap:'Thấp'}[s]; }
+function statusLabel(s){ return {fixed:'Đã sửa', open:'Còn mở', new:'Mới hôm nay'}[s]; }
+
+FINDINGS.forEach((f, i) => {
+  const el = document.createElement('div');
+  el.className = 'finding';
+  el.dataset.sev = f.sev;
+  el.dataset.status = f.status;
+  el.innerHTML = `
+    <div class="f-head" onclick="this.parentElement.classList.toggle('open')">
+      <span class="sev ${f.sev}">${sevLabel(f.sev)}</span>
+      <span class="status ${f.status}">${statusLabel(f.status)}</span>
+      <span class="f-title">${f.title}</span>
+      <span class="f-file mono">${f.file}</span>
+      <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+    </div>
+    <div class="f-body"><div class="f-body-in">
+      ${f.body}
+      <div class="f-file-mobile">${f.file}</div>
+      <div class="why"><b>Vì sao quan trọng:</b> ${f.why}</div>
+    </div></div>
+  `;
+  listEl.appendChild(el);
+});
+
+document.querySelectorAll('.chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    const f = chip.dataset.filter;
+    document.querySelectorAll('.finding').forEach(card => {
+      let show = true;
+      if (f === 'open') show = card.dataset.status !== 'fixed';
+      else if (f === 'fixed') show = card.dataset.status === 'fixed';
+      else if (f === 'new') show = card.dataset.status === 'new';
+      else if (['cao','trungbinh','thap'].includes(f)) show = card.dataset.sev === f;
+      card.classList.toggle('hidden', !show);
+    });
+  });
+});
+
+function toggleTheme() {
+  const html = document.documentElement;
+  const isDark = html.getAttribute('data-theme') === 'dark';
+  html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  document.getElementById('themeToggle').textContent = isDark ? '🌙 Tối' : '☀️ Sáng';
+}
+
+function animateGauges() {
+  requestAnimationFrame(() => {
+    document.getElementById('gaugeReads').style.width = '5.2%';
+    document.getElementById('gaugeWrites').style.width = '2.3%';
+  });
+}
+window.addEventListener('load', animateGauges);
+</script>
+
+</body>
+</html>

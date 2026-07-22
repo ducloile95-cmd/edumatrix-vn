@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>EduMatrix | Demo bài tập phụ huynh</title>
+  <style>
+    :root{--blue:#2348d6;--blue-dark:#1d39ac;--blue-soft:#eff4ff;--ink:#1c1a15;--muted:#78746d;--line:#e7e5e2;--surface:#fff;--bg:#f6f8fc;--green:#0f7a37;--green-soft:#ecfdf3;--amber:#b45309;--amber-soft:#fffbeb;--radius:12px;--shadow:0 8px 28px rgba(37,61,124,.06)}
+    *{box-sizing:border-box}
+    html{font-family:"Be Vietnam Pro",ui-sans-serif,system-ui,-apple-system,sans-serif;color:var(--ink);background:var(--bg)}
+    body{margin:0;min-width:320px}
+    button{font:inherit}
+    .app{display:grid;grid-template-columns:220px minmax(0,1fr);min-height:100dvh}
+    .sidebar{position:sticky;top:0;height:100dvh;padding:22px 14px;border-right:1px solid var(--line);background:#fff}
+    .brand{display:flex;align-items:center;gap:10px;padding:2px 8px 24px;font-weight:800;color:#25365f}
+    .mark{display:grid;width:32px;height:32px;place-items:center;border-radius:9px;color:#fff;background:var(--blue);font-size:14px}
+    .nav{display:grid;gap:4px}
+    .nav a{padding:11px 12px;border-radius:8px;color:#57534d;text-decoration:none;font-size:13px;font-weight:650}
+    .nav a.active{color:var(--blue-dark);background:var(--blue-soft)}
+    .account{position:absolute;right:14px;bottom:16px;left:14px;padding:12px;border-radius:10px;background:#f4f3f1;font-size:12px}
+    .account b,.account span{display:block}.account span{margin-top:3px;color:var(--muted);font-size:10px}
+    .shell{min-width:0}
+    .topbar{position:sticky;top:0;z-index:10;display:flex;height:64px;align-items:center;justify-content:space-between;padding:0 24px;border-bottom:1px solid rgba(231,229,226,.8);background:rgba(255,255,255,.9);backdrop-filter:blur(14px)}
+    .topbar h1{margin:0;font-size:17px}.topbar p{margin:3px 0 0;color:var(--muted);font-size:11px}
+    .top-actions{display:flex;align-items:center;gap:12px;color:#57534d;font-size:12px}
+    .refresh{width:36px;height:36px;border:1px solid #d3d0cb;border-radius:8px;background:#fff;color:#57534d;cursor:pointer}
+    main{max-width:1260px;margin:0 auto;padding:24px}
+    .student-switch{display:flex;gap:8px;margin-bottom:16px;overflow:auto}
+    .student-switch button{min-height:42px;padding:0 16px;border:1px solid #d3d0cb;border-radius:8px;background:#fff;color:#57534d;font-weight:700;white-space:nowrap;cursor:pointer}
+    .student-switch button.active{border-color:var(--blue);color:#fff;background:var(--blue)}
+    .intro{display:flex;align-items:end;justify-content:space-between;gap:24px;margin-bottom:18px}
+    .intro h2{margin:0;font-size:27px;letter-spacing:-.03em}.intro p{max-width:650px;margin:7px 0 0;color:var(--muted);font-size:13px;line-height:1.55}
+    .read-only{flex:none;padding:8px 11px;border:1px solid #bfd3fe;border-radius:8px;color:var(--blue-dark);background:var(--blue-soft);font-size:11px;font-weight:700}
+    .summary{display:grid;grid-template-columns:repeat(4,1fr);margin-bottom:16px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;box-shadow:var(--shadow)}
+    .summary article{padding:16px 18px}.summary article+article{border-left:1px solid var(--line)}
+    .summary span{display:block;color:var(--muted);font-size:11px}.summary strong{display:block;margin-top:6px;font-size:25px;line-height:1}.summary small{display:block;margin-top:7px;color:#57534d;font-size:10px}
+    .tabs{display:flex;align-items:center;gap:4px;margin-bottom:12px;padding:4px;border:1px solid var(--line);border-radius:10px;background:#fff;width:max-content}
+    .tab{min-height:36px;padding:0 14px;border:0;border-radius:7px;color:#57534d;background:transparent;font-size:11px;font-weight:750;cursor:pointer}
+    .tab.active{color:#fff;background:var(--blue)}
+    .list{display:grid;gap:10px}
+    .assignment{display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:22px;padding:18px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;box-shadow:0 4px 18px rgba(37,61,124,.035);transition:border-color 150ms ease,transform 150ms ease}
+    .assignment:hover{border-color:#bfd3fe;transform:translateY(-1px)}
+    .assignment[hidden]{display:none}
+    .eyebrow{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin-bottom:8px;color:var(--blue-dark);font-size:10px;font-weight:800}
+    .class-tag{padding:4px 7px;border-radius:6px;background:var(--blue-soft)}
+    .assignment h3{margin:0;font-size:16px;letter-spacing:-.01em}.description{margin:7px 0 0;color:#57534d;font-size:12px;line-height:1.55}
+    .meta{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:13px;color:var(--muted);font-size:10px}.meta b{color:#403d39}
+    .result{display:grid;grid-template-columns:88px minmax(0,1fr);gap:13px;align-items:center;padding-left:18px;border-left:1px solid var(--line)}
+    .score{display:grid;min-height:74px;place-items:center;border-radius:10px;background:#f6f8fc;text-align:center}.score strong{display:block;color:var(--blue-dark);font-size:22px}.score span{display:block;margin-top:2px;color:var(--muted);font-size:9px}
+    .score.pending strong{color:#78746d;font-size:18px}
+    .status{display:inline-flex;padding:5px 8px;border-radius:6px;font-size:10px;font-weight:800}
+    .status.todo{color:var(--amber);background:var(--amber-soft)}.status.submitted{color:var(--blue-dark);background:var(--blue-soft)}.status.graded{color:var(--green);background:var(--green-soft)}
+    .reviewer{margin:7px 0 0;color:var(--muted);font-size:10px}.reviewer b{color:#403d39}
+    .comment{margin:7px 0 0;color:#403d39;font-size:11px;line-height:1.45}
+    .empty{display:none;padding:48px 20px;border:1px dashed #d3d0cb;border-radius:var(--radius);background:#fff;text-align:center;color:var(--muted);font-size:13px}
+    .mobile-tabs{display:none}
+    .demo-note{margin:16px 0 0;color:var(--muted);font-size:10px;text-align:center}
+    @media(max-width:900px){.app{grid-template-columns:1fr}.sidebar{display:none}.assignment{grid-template-columns:1fr}.result{padding:14px 0 0;border-top:1px solid var(--line);border-left:0}.summary{grid-template-columns:repeat(2,1fr)}.summary article:nth-child(3){border-left:0;border-top:1px solid var(--line)}.summary article:nth-child(4){border-top:1px solid var(--line)}}
+    @media(max-width:640px){.topbar{height:58px;padding:0 12px}.topbar p,.top-actions span{display:none}main{padding:14px 10px calc(92px + env(safe-area-inset-bottom))}.intro{display:block}.intro h2{font-size:22px}.intro p{font-size:12px}.read-only{display:inline-block;margin-top:11px}.summary{margin-bottom:14px}.summary article{padding:13px}.summary strong{font-size:21px}.tabs{display:none}.assignment{gap:14px;padding:15px}.assignment h3{font-size:15px}.result{grid-template-columns:72px 1fr}.score{min-height:66px}.mobile-tabs{position:fixed;right:0;bottom:0;left:0;z-index:30;display:grid;grid-template-columns:repeat(4,1fr);padding:7px 7px calc(7px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:rgba(255,255,255,.96);box-shadow:0 -10px 30px rgba(37,61,124,.1);backdrop-filter:blur(14px)}.mobile-tabs .tab{display:grid;min-height:48px;place-items:center;padding:3px;color:#78746d;background:transparent;font-size:9px}.mobile-tabs .tab b{display:block;font-size:14px;line-height:1}.mobile-tabs .tab.active{color:var(--blue-dark);background:var(--blue-soft)}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar"><div class="brand"><span class="mark">E</span>EduMatrix</div><nav class="nav"><a href="#">Tổng quan</a><a href="#">Lịch học</a><a class="active" href="#">Bài tập</a><a href="#">Học phí</a><a href="#">Thông báo</a></nav><div class="account"><b>Phụ huynh Minh</b><span>Phụ huynh/Học sinh</span></div></aside>
+    <div class="shell">
+      <header class="topbar"><div><h1>Bài tập</h1><p>Theo dõi bài được giao, tiến độ và phản hồi của giáo viên.</p></div><div class="top-actions"><button class="refresh" aria-label="Làm mới">↻</button><span>31°C Hà Nội</span><span>Thông báo</span></div></header>
+      <main>
+        <div class="student-switch"><button class="active">Nguyễn Gia Minh</button><button>Nguyễn Hà My</button></div>
+        <section class="intro"><div><h2>Danh sách bài tập</h2><p>Phụ huynh theo dõi tình trạng hoàn thành và kết quả học tập. Bài làm được thực hiện theo hướng dẫn của giáo viên, ngoài hệ thống.</p></div><span class="read-only">Chỉ theo dõi</span></section>
+        <section class="summary" aria-label="Tổng quan bài tập"><article><span>Tổng bài được giao</span><strong>08</strong><small>Trong kỳ học hiện tại</small></article><article><span>Cần hoàn thành</span><strong>02</strong><small>1 bài sắp đến hạn</small></article><article><span>Đã nộp</span><strong>02</strong><small>Đang chờ đánh giá</small></article><article><span>Đã chấm</span><strong>04</strong><small>Điểm trung bình 8.8</small></article></section>
+        <div class="tabs" role="tablist" aria-label="Lọc bài tập"><button class="tab active" data-filter="all">Tất cả 8</button><button class="tab" data-filter="todo">Cần hoàn thành 2</button><button class="tab" data-filter="submitted">Đã nộp 2</button><button class="tab" data-filter="graded">Đã chấm 4</button></div>
+        <section class="list" id="assignmentList">
+          <article class="assignment" data-status="todo"><div><div class="eyebrow"><span class="class-tag">Toán A</span><span>Bài tập về nhà</span></div><h3>Ôn tập phân số và phép tính hỗn hợp</h3><p class="description">Hoàn thành bài 1 đến bài 8 trong phiếu ôn tập giáo viên đã phát trên lớp.</p><div class="meta"><span>Giao bởi <b>GV. Trần Minh An</b></span><span>Hạn hoàn thành <b>25/07 · 20:00</b></span></div></div><div class="result"><div class="score pending"><strong>--</strong><span>Chưa có điểm</span></div><div><span class="status todo">Cần hoàn thành</span><p class="reviewer">Chưa có đánh giá</p><p class="comment">Bài làm được hoàn thành theo hướng dẫn của giáo viên.</p></div></div></article>
+          <article class="assignment" data-status="submitted"><div><div class="eyebrow"><span class="class-tag">Toán A</span><span>Phiếu luyện tập</span></div><h3>Quiz Toán A2: Số thập phân</h3><p class="description">Bài đã được giáo viên ghi nhận và đang chờ công bố kết quả.</p><div class="meta"><span>Giao bởi <b>GV. Trần Minh An</b></span><span>Đã nộp <b>21/07 · 19:32</b></span></div></div><div class="result"><div class="score pending"><strong>...</strong><span>Chờ chấm</span></div><div><span class="status submitted">Đã nộp</span><p class="reviewer">Đang chờ giáo viên đánh giá</p><p class="comment">Hệ thống sẽ cập nhật khi kết quả được công bố.</p></div></div></article>
+          <article class="assignment" data-status="graded"><div><div class="eyebrow"><span class="class-tag">Toán A</span><span>Bài kiểm tra</span></div><h3>Quiz Toán A1: Phép cộng và phép trừ</h3><p class="description">Kết quả bài đánh giá gần nhất trong chương trình Toán nền tảng.</p><div class="meta"><span>Giao bởi <b>GV. Trần Minh An</b></span><span>Hoàn thành <b>18/07 · 18:45</b></span></div></div><div class="result"><div class="score"><strong>9/10</strong><span>Điểm công bố</span></div><div><span class="status graded">Đã chấm</span><p class="reviewer">Đánh giá bởi <b>GV. Trần Minh An</b></p><p class="comment">Con nắm bài tốt. Cần trình bày bước tính rõ ràng hơn ở câu 4.</p></div></div></article>
+          <article class="assignment" data-status="graded"><div><div class="eyebrow"><span class="class-tag">Toán A</span><span>Bài tập cuối tuần</span></div><h3>Luyện tập hình học cơ bản</h3><p class="description">Nhận biết hình, chu vi và diện tích qua các tình huống thực tế.</p><div class="meta"><span>Giao bởi <b>GV. Trần Minh An</b></span><span>Hoàn thành <b>13/07 · 17:20</b></span></div></div><div class="result"><div class="score"><strong>8.5/10</strong><span>Điểm công bố</span></div><div><span class="status graded">Đã chấm</span><p class="reviewer">Đánh giá bởi <b>Admin Nguyễn Lan</b></p><p class="comment">Con làm đúng phần lớn câu hỏi và có tiến bộ trong cách trình bày.</p></div></div></article>
+        </section>
+        <div class="empty" id="emptyState">Không có bài tập trong trạng thái này.</div>
+        <p class="demo-note">Bản demo giao diện, chưa kết nối dữ liệu thật và chưa áp dụng vào hệ thống.</p>
+      </main>
+    </div>
+  </div>
+  <nav class="mobile-tabs" aria-label="Lọc bài tập trên điện thoại"><button class="tab active" data-filter="all"><b>8</b>Tất cả</button><button class="tab" data-filter="todo"><b>2</b>Cần làm</button><button class="tab" data-filter="submitted"><b>2</b>Đã nộp</button><button class="tab" data-filter="graded"><b>4</b>Đã chấm</button></nav>
+  <script>
+    const tabs = [...document.querySelectorAll('.tab[data-filter]')];
+    const assignments = [...document.querySelectorAll('.assignment')];
+    const emptyState = document.getElementById('emptyState');
+    function selectFilter(filter){
+      tabs.forEach(tab => tab.classList.toggle('active', tab.dataset.filter === filter));
+      let visible = 0;
+      assignments.forEach(card => { const show = filter === 'all' || card.dataset.status === filter; card.hidden = !show; if(show) visible += 1; });
+      emptyState.style.display = visible ? 'none' : 'block';
+    }
+    tabs.forEach(tab => tab.addEventListener('click', () => selectFilter(tab.dataset.filter)));
+  </script>
+</body>
+</html>

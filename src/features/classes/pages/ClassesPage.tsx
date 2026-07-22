@@ -1,8 +1,10 @@
 import { useState } from "react";
+import { Plus } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/layouts/AppShell";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { ClassForm } from "@/features/classes/components/ClassForm";
 import { ClassesList } from "@/features/classes/components/ClassesList";
 import { deleteClass } from "@/services/firestore/classes";
@@ -31,6 +33,9 @@ export default function ClassesPage() {
 
   return (
     <AppShell>
+      {canManageClasses && (
+        <PageHeader actions={<Button variant="primary" icon={<Plus size={17} />} onClick={() => { setEditingClass(null); setOpen(true); }}>Tạo lớp học</Button>} />
+      )}
       <div>
         <ClassesList
           onEdit={openEdit}

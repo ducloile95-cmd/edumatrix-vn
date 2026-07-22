@@ -21,6 +21,7 @@ import {
   CheckCircle2,
   ClipboardCheck,
   GraduationCap,
+  Info,
   RefreshCw,
   Trophy,
   UserRound,
@@ -41,11 +42,11 @@ import { getAcademicSettings } from "@/services/firestore/settings";
 import type { AttendanceStatus } from "@/types/academic";
 import { DEFAULT_RANK_THRESHOLDS, rankFromPercent, type AcademicRank } from "@/utils/ranking";
 
-const RANK_META: Record<AcademicRank, { label: string; className: string }> = {
-  S: { label: "Xuất sắc", className: "bg-primary-700 text-white" },
-  A: { label: "Rất tốt", className: "bg-primary-600 text-white" },
-  B: { label: "Đạt yêu cầu", className: "bg-primary-100 text-primary-800" },
-  D: { label: "Cần hỗ trợ", className: "bg-warning-100 text-warning-900" },
+const RANK_META: Record<AcademicRank, { label: string; encouragement: string }> = {
+  S: { label: "Xuất sắc", encouragement: "Con làm rất tốt - tiếp tục phát huy" },
+  A: { label: "Rất tốt", encouragement: "Con học tốt lắm - cố gắng lên nữa nhé" },
+  B: { label: "Đạt yêu cầu", encouragement: "Con chỉ thiếu một chút nữa thôi, cố lên nào" },
+  D: { label: "Cần hỗ trợ", encouragement: "Không sao hết! Chỉ cần con cố gắng nhiều hơn" },
 };
 
 const ATTENDANCE_LABEL: Record<AttendanceStatus, string> = {
@@ -59,23 +60,26 @@ function percent(part: number, total: number): number {
   return total > 0 ? Math.round((part / total) * 100) : 0;
 }
 
-function MetricRing({ label, value, detail }: { label: string; value: number; detail: string }) {
+function MetricRing({ label, value, detail, children }: { label: string; value: number; detail: string; children?: React.ReactNode }) {
   const data = [{ value, fill: CHART_PRIMARY }];
   return (
-    <div className="grid grid-cols-[112px_1fr] items-center gap-2">
-      <div className="relative h-28 w-28" aria-label={`${label}: ${value}%`}>
-        <ResponsiveContainer width="100%" height="100%">
-          <RadialBarChart innerRadius="76%" outerRadius="100%" data={data} startAngle={90} endAngle={-270}>
-            <PolarAngleAxis type="number" domain={[0, 100]} angleAxisId={0} tick={false} />
-            <RadialBar dataKey="value" background={{ fill: "#EFF4FF" }} cornerRadius={8} isAnimationActive={false} />
-          </RadialBarChart>
-        </ResponsiveContainer>
-        <strong className="absolute inset-0 grid place-items-center text-xl font-extrabold tabular-nums text-neutral-900">{value}%</strong>
+    <div>
+      <div className="grid grid-cols-[112px_1fr] items-center gap-2">
+        <div className="relative h-28 w-28" aria-label={`${label}: ${value}%`}>
+          <ResponsiveContainer width="100%" height="100%">
+            <RadialBarChart innerRadius="76%" outerRadius="100%" data={data} startAngle={90} endAngle={-270}>
+              <PolarAngleAxis type="number" domain={[0, 100]} angleAxisId={0} tick={false} />
+              <RadialBar dataKey="value" background={{ fill: "#EFF4FF" }} cornerRadius={8} isAnimationActive={false} />
+            </RadialBarChart>
+          </ResponsiveContainer>
+          <strong className="absolute inset-0 grid place-items-center text-xl font-extrabold tabular-nums text-neutral-900">{value}%</strong>
+        </div>
+        <div>
+          <p className="text-sm font-bold text-neutral-900">{label}</p>
+          <p className="mt-1 text-xs leading-5 text-neutral-500">{detail}</p>
+        </div>
       </div>
-      <div>
-        <p className="text-sm font-bold text-neutral-900">{label}</p>
-        <p className="mt-1 text-xs leading-5 text-neutral-500">{detail}</p>
-      </div>
+      {children}
     </div>
   );
 }
@@ -205,8 +209,8 @@ export default function ViewerDashboardPage() {
             </div>
           )}
 
-          <section className="overflow-hidden rounded-card border border-primary-100 bg-white shadow-[var(--shadow-1)]">
-            <div className="grid lg:grid-cols-[1fr_250px]">
+          <section className="rounded-card border border-primary-100 bg-white shadow-[var(--shadow-1)]">
+            <div className="grid lg:grid-cols-[1fr_280px]">
               <div className="p-5 sm:p-6">
                 <div className="flex items-start gap-4">
                   <span className="grid size-12 shrink-0 place-items-center rounded-card bg-primary-50 text-primary-700">
@@ -230,19 +234,43 @@ export default function ViewerDashboardPage() {
                 </dl>
               </div>
 
-              <div className="flex items-center justify-between gap-4 bg-primary-700 p-5 text-white lg:flex-col lg:items-start lg:justify-center lg:p-6">
+              <div className="relative flex min-h-[190px] items-center justify-between gap-4 rounded-b-[11px] bg-primary-700 p-5 pr-16 text-white lg:min-h-0 lg:flex-col lg:items-start lg:justify-center lg:rounded-l-none lg:rounded-r-[11px] lg:p-6 lg:pr-14">
                 <div>
                   <p className="flex items-center gap-2 text-xs font-bold text-primary-100"><Trophy size={16} />Xếp hạng từ Teacher</p>
-                  <div className="mt-2 flex items-end gap-3">
-                    <strong className="text-5xl font-black leading-none tracking-tighter">{overview.rank ?? "–"}</strong>
-                    <span className="pb-1 text-sm font-semibold text-primary-100">
+                  <div className="mt-3 flex items-end gap-3">
+                    <strong className="text-[68px] font-black leading-[0.76] tracking-[-0.07em] drop-shadow-[0_6px_20px_rgba(5,18,74,0.22)] sm:text-[76px] lg:text-[84px]">{overview.rank ?? "–"}</strong>
+                    <span className="pb-1 text-sm font-extrabold text-white">
                       {overview.rank ? RANK_META[overview.rank].label : "Chưa đủ dữ liệu"}
                     </span>
                   </div>
+                  <p className="mt-5 max-w-[22ch] text-xs font-semibold leading-5 text-primary-100">
+                    {overview.rank ? RANK_META[overview.rank].encouragement : "Điểm xếp loại sẽ hiển thị khi có kết quả được công bố."}
+                  </p>
                 </div>
-                <p className="max-w-[180px] text-right text-2xs leading-5 text-primary-100 lg:text-left">
-                  Theo điểm đã công bố: S ≥ {academicSettings.data?.rankThresholds.S ?? DEFAULT_RANK_THRESHOLDS.S} · A ≥ {academicSettings.data?.rankThresholds.A ?? DEFAULT_RANK_THRESHOLDS.A} · B ≥ {academicSettings.data?.rankThresholds.B ?? DEFAULT_RANK_THRESHOLDS.B} · D thấp hơn
-                </p>
+                <details className="group absolute right-4 top-4">
+                  <summary className="motion-control grid size-[30px] cursor-pointer list-none place-items-center rounded-full border border-white/40 bg-white/10 text-white hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white active:scale-[.96] [&::-webkit-details-marker]:hidden" aria-label="Xem cách tính xếp loại">
+                    <Info size={16} aria-hidden="true" />
+                  </summary>
+                  <div className="absolute right-0 top-10 z-30 w-[316px] max-w-[calc(100vw-2rem)] rounded-modal border border-neutral-200 bg-white p-4 text-neutral-900 shadow-[var(--shadow-3)]">
+                    <strong className="block text-sm leading-5">Cách tính xếp loại</strong>
+                    <p className="mt-1.5 text-2xs leading-4 text-neutral-500">Dựa trên điểm trung bình của các bài đánh giá đã được giáo viên công bố.</p>
+                    <div className="mt-3 space-y-0.5">
+                      {(["S", "A", "B", "D"] as AcademicRank[]).map((rank, index) => {
+                        const thresholds = academicSettings.data?.rankThresholds ?? DEFAULT_RANK_THRESHOLDS;
+                        const threshold = rank === "D" ? `Dưới ${thresholds.B} điểm` : `Từ ${thresholds[rank]} điểm`;
+                        return (
+                          <div key={rank} className={`grid min-h-[54px] grid-cols-[38px_1fr] items-center gap-2.5 rounded-input px-2 py-2 ${index === 0 ? "bg-primary-50" : "border-t border-neutral-100"}`}>
+                            <span className="text-center text-2xl font-black leading-none tracking-tight text-primary-700">{rank}</span>
+                            <div>
+                              <b className="block text-2xs leading-4 text-primary-700">{threshold}</b>
+                              <span className="mt-0.5 block text-2xs leading-4 text-neutral-600">{RANK_META[rank].encouragement}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </details>
               </div>
             </div>
           </section>
@@ -254,7 +282,16 @@ export default function ViewerDashboardPage() {
                   label="Đánh giá chuyên cần"
                   value={overview.attendanceRate}
                   detail={`${overview.attendanceCounts.present}/${overview.attendanceTotal} lượt có mặt`}
-                />
+                >
+                  <div className="mt-3 border-t border-neutral-200 pt-3">
+                    <p className="flex items-center gap-1.5 text-xs font-semibold text-neutral-800"><CheckCircle2 size={15} className="text-primary-600" />Chi tiết chuyên cần</p>
+                    <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2 text-2xs text-neutral-500">
+                      {(Object.keys(ATTENDANCE_LABEL) as AttendanceStatus[]).map((status) => (
+                        <span key={status} className="flex justify-between gap-2">{ATTENDANCE_LABEL[status]} <b className="tabular-nums text-neutral-900">{overview.attendanceCounts[status]}</b></span>
+                      ))}
+                    </div>
+                  </div>
+                </MetricRing>
                 <MetricRing
                   label="Tỉ lệ làm bài tập"
                   value={overview.assignmentRate}
@@ -325,12 +362,6 @@ export default function ViewerDashboardPage() {
             </div>
           </section>
 
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-card border border-neutral-200 bg-neutral-50 px-4 py-3 text-xs text-neutral-600">
-            <span className="flex items-center gap-1.5 font-semibold text-neutral-800"><CheckCircle2 size={15} className="text-primary-600" />Chi tiết chuyên cần</span>
-            {(Object.keys(ATTENDANCE_LABEL) as AttendanceStatus[]).map((status) => (
-              <span key={status}>{ATTENDANCE_LABEL[status]}: <b className="tabular-nums text-neutral-900">{overview.attendanceCounts[status]}</b></span>
-            ))}
-          </div>
         </div>
       )}
     </ViewerShell>

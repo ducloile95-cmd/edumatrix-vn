@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { addDays, differenceInCalendarDays, format, subDays } from "date-fns";
 import { vi } from "date-fns/locale";
-import { BarChart3, BookOpen, BookOpenCheck, Check, ClipboardCheck, Clock3, Eye, GraduationCap, MapPin, MessageSquareText, Save, Send, Users } from "lucide-react";
+import { BarChart3, BookOpen, BookOpenCheck, Check, ClipboardCheck, Clock3, Eye, GraduationCap, MapPin, MessageSquareText, Save, Send, Undo2, Users } from "lucide-react";
 import { AppShell } from "@/components/layouts/AppShell";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { ErrorState } from "@/components/feedback/ErrorState";
@@ -17,29 +17,37 @@ import { LessonPlanDetail } from "@/features/lesson-plans/components/LessonPlanD
 import { getClass } from "@/services/firestore/classes";
 import { getCourse } from "@/services/firestore/courses";
 import {
+  CLASSROOM_ATTENDANCE_LABEL,
+  CLASSROOM_HOMEWORK_LABEL,
+  classroomPublishBlockers,
+  formatSessionSummaryMessage,
   getSessionAttendanceEntries,
   getSessionInteraction,
   getSessionStudentReviews,
+  publishClassroomInteraction,
+  reopenClassroomInteraction,
   saveClassroomDraft,
   type ClassroomStudentEntry,
+  type PublishStudentResult,
 } from "@/services/firestore/classroomInteractions";
+import { sendMessenger } from "@/services/integrations/messenger";
 import { getSession, listSessions, listSessionsByClass } from "@/services/firestore/sessions";
 import { getLessonPlanBySession } from "@/services/firestore/lessonPlans";
 import { listStudents } from "@/services/firestore/students";
 import type { AttendanceStatus, PreviousHomeworkStatus } from "@/types/academic";
 
 const ATTENDANCE_OPTIONS: Array<{ value: AttendanceStatus; label: string }> = [
-  { value: "present", label: "Có mặt" },
-  { value: "late", label: "Muộn" },
-  { value: "absent", label: "Vắng" },
-  { value: "excused", label: "Có phép" },
+  { value: "present", label: CLASSROOM_ATTENDANCE_LABEL.present },
+  { value: "late", label: CLASSROOM_ATTENDANCE_LABEL.late },
+  { value: "absent", label: CLASSROOM_ATTENDANCE_LABEL.absent },
+  { value: "excused", label: CLASSROOM_ATTENDANCE_LABEL.excused },
 ];
 
 const HOMEWORK_OPTIONS: Array<{ value: PreviousHomeworkStatus; label: string }> = [
-  { value: "done", label: "Đã làm" },
-  { value: "partial", label: "Một phần" },
-  { value: "not_done", label: "Chưa làm" },
-  { value: "not_assigned", label: "Không giao" },
+  { value: "done", label: CLASSROOM_HOMEWORK_LABEL.done },
+  { value: "partial", label: CLASSROOM_HOMEWORK_LABEL.partial },
+  { value: "not_done", label: CLASSROOM_HOMEWORK_LABEL.not_done },
+  { value: "not_assigned", label: CLASSROOM_HOMEWORK_LABEL.not_assigned },
 ];
 
 export default function ClassroomInteractionPage() {
@@ -97,6 +105,9 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
   const [activeView, setActiveView] = useState<"students" | "summary" | "parent">("students");
   const [previewStudentId, setPreviewStudentId] = useState("");
   const [courseSummaryOpen, setCourseSummaryOpen] = useState(false);
+  const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
+  const [publishResults, setPublishResults] = useState<PublishStudentResult[]>([]);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
 
   const session = useQuery({ queryKey: ["session", sessionId], queryFn: () => getSession(sessionId) });
   const klass = useQuery({
@@ -164,28 +175,111 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
     setInitializedSessionId(sessionId);
   }, [classStudents, initializedSessionId, interaction.data, interaction.isLoading, klass.data, savedEntries.data, savedEntries.isLoading, sessionId]);
 
+  const workflowStatus = interaction.data?.workflowStatus ?? "draft";
+  const isPublished = workflowStatus === "published";
+  const isAmended = workflowStatus === "amended";
+  const entryList = classStudents.map((student) => entries[student.id]).filter(Boolean);
+  const publishStudents = classStudents.map((student) => ({ id: student.id, fullName: student.fullName }));
+  const blockers = classroomPublishBlockers({
+    students: publishStudents,
+    entries: entryList,
+    taughtContent,
+    quickSummary,
+    homeworkText,
+  });
+
+  const buildDraftInput = () => {
+    if (!session.data || !klass.data || !firebaseUser) throw new Error("CLASSROOM_CONTEXT_MISSING");
+    return {
+      sessionId,
+      classId: klass.data.id,
+      courseId: klass.data.courseId,
+      teacherId: firebaseUser.uid,
+      taughtContent,
+      quickSummary,
+      homeworkText,
+      entries: entryList,
+      isNew: !draftExists,
+      workflowStatus: isAmended ? ("amended" as const) : ("draft" as const),
+    };
+  };
+
   const mutation = useMutation({
-    mutationFn: () => {
-      if (!session.data || !klass.data || !firebaseUser) throw new Error("CLASSROOM_CONTEXT_MISSING");
-      return saveClassroomDraft({
-        sessionId,
-        classId: klass.data.id,
-        courseId: klass.data.courseId,
-        teacherId: firebaseUser.uid,
-        taughtContent,
-        quickSummary,
-        homeworkText,
-        entries: classStudents.map((student) => entries[student.id]).filter(Boolean),
-        isNew: !draftExists,
-      });
-    },
+    mutationFn: () => saveClassroomDraft(buildDraftInput()),
     onSuccess: () => {
       setDraftExists(true);
+      setLastSavedAt(new Date());
       queryClient.invalidateQueries({ queryKey: ["classroom-interaction", sessionId] });
       queryClient.invalidateQueries({ queryKey: ["classroom-reviews", sessionId] });
       queryClient.invalidateQueries({ queryKey: ["attendance", sessionId] });
     },
   });
+
+  const publish = useMutation({
+    mutationFn: async () => {
+      if (!session.data || !klass.data) throw new Error("CLASSROOM_CONTEXT_MISSING");
+      // Luu ban nhap moi nhat truoc de noi dung interaction khop 100% voi noi dung gui di.
+      await saveClassroomDraft(buildDraftInput());
+      return publishClassroomInteraction({
+        sessionId,
+        classId: klass.data.id,
+        className: klass.data.name,
+        sessionStartAt: session.data.startAt.toDate(),
+        taughtContent,
+        quickSummary,
+        homeworkText,
+        students: publishStudents,
+        entries: entryList,
+        isRepublish: isAmended,
+      });
+    },
+    onSuccess: (results) => {
+      setPublishResults(results);
+      setDraftExists(true);
+      queryClient.invalidateQueries({ queryKey: ["classroom-interaction", sessionId] });
+      queryClient.invalidateQueries({ queryKey: ["session", sessionId] });
+    },
+  });
+
+  const reopen = useMutation({
+    mutationFn: () => reopenClassroomInteraction(sessionId),
+    onSuccess: () => {
+      setPublishResults([]);
+      queryClient.invalidateQueries({ queryKey: ["classroom-interaction", sessionId] });
+    },
+  });
+
+  const resend = useMutation({
+    mutationFn: async () => {
+      const updated: PublishStudentResult[] = [];
+      for (const item of publishResults) {
+        if (item.messenger === "sent") { updated.push(item); continue; }
+        const result = await sendMessenger({ studentId: item.studentId, text: item.message, type: "session_summary" });
+        updated.push({
+          ...item,
+          messenger: result.sent ? (result.status === "sent" ? "sent" : "failed") : "failed",
+          detail: result.sent ? "" : result.message,
+        });
+      }
+      return updated;
+    },
+    onSuccess: (updated) => setPublishResults(updated),
+  });
+
+  const mutationRef = useRef(mutation);
+  useEffect(() => { mutationRef.current = mutation; });
+  const autoSaveArmed = useRef("");
+  useEffect(() => {
+    if (initializedSessionId !== sessionId || isPublished || classStudents.length === 0) return;
+    if (autoSaveArmed.current !== sessionId) {
+      autoSaveArmed.current = sessionId;
+      return;
+    }
+    const timer = setTimeout(() => {
+      if (!mutationRef.current.isPending) mutationRef.current.mutate();
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [entries, taughtContent, quickSummary, homeworkText, initializedSessionId, sessionId, isPublished, classStudents.length]);
 
   if (session.isLoading || klass.isLoading || students.isLoading || interaction.isLoading) return <LoadingSkeleton rows={7} />;
   if (session.isError || klass.isError || students.isError || interaction.isError) return <ErrorState message="Không tải được dữ liệu buổi học." onRetry={() => session.refetch()} />;
@@ -216,7 +310,7 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
     <div className="space-y-4">
       <section className="overflow-hidden rounded-card border border-primary-200 bg-white shadow-[var(--shadow-1)]">
         <div className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
-          <div><p className="text-xs font-bold text-primary-700">ĐANG NHẬP BẢN NHÁP</p><h1 className="mt-1 text-xl font-bold text-neutral-950">{klass.data.name} · {session.data.title}</h1><p className="mt-1 text-sm text-neutral-500">{format(session.data.startAt.toDate(), "EEEE, dd/MM/yyyy", { locale: vi })}</p></div>
+          <div><p className={`text-xs font-bold ${isPublished ? "text-success-700" : isAmended ? "text-warning-700" : "text-primary-700"}`}>{isPublished ? "ĐÃ PHÁT HÀNH" : isAmended ? "ĐANG ĐÍNH CHÍNH" : "ĐANG NHẬP BẢN NHÁP"}</p><h1 className="mt-1 text-xl font-bold text-neutral-950">{klass.data.name} · {session.data.title}</h1><p className="mt-1 text-sm text-neutral-500">{format(session.data.startAt.toDate(), "EEEE, dd/MM/yyyy", { locale: vi })}</p></div>
           <div className="grid gap-2 text-xs text-neutral-600 sm:grid-cols-3"><span className="flex items-center gap-2"><Clock3 size={15} />{format(session.data.startAt.toDate(), "HH:mm")} - {format(session.data.endAt.toDate(), "HH:mm")}</span><span className="flex items-center gap-2"><MapPin size={15} />{session.data.location || "Chưa có địa điểm"}</span><span className="flex items-center gap-2"><Users size={15} />{classStudents.length} học sinh</span></div>
         </div>
       </section>
@@ -232,8 +326,8 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
           <div className="flex flex-col gap-4 border-b border-neutral-200 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
             <div><h2 className="text-lg font-bold">Ghi nhận học sinh</h2><p className="mt-1 text-xs text-neutral-500">Mỗi học sinh có hai nhóm đánh giá độc lập. Trạng thái được tô màu theo mức độ cần chú ý.</p></div>
             <div className="grid grid-cols-2 gap-2">
-              <Button size="sm" className="border-primary-200 bg-primary-50 text-primary-700" onClick={() => setAll({ attendanceStatus: "present" })} icon={<ClipboardCheck size={15} />}>Tất cả có mặt</Button>
-              <Button size="sm" className="border-accent-100 bg-accent-50 text-accent-700" onClick={() => setAll({ previousHomeworkStatus: "done" })} icon={<BookOpenCheck size={15} />}>Tất cả đã làm</Button>
+              <Button size="sm" className="border-primary-200 bg-primary-50 text-primary-700" disabled={isPublished} onClick={() => setAll({ attendanceStatus: "present" })} icon={<ClipboardCheck size={15} />}>Tất cả có mặt</Button>
+              <Button size="sm" className="border-accent-100 bg-accent-50 text-accent-700" disabled={isPublished} onClick={() => setAll({ previousHomeworkStatus: "done" })} icon={<BookOpenCheck size={15} />}>Tất cả đã làm</Button>
             </div>
           </div>
           {classStudents.length ? <ul className="space-y-3 bg-neutral-50/80 p-3 sm:p-4">{classStudents.map((student, index) => {
@@ -245,11 +339,11 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
                 <div className="hidden items-center gap-2 text-2xs font-semibold text-neutral-500 sm:flex"><span>{ATTENDANCE_OPTIONS.find((item) => item.value === (entry?.attendanceStatus ?? "present"))?.label}</span><span className="text-neutral-300">•</span><span>{HOMEWORK_OPTIONS.find((item) => item.value === (entry?.previousHomeworkStatus ?? "not_assigned"))?.label}</span></div>
               </div>
               <div className="grid gap-3 p-3 md:grid-cols-2 sm:p-4">
-                <OptionGroup kind="attendance" icon={<ClipboardCheck size={16} />} label="Chuyên cần" helper="Tình trạng tham gia buổi học" options={ATTENDANCE_OPTIONS} value={entry?.attendanceStatus ?? "present"} onChange={(value) => updateEntry(student.id, { attendanceStatus: value as AttendanceStatus })} />
-                <OptionGroup kind="homework" icon={<BookOpenCheck size={16} />} label="Bài tập buổi trước" helper="Mức độ hoàn thành bài đã giao" options={HOMEWORK_OPTIONS} value={entry?.previousHomeworkStatus ?? "not_assigned"} onChange={(value) => updateEntry(student.id, { previousHomeworkStatus: value as PreviousHomeworkStatus })} />
+                <OptionGroup kind="attendance" icon={<ClipboardCheck size={16} />} label="Chuyên cần" helper="Tình trạng tham gia buổi học" options={ATTENDANCE_OPTIONS} value={entry?.attendanceStatus ?? "present"} disabled={isPublished} onChange={(value) => updateEntry(student.id, { attendanceStatus: value as AttendanceStatus })} />
+                <OptionGroup kind="homework" icon={<BookOpenCheck size={16} />} label="Bài tập buổi trước" helper="Mức độ hoàn thành bài đã giao" options={HOMEWORK_OPTIONS} value={entry?.previousHomeworkStatus ?? "not_assigned"} disabled={isPublished} onChange={(value) => updateEntry(student.id, { previousHomeworkStatus: value as PreviousHomeworkStatus })} />
                 <label className="md:col-span-2">
                   <span className="mb-1.5 flex items-center gap-1.5 text-xs font-bold text-neutral-600"><MessageSquareText size={14} /> Nhận xét cá nhân <span className="font-normal text-neutral-400">(không bắt buộc)</span></span>
-                  <input aria-label={`Nhận xét ${student.fullName}`} value={entry?.individualComment ?? ""} onChange={(event) => updateEntry(student.id, { individualComment: event.target.value })} placeholder="Chỉ nhập khi học sinh cần chú ý, ví dụ: nghỉ không phép hoặc chưa hoàn thành bài" className="min-h-10 w-full rounded-input border border-neutral-300 bg-neutral-50/60 px-3 text-sm outline-none transition focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-100" />
+                  <input aria-label={`Nhận xét ${student.fullName}`} value={entry?.individualComment ?? ""} disabled={isPublished} onChange={(event) => updateEntry(student.id, { individualComment: event.target.value })} placeholder="Chỉ nhập khi học sinh cần chú ý, ví dụ: nghỉ không phép hoặc chưa hoàn thành bài" className="min-h-10 w-full rounded-input border border-neutral-300 bg-neutral-50/60 px-3 text-sm outline-none transition focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-100 disabled:cursor-not-allowed disabled:opacity-60" />
                 </label>
               </div>
             </li>;
@@ -286,13 +380,23 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
                 )}
               </div>
             </section>
-            <TextArea label="Nội dung đã dạy" value={taughtContent} onChange={setTaughtContent} placeholder="Các nội dung đã hoàn thành trong buổi học" />
-            <TextArea label="Tổng kết nhanh" value={quickSummary} onChange={setQuickSummary} placeholder="Mức độ tiếp thu và nội dung cần ôn lại" />
-            <TextArea label="Bài tập về nhà" value={homeworkText} onChange={setHomeworkText} placeholder="Nhập bài tập hoặc ghi rõ không có bài tập" />
+            <TextArea label="Nội dung đã dạy" value={taughtContent} onChange={setTaughtContent} placeholder="Các nội dung đã hoàn thành trong buổi học" disabled={isPublished} />
+            <TextArea label="Tổng kết nhanh" value={quickSummary} onChange={setQuickSummary} placeholder="Mức độ tiếp thu và nội dung cần ôn lại" disabled={isPublished} />
+            <TextArea label="Bài tập về nhà" value={homeworkText} onChange={setHomeworkText} placeholder="Nhập bài tập hoặc ghi rõ không có bài tập" disabled={isPublished} />
           </div>
           <div className="border-t border-neutral-100 bg-neutral-50 p-4">
-            <Button variant="primary" className="w-full" disabled={mutation.isPending || classStudents.length === 0} onClick={() => mutation.mutate()} icon={<Save size={16} />}>{mutation.isPending ? "Đang lưu..." : "Lưu bản nháp"}</Button>
-            {mutation.isSuccess && <p className="mt-3 text-center text-xs font-semibold text-success-700">Đã lưu bản nháp và cập nhật chuyên cần.</p>}
+            {isPublished ? (
+              <p className="text-center text-xs font-semibold text-success-700">Buổi học đã phát hành — nội dung đã khóa.</p>
+            ) : (
+              <>
+                <Button variant="primary" className="w-full" disabled={mutation.isPending || classStudents.length === 0} onClick={() => mutation.mutate()} icon={<Save size={16} />}>{mutation.isPending ? "Đang lưu..." : "Lưu bản nháp"}</Button>
+                {mutation.isPending ? (
+                  <p className="mt-3 text-center text-xs font-semibold text-neutral-500">Đang lưu tự động...</p>
+                ) : lastSavedAt ? (
+                  <p className="mt-3 text-center text-xs font-semibold text-success-700">Đã lưu lúc {format(lastSavedAt, "HH:mm:ss")}</p>
+                ) : null}
+              </>
+            )}
             {mutation.isError && <p role="alert" className="mt-3 text-center text-xs font-semibold text-danger-700">Không lưu được dữ liệu. Vui lòng kiểm tra kết nối và thử lại.</p>}
           </div>
         </aside>
@@ -325,14 +429,73 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
         <div className="grid gap-4 xl:grid-cols-[1.2fr_.8fr]">
           <section className="rounded-card border border-neutral-200 bg-white p-5 shadow-[var(--shadow-1)]">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><h2 className="text-lg font-bold text-neutral-950">Xem trước thông báo</h2><p className="mt-1 text-xs text-neutral-500">Nội dung riêng theo từng học sinh, không hiển thị dữ liệu của cả lớp.</p></div><select aria-label="Chọn học sinh xem trước" value={previewStudent?.id ?? ""} onChange={(event) => setPreviewStudentId(event.target.value)} className="min-h-10 rounded-input border border-neutral-300 bg-white px-3 text-sm font-semibold">{classStudents.map((student) => <option key={student.id} value={student.id}>{student.fullName}</option>)}</select></div>
-            {previewStudent ? <pre className="mt-5 whitespace-pre-wrap rounded-card border border-primary-100 bg-primary-50 p-4 font-sans text-sm leading-6 text-neutral-800"><strong>TỔNG KẾT BUỔI HỌC</strong>{`\n< Edumatrix - tin nhắn tự động >\n\nHọc sinh: ${previewStudent.fullName}\nLớp: ${klass.data.name}\nThời gian: ${format(session.data.startAt.toDate(), "HH:mm, dd/MM/yyyy")}\n\nChuyên cần: ${ATTENDANCE_OPTIONS.find((item) => item.value === entries[previewStudent.id]?.attendanceStatus)?.label ?? "Chưa cập nhật"}\nBài tập buổi trước: ${HOMEWORK_OPTIONS.find((item) => item.value === entries[previewStudent.id]?.previousHomeworkStatus)?.label ?? "Chưa cập nhật"}\nNhận xét của giáo viên: ${entries[previewStudent.id]?.individualComment || "Chưa có nhận xét cá nhân"}\n\nNội dung: ${taughtContent || "Chưa cập nhật"}\nTổng kết: ${quickSummary || "Chưa cập nhật"}\nBài tập về nhà: ${homeworkText || "Chưa cập nhật"}`}</pre> : <div className="mt-4"><EmptyState title="Chưa có học sinh để xem trước" /></div>}
+            {previewStudent ? <pre className="mt-5 whitespace-pre-wrap rounded-card border border-primary-100 bg-primary-50 p-4 font-sans text-sm leading-6 text-neutral-800">{formatSessionSummaryMessage({
+              studentName: previewStudent.fullName,
+              className: klass.data.name,
+              sessionStartAt: session.data.startAt.toDate(),
+              entry: entries[previewStudent.id],
+              taughtContent,
+              quickSummary,
+              homeworkText,
+              isRepublish: isAmended,
+            })}</pre> : <div className="mt-4"><EmptyState title="Chưa có học sinh để xem trước" /></div>}
           </section>
-          <section className="rounded-card border border-neutral-200 bg-white p-5 shadow-[var(--shadow-1)]"><h2 className="text-lg font-bold text-neutral-950">Kênh phát hành</h2><p className="mt-1 text-xs text-neutral-500">Thông báo Edumatrix là nguồn chính; Messenger là kênh bổ sung.</p><div className="mt-4 space-y-3"><DeliveryRow label="Thông báo Edumatrix" detail={`${classStudents.length} phụ huynh theo hồ sơ học sinh`} status="Sẵn sàng" /><DeliveryRow label="Messenger" detail="Kiểm tra liên kết khi phát hành" status="Chờ kiểm tra" /><DeliveryRow label="Bài tập" detail={homeworkText ? "Có nội dung bài tập về nhà" : "Chưa nhập bài tập"} status={homeworkText ? "Sẵn sàng" : "Chưa đủ"} /></div><Button className="mt-5 w-full" variant="primary" disabled icon={<Send size={15} />}>Hoàn tất và phát hành</Button><p className="mt-2 text-center text-xs text-neutral-500">Luồng phát hành sẽ được kích hoạt ở giai đoạn tiếp theo.</p></section>
+          <section className="rounded-card border border-neutral-200 bg-white p-5 shadow-[var(--shadow-1)]">
+            <h2 className="text-lg font-bold text-neutral-950">Kênh phát hành</h2>
+            <p className="mt-1 text-xs text-neutral-500">Thông báo Edumatrix là nguồn chính; Messenger là kênh bổ sung.</p>
+            {isPublished ? (
+              <div className="mt-4 space-y-3">
+                <p className="rounded-input border border-success-100 bg-success-50 p-3 text-sm font-semibold text-success-700">Đã phát hành cho phụ huynh lúc {format(interaction.data!.updatedAt.toDate(), "HH:mm dd/MM/yyyy")}.</p>
+                {publishResults.length > 0 ? (
+                  <ul className="space-y-2">
+                    {publishResults.map((item) => (
+                      <li key={item.studentId} className="flex items-center justify-between gap-3 rounded-input border border-neutral-200 p-3">
+                        <div className="min-w-0"><p className="truncate text-sm font-bold text-neutral-900">{item.studentName}</p>{item.detail && <p className="mt-0.5 text-xs text-neutral-500">{item.detail}</p>}</div>
+                        <span className={`shrink-0 text-xs font-bold ${item.messenger === "sent" ? "text-success-700" : item.messenger === "skipped" ? "text-neutral-500" : "text-danger-700"}`}>{item.messenger === "sent" ? "Đã gửi Messenger" : item.messenger === "skipped" ? "Chưa cấu hình" : "Gửi thất bại"}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-neutral-500">Kết quả gửi Messenger của lần phát hành trước không còn trong phiên này. Nếu cần gửi bù, dùng màn hình Chat.</p>
+                )}
+                {publishResults.some((item) => item.messenger !== "sent") && (
+                  <Button className="w-full" disabled={resend.isPending} onClick={() => resend.mutate()}>{resend.isPending ? "Đang gửi lại..." : "Gửi lại cho học sinh còn thiếu"}</Button>
+                )}
+                <Button variant="secondary" className="w-full" icon={<Undo2 size={15} />} disabled={reopen.isPending} onClick={() => reopen.mutate()}>{reopen.isPending ? "Đang mở lại..." : "Mở lại để đính chính"}</Button>
+                <p className="text-center text-xs text-neutral-500">Mở lại cho phép sửa nội dung; khi phát hành lại, phụ huynh nhận bản cập nhật.</p>
+                {reopen.isError && <p role="alert" className="text-center text-xs font-semibold text-danger-700">Không mở lại được. Vui lòng thử lại.</p>}
+              </div>
+            ) : (
+              <div className="mt-4 space-y-3">
+                <DeliveryRow label="Thông báo Edumatrix" detail={`${classStudents.length} phụ huynh theo hồ sơ học sinh`} status={blockers.length ? "Chưa đủ" : "Sẵn sàng"} />
+                <DeliveryRow label="Messenger" detail="Gửi cho phụ huynh đã liên kết sau khi phát hành" status={blockers.length ? "Chưa đủ" : "Sẵn sàng"} />
+                {blockers.length > 0 && (
+                  <ul className="space-y-1 rounded-input border border-warning-100 bg-warning-50 p-3 text-xs text-warning-800">
+                    {blockers.map((blocker) => <li key={blocker}>• {blocker}</li>)}
+                  </ul>
+                )}
+                <Button className="mt-2 w-full" variant="primary" disabled={blockers.length > 0 || publish.isPending} icon={<Send size={15} />} onClick={() => setPublishConfirmOpen(true)}>{publish.isPending ? "Đang phát hành..." : isAmended ? "Phát hành bản cập nhật" : "Hoàn tất và phát hành"}</Button>
+                {publish.isError && <p role="alert" className="text-center text-xs font-semibold text-danger-700">Không phát hành được. Vui lòng kiểm tra kết nối và thử lại.</p>}
+              </div>
+            )}
+          </section>
         </div>
       )}
 
       {showCourseSummary && <section className="flex flex-col gap-4 rounded-card border border-primary-200 bg-primary-50 p-5 sm:flex-row sm:items-center sm:justify-between"><div className="flex gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-input bg-white text-primary-700"><GraduationCap size={20} /></span><div><h2 className="font-bold text-neutral-950">Khóa học sắp kết thúc · Còn {remainingSessions} buổi</h2><p className="mt-1 text-sm text-neutral-600">Đã hoàn thành {completedSessions}/{totalSessions} buổi ({courseProgress}%). Có thể chuẩn bị bản nháp tổng kết khóa.</p></div></div><Button onClick={() => setCourseSummaryOpen(true)}>Xem bản nháp tổng kết khóa</Button></section>}
 
+      <Modal open={publishConfirmOpen} onClose={() => setPublishConfirmOpen(false)} title={isAmended ? "Xác nhận phát hành bản cập nhật" : "Xác nhận phát hành"} description="Thông báo tổng kết sẽ được gửi tới phụ huynh của từng học sinh qua Edumatrix và Messenger (nếu đã liên kết). Sau khi phát hành, buổi học sẽ bị khóa — có thể mở lại để đính chính khi cần.">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Metric value={`${attendanceCount("present")}/${classStudents.length}`} label="Có mặt" />
+          <Metric value={attendanceCount("late")} label="Đi muộn" />
+          <Metric value={`${homeworkDone}/${classStudents.length}`} label="Hoàn thành bài" />
+          <Metric value={attentionStudents.length} label="Cần lưu ý" />
+        </div>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button variant="secondary" onClick={() => setPublishConfirmOpen(false)}>Hủy</Button>
+          <Button variant="primary" icon={<Send size={15} />} onClick={() => { setPublishConfirmOpen(false); publish.mutate(); }}>Phát hành</Button>
+        </div>
+      </Modal>
       <Modal open={lessonPlanOpen} onClose={() => setLessonPlanOpen(false)} size="lg" title="Giáo án buổi học">
         {lessonPlan.data && <LessonPlanDetail plan={lessonPlan.data} classLabel={klass.data.name} sessionLabel={`${format(session.data.startAt.toDate(), "dd/MM/yyyy, HH:mm")} · ${session.data.title}`} />}
       </Modal>
@@ -356,14 +519,14 @@ const SELECTED_OPTION_CLASS: Record<string, string> = {
   not_assigned: "border-neutral-300 bg-white text-neutral-700 ring-1 ring-neutral-200",
 };
 
-function OptionGroup({ kind, icon, label, helper, options, value, onChange }: { kind: "attendance" | "homework"; icon: ReactNode; label: string; helper: string; options: Array<{ value: string; label: string }>; value: string; onChange: (value: string) => void }) {
+function OptionGroup({ kind, icon, label, helper, options, value, disabled, onChange }: { kind: "attendance" | "homework"; icon: ReactNode; label: string; helper: string; options: Array<{ value: string; label: string }>; value: string; disabled?: boolean; onChange: (value: string) => void }) {
   const tone = kind === "attendance" ? "border-primary-100 bg-primary-50/55" : "border-accent-100 bg-accent-50/55";
   const iconTone = kind === "attendance" ? "bg-primary-100 text-primary-700" : "bg-accent-100 text-accent-700";
-  return <fieldset className={`rounded-card border p-3 ${tone}`}><legend className="sr-only">{label}</legend><div className="mb-3 flex items-center gap-2"><span className={`grid size-8 place-items-center rounded-input ${iconTone}`}>{icon}</span><div><p className="text-xs font-black text-neutral-800">{label}</p><p className="text-2xs text-neutral-500">{helper}</p></div></div><div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">{options.map((option) => { const selected = value === option.value; return <button key={option.value} type="button" aria-pressed={selected} onClick={() => onChange(option.value)} className={`relative min-h-10 rounded-input border px-2 text-xs font-bold transition active:scale-[.98] ${selected ? SELECTED_OPTION_CLASS[option.value] : "border-neutral-200 bg-white/80 text-neutral-500 hover:border-neutral-300 hover:bg-white"}`}>{selected && <Check size={12} className="absolute right-1.5 top-1.5" aria-hidden />}{option.label}</button>; })}</div></fieldset>;
+  return <fieldset className={`rounded-card border p-3 ${tone}`}><legend className="sr-only">{label}</legend><div className="mb-3 flex items-center gap-2"><span className={`grid size-8 place-items-center rounded-input ${iconTone}`}>{icon}</span><div><p className="text-xs font-black text-neutral-800">{label}</p><p className="text-2xs text-neutral-500">{helper}</p></div></div><div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">{options.map((option) => { const selected = value === option.value; return <button key={option.value} type="button" aria-pressed={selected} disabled={disabled} onClick={() => onChange(option.value)} className={`relative min-h-10 rounded-input border px-2 text-xs font-bold transition active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 ${selected ? SELECTED_OPTION_CLASS[option.value] : "border-neutral-200 bg-white/80 text-neutral-500 hover:border-neutral-300 hover:bg-white"}`}>{selected && <Check size={12} className="absolute right-1.5 top-1.5" aria-hidden />}{option.label}</button>; })}</div></fieldset>;
 }
 
-function TextArea({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (value: string) => void; placeholder: string }) {
-  return <label className="block"><span className="mb-1.5 block text-xs font-bold text-neutral-700">{label}</span><textarea value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} maxLength={2000} className="min-h-24 w-full resize-y rounded-input border border-neutral-300 p-3 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100" /></label>;
+function TextArea({ label, value, onChange, placeholder, disabled }: { label: string; value: string; onChange: (value: string) => void; placeholder: string; disabled?: boolean }) {
+  return <label className="block"><span className="mb-1.5 block text-xs font-bold text-neutral-700">{label}</span><textarea value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} maxLength={2000} className="min-h-24 w-full resize-y rounded-input border border-neutral-300 p-3 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:cursor-not-allowed disabled:bg-neutral-50 disabled:opacity-70" /></label>;
 }
 
 function Metric({ value, label }: { value: ReactNode; label: string }) {

@@ -51,8 +51,8 @@
   .glass-panel { background: rgba(255, 255, 255, .74); backdrop-filter: blur(14px) saturate(150%); box-shadow: inset 0 1px rgba(255,255,255,.85); }
   .icon-button { @apply min-h-touch min-w-touch items-center justify-center rounded-card text-neutral-600 hover:bg-white/80 hover:text-primary-700 active:scale-95; transition: color var(--motion-fast) var(--ease-standard), background-color var(--motion-fast) var(--ease-standard), transform var(--motion-instant) var(--ease-standard); }
   .motion-control { transition: color var(--motion-fast) var(--ease-standard), background-color var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-standard) var(--ease-standard), transform var(--motion-instant) var(--ease-standard), opacity var(--motion-fast) var(--ease-standard); }
-  .route-enter { animation: route-enter var(--motion-standard) var(--ease-enter) both; }
-  .page-enter, .motion-content-enter { animation: content-enter var(--motion-fast) var(--ease-enter) both; }
+  .route-enter { animation: route-enter var(--motion-standard) var(--ease-enter) both; backface-visibility: hidden; }
+  .page-enter, .motion-content-enter { animation: content-enter var(--motion-fast) var(--ease-enter) both; backface-visibility: hidden; }
   .motion-row { animation: row-enter var(--motion-fast) var(--ease-enter) both; }
   .modal-backdrop { animation: backdrop-in var(--motion-fast) linear both; }
   .modal-backdrop[data-state="closed"] { animation: backdrop-out var(--motion-fast) linear both; }
@@ -98,8 +98,8 @@
   main tbody > tr:nth-child(n+5) { animation-delay: 70ms; }
 }
 @supports not (backdrop-filter: blur(1px)) { .glass-panel { background: rgba(255,255,255,.96); } }
-@keyframes route-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes content-enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes route-enter { from { opacity: 0; transform: translate3d(0, 8px, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }
+@keyframes content-enter { from { opacity: 0; transform: translate3d(0, 5px, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }
 @keyframes row-enter { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes backdrop-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes backdrop-out { from { opacity: 1; } to { opacity: 0; } }

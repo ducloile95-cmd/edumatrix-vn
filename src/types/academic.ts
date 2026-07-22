@@ -222,5 +222,5 @@ export interface InvoiceDoc { invoiceCode:string;studentId:string;courseId:strin
 export type PaymentStatus = "reported" | "verified" | "rejected";
 export interface PaymentDoc { invoiceId:string;studentId:string;amount:number;transactionReference:string;note:string;status:PaymentStatus;reportedBy:string;verifiedBy:string|null;reportedAt:Timestamp;verifiedAt:Timestamp|null;updatedAt:Timestamp; }
 
-export type AnnouncementType = "attendance_alert" | "schedule_change" | "homework_reminder";
+export type AnnouncementType = "attendance_alert" | "schedule_change" | "homework_reminder" | "session_summary";
 export interface AnnouncementDoc { type: AnnouncementType; sessionId?: string; assignmentId?: string; classId?: string; studentId?: string; title: string; message: string; createdAt: Timestamp; }

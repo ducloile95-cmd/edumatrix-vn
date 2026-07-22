@@ -325,6 +325,104 @@ describe("teacher scope by assigned class", () => {
     }));
   });
 
+  test("teacher publishes a classroom draft (draft -> published, version +1, no content change)", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "session_interactions", "session-owned"), {
+        sessionId: "session-owned",
+        classId: "class-owned",
+        courseId: "course-1",
+        teacherId: assignedTeacher,
+        workflowStatus: "draft",
+        taughtContent: "Lesson content",
+        quickSummary: "Class summary",
+        homeworkText: "Homework",
+        version: 1,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      });
+    });
+    const teacherDb = asTeacher(assignedTeacher);
+    await assertFails(updateDoc(doc(teacherDb, "session_interactions", "session-owned"), {
+      workflowStatus: "published",
+      version: 3,
+      updatedAt: Timestamp.now(),
+    }));
+    await assertFails(updateDoc(doc(teacherDb, "session_interactions", "session-owned"), {
+      workflowStatus: "published",
+      version: 2,
+      taughtContent: "Changed during publish",
+      updatedAt: Timestamp.now(),
+    }));
+    await assertSucceeds(updateDoc(doc(teacherDb, "session_interactions", "session-owned"), {
+      workflowStatus: "published",
+      version: 2,
+      updatedAt: Timestamp.now(),
+    }));
+  });
+
+  test("published interaction is locked until reopened as amended, then republishable", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "session_interactions", "session-owned"), {
+        sessionId: "session-owned",
+        classId: "class-owned",
+        courseId: "course-1",
+        teacherId: assignedTeacher,
+        workflowStatus: "published",
+        taughtContent: "Lesson content",
+        quickSummary: "Class summary",
+        homeworkText: "Homework",
+        version: 2,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      });
+    });
+    const teacherDb = asTeacher(assignedTeacher);
+    await assertFails(updateDoc(doc(teacherDb, "session_interactions", "session-owned"), {
+      taughtContent: "Edit while published",
+      updatedAt: Timestamp.now(),
+    }));
+    await assertSucceeds(updateDoc(doc(teacherDb, "session_interactions", "session-owned"), {
+      workflowStatus: "amended",
+      updatedAt: Timestamp.now(),
+    }));
+    await assertSucceeds(updateDoc(doc(teacherDb, "session_interactions", "session-owned"), {
+      taughtContent: "Corrected content",
+      quickSummary: "Corrected summary",
+      homeworkText: "Homework",
+      updatedAt: Timestamp.now(),
+    }));
+    await assertSucceeds(updateDoc(doc(teacherDb, "session_interactions", "session-owned"), {
+      workflowStatus: "published",
+      version: 3,
+      updatedAt: Timestamp.now(),
+    }));
+  });
+
+  test("session_summary announcement can be created and republished over the same doc ID", async () => {
+    const teacherDb = asTeacher(assignedTeacher);
+    await assertSucceeds(setDoc(doc(teacherDb, "announcements", "session-owned_student-1"), {
+      type: "session_summary",
+      sessionId: "session-owned",
+      classId: "class-owned",
+      studentId: "student-1",
+      title: "Tổng kết buổi học",
+      message: "Nội dung tổng kết",
+      createdAt: Timestamp.now(),
+    }));
+    await assertSucceeds(setDoc(doc(teacherDb, "announcements", "session-owned_student-1"), {
+      type: "session_summary",
+      sessionId: "session-owned",
+      classId: "class-owned",
+      studentId: "student-1",
+      title: "Tổng kết buổi học",
+      message: "Nội dung đính chính",
+      createdAt: Timestamp.now(),
+    }));
+    await assertFails(updateDoc(doc(teacherDb, "announcements", "session-owned_student-1"), {
+      studentId: "student-2",
+    }));
+  });
+
   test("teacher grades submissions only for assigned classes", async () => {
     await assertSucceeds(
       updateDoc(doc(asTeacher(assignedTeacher), "submissions", "assignment-owned_student-1"), {

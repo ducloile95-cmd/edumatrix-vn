@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { addDays, format, subDays } from "date-fns";
-import { AlertTriangle, BookMarked, Copy, Eye, FileEdit, FileText, PenLine } from "lucide-react";
+import { AlertTriangle, BookMarked, Copy, Eye, FileEdit, FileText, PenLine, Plus } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { StatCard } from "@/components/ui/StatCard";
@@ -132,6 +132,7 @@ export function LessonPlanList({ onEdit, onCreateNew }: LessonPlanListProps) {
                 {plans ? `${filtered.length} giáo án phù hợp bộ lọc` : "Đang tải..."}
               </p>
             </div>
+            <Button variant="primary" icon={<Plus size={17} />} onClick={onCreateNew}>Soạn giáo án mới</Button>
           </div>
           <div className="mt-3 flex flex-wrap items-end gap-3">
             <div className="min-w-[200px] flex-1">

@@ -81,6 +81,7 @@ export default function CatalogPage() {
           <div className="grid items-start gap-4 lg:grid-cols-[1.6fr_1fr]">
           <CoursesList
             onEdit={openEditCourse}
+            onAdd={() => openCreateCourse()}
             subjectFilter={subjectFilter}
             onClearSubjectFilter={() => setSubjectFilter(null)}
           />

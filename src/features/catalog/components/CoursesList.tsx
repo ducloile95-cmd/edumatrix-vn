@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { listCourses, setCourseStatus } from "@/services/firestore/courses";
 import { listSubjects } from "@/services/firestore/subjects";
 import { formatVnd } from "@/utils/currency";
@@ -17,6 +17,7 @@ import type { CourseDoc, CourseStatus } from "@/types/academic";
 
 interface CoursesListProps {
   onEdit: (course: CourseDoc & { id: string }) => void;
+  onAdd: () => void;
   /** Mon hoc dang loc, dieu khien tu panel Mon hoc ben canh (gop thong tin 2 nhanh). */
   subjectFilter: string | null;
   onClearSubjectFilter: () => void;
@@ -40,7 +41,7 @@ const STATUS_FILTERS: { value: CourseStatus | "all"; label: string }[] = [
 ];
 
 /** Chieu cao co dinh, khoa cung SubjectsList de 2 bang luon bang nhau (khong lech do so dong khac nhau). */
-export function CoursesList({ onEdit, subjectFilter, onClearSubjectFilter }: CoursesListProps) {
+export function CoursesList({ onEdit, onAdd, subjectFilter, onClearSubjectFilter }: CoursesListProps) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<CourseStatus | "all">("all");
   const queryClient = useQueryClient();
@@ -87,6 +88,14 @@ export function CoursesList({ onEdit, subjectFilter, onClearSubjectFilter }: Cou
               {courses ? `${filtered.length} khóa học phù hợp bộ lọc` : "Đang tải..."}
             </p>
           </div>
+          <button
+            type="button"
+            onClick={onAdd}
+            className="inline-flex min-h-touch items-center gap-1.5 rounded-input border border-neutral-300 px-3 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
+          >
+            <Plus size={14} aria-hidden="true" />
+            Thêm khóa học
+          </button>
         </div>
 
         <div className="mt-3 flex flex-wrap items-end gap-3">
@@ -156,7 +165,7 @@ export function CoursesList({ onEdit, subjectFilter, onClearSubjectFilter }: Cou
         )}
         {!isLoading && !isError && (!courses || courses.length === 0) && (
           <div className="flex h-full items-center justify-center p-4 sm:p-5">
-            <EmptyState title="Chưa có khóa học nào" description="Thêm khóa học ở nút phía trên." />
+            <EmptyState title="Chưa có khóa học nào" description="Bấm Thêm khóa học để tạo mới." />
           </div>
         )}
         {!isLoading && !isError && courses && courses.length > 0 && filtered.length === 0 && (

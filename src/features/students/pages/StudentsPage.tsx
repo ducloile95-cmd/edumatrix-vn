@@ -1,6 +1,9 @@
 import { useState } from "react";
+import { Plus } from "lucide-react";
 import { AppShell } from "@/components/layouts/AppShell";
+import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { StudentForm } from "@/features/students/components/StudentForm";
 import { StudentsList } from "@/features/students/components/StudentsList";
 import { USER_ROLES } from "@/constants/roles";
@@ -13,6 +16,9 @@ export default function StudentsPage() {
 
   return (
     <AppShell>
+      {canCreateStudent && (
+        <PageHeader actions={<Button variant="primary" icon={<Plus size={17} />} onClick={() => setOpen(true)}>Thêm học sinh</Button>} />
+      )}
       <StudentsList />
 
       <Modal

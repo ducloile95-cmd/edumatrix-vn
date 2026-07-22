@@ -26,10 +26,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setFirebaseUser(user);
       setAuthResolved(true);
+      // Reset profile trong cung lan render voi auth state. Neu giu gia tri
+      // "resolved" cua phien dang xuat, LoginPage co the dieu huong qua som
+      // truoc khi users/{uid} bat dau duoc doc.
+      setUserDoc(null);
+      setProfileResolved(!user);
       if (!user) {
-        setUserDoc(null);
-        setProfileResolved(true);
         claimAttemptedForUid.current = null;
+        lastLoginTouchedForUid.current = null;
         setClaimFailureReason(null);
       }
     });
