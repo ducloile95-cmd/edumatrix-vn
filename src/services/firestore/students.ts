@@ -7,8 +7,8 @@ import {
   limit,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
-  setDoc,
   updateDoc,
   where,
   writeBatch,
@@ -40,17 +40,23 @@ function studentId(code: string): string {
 
 export async function createStudent(input: CreateStudentInput): Promise<void> {
   const id = studentId(input.studentCode);
-  await setDoc(doc(db, COLLECTIONS.STUDENTS, id), {
-    studentCode: id,
-    fullName: input.fullName,
-    dateOfBirth: input.dateOfBirth,
-    parentUids: [],
-    currentClassIds: [],
-    teacherIds: [],
-    staffNote: "",
-    status: "active",
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
+  const currentUser = await getCurrentUserDoc();
+  const ref = doc(db, COLLECTIONS.STUDENTS, id);
+  await runTransaction(db, async (transaction) => {
+    const existing = await transaction.get(ref);
+    if (existing.exists()) throw new Error("student_code_exists");
+    transaction.set(ref, {
+      studentCode: id,
+      fullName: input.fullName,
+      dateOfBirth: input.dateOfBirth,
+      parentUids: [],
+      currentClassIds: [],
+      teacherIds: currentUser?.role === "teacher" ? [currentUser.uid] : [],
+      staffNote: "",
+      status: "active",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
   });
 }
 

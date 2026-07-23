@@ -6,6 +6,8 @@ import { format } from "date-fns";
 import { courseFormSchema, type CourseFormValues } from "@/schemas/course";
 import { createCourse, updateCourse } from "@/services/firestore/courses";
 import { listSubjects } from "@/services/firestore/subjects";
+import { listUsersByRole } from "@/services/firestore/users";
+import { USER_ROLES } from "@/constants/roles";
 import { formatVnd } from "@/utils/currency";
 import type { CourseDoc } from "@/types/academic";
 
@@ -20,6 +22,7 @@ interface CourseFormProps {
 const DEFAULT_VALUES: CourseFormValues = {
   name: "",
   subjectIds: [],
+  teacherIds: [],
   pricePerSession: 0,
   totalSessions: 1,
   startDate: "",
@@ -31,6 +34,10 @@ export function CourseForm({ editingCourse, presetSubjectId, onDone }: CourseFor
   const queryClient = useQueryClient();
   const isEditing = !!editingCourse;
   const { data: subjects } = useQuery({ queryKey: ["subjects"], queryFn: listSubjects });
+  const { data: teachers } = useQuery({
+    queryKey: ["users", USER_ROLES.TEACHER],
+    queryFn: () => listUsersByRole(USER_ROLES.TEACHER),
+  });
 
   const {
     control,
@@ -49,6 +56,7 @@ export function CourseForm({ editingCourse, presetSubjectId, onDone }: CourseFor
       reset({
         name: editingCourse.name,
         subjectIds: editingCourse.subjectIds,
+        teacherIds: editingCourse.teacherIds ?? [],
         // Khoa cu chua co pricePerSession -> goi y tinh tu tuitionFee/totalSessions, van sua duoc.
         pricePerSession: editingCourse.pricePerSession ?? Math.round(editingCourse.tuitionFee / editingCourse.totalSessions),
         totalSessions: editingCourse.totalSessions,
@@ -141,6 +149,52 @@ export function CourseForm({ editingCourse, presetSubjectId, onDone }: CourseFor
           {errors.subjectIds && (
             <p role="alert" className="mt-1 text-xs text-danger-700">
               {errors.subjectIds.message}
+            </p>
+          )}
+        </div>
+
+        <div className="sm:col-span-2">
+          <span className="mb-1 block text-sm font-medium text-neutral-700">
+            Giáo viên phụ trách<span className="ml-0.5 text-danger-500">*</span>
+          </span>
+          <Controller
+            control={control}
+            name="teacherIds"
+            render={({ field }) => (
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Chọn giáo viên phụ trách">
+                {(teachers ?? []).filter((teacher) => teacher.status === "active").map((teacher) => {
+                  const checked = field.value.includes(teacher.uid);
+                  return (
+                    <button
+                      key={teacher.uid}
+                      type="button"
+                      aria-pressed={checked}
+                      onClick={() =>
+                        field.onChange(
+                          checked
+                            ? field.value.filter((id) => id !== teacher.uid)
+                            : [...field.value, teacher.uid],
+                        )
+                      }
+                      className={`min-h-touch rounded-full border px-3.5 text-xs font-semibold transition ${
+                        checked
+                          ? "border-primary-500 bg-primary-500 text-white"
+                          : "border-neutral-300 bg-white text-neutral-600 hover:border-primary-300"
+                      }`}
+                    >
+                      {teacher.displayName}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          />
+          <p className="mt-1 text-xs text-neutral-500">
+            Giáo viên được chọn mới có thể tạo và quản lý lớp trong khóa học này.
+          </p>
+          {errors.teacherIds && (
+            <p role="alert" className="mt-1 text-xs text-danger-700">
+              {errors.teacherIds.message}
             </p>
           )}
         </div>

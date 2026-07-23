@@ -4,6 +4,7 @@ import { z } from "zod";
 export const courseFormSchema = z.object({
   name: z.string().trim().min(1, "Vui lòng nhập tên khóa học"),
   subjectIds: z.array(z.string()).min(1, "Chọn ít nhất 1 môn học"),
+  teacherIds: z.array(z.string()).min(1, "Chọn ít nhất 1 giáo viên phụ trách"),
   pricePerSession: z.coerce.number().int("Học phí/buổi phải là số nguyên").nonnegative("Học phí/buổi không được âm"),
   totalSessions: z.coerce.number().int("Số buổi phải là số nguyên").positive("Số buổi phải lớn hơn 0"),
   startDate: z.string().min(1, "Vui lòng chọn ngày bắt đầu"),

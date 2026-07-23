@@ -11,7 +11,7 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
 
 export default function StudentsPage() {
   const { role } = useAuth();
-  const canCreateStudent = role === USER_ROLES.ADMIN;
+  const canCreateStudent = role === USER_ROLES.ADMIN || role === USER_ROLES.TEACHER;
   const [open, setOpen] = useState(() => canCreateStudent && new URLSearchParams(window.location.search).get("create") === "student");
 
   return (

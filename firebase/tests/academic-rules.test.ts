@@ -110,6 +110,19 @@ beforeEach(async () => {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
+    await setDoc(doc(db, "courses", "course_001"), {
+      name: "Khóa học kiểm thử",
+      subjectIds: ["IELTS"],
+      teacherIds: [TEACHER_UID],
+      pricePerSession: 62500,
+      tuitionFee: 1500000,
+      totalSessions: 24,
+      startDate: Timestamp.fromDate(new Date("2026-01-01T00:00:00")),
+      endDate: Timestamp.fromDate(new Date("2026-03-01T00:00:00")),
+      status: "active",
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
   });
 });
 
@@ -186,6 +199,7 @@ describe("courses", () => {
   const validCourse = {
     name: "IELTS Foundation",
     subjectIds: ["IELTS"],
+    teacherIds: [TEACHER_UID],
     pricePerSession: 62500,
     tuitionFee: 1500000,
     totalSessions: 24,
@@ -197,7 +211,7 @@ describe("courses", () => {
   };
 
   test("Admin tao duoc khoa hoc hop le", async () => {
-    await assertSucceeds(setDoc(doc(asAdmin(), "courses", "course_001"), validCourse));
+    await assertSucceeds(setDoc(doc(asAdmin(), "courses", "course_new"), validCourse));
   });
 
   test("Rules chan khoa hoc co hoc phi am", async () => {

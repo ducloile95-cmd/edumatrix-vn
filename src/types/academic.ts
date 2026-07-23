@@ -18,6 +18,8 @@ export type CourseStatus = "draft" | "active" | "completed";
 export interface CourseDoc {
   name: string;
   subjectIds: string[];
+  /** Giao vien duoc Admin phan cong phu trach khoa hoc. */
+  teacherIds: string[];
   /** Don gia 1 buoi/1 hoc sinh - so nguyen VND, khong dung float (A7.4). Truong nguon chinh cho hoc phi. */
   pricePerSession: number;
   /** Tong hoc phi du kien = pricePerSession * totalSessions - tu tinh khi luu, khong nhap tay. */

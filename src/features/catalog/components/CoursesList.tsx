@@ -16,6 +16,7 @@ import { usePagination } from "@/hooks/usePagination";
 import type { CourseDoc, CourseStatus } from "@/types/academic";
 
 interface CoursesListProps {
+  canManage?: boolean;
   onEdit: (course: CourseDoc & { id: string }) => void;
   onAdd: () => void;
   /** Mon hoc dang loc, dieu khien tu panel Mon hoc ben canh (gop thong tin 2 nhanh). */
@@ -41,7 +42,7 @@ const STATUS_FILTERS: { value: CourseStatus | "all"; label: string }[] = [
 ];
 
 /** Chieu cao co dinh, khoa cung SubjectsList de 2 bang luon bang nhau (khong lech do so dong khac nhau). */
-export function CoursesList({ onEdit, onAdd, subjectFilter, onClearSubjectFilter }: CoursesListProps) {
+export function CoursesList({ canManage = true, onEdit, onAdd, subjectFilter, onClearSubjectFilter }: CoursesListProps) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<CourseStatus | "all">("all");
   const queryClient = useQueryClient();
@@ -88,14 +89,14 @@ export function CoursesList({ onEdit, onAdd, subjectFilter, onClearSubjectFilter
               {courses ? `${filtered.length} khóa học phù hợp bộ lọc` : "Đang tải..."}
             </p>
           </div>
-          <button
+          {canManage && <button
             type="button"
             onClick={onAdd}
             className="inline-flex min-h-touch items-center gap-1.5 rounded-input border border-neutral-300 px-3 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
           >
             <Plus size={14} aria-hidden="true" />
             Thêm khóa học
-          </button>
+          </button>}
         </div>
 
         <div className="mt-3 flex flex-wrap items-end gap-3">
@@ -230,7 +231,7 @@ export function CoursesList({ onEdit, onAdd, subjectFilter, onClearSubjectFilter
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <StatusBadge tone={STATUS_TONE[course.status]}>{STATUS_LABEL[course.status]}</StatusBadge>
-                        <select
+                        {canManage && <select
                           aria-label={`Đổi trạng thái ${course.name}`}
                           value={course.status}
                           onChange={(e) =>
@@ -242,17 +243,17 @@ export function CoursesList({ onEdit, onAdd, subjectFilter, onClearSubjectFilter
                           <option value="draft">Nháp</option>
                           <option value="active">Đang mở</option>
                           <option value="completed">Đã kết thúc</option>
-                        </select>
+                        </select>}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button
+                      {canManage && <button
                         type="button"
                         onClick={() => onEdit(course)}
                         className="min-h-touch rounded-input border border-neutral-300 px-3 text-xs font-medium text-neutral-600 hover:bg-neutral-50"
                       >
                         Sửa
-                      </button>
+                      </button>}
                     </td>
                   </tr>
                 );

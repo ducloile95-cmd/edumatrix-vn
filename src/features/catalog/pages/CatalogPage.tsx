@@ -9,10 +9,14 @@ import { CourseForm } from "@/features/catalog/components/CourseForm";
 import { CoursesList } from "@/features/catalog/components/CoursesList";
 import { CatalogDashboard } from "@/features/catalog/components/CatalogDashboard";
 import type { CourseDoc, SubjectDoc } from "@/types/academic";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import { USER_ROLES } from "@/constants/roles";
 
 type CatalogTab = "dashboard" | "catalog";
 
 export default function CatalogPage() {
+  const { role } = useAuth();
+  const isAdmin = role === USER_ROLES.ADMIN;
   const initialCreate = new URLSearchParams(window.location.search).get("create");
   const [tab, setTab] = useState<CatalogTab>(initialCreate ? "catalog" : "dashboard");
 
@@ -80,12 +84,14 @@ export default function CatalogPage() {
         ) : (
           <div className="grid items-start gap-4 lg:grid-cols-[1.6fr_1fr]">
           <CoursesList
+            canManage={isAdmin}
             onEdit={openEditCourse}
             onAdd={() => openCreateCourse()}
             subjectFilter={subjectFilter}
             onClearSubjectFilter={() => setSubjectFilter(null)}
           />
           <SubjectsList
+            canManage={isAdmin}
             onEdit={openEditSubject}
             onAdd={openCreateSubject}
             selectedSubjectId={subjectFilter}
@@ -95,15 +101,15 @@ export default function CatalogPage() {
         )}
       </MotionTabPanel>
 
-      <Modal
+      {isAdmin && <Modal
         open={subjectModalOpen}
         onClose={closeSubjectModal}
         title={editingSubject ? "Sửa môn học" : "Thêm môn học"}
         description={editingSubject ? editingSubject.name : "Tạo môn học mới cho danh mục."}
       >
         <SubjectForm editingSubject={editingSubject} onDone={closeSubjectModal} />
-      </Modal>
-      <Modal
+      </Modal>}
+      {isAdmin && <Modal
         open={courseModalOpen}
         onClose={closeCourseModal}
         size="lg"
@@ -111,7 +117,7 @@ export default function CatalogPage() {
         description={editingCourse ? editingCourse.name : "Tạo khóa học và gắn môn học."}
       >
         <CourseForm editingCourse={editingCourse} presetSubjectId={presetSubjectId} onDone={closeCourseModal} />
-      </Modal>
+      </Modal>}
     </AppShell>
   );
 }

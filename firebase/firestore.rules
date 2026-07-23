@@ -91,6 +91,12 @@ service cloud.firestore {
       return isAdmin() || isAssignedTeacherForClass(classId);
     }
 
+    function isAssignedTeacherForCourse(courseId) {
+      return isTeacher() &&
+        exists(/databases/$(database)/documents/courses/$(courseId)) &&
+        request.auth.uid in get(/databases/$(database)/documents/courses/$(courseId)).data.teacherIds;
+    }
+
     function sessionBelongsToClass(sessionId, classId) {
       return exists(/databases/$(database)/documents/sessions/$(sessionId)) &&
         get(/databases/$(database)/documents/sessions/$(sessionId)).data.classId == classId;
@@ -160,6 +166,16 @@ service cloud.firestore {
         addedStudentIds.size() == 1;
     }
 
+    function isTeacherUnenrollmentClassUpdate(classId) {
+      let removedStudentIds = resource.data.studentIds.removeAll(request.resource.data.studentIds);
+      return isTeacher() && request.auth.uid in resource.data.teacherIds &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['studentIds', 'updatedAt']) &&
+        request.resource.data.teacherIds == resource.data.teacherIds &&
+        resource.data.studentIds.hasAll(request.resource.data.studentIds) &&
+        request.resource.data.studentIds.size() == resource.data.studentIds.size() - 1 &&
+        removedStudentIds.size() == 1;
+    }
+
     function isTeacherEnrollmentStudentUpdate(studentId) {
       let addedClassIds = request.resource.data.currentClassIds.removeAll(resource.data.currentClassIds);
       let classData = get(/databases/$(database)/documents/classes/$(addedClassIds[0])).data;
@@ -172,6 +188,18 @@ service cloud.firestore {
         request.resource.data.teacherIds.hasAll(resource.data.teacherIds) &&
         request.resource.data.teacherIds.hasAll(classData.teacherIds) &&
         request.resource.data.teacherIds.removeAll(resource.data.teacherIds).hasOnly(classData.teacherIds);
+    }
+
+    function isTeacherUnenrollmentStudentUpdate(studentId) {
+      let removedClassIds = resource.data.currentClassIds.removeAll(request.resource.data.currentClassIds);
+      let classData = get(/databases/$(database)/documents/classes/$(removedClassIds[0])).data;
+      return isTeacher() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['currentClassIds', 'teacherIds', 'updatedAt']) &&
+        resource.data.currentClassIds.hasAll(request.resource.data.currentClassIds) &&
+        request.resource.data.currentClassIds.size() == resource.data.currentClassIds.size() - 1 &&
+        removedClassIds.size() == 1 &&
+        request.auth.uid in classData.teacherIds &&
+        resource.data.teacherIds.removeAll(request.resource.data.teacherIds).hasOnly(classData.teacherIds);
     }
 
     function isTeacherEnrollmentCreate(enrollmentId) {
@@ -231,10 +259,11 @@ service cloud.firestore {
 
     function validCourseData(data) {
       return data.keys().hasAll(['name', 'subjectIds', 'pricePerSession', 'tuitionFee', 'totalSessions', 'startDate', 'endDate', 'status', 'createdAt', 'updatedAt']) &&
-        data.keys().hasOnly(['name', 'subjectIds', 'pricePerSession', 'tuitionFee', 'totalSessions', 'startDate', 'endDate', 'status', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['name', 'subjectIds', 'teacherIds', 'pricePerSession', 'tuitionFee', 'totalSessions', 'startDate', 'endDate', 'status', 'createdAt', 'updatedAt']) &&
         data.name is string &&
         isStringList(data.subjectIds) &&
         data.subjectIds.size() > 0 &&
+        (!data.keys().hasAny(['teacherIds']) || isStringList(data.teacherIds)) &&
         data.pricePerSession is int &&
         data.pricePerSession >= 0 &&
         data.tuitionFee is int &&
@@ -609,10 +638,10 @@ service cloud.firestore {
 
     match /subjects/{subjectId} {
       allow read: if isActive();
-      allow create: if isStaff() &&
+      allow create: if isAdmin() &&
         request.resource.data.status == 'active' &&
         validSubjectData(subjectId, request.resource.data);
-      allow update: if isStaff() &&
+      allow update: if isAdmin() &&
         validSubjectData(subjectId, request.resource.data) &&
         keepsImmutable(['code', 'createdAt']);
       allow delete: if false;
@@ -624,9 +653,11 @@ service cloud.firestore {
 
     match /courses/{courseId} {
       allow read: if isActive();
-      allow create: if isStaff() &&
+      allow create: if isAdmin() &&
+        request.resource.data.keys().hasAny(['teacherIds']) &&
+        request.resource.data.teacherIds.size() > 0 &&
         validCourseData(request.resource.data);
-      allow update: if isStaff() &&
+      allow update: if isAdmin() &&
         validCourseData(request.resource.data) &&
         keepsImmutable(['createdAt']);
       allow delete: if false;
@@ -639,17 +670,28 @@ service cloud.firestore {
 
     match /students/{studentId} {
       allow read: if isStaff() || ownsStudent(studentId);
-      allow create: if isAdmin() &&
-        validStudentData(studentId, request.resource.data);
+      allow create: if (
+        isAdmin() ||
+        (
+          isTeacher() &&
+          request.resource.data.teacherIds.size() == 1 &&
+          request.resource.data.teacherIds[0] == request.auth.uid &&
+          request.resource.data.parentUids.size() == 0 &&
+          request.resource.data.currentClassIds.size() == 0 &&
+          request.resource.data.status == 'active'
+        )
+      ) && validStudentData(studentId, request.resource.data);
       allow update: if keepsImmutable(['studentCode', 'createdAt']) &&
         validStudentData(studentId, request.resource.data) &&
         (
           isAdmin() || (
             request.resource.data.diff(resource.data).affectedKeys().hasAny(['currentClassIds', 'teacherIds']) &&
-            isTeacherEnrollmentStudentUpdate(studentId)
+            (isTeacherEnrollmentStudentUpdate(studentId) || isTeacherUnenrollmentStudentUpdate(studentId))
           ) || (
-            isTeacher() &&
+          isTeacher() &&
             request.auth.uid in resource.data.teacherIds &&
+            request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['fullName', 'dateOfBirth', 'staffNote', 'updatedAt']) &&
             request.resource.data.teacherIds == resource.data.teacherIds &&
             request.resource.data.currentClassIds == resource.data.currentClassIds &&
             request.resource.data.parentUids == resource.data.parentUids
@@ -675,6 +717,10 @@ service cloud.firestore {
         isAdmin() ||
         (
           isTeacher() &&
+          isAssignedTeacherForCourse(request.resource.data.courseId) &&
+          request.resource.data.subjectIds.hasOnly(
+            get(/databases/$(database)/documents/courses/$(request.resource.data.courseId)).data.subjectIds
+          ) &&
           request.resource.data.teacherIds.size() == 1 &&
           request.resource.data.teacherIds[0] == request.auth.uid &&
           request.resource.data.studentIds.size() == 0
@@ -687,10 +733,15 @@ service cloud.firestore {
           isAdmin() ||
           (
             request.resource.data.diff(resource.data).affectedKeys().hasAny(['studentIds']) &&
-            isTeacherEnrollmentClassUpdate(classId)
+            (isTeacherEnrollmentClassUpdate(classId) || isTeacherUnenrollmentClassUpdate(classId))
           ) ||
           (
             isAssignedTeacherForClass(classId) &&
+            request.resource.data.courseId == resource.data.courseId &&
+            isAssignedTeacherForCourse(resource.data.courseId) &&
+            request.resource.data.subjectIds.hasOnly(
+              get(/databases/$(database)/documents/courses/$(resource.data.courseId)).data.subjectIds
+            ) &&
             request.resource.data.teacherIds == resource.data.teacherIds &&
             request.resource.data.studentIds == resource.data.studentIds
           )
@@ -709,7 +760,14 @@ service cloud.firestore {
         enrollmentId == request.resource.data.classId + '_' + request.resource.data.studentId &&
         request.resource.data.status in ['active', 'ended']
       ) || isTeacherEnrollmentCreate(enrollmentId);
-      allow update: if isAdmin() &&
+      allow update: if (
+        isAdmin() ||
+        (
+          isAssignedTeacherForClass(resource.data.classId) &&
+          resource.data.status == 'active' &&
+          request.resource.data.status == 'ended'
+        )
+      ) &&
         request.resource.data.status in ['active', 'ended'] &&
         keepsImmutable(['classId', 'courseId', 'studentId', 'joinedAt']);
       allow delete: if false;

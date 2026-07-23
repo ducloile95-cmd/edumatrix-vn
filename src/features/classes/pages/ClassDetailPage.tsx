@@ -25,7 +25,7 @@ export default function ClassDetailPage() {
   const { classId } = useParams<{ classId: string }>();
   const { role } = useAuth();
   const canManageEnrollments = role === USER_ROLES.ADMIN || role === USER_ROLES.TEACHER;
-  const canUnenroll = role === USER_ROLES.ADMIN;
+  const canUnenroll = role === USER_ROLES.ADMIN || role === USER_ROLES.TEACHER;
 
   const { data: klass, isLoading, isError, refetch } = useQuery({
     queryKey: ["class", classId],

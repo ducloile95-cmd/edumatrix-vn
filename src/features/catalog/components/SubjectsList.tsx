@@ -14,6 +14,7 @@ import { usePagination } from "@/hooks/usePagination";
 import type { SubjectDoc } from "@/types/academic";
 
 interface SubjectsListProps {
+  canManage?: boolean;
   onEdit: (subject: SubjectDoc & { id: string }) => void;
   onAdd: () => void;
   /** Mon dang duoc chon de loc bang khoa hoc ben canh (gop thong tin 2 nhanh). */
@@ -22,7 +23,7 @@ interface SubjectsListProps {
 }
 
 /** Chieu cao co dinh, khoa cung CoursesList de 2 bang luon bang nhau (khong lech do so dong khac nhau). */
-export function SubjectsList({ onEdit, onAdd, selectedSubjectId, onSelect }: SubjectsListProps) {
+export function SubjectsList({ canManage = true, onEdit, onAdd, selectedSubjectId, onSelect }: SubjectsListProps) {
   const [search, setSearch] = useState("");
   const queryClient = useQueryClient();
   const { data: subjects, isLoading, isError, refetch } = useQuery({
@@ -63,14 +64,14 @@ export function SubjectsList({ onEdit, onAdd, selectedSubjectId, onSelect }: Sub
     <DataListPanel className="rounded-card border border-neutral-200 bg-white">
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-neutral-200 px-4 py-4 sm:px-5">
         <h2 className="text-base font-semibold text-neutral-900">Môn học</h2>
-        <button
+        {canManage && <button
           type="button"
           onClick={onAdd}
           className="inline-flex min-h-touch items-center gap-1.5 rounded-input border border-neutral-300 px-3 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
         >
           <Plus size={14} aria-hidden="true" />
           Thêm môn học
-        </button>
+        </button>}
       </div>
 
       <div className="shrink-0 px-4 pt-3 sm:px-5">
@@ -119,7 +120,7 @@ export function SubjectsList({ onEdit, onAdd, selectedSubjectId, onSelect }: Sub
                     <StatusBadge tone={subject.status === "active" ? "success" : "neutral"}>
                       {subject.status === "active" ? "Đang dùng" : "Đã lưu trữ"}
                     </StatusBadge>
-                    <div className="ml-auto flex gap-2">
+                    {canManage && <div className="ml-auto flex gap-2">
                       <button
                         type="button"
                         onClick={() => onEdit(subject)}
@@ -140,7 +141,7 @@ export function SubjectsList({ onEdit, onAdd, selectedSubjectId, onSelect }: Sub
                       >
                         {subject.status === "active" ? "Lưu trữ" : "Kích hoạt lại"}
                       </button>
-                    </div>
+                    </div>}
                   </div>
                 </li>
               );

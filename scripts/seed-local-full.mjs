@@ -122,7 +122,10 @@ await env.withSecurityRulesDisabled(async (context) => {
     put("subjects", subject.id, { name: subject.name, code: subject.id, description: subject.description, status: "active", createdAt: now, updatedAt: now });
   }
   for (const [courseId, course] of Object.entries(COURSES)) {
-    put("courses", courseId, { ...course, status: "active", createdAt: now, updatedAt: now });
+    const teacherIds = [...new Set(
+      CLASSES.filter((cls) => cls.courseId === courseId).map((cls) => uid[cls.teacherKey]),
+    )];
+    put("courses", courseId, { ...course, teacherIds, status: "active", createdAt: now, updatedAt: now });
   }
 
   // ----- Lop hoc (3 lop, 10 hoc sinh) -----

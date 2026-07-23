@@ -91,6 +91,7 @@ export function ClassForm({ editingClass, onDone }: ClassFormProps) {
     control,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm<ClassFormValues>({
     resolver: zodResolver(classFormSchema),
@@ -149,8 +150,16 @@ export function ClassForm({ editingClass, onDone }: ClassFormProps) {
 
   const submitDisabled = mutation.isPending || (useSmartSchedule && !recurrencePreview);
 
-  const activeCourses = courses?.filter((c) => c.status === "active" || c.id === editingClass?.courseId) ?? [];
-  const activeSubjects = subjects?.filter((s) => s.status === "active") ?? [];
+  const selectedCourseId = watch("courseId");
+  const selectedCourse = courses?.find((course) => course.id === selectedCourseId);
+  const activeCourses = courses?.filter((c) =>
+    (c.status === "active" || c.id === editingClass?.courseId) &&
+    (isAdmin || (c.teacherIds ?? []).includes(ownTeacherUid ?? ""))
+  ) ?? [];
+  const activeSubjects = subjects?.filter((s) =>
+    s.status === "active" &&
+    (!selectedCourse || selectedCourse.subjectIds.includes(s.id))
+  ) ?? [];
 
   return (
     <form onSubmit={handleSubmit((values) => mutation.mutate(values))}>

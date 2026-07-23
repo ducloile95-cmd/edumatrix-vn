@@ -6,6 +6,8 @@ import { studentFormSchema, type StudentFormValues } from "@/schemas/student";
 import { listClasses } from "@/services/firestore/classes";
 import { enrollStudent } from "@/services/firestore/enrollments";
 import { createStudent, linkParentToStudent, updateStudent } from "@/services/firestore/students";
+import { USER_ROLES } from "@/constants/roles";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import type { StudentDoc } from "@/types/academic";
 
 interface StudentFormProps {
@@ -22,6 +24,8 @@ const sectionClass = "overflow-hidden rounded-card border border-neutral-200 bg-
 export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
   const queryClient = useQueryClient();
   const isEditing = !!editingStudent;
+  const { role } = useAuth();
+  const isAdmin = role === USER_ROLES.ADMIN;
   const classes = useQuery({ queryKey: ["classes"], queryFn: listClasses, staleTime: 60_000 });
 
   const {
@@ -92,7 +96,7 @@ export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
         studentCode: values.studentCode,
       });
 
-      const studentId = values.studentCode;
+      const studentId = values.studentCode.trim().toUpperCase();
       if (values.staffNote) {
         await updateStudent(studentId, {
           dateOfBirth: values.dateOfBirth,
@@ -101,7 +105,7 @@ export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
         });
       }
 
-      if (values.parentEmail) {
+      if (isAdmin && values.parentEmail) {
         const result = await linkParentToStudent(studentId, values.parentEmail, {
           address: values.parentAddress ?? "",
           displayName: values.parentName ?? "",
@@ -156,7 +160,7 @@ export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
         </div>
       </section>
 
-      <section className={sectionClass}>
+      {isAdmin && <section className={sectionClass}>
         <SectionHeader title="Thông tin phụ huynh" description="Nhập email để liên kết tài khoản phụ huynh đã có trong hệ thống." />
         <div className="grid gap-3 p-4 md:grid-cols-2">
           <Field error={errors.parentName?.message} label="Tên phụ huynh">
@@ -182,7 +186,7 @@ export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
             </Field>
           </div>
         </div>
-      </section>
+      </section>}
 
       <section className={sectionClass}>
         <SectionHeader title="Đăng ký lớp học" description="Có thể chọn lớp ngay khi tạo hồ sơ hoặc bỏ trống để đăng ký sau." />

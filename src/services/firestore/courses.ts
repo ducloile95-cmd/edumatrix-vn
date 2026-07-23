@@ -18,6 +18,7 @@ import type { CourseDoc, CourseStatus } from "@/types/academic";
 export interface CreateCourseInput {
   name: string;
   subjectIds: string[];
+  teacherIds: string[];
   /** Don gia 1 buoi/1 hoc sinh - VND. */
   pricePerSession: number;
   totalSessions: number;
@@ -36,6 +37,7 @@ export async function createCourse(input: CreateCourseInput): Promise<void> {
   await addDoc(collection(db, COLLECTIONS.COURSES), {
     name: input.name,
     subjectIds: input.subjectIds,
+    teacherIds: input.teacherIds,
     pricePerSession: input.pricePerSession,
     tuitionFee: input.pricePerSession * input.totalSessions,
     totalSessions: input.totalSessions,
@@ -52,6 +54,7 @@ export async function updateCourse(courseId: string, input: CreateCourseInput): 
   await updateDoc(doc(db, COLLECTIONS.COURSES, courseId), {
     name: input.name,
     subjectIds: input.subjectIds,
+    teacherIds: input.teacherIds,
     pricePerSession: input.pricePerSession,
     tuitionFee: input.pricePerSession * input.totalSessions,
     totalSessions: input.totalSessions,
