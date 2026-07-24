@@ -43,7 +43,7 @@ function StaffGreeting({ name, intro, metrics }: { name: string; intro: string; 
   return <section className="mb-5 overflow-hidden rounded-card border border-primary-100 bg-primary-50/70" aria-label={`Lời chào dành cho ${name}`}>
     <div className="grid gap-5 px-5 py-5 lg:grid-cols-[minmax(260px,.8fr)_minmax(0,1.2fr)] lg:items-center lg:px-6">
       <div>
-        <h1 className="text-2xl font-black tracking-tight text-neutral-950"><span className="text-primary-700">Xin chào!</span> {name}</h1>
+        <h2 className="text-2xl font-black tracking-tight text-neutral-950"><span className="text-primary-700">Xin chào!</span> {name}</h2>
         <p className="mt-1.5 text-sm leading-6 text-neutral-600">{intro}</p>
       </div>
       <dl className="grid overflow-hidden rounded-input border border-primary-100 bg-white sm:grid-cols-3 sm:divide-x sm:divide-primary-100">

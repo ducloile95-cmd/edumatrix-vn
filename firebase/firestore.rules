@@ -638,10 +638,10 @@ service cloud.firestore {
 
     match /subjects/{subjectId} {
       allow read: if isActive();
-      allow create: if isAdmin() &&
+      allow create: if isStaff() &&
         request.resource.data.status == 'active' &&
         validSubjectData(subjectId, request.resource.data);
-      allow update: if isAdmin() &&
+      allow update: if isStaff() &&
         validSubjectData(subjectId, request.resource.data) &&
         keepsImmutable(['code', 'createdAt']);
       allow delete: if false;
@@ -653,11 +653,11 @@ service cloud.firestore {
 
     match /courses/{courseId} {
       allow read: if isActive();
-      allow create: if isAdmin() &&
+      allow create: if isStaff() &&
         request.resource.data.keys().hasAny(['teacherIds']) &&
         request.resource.data.teacherIds.size() > 0 &&
         validCourseData(request.resource.data);
-      allow update: if isAdmin() &&
+      allow update: if isStaff() &&
         validCourseData(request.resource.data) &&
         keepsImmutable(['createdAt']);
       allow delete: if false;

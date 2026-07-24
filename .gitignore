@@ -20,5 +20,7 @@ ui-debug.log*
 *.log
 .fuse_hidden*
 coverage/
+*firebase-adminsdk*.json
+*service-account*.json
 .tsc-out/
 *.tsbuildinfo

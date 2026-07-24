@@ -13,7 +13,8 @@ export interface Env {
 
 interface FirebaseClaims { sub: string; user_id?: string; email?: string }
 interface StaffProfile { role: "admin" | "teacher" }
-interface Recipient { psid: string; parentUid: string }
+interface MessengerProfile { name: string | null; avatarUrl: string | null }
+interface Recipient { psid: string; parentUid: string; threadId?: string }
 interface ThreadContext {
   studentId: string;
   studentName: string;
@@ -22,14 +23,28 @@ interface ThreadContext {
   assignedTeacherIds: string[];
 }
 export interface SendBody { recipientPsid?: string; text: string; type?: string; studentId?: string; tag?: string }
+export interface LinkConversationBody { psid?: string; studentId?: string }
 export interface PostBody { message: string; link?: string; imageUrls?: string[] }
 export interface InboundMessage { psid: string; pageId: string; text: string; messageId: string; timestamp: number }
 
-export function corsHeaders(env: Env) {
+function allowedOrigin(request: Request, env: Env): string {
+  if (env.ALLOWED_ORIGIN.trim() === "*") return "*";
+  const requestOrigin = request.headers.get("origin");
+  const configuredOrigins = env.ALLOWED_ORIGIN
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  return requestOrigin && configuredOrigins.includes(requestOrigin)
+    ? requestOrigin
+    : configuredOrigins[0] ?? "";
+}
+
+export function corsHeaders(env: Env, request?: Request) {
   return {
-    "access-control-allow-origin": env.ALLOWED_ORIGIN,
+    "access-control-allow-origin": request ? allowedOrigin(request, env) : env.ALLOWED_ORIGIN.trim() === "*" ? "*" : env.ALLOWED_ORIGIN.split(",")[0].trim(),
     "access-control-allow-headers": "authorization, content-type",
     "access-control-allow-methods": "GET,POST,OPTIONS",
+    "vary": "Origin",
     "content-type": "application/json",
   };
 }
@@ -40,6 +55,14 @@ export function extractBearer(value: string | null): string | null {
 
 export function isMessengerTagShape(value: unknown): value is string {
   return typeof value === "string" && /^[A-Z_]{3,64}$/.test(value.trim());
+}
+
+function normalizeSecret(value: string, key: string): string {
+  let normalized = value.trim().replace(new RegExp(`^${key}\\s*=\\s*`), "").trim();
+  if (normalized.startsWith("\"") && normalized.endsWith("\"")) {
+    try { normalized = JSON.parse(normalized) as string; } catch { /* keep original */ }
+  }
+  return normalized.trim();
 }
 
 export function buildMessengerPayload(body: SendBody): Record<string, unknown> {
@@ -127,7 +150,25 @@ function fieldTimestamp(document: unknown, name: string): Date | null {
 }
 
 async function serviceAccessToken(env: Env): Promise<string> {
-  const key = await importPKCS8(env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"), "RS256");
+  let privateKey = env.FIREBASE_PRIVATE_KEY.trim();
+  try {
+    if (privateKey.startsWith("{")) {
+      const parsed = JSON.parse(privateKey) as { private_key?: unknown };
+      if (typeof parsed.private_key === "string") privateKey = parsed.private_key;
+    } else if (privateKey.startsWith("\"private_key\"")) {
+      const value = privateKey.replace(/^"private_key"\s*:\s*/, "").replace(/,\s*$/, "");
+      privateKey = JSON.parse(value) as string;
+    } else if (privateKey.startsWith("\"") && privateKey.endsWith("\"")) {
+      privateKey = JSON.parse(privateKey) as string;
+    }
+  } catch {
+    // Fall through to normalization and PKCS#8 validation below.
+  }
+  privateKey = privateKey.replace(/\\n/g, "\n").replace(/\r\n/g, "\n").trim();
+  if (!privateKey.startsWith("-----BEGIN PRIVATE KEY-----") || !privateKey.endsWith("-----END PRIVATE KEY-----")) {
+    throw new Error("firebase_private_key_invalid_format");
+  }
+  const key = await importPKCS8(privateKey, "RS256");
   const assertion = await new SignJWT({ scope: "https://www.googleapis.com/auth/datastore" })
     .setProtectedHeader({ alg: "RS256", typ: "JWT" })
     .setIssuer(env.FIREBASE_CLIENT_EMAIL).setSubject(env.FIREBASE_CLIENT_EMAIL)
@@ -158,6 +199,13 @@ function firestoreFields(value: Record<string, unknown>): Record<string, unknown
 
 async function writeDocument(collectionPath: string, id: string, data: Record<string, unknown>, token: string, env: Env): Promise<void> {
   const response = await fetch(`https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/${collectionPath}/${encodeURIComponent(id)}`, { method: "PATCH", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify({ fields: firestoreFields(data) }) });
+  if (!response.ok) throw new Error("firestore_write_failed");
+}
+
+async function updateDocumentFields(collectionPath: string, id: string, data: Record<string, unknown>, token: string, env: Env): Promise<void> {
+  const url = new URL(`https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/${collectionPath}/${encodeURIComponent(id)}`);
+  Object.keys(data).forEach((key) => url.searchParams.append("updateMask.fieldPaths", key));
+  const response = await fetch(url, { method: "PATCH", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify({ fields: firestoreFields(data) }) });
   if (!response.ok) throw new Error("firestore_write_failed");
 }
 
@@ -297,7 +345,10 @@ async function resolveRecipients(studentId: string, serviceToken: string, env: E
   for (const parentUid of fieldStringArray(student, "parentUids")) {
     const connection = await readDocument("messenger_connections", parentUid, serviceToken, env);
     const psid = fieldString(connection, "facebookPsid");
-    if (psid && fieldString(connection, "status") === "active") recipients.push({ psid, parentUid });
+    if (psid && fieldString(connection, "status") === "active") {
+      const link = await readDocument("messenger_psid_links", psid, serviceToken, env);
+      recipients.push({ psid, parentUid, threadId: fieldString(link, "threadId") });
+    }
   }
   return recipients;
 }
@@ -306,12 +357,34 @@ async function parentName(parentUid: string, serviceToken: string, env: Env): Pr
   return fieldString(await readDocument("users", parentUid, serviceToken, env), "displayName") ?? "Phụ huynh";
 }
 
+export function parseMessengerProfile(data: Record<string, unknown>): MessengerProfile {
+  const firstName = typeof data.first_name === "string" ? data.first_name.trim() : "";
+  const lastName = typeof data.last_name === "string" ? data.last_name.trim() : "";
+  const name = [firstName, lastName].filter(Boolean).join(" ") || null;
+  const avatarUrl = typeof data.profile_pic === "string" && /^https:\/\//i.test(data.profile_pic)
+    ? data.profile_pic
+    : null;
+  return { name, avatarUrl };
+}
+
+async function fetchMessengerProfile(psid: string, env: Env): Promise<MessengerProfile> {
+  const pageAccessToken = normalizeSecret(env.META_PAGE_ACCESS_TOKEN, "META_PAGE_ACCESS_TOKEN");
+  const url = new URL(`https://graph.facebook.com/${env.META_GRAPH_VERSION}/${encodeURIComponent(psid)}`);
+  url.searchParams.set("fields", "first_name,last_name,profile_pic");
+  const response = await fetch(url, { headers: { authorization: `Bearer ${pageAccessToken}` } });
+  if (!response.ok) {
+    console.warn("messenger_profile_unavailable", { psidSuffix: psid.slice(-4), status: response.status });
+    return { name: null, avatarUrl: null };
+  }
+  return parseMessengerProfile(await response.json<Record<string, unknown>>());
+}
+
 function threadId(parentUid: string, studentId: string): string {
   return `messenger_${parentUid}_${studentId}`.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 180);
 }
 
-async function writeChatEvent(input: { context: ThreadContext; parentUid: string; direction: "inbound" | "outbound"; text: string; status: "received" | "sent" | "failed"; actorUid: string | null; metaMessageId: string | null; errorCode: string | null; occurredAt: Date }, serviceToken: string, env: Env): Promise<void> {
-  const id = threadId(input.parentUid, input.context.studentId);
+async function writeChatEvent(input: { context: ThreadContext; parentUid: string; direction: "inbound" | "outbound"; text: string; status: "received" | "sent" | "failed"; actorUid: string | null; metaMessageId: string | null; errorCode: string | null; occurredAt: Date; threadId?: string; messengerProfile?: MessengerProfile }, serviceToken: string, env: Env): Promise<void> {
+  const id = input.threadId ?? threadId(input.parentUid, input.context.studentId);
   const parent = await parentName(input.parentUid, serviceToken, env);
   const existingThread = await readDocument("chat_threads", id, serviceToken, env);
   const responseWindowEndsAt = input.direction === "inbound"
@@ -327,11 +400,32 @@ async function writeChatEvent(input: { context: ThreadContext; parentUid: string
     responseWindowEndsAt,
     unreadStaffCount: input.direction === "inbound" ? 1 : 0,
     status: "open", updatedAt: new Date(),
+    linkStatus: "linked",
+    facebookName: input.messengerProfile?.name ?? fieldString(existingThread, "facebookName"),
+    facebookAvatarUrl: input.messengerProfile?.avatarUrl ?? fieldString(existingThread, "facebookAvatarUrl"),
   }, serviceToken, env);
   await writeDocument(`chat_threads/${id}/messages`, input.metaMessageId ?? crypto.randomUUID(), {
     direction: input.direction, text: input.text, actorUid: input.actorUid,
     status: input.status, metaMessageId: input.metaMessageId, errorCode: input.errorCode,
     createdAt: input.occurredAt, updatedAt: new Date(),
+  }, serviceToken, env);
+}
+
+async function writeUnlinkedInbound(message: InboundMessage, profile: MessengerProfile, serviceToken: string, env: Env): Promise<void> {
+  const id = `messenger_unlinked_${message.psid}`.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 180);
+  await writeDocument("chat_threads", id, {
+    channel: "messenger", parentUid: "", parentName: profile.name ?? "Facebook chưa liên kết",
+    studentId: "", studentName: "Chưa chọn học sinh", classId: "", className: "",
+    assignedTeacherIds: [], messengerPsid: message.psid, pageId: message.pageId,
+    lastMessagePreview: message.text.slice(0, 160), lastMessageDirection: "inbound",
+    lastMessageAt: new Date(message.timestamp), responseWindowEndsAt: new Date(message.timestamp + 24 * 60 * 60 * 1000),
+    unreadStaffCount: 1, status: "open", linkStatus: "unlinked", updatedAt: new Date(),
+    facebookName: profile.name, facebookAvatarUrl: profile.avatarUrl,
+  }, serviceToken, env);
+  await writeDocument(`chat_threads/${id}/messages`, message.messageId, {
+    direction: "inbound", text: message.text, actorUid: null, status: "received",
+    metaMessageId: message.messageId, errorCode: null,
+    createdAt: new Date(message.timestamp), updatedAt: new Date(),
   }, serviceToken, env);
 }
 
@@ -342,7 +436,8 @@ export function metaErrorCode(data: Record<string, unknown>, status: number): st
 }
 
 async function sendGraph(body: SendBody, env: Env): Promise<{ message_id?: string; recipient_id?: string }> {
-  const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/me/messages?access_token=${encodeURIComponent(env.META_PAGE_ACCESS_TOKEN)}`;
+  const pageAccessToken = normalizeSecret(env.META_PAGE_ACCESS_TOKEN, "META_PAGE_ACCESS_TOKEN");
+  const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/me/messages?access_token=${encodeURIComponent(pageAccessToken)}`;
   const request = () => fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(buildMessengerPayload(body)) });
   let response = await request();
   if (response.status >= 500 || response.status === 429) {
@@ -354,40 +449,104 @@ async function sendGraph(body: SendBody, env: Env): Promise<{ message_id?: strin
     response = await request();
   }
   const data = await response.json<Record<string, unknown>>();
-  if (!response.ok) throw new Error(`meta_${metaErrorCode(data, response.status)}`);
+  if (!response.ok) {
+    const metaError = data.error as Record<string, unknown> | undefined;
+    if (metaError?.code === 190) {
+      console.warn("meta_page_access_token_rejected", {
+        tokenLength: pageAccessToken.length,
+        status: response.status,
+      });
+    }
+    throw new Error(`meta_${metaErrorCode(data, response.status)}`);
+  }
   return data;
 }
 
 async function handleSend(request: Request, env: Env): Promise<Response> {
   const idToken = extractBearer(request.headers.get("authorization"));
-  if (!idToken) return new Response(JSON.stringify({ error: "missing_bearer_token" }), { status: 401, headers: corsHeaders(env) });
+  if (!idToken) return new Response(JSON.stringify({ error: "missing_bearer_token" }), { status: 401, headers: corsHeaders(env, request) });
   const claims = await verifyFirebaseToken(idToken, env);
   const profile = await requireStaff(claims.sub, idToken, env);
   const body = await request.json<SendBody>();
-  if (!body.text?.trim() || body.text.length > 2000 || !body.studentId) return new Response(JSON.stringify({ error: "invalid_message" }), { status: 400, headers: corsHeaders(env) });
-  if (body.tag !== undefined && !isMessengerTagShape(body.tag)) return new Response(JSON.stringify({ error: "invalid_message_tag" }), { status: 400, headers: corsHeaders(env) });
+  if (!body.text?.trim() || body.text.length > 2000) return new Response(JSON.stringify({ error: "invalid_message" }), { status: 400, headers: corsHeaders(env, request) });
+  if (body.tag !== undefined && !isMessengerTagShape(body.tag)) return new Response(JSON.stringify({ error: "invalid_message_tag" }), { status: 400, headers: corsHeaders(env, request) });
   const serviceToken = await serviceAccessToken(env);
+  if (!body.studentId && body.recipientPsid) {
+    if (profile.role !== "admin") return new Response(JSON.stringify({ error: "admin_required" }), { status: 403, headers: corsHeaders(env, request) });
+    const directThreadId = `messenger_unlinked_${body.recipientPsid}`.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 180);
+    const directThread = await readDocument("chat_threads", directThreadId, serviceToken, env);
+    if (fieldString(directThread, "messengerPsid") !== body.recipientPsid || fieldString(directThread, "linkStatus") !== "unlinked") {
+      return new Response(JSON.stringify({ error: "unlinked_conversation_not_found" }), { status: 404, headers: corsHeaders(env, request) });
+    }
+    const id = crypto.randomUUID();
+    try {
+      const result = await sendGraph(body, env);
+      const occurredAt = new Date();
+      await writeDocument("message_outbox", id, { type: body.type ?? "manual", studentId: null, recipientPsid: body.recipientPsid, content: body.text, status: "sent", messageTag: body.tag ?? null, metaMessageId: result.message_id ?? null, actorUid: claims.sub, createdAt: occurredAt }, serviceToken, env);
+      await writeDocument(`chat_threads/${directThreadId}/messages`, result.message_id ?? id, { direction: "outbound", text: body.text, actorUid: claims.sub, status: "sent", metaMessageId: result.message_id ?? null, errorCode: null, createdAt: occurredAt, updatedAt: occurredAt }, serviceToken, env);
+      await updateDocumentFields("chat_threads", directThreadId, { lastMessagePreview: body.text.slice(0, 160), lastMessageDirection: "outbound", lastMessageAt: occurredAt, unreadStaffCount: 0, updatedAt: occurredAt }, serviceToken, env);
+      return new Response(JSON.stringify({ id, status: "sent", sent: 1, total: 1 }), { headers: corsHeaders(env, request) });
+    } catch (error) {
+      const code = (error instanceof Error ? error.message : String(error)).slice(0, 240);
+      await writeDocument("message_outbox", id, { type: body.type ?? "manual", studentId: null, recipientPsid: body.recipientPsid, content: body.text, status: "failed", messageTag: body.tag ?? null, metaMessageId: null, error: code, actorUid: claims.sub, createdAt: new Date() }, serviceToken, env);
+      return new Response(JSON.stringify({ id, status: "failed", sent: 0, total: 1, error: code }), { status: 502, headers: corsHeaders(env, request) });
+    }
+  }
+  if (!body.studentId) return new Response(JSON.stringify({ error: "missing_recipient" }), { status: 400, headers: corsHeaders(env, request) });
   const context = await threadContext(body.studentId, serviceToken, env);
   await assertStudentScope(profile, claims.sub, context);
   const recipients = await resolveRecipients(body.studentId, serviceToken, env);
-  if (!recipients.length) return new Response(JSON.stringify({ error: "no_recipient" }), { status: 400, headers: corsHeaders(env) });
+  if (!recipients.length) return new Response(JSON.stringify({ error: "no_recipient" }), { status: 400, headers: corsHeaders(env, request) });
   const results: Array<{ id: string; status: "sent" | "failed"; error?: string }> = [];
   for (const recipient of recipients) {
     const id = crypto.randomUUID();
     try {
       const result = await sendGraph({ ...body, recipientPsid: recipient.psid }, env);
       await writeDocument("message_outbox", id, { type: body.type ?? "general", studentId: body.studentId, recipientPsid: recipient.psid, content: body.text, status: "sent", messageTag: body.tag ?? null, metaMessageId: result.message_id ?? null, actorUid: claims.sub, createdAt: new Date() }, serviceToken, env);
-      if (context) await writeChatEvent({ context, parentUid: recipient.parentUid, direction: "outbound", text: body.text, status: "sent", actorUid: claims.sub, metaMessageId: result.message_id ?? null, errorCode: null, occurredAt: new Date() }, serviceToken, env);
+      if (context) await writeChatEvent({ context, parentUid: recipient.parentUid, direction: "outbound", text: body.text, status: "sent", actorUid: claims.sub, metaMessageId: result.message_id ?? null, errorCode: null, occurredAt: new Date(), threadId: recipient.threadId }, serviceToken, env);
       results.push({ id, status: "sent" });
     } catch (error) {
-      const code = String(error).slice(0, 240);
+      const code = (error instanceof Error ? error.message : String(error)).slice(0, 240);
       await writeDocument("message_outbox", id, { type: body.type ?? "general", studentId: body.studentId, recipientPsid: recipient.psid, content: body.text, status: "failed", messageTag: body.tag ?? null, metaMessageId: null, error: code, actorUid: claims.sub, createdAt: new Date() }, serviceToken, env);
-      if (context) await writeChatEvent({ context, parentUid: recipient.parentUid, direction: "outbound", text: body.text, status: "failed", actorUid: claims.sub, metaMessageId: null, errorCode: code, occurredAt: new Date() }, serviceToken, env);
+      if (context) await writeChatEvent({ context, parentUid: recipient.parentUid, direction: "outbound", text: body.text, status: "failed", actorUid: claims.sub, metaMessageId: null, errorCode: code, occurredAt: new Date(), threadId: recipient.threadId }, serviceToken, env);
       results.push({ id, status: "failed", error: code });
     }
   }
   const sent = results.filter((result) => result.status === "sent").length;
-  return new Response(JSON.stringify({ id: results[0].id, status: sent ? "sent" : "failed", sent, total: results.length, results, error: sent ? undefined : results[0].error }), { status: sent ? 200 : 502, headers: corsHeaders(env) });
+  return new Response(JSON.stringify({ id: results[0].id, status: sent ? "sent" : "failed", sent, total: results.length, results, error: sent ? undefined : results[0].error }), { status: sent ? 200 : 502, headers: corsHeaders(env, request) });
+}
+
+async function handleLinkConversation(request: Request, env: Env): Promise<Response> {
+  const idToken = extractBearer(request.headers.get("authorization"));
+  if (!idToken) return new Response(JSON.stringify({ error: "missing_bearer_token" }), { status: 401, headers: corsHeaders(env, request) });
+  const claims = await verifyFirebaseToken(idToken, env);
+  const profile = await requireStaff(claims.sub, idToken, env);
+  if (profile.role !== "admin") return new Response(JSON.stringify({ error: "admin_required" }), { status: 403, headers: corsHeaders(env, request) });
+  const body = await request.json<LinkConversationBody>();
+  if (!body.psid || !body.studentId) return new Response(JSON.stringify({ error: "invalid_link_target" }), { status: 400, headers: corsHeaders(env, request) });
+  const serviceToken = await serviceAccessToken(env);
+  const student = await readDocument("students", body.studentId, serviceToken, env);
+  const parentUid = fieldStringArray(student, "parentUids")[0];
+  const context = await threadContext(body.studentId, serviceToken, env);
+  if (!parentUid || !context) return new Response(JSON.stringify({ error: "student_parent_required" }), { status: 400, headers: corsHeaders(env, request) });
+  const id = `messenger_unlinked_${body.psid}`.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 180);
+  const existing = await readDocument("chat_threads", id, serviceToken, env);
+  const pageId = fieldString(existing, "pageId") ?? "";
+  await writeDocument("messenger_connections", parentUid, { uid: parentUid, facebookPsid: body.psid, pageId, status: "active", linkedAt: new Date() }, serviceToken, env);
+  await writeDocument("messenger_psid_links", body.psid, { uid: parentUid, pageId, status: "active", threadId: id, updatedAt: new Date() }, serviceToken, env);
+  await writeDocument("chat_threads", id, {
+    channel: "messenger", parentUid, parentName: await parentName(parentUid, serviceToken, env),
+    studentId: context.studentId, studentName: context.studentName, classId: context.classId, className: context.className,
+    assignedTeacherIds: context.assignedTeacherIds, messengerPsid: body.psid, pageId,
+    facebookName: fieldString(existing, "facebookName"),
+    facebookAvatarUrl: fieldString(existing, "facebookAvatarUrl"),
+    lastMessagePreview: fieldString(existing, "lastMessagePreview") ?? "",
+    lastMessageDirection: fieldString(existing, "lastMessageDirection") ?? "inbound",
+    lastMessageAt: fieldTimestamp(existing, "lastMessageAt") ?? new Date(),
+    responseWindowEndsAt: fieldTimestamp(existing, "responseWindowEndsAt"),
+    unreadStaffCount: 0, status: "open", linkStatus: "linked", updatedAt: new Date(),
+  }, serviceToken, env);
+  return new Response(JSON.stringify({ ok: true, threadId: id }), { headers: corsHeaders(env, request) });
 }
 
 export function validPostImages(value: unknown): boolean {
@@ -477,39 +636,70 @@ async function handleWebhook(request: Request, env: Env): Promise<Response> {
     return new Response("Forbidden", { status: 403 });
   }
   const raw = await request.text();
-  if (!await verifyMetaSignature(raw, request.headers.get("x-hub-signature-256"), env.META_APP_SECRET)) return new Response("Invalid signature", { status: 401 });
+  const appSecret = normalizeSecret(env.META_APP_SECRET, "META_APP_SECRET");
+  if (!await verifyMetaSignature(raw, request.headers.get("x-hub-signature-256"), appSecret)) {
+    let diagnostic: { object?: string; pageId?: string; entryKeys?: string[] } = {};
+    try {
+      const value = JSON.parse(raw) as { object?: string; entry?: Array<Record<string, unknown>> };
+      diagnostic = {
+        object: value.object,
+        pageId: typeof value.entry?.[0]?.id === "string" ? value.entry[0].id : undefined,
+        entryKeys: value.entry?.[0] ? Object.keys(value.entry[0]).sort() : [],
+      };
+    } catch { /* invalid JSON is already rejected by signature */ }
+    console.warn("webhook_signature_invalid", { secretLength: appSecret.length, ...diagnostic });
+    return new Response("Invalid signature", { status: 401 });
+  }
   const payload = JSON.parse(raw) as unknown;
   const serviceToken = await serviceAccessToken(env);
-  for (const link of extractReferralLinks(payload)) {
+  const referralLinks = extractReferralLinks(payload);
+  const inboundMessages = extractInboundMessages(payload);
+  const entries = payload && typeof payload === "object" ? (payload as { entry?: unknown[] }).entry ?? [] : [];
+  console.log("webhook_received", {
+    entries: entries.length,
+    messagingEvents: entries.reduce((count, entry) => count + (
+      entry && typeof entry === "object" && Array.isArray((entry as { messaging?: unknown[] }).messaging)
+        ? ((entry as { messaging: unknown[] }).messaging.length)
+        : 0
+    ), 0),
+    referrals: referralLinks.length,
+    inboundMessages: inboundMessages.length,
+  });
+  for (const link of referralLinks) {
     await claimReferralNonce(link.nonce, link.psid, link.pageId, serviceToken, env);
   }
-  for (const message of extractInboundMessages(payload)) {
+  for (const message of inboundMessages) {
+    const messengerProfile = await fetchMessengerProfile(message.psid, env);
     const link = await readDocument("messenger_psid_links", message.psid, serviceToken, env);
     const parentUid = fieldString(link, "uid") ?? await findConnectionByPsid(message.psid, serviceToken, env);
-    if (!parentUid) continue;
+    if (!parentUid) {
+      await writeUnlinkedInbound(message, messengerProfile, serviceToken, env);
+      continue;
+    }
     if (!link) await writeDocument("messenger_psid_links", message.psid, { uid: parentUid, pageId: message.pageId, status: "active", updatedAt: new Date() }, serviceToken, env);
     const user = await readDocument("users", parentUid, serviceToken, env);
     const studentId = fieldStringArray(user, "studentIds")[0];
     if (!studentId) continue;
     const context = await threadContext(studentId, serviceToken, env);
-    if (context) await writeChatEvent({ context, parentUid, direction: "inbound", text: message.text, status: "received", actorUid: null, metaMessageId: message.messageId, errorCode: null, occurredAt: new Date(message.timestamp) }, serviceToken, env);
+    if (context) await writeChatEvent({ context, parentUid, direction: "inbound", text: message.text, status: "received", actorUid: null, metaMessageId: message.messageId, errorCode: null, occurredAt: new Date(message.timestamp), threadId: fieldString(link, "threadId"), messengerProfile }, serviceToken, env);
   }
   return new Response("EVENT_RECEIVED");
 }
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(env) });
+    if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(env, request) });
     const path = new URL(request.url).pathname;
     try {
-      if (path === "/health") return new Response(JSON.stringify({ ok: true }), { headers: corsHeaders(env) });
+      if (path === "/health") return new Response(JSON.stringify({ ok: true }), { headers: corsHeaders(env, request) });
       if (path === "/api/messenger/send" && request.method === "POST") return handleSend(request, env);
       if (path === "/api/messenger/post" && request.method === "POST") return handlePost(request, env);
       if (path === "/api/messenger/referral" && request.method === "POST") return handleCreateReferral(request, env);
+      if (path === "/api/messenger/link" && request.method === "POST") return handleLinkConversation(request, env);
       if (path === "/webhook") return handleWebhook(request, env);
       return new Response("Not found", { status: 404 });
     } catch (error) {
-      return new Response(JSON.stringify({ error: String(error) }), { status: 500, headers: corsHeaders(env) });
+      return new Response(JSON.stringify({ error: String(error) }), { status: 500, headers: corsHeaders(env, request) });
     }
   },
 };

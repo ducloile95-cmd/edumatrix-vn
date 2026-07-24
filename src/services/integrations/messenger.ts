@@ -5,6 +5,9 @@ const FRIENDLY_ERRORS: Record<string, string> = {
   no_recipient: "Phụ huynh học sinh này chưa liên kết Messenger (chưa nhắn vào Fanpage qua link liên kết).",
   invalid_message_tag: "Tag không hợp lệ - chỉ dùng chữ in hoa và dấu gạch dưới, 3-64 ký tự.",
   invalid_message: "Nội dung tin nhắn không hợp lệ (trống hoặc quá 2000 ký tự).",
+  missing_recipient: "Chưa xác định được tài khoản Messenger nhận tin.",
+  unlinked_conversation_not_found: "Không tìm thấy hội thoại Facebook chưa liên kết để trả lời.",
+  admin_required: "Chỉ Admin được trả lời tài khoản Facebook chưa liên kết học sinh.",
   student_scope_denied: "Học sinh này không thuộc lớp bạn phụ trách.",
   student_not_found: "Không tìm thấy học sinh.",
   staff_required: "Tài khoản của bạn không có quyền gửi Messenger.",
@@ -14,7 +17,10 @@ const FRIENDLY_ERRORS: Record<string, string> = {
 
 export function friendlyMessengerError(message: string): string {
   if (FRIENDLY_ERRORS[message]) return FRIENDLY_ERRORS[message];
-  if (message.startsWith("meta_")) return "Facebook từ chối gửi tin (có thể hết quyền gửi hoặc ngoài cửa sổ phản hồi 24h).";
+  if (message.includes("\"code\":190") || message.includes("Invalid OAuth access token")) {
+    return "Page Access Token không hợp lệ hoặc đã hết hạn. Admin cần cập nhật META_PAGE_ACCESS_TOKEN trên Worker production.";
+  }
+  if (message.includes("meta_")) return "Facebook từ chối gửi tin. Kiểm tra quyền gửi và cửa sổ phản hồi 24 giờ.";
   return message;
 }
 
@@ -50,7 +56,7 @@ export interface SendMessengerInput {
 export type MessengerFailureReason = "auth_required" | "not_configured" | "error";
 export type SendMessengerResult =
   | { sent: true; id: string; status: "sent" | "failed"; sentCount?: number; total?: number }
-  | { sent: false; reason: MessengerFailureReason; message: string };
+  | { sent: false; reason: MessengerFailureReason; code: string; message: string };
 
 interface MessengerResponse {
   id: string;
@@ -81,16 +87,21 @@ export async function createMessengerInviteLink(parentUid: string, studentId: st
   return { url: `https://m.me/${page}?ref=${encodeURIComponent(response.nonce)}`, expiresAt: response.expiresAt };
 }
 
-function failure(error: unknown): { reason: MessengerFailureReason; message: string } {
-  if (error instanceof MessengerSendError && error.code === "auth_required") return { reason: "auth_required", message: "Chưa đăng nhập" };
-  if (error instanceof MessengerSendError && error.code === "not_configured") return { reason: "not_configured", message: "Chưa cấu hình Worker Messenger (VITE_MESSENGER_WORKER_URL)" };
+function failure(error: unknown): { reason: MessengerFailureReason; code: string; message: string } {
+  if (error instanceof MessengerSendError && error.code === "auth_required") return { reason: "auth_required", code: error.code, message: "Chưa đăng nhập" };
+  if (error instanceof MessengerSendError && error.code === "not_configured") return { reason: "not_configured", code: error.code, message: "Chưa cấu hình Worker Messenger (VITE_MESSENGER_WORKER_URL)" };
   if (error instanceof ApiError) {
     const rawCode = error.details && typeof error.details === "object" && "error" in error.details && typeof error.details.error === "string"
       ? error.details.error
       : error.code;
-    return { reason: "error", message: friendlyMessengerError(rawCode) };
+    return { reason: "error", code: rawCode, message: friendlyMessengerError(rawCode) };
   }
-  return { reason: "error", message: error instanceof Error ? error.message : "MESSENGER_REQUEST_FAILED" };
+  const code = error instanceof Error ? error.message : "MESSENGER_REQUEST_FAILED";
+  return { reason: "error", code, message: code };
+}
+
+export async function linkMessengerConversation(psid: string, studentId: string): Promise<void> {
+  await workerRequest("/api/messenger/link", { psid, studentId });
 }
 
 export async function sendMessenger(input: SendMessengerInput): Promise<SendMessengerResult> {

@@ -85,13 +85,22 @@ async function getDashboardBase(filters: DashboardFilters, now = new Date()): Pr
     listUpcomingRegisteredLeaves(14),
   ]);
   const scopedAssignments = assignments.filter((assignment) => context.classIds.has(assignment.classId));
-  const assignmentSummaries = await listAssignmentSummariesByIds(scopedAssignments.map((assignment) => assignment.id));
-  const ungraded = assignmentSummaries.reduce((sum, item) => sum + Math.max(0, item.submittedCount - item.gradedCount), 0);
+  const [assignmentSummaries, submissions] = await Promise.all([
+    listAssignmentSummariesByIds(scopedAssignments.map((assignment) => assignment.id)),
+    listSubmissionsByStudents(context.students.map((student) => student.id)),
+  ]);
+  // submittedCount tren assignment_summaries khong duoc cap nhat khi hoc sinh nop bai (Rules
+  // chi cho phep giao vien/admin ghi doc nay), nen dem truc tiep tu submissions/ de ra so dung.
+  const submittedCountByAssignment = new Map<string, number>();
+  submissions.forEach((submission) => {
+    submittedCountByAssignment.set(submission.assignmentId, (submittedCountByAssignment.get(submission.assignmentId) ?? 0) + 1);
+  });
+  const ungraded = assignmentSummaries.reduce((sum, item) => sum + Math.max(0, (submittedCountByAssignment.get(item.assignmentId) ?? 0) - item.gradedCount), 0);
   const classById = new Map(context.classes.map((klass) => [klass.id, klass]));
   const upcoming = todaySessions.filter((session) => session.endAt.toMillis() >= now.getTime());
   const attendanceGaps = attendanceGapsAll.filter((session) => context.classIds.has(session.classId));
   const scopedLeaves = leaves.filter((leave) => context.classIds.has(leave.classId));
-  const missingSubmissions = assignmentSummaries.reduce((sum, item) => sum + Math.max(0, item.totalStudents - item.submittedCount), 0);
+  const missingSubmissions = assignmentSummaries.reduce((sum, item) => sum + Math.max(0, item.totalStudents - (submittedCountByAssignment.get(item.assignmentId) ?? 0)), 0);
   const actions = ([
     { id: "attendance", count: attendanceGaps.length, label: "Buổi chưa điểm danh đủ", detail: "Hoàn tất điểm danh các buổi đã kết thúc", kind: "attendance" },
     { id: "grading", count: ungraded, label: "Bài đang chờ chấm", detail: "Học sinh đã nộp và chưa có kết quả", kind: "grading" },

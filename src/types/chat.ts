@@ -15,6 +15,10 @@ export interface ChatThreadDoc {
   responseWindowEndsAt: Timestamp | null;
   unreadStaffCount: number;
   status: "open" | "resolved" | "blocked";
+  linkStatus?: "linked" | "unlinked";
+  messengerPsid?: string;
+  facebookName?: string | null;
+  facebookAvatarUrl?: string | null;
   updatedAt: Timestamp;
 }
 

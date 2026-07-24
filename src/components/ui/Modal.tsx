@@ -16,8 +16,12 @@ interface ModalProps {
 const sizes = { sm: "max-w-md", md: "max-w-2xl", lg: "max-w-[960px]", xl: "max-w-[1320px]" };
 
 export function Modal({ open, title, description, children, onClose, size = "md", bodyClassName }: ModalProps) {
-  const titleId = useId(); const descriptionId = useId(); const panelRef = useRef<HTMLDivElement>(null); const previousFocus = useRef<HTMLElement | null>(null);
+  const titleId = useId(); const descriptionId = useId(); const panelRef = useRef<HTMLDivElement>(null); const previousFocus = useRef<HTMLElement | null>(null); const onCloseRef = useRef(onClose);
   const [mounted, setMounted] = useState(open);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (open) {
@@ -34,7 +38,7 @@ export function Modal({ open, title, description, children, onClose, size = "md"
     previousFocus.current = document.activeElement as HTMLElement; const originalOverflow = document.body.style.overflow; document.body.style.overflow = "hidden";
     window.requestAnimationFrame(() => panelRef.current?.querySelector<HTMLElement>("button, input, select, textarea, [tabindex]:not([tabindex='-1'])")?.focus());
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") { event.preventDefault(); onClose(); return; }
+      if (event.key === "Escape") { event.preventDefault(); onCloseRef.current(); return; }
       if (event.key !== "Tab" || !panelRef.current) return;
       const focusable = [...panelRef.current.querySelectorAll<HTMLElement>("button, input, select, textarea, a[href], [tabindex]:not([tabindex='-1'])")].filter((element) => !element.hasAttribute("disabled"));
       if (!focusable.length) return; const first = focusable[0]; const last = focusable[focusable.length - 1];
@@ -42,7 +46,7 @@ export function Modal({ open, title, description, children, onClose, size = "md"
     };
     document.addEventListener("keydown", onKeyDown);
     return () => { document.body.style.overflow = originalOverflow; document.removeEventListener("keydown", onKeyDown); previousFocus.current?.focus(); };
-  }, [open, onClose]);
+  }, [open]);
   if (!mounted) return null;
   const state = open ? "open" : "closed";
   return createPortal(<div data-state={state} className="modal-backdrop fixed inset-0 z-50 grid place-items-center overflow-hidden bg-neutral-900/50 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>

@@ -76,7 +76,7 @@ export default function ClassDetailPage() {
           <>
             <div className="rounded-card border border-neutral-200 bg-neutral-0 p-5 sm:p-6">
               <div className="flex flex-wrap items-center gap-3">
-                <h1>{klass.name}</h1>
+                <h2>{klass.name}</h2>
                 <StatusBadge tone={klass.status === "active" ? "success" : klass.status === "cancelled" ? "danger" : "neutral"}>
                   {STATUS_LABEL[klass.status]}
                 </StatusBadge>

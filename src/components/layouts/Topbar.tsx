@@ -5,8 +5,10 @@ import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { listAnnouncementsByStudents } from "@/services/firestore/announcements";
+import { subscribeChatThreads } from "@/services/firestore/chat";
 import { ROUTES } from "@/constants/routes";
 import { findPageDescription, findPageTitle } from "@/constants/navigation";
+import { playNotificationSound, unlockNotificationSound } from "@/utils/notificationSound";
 
 const WEATHER_KEY = "edumatrix-weather-hanoi";
 type WeatherData = { temperature: number; code: number; cachedAt: number };
@@ -52,6 +54,7 @@ function useNotifications(): Notification[] {
     queryKey: ["topbar-notifications", studentIds],
     queryFn: () => listAnnouncementsByStudents(studentIds, 10),
     enabled: studentIds.length > 0,
+    refetchInterval: 15_000,
   });
 
   return (data ?? []).slice(0, 8).map((item) => ({
@@ -63,13 +66,22 @@ function useNotifications(): Notification[] {
 
 function NotificationBell({ seeAllHref }: { seeAllHref: string }) {
   const notifications = useNotifications();
+  const { userDoc } = useAuth();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const previousFirstId = useRef<string | null>(null);
   useEffect(() => {
     const close = (event: MouseEvent) => { if (!ref.current?.contains(event.target as Node)) setOpen(false); };
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, []);
+  useEffect(() => {
+    const firstId = notifications[0]?.id ?? null;
+    if (previousFirstId.current && firstId && firstId !== previousFirstId.current && (userDoc?.notificationPrefs?.notificationSound ?? true)) {
+      playNotificationSound();
+    }
+    previousFirstId.current = firstId;
+  }, [notifications, userDoc?.notificationPrefs?.notificationSound]);
   const unread = notifications.length;
   return (
     <div ref={ref} className="relative">
@@ -90,8 +102,34 @@ function NotificationBell({ seeAllHref }: { seeAllHref: string }) {
   );
 }
 
+function NotificationSoundMonitor() {
+  const { firebaseUser, userDoc, isStaff } = useAuth();
+  const previousInboundKey = useRef<string | null>(null);
+  useEffect(() => {
+    const unlock = () => unlockNotificationSound();
+    window.addEventListener("pointerdown", unlock, { once: true });
+    window.addEventListener("keydown", unlock, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []);
+  useEffect(() => {
+    if (!isStaff || !firebaseUser) return;
+    const role = userDoc?.role === "admin" ? "admin" : "teacher";
+    return subscribeChatThreads(role, firebaseUser.uid, (threads) => {
+      const latestInbound = threads.find((thread) => thread.lastMessageDirection === "inbound");
+      const key = latestInbound ? `${latestInbound.id}:${latestInbound.lastMessageAt?.toMillis?.() ?? 0}` : null;
+      if (previousInboundKey.current && key && key !== previousInboundKey.current && (userDoc?.notificationPrefs?.notificationSound ?? true)) {
+        playNotificationSound();
+      }
+      previousInboundKey.current = key;
+    }, () => undefined);
+  }, [firebaseUser, isStaff, userDoc?.notificationPrefs?.notificationSound, userDoc?.role]);
+  return null;
+}
+
 function StaffActions() {
-  const { role } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -101,7 +139,7 @@ function StaffActions() {
     return () => document.removeEventListener("mousedown", close);
   }, []);
   const items = [
-    { label: "Học sinh", to: `${ROUTES.STAFF_STUDENTS}?create=student`, adminOnly: true },
+    { label: "Học sinh", to: `${ROUTES.STAFF_STUDENTS}?create=student` },
     { label: "Lớp học", to: `${ROUTES.STAFF_CLASSES}?create=class` },
     { label: "Môn học", to: `${ROUTES.STAFF_CATALOG}?create=subject` },
     { label: "Khóa học", to: `${ROUTES.STAFF_CATALOG}?create=course` },
@@ -114,8 +152,7 @@ function StaffActions() {
       <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-haspopup="menu" className="motion-control inline-flex h-9 items-center gap-1.5 rounded-input bg-primary-600 px-3 text-xs font-bold text-white shadow-[0_5px_14px_rgba(35,72,214,.2)] hover:bg-primary-700 active:scale-[.98]"><Plus size={15} />Thêm<ChevronDown size={14} /></button>
       {open && <div role="menu" className="absolute right-0 z-40 mt-2 w-48 overflow-hidden rounded-card border border-neutral-200 bg-white p-1.5 shadow-[var(--shadow-3)]">
         {items.map((item) => {
-          const disabled = item.adminOnly && role !== "admin";
-          return <button key={item.label} type="button" role="menuitem" disabled={disabled} title={disabled ? "Chỉ Admin được tạo học sinh" : undefined} onClick={() => { setOpen(false); navigate(item.to); }} className="flex min-h-9 w-full items-center justify-between rounded-input px-3 text-left text-sm font-medium text-neutral-700 hover:bg-primary-50 hover:text-primary-700 disabled:cursor-not-allowed disabled:text-neutral-400 disabled:hover:bg-transparent">{item.label}{disabled && <span className="text-3xs font-semibold">Chỉ Admin</span>}</button>;
+          return <button key={item.label} type="button" role="menuitem" onClick={() => { setOpen(false); navigate(item.to); }} className="flex min-h-9 w-full items-center justify-between rounded-input px-3 text-left text-sm font-medium text-neutral-700 hover:bg-primary-50 hover:text-primary-700">{item.label}</button>;
         })}
       </div>}
     </div>
@@ -132,6 +169,7 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const seeAllHref = isStaff ? ROUTES.STAFF_ANNOUNCEMENTS : ROUTES.VIEWER_ANNOUNCEMENTS;
 
   return <header className="glass-panel sticky top-0 z-20 flex h-16 items-center justify-between border-b border-white/70 px-4 sm:px-6">
+    <NotificationSoundMonitor />
     <div className="flex min-w-0 items-center gap-3">
       {onMenuClick && <button type="button" onClick={onMenuClick} aria-label="Mở menu điều hướng" className="icon-button lg:hidden"><Menu size={20} /></button>}
       <div className="min-w-0"><h1 className="truncate text-lg font-semibold text-neutral-900">{title}</h1><p className="hidden max-w-[78ch] truncate text-xs text-neutral-500 sm:block">{description}</p></div>

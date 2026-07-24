@@ -9,6 +9,7 @@ interface NotificationItem {
 }
 
 const NOTIFICATION_ITEMS: NotificationItem[] = [
+  { key: "notificationSound", title: "Âm thanh thông báo mới", description: "Phát âm báo khi có tin nhắn Messenger hoặc thông báo hệ thống mới" },
   { key: "newInvoiceEmail", title: "Email khi có hóa đơn mới", description: "Gửi cho phụ huynh ngay khi hóa đơn được tạo" },
   { key: "absenceEmail", title: "Email khi học sinh vắng không phép", description: "Gửi cho phụ huynh trong ngày điểm danh" },
   { key: "sessionReminder", title: "Nhắc lịch dạy trước 30 phút", description: "Thông báo cho giáo viên trước buổi học" },

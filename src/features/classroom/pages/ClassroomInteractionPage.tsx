@@ -67,7 +67,7 @@ function SessionPicker() {
   return (
     <section className="overflow-hidden rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)]">
       <div className="border-b border-neutral-100 p-5">
-        <h1 className="text-xl font-bold text-neutral-900">Chọn buổi học</h1>
+        <h2 className="text-xl font-bold text-neutral-900">Chọn buổi học</h2>
         <p className="mt-1 text-sm text-neutral-500">Các buổi gần đây và sắp tới thuộc lớp bạn được phân công.</p>
       </div>
       {sessions.data?.length ? (
@@ -281,7 +281,7 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
     return () => clearTimeout(timer);
   }, [entries, taughtContent, quickSummary, homeworkText, initializedSessionId, sessionId, isPublished, classStudents.length]);
 
-  if (session.isLoading || klass.isLoading || students.isLoading || interaction.isLoading) return <LoadingSkeleton rows={7} />;
+  if (session.isLoading || klass.isLoading || students.isLoading || interaction.isLoading || savedEntries.isLoading) return <LoadingSkeleton rows={7} />;
   if (session.isError || klass.isError || students.isError || interaction.isError) return <ErrorState message="Không tải được dữ liệu buổi học." onRetry={() => session.refetch()} />;
   if (!session.data || !klass.data) return <EmptyState title="Không tìm thấy buổi học" description="Buổi học không tồn tại hoặc bạn không có quyền truy cập." />;
   if (session.data.status === "cancelled") return <EmptyState title="Buổi học đã bị hủy" description="Không thể nhập dữ liệu cho buổi học đã hủy." />;
@@ -310,7 +310,7 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
     <div className="space-y-4">
       <section className="overflow-hidden rounded-card border border-primary-200 bg-white shadow-[var(--shadow-1)]">
         <div className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
-          <div><p className={`text-xs font-bold ${isPublished ? "text-success-700" : isAmended ? "text-warning-700" : "text-primary-700"}`}>{isPublished ? "ĐÃ PHÁT HÀNH" : isAmended ? "ĐANG ĐÍNH CHÍNH" : "ĐANG NHẬP BẢN NHÁP"}</p><h1 className="mt-1 text-xl font-bold text-neutral-950">{klass.data.name} · {session.data.title}</h1><p className="mt-1 text-sm text-neutral-500">{format(session.data.startAt.toDate(), "EEEE, dd/MM/yyyy", { locale: vi })}</p></div>
+          <div><p className={`text-xs font-bold ${isPublished ? "text-success-700" : isAmended ? "text-warning-700" : "text-primary-700"}`}>{isPublished ? "ĐÃ PHÁT HÀNH" : isAmended ? "ĐANG ĐÍNH CHÍNH" : "ĐANG NHẬP BẢN NHÁP"}</p><h2 className="mt-1 text-xl font-bold text-neutral-950">{klass.data.name} · {session.data.title}</h2><p className="mt-1 text-sm text-neutral-500">{format(session.data.startAt.toDate(), "EEEE, dd/MM/yyyy", { locale: vi })}</p></div>
           <div className="grid gap-2 text-xs text-neutral-600 sm:grid-cols-3"><span className="flex items-center gap-2"><Clock3 size={15} />{format(session.data.startAt.toDate(), "HH:mm")} - {format(session.data.endAt.toDate(), "HH:mm")}</span><span className="flex items-center gap-2"><MapPin size={15} />{session.data.location || "Chưa có địa điểm"}</span><span className="flex items-center gap-2"><Users size={15} />{classStudents.length} học sinh</span></div>
         </div>
       </section>

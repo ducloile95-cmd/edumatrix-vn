@@ -15,6 +15,16 @@ export async function listChatThreads(role: UserRole, uid: string): Promise<Arra
   return snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as ChatThreadDoc) }));
 }
 
+export function subscribeChatThreads(role: UserRole, uid: string, listener: (items: Array<ChatThreadDoc & { id: string }>) => void, onError: (error: Error) => void): Unsubscribe {
+  const source = collection(db, COLLECTIONS.CHAT_THREADS);
+  const q = role === "admin"
+    ? query(source, orderBy("lastMessageAt", "desc"), limit(30))
+    : query(source, where("assignedTeacherIds", "array-contains", uid), orderBy("lastMessageAt", "desc"), limit(30));
+  return onSnapshot(q, (snapshot) => {
+    listener(snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as ChatThreadDoc) })));
+  }, onError);
+}
+
 export function subscribeChatMessages(threadId: string, listener: (items: Array<ChatMessageDoc & { id: string }>) => void, onError: (error: Error) => void): Unsubscribe {
   const q = query(collection(db, COLLECTIONS.CHAT_THREADS, threadId, "messages"), orderBy("createdAt", "desc"), limit(50));
   return onSnapshot(q, (snapshot) => {

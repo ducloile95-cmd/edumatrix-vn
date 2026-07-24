@@ -10,13 +10,11 @@ import { CoursesList } from "@/features/catalog/components/CoursesList";
 import { CatalogDashboard } from "@/features/catalog/components/CatalogDashboard";
 import type { CourseDoc, SubjectDoc } from "@/types/academic";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { USER_ROLES } from "@/constants/roles";
 
 type CatalogTab = "dashboard" | "catalog";
 
 export default function CatalogPage() {
-  const { role } = useAuth();
-  const isAdmin = role === USER_ROLES.ADMIN;
+  const { isStaff } = useAuth();
   const initialCreate = new URLSearchParams(window.location.search).get("create");
   const [tab, setTab] = useState<CatalogTab>(initialCreate ? "catalog" : "dashboard");
 
@@ -84,14 +82,14 @@ export default function CatalogPage() {
         ) : (
           <div className="grid items-start gap-4 lg:grid-cols-[1.6fr_1fr]">
           <CoursesList
-            canManage={isAdmin}
+            canManage={isStaff}
             onEdit={openEditCourse}
             onAdd={() => openCreateCourse()}
             subjectFilter={subjectFilter}
             onClearSubjectFilter={() => setSubjectFilter(null)}
           />
           <SubjectsList
-            canManage={isAdmin}
+            canManage={isStaff}
             onEdit={openEditSubject}
             onAdd={openCreateSubject}
             selectedSubjectId={subjectFilter}
@@ -101,7 +99,7 @@ export default function CatalogPage() {
         )}
       </MotionTabPanel>
 
-      {isAdmin && <Modal
+      {isStaff && <Modal
         open={subjectModalOpen}
         onClose={closeSubjectModal}
         title={editingSubject ? "Sửa môn học" : "Thêm môn học"}
@@ -109,7 +107,7 @@ export default function CatalogPage() {
       >
         <SubjectForm editingSubject={editingSubject} onDone={closeSubjectModal} />
       </Modal>}
-      {isAdmin && <Modal
+      {isStaff && <Modal
         open={courseModalOpen}
         onClose={closeCourseModal}
         size="lg"

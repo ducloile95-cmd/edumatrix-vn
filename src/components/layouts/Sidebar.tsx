@@ -251,7 +251,7 @@ export function Sidebar({ collapsed, mobileOpen, onClose, onToggle }: SidebarPro
             type="button"
             onClick={onToggle}
             aria-label={collapsed ? "Mở rộng menu" : "Thu gọn menu"}
-            className="hidden h-8 w-8 items-center justify-center rounded-input text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-900 lg:flex"
+            className="hidden size-9 items-center justify-center rounded-input text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-900 lg:flex"
           >
             {collapsed ? <ChevronRight size={17} /> : <ChevronLeft size={17} />}
           </button>

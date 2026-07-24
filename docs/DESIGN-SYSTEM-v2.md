@@ -5,7 +5,7 @@ Mục tiêu: **1 hệ token + 1 shell** dùng chung cho Admin · Giáo viên · 
 ## 0. Vấn đề đang mất đồng bộ (phải chốt)
 | Vấn đề | Hiện trạng | Chuẩn hoá |
 |---|---|---|
-| **Tiêu đề trùng** | Topbar hiện tiêu đề động **và** `PageHeader` render H1 → 2 H1/trang | **1 nguồn**: `PageHeader` giữ H1; **Topbar → breadcrumb** ngữ cảnh + tiện ích |
+| **Tiêu đề trùng** | ĐÃ CHUẨN HÓA (24/07): `Topbar` giữ H1 duy nhất của trang; `PageHeader` không render heading. Nội dung trang không được tự thêm `<h1>` — tiêu đề phụ (nếu cần) dùng `<h2>` trở xuống. |
 | **Bề rộng lệch** | `main` full-width nhưng `PageHeader` bó `max-w-[1370px]` | Bỏ cap trong PageHeader → theo `main` (full-width, cùng padding) |
 | **Nút "Thêm" lặp class** | Chuỗi gradient dài lặp ở mỗi trang | Token `--btn-primary` + class dùng lại (hoặc component `Button`) |
 
@@ -34,13 +34,13 @@ Component:  --sidebar-bg, --topbar-bg, --card-bg, --nav-active-bg(grad),
 
 ## 3. Layout khung (dùng chung 3 role)
 ```
-┌ Sidebar (glass, accordion, thu gọn/mở, account ở chân) ┐┌ Topbar: breadcrumb ····· clock · weather · 🔔 ┐
-│                                                        ││ PageHeader: H1 + mô tả ············· [nút chính] │
+┌ Sidebar (glass, accordion, thu gọn/mở, account ở chân) ┐┌ Topbar: H1 tiêu đề trang ····· clock · weather · 🔔 ┐
+│                                                        ││ PageHeader: mô tả ················· [nút chính] │
 │  Nav theo role                                         ││ Nội dung full-width: KPI · chart · bảng · panel  │
 └────────────────────────────────────────────────────────┘└───────────────────────────────────────────────────┘
 ```
-- **Topbar**: `Breadcrumb (Nhánh › Trang)` bên trái · đồng hồ · thời tiết · chuông. (Bỏ tiêu đề lớn khỏi topbar.)
-- **PageHeader**: H1 tiêu đề (nguồn duy nhất) + mô tả + vùng `actions` (nút chính). Full-width.
+- **Topbar**: `<h1>` tiêu đề trang (nguồn H1 duy nhất) bên trái · đồng hồ · thời tiết · chuông.
+- **PageHeader**: mô tả + vùng `actions` (nút chính). Không render heading — tránh trùng H1 với Topbar. Full-width.
 - **Nội dung**: khung chuẩn = hàng **KPI stat** → **chart/panel** → **bảng dữ liệu**.
 
 ## 4. Tối ưu hiển thị dữ liệu (bảng)
@@ -58,6 +58,5 @@ Component:  --sidebar-bg, --topbar-bg, --card-bg, --nav-active-bg(grad),
 
 ## 6. Việc còn tồn (sau khi chốt design-system)
 - P7: form **Sessions** + **LessonPlans** → Modal; **Modal xác nhận Xoá**.
-- Refactor tiêu đề theo mục 0 (Topbar → breadcrumb; PageHeader = H1 duy nhất; bỏ cap width).
 - (Tuỳ chọn) `Button`/`StatusBadge`/`DataTable`, `Chart` (recharts sẵn có) dùng lại toàn hệ.
 - P8 kiểm chứng cuối 3 role (cần đăng nhập).
