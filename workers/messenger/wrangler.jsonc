@@ -16,7 +16,10 @@
       "vars": {
         "FIREBASE_PROJECT_ID": "edumatrix-vn-576b1",
         "META_GRAPH_VERSION": "v22.0",
-        "ALLOWED_ORIGIN": "*"
+        "ALLOWED_ORIGIN": "https://edumatrix-vn-576b1.web.app"
+      },
+      "secrets": {
+        "required": ["META_PAGE_ACCESS_TOKEN", "META_APP_SECRET", "META_WEBHOOK_VERIFY_TOKEN", "FIREBASE_CLIENT_EMAIL", "FIREBASE_PRIVATE_KEY"]
       }
     }
   }

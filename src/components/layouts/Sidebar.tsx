@@ -16,6 +16,7 @@ import { NAVIGATION_BY_ROLE, isNavGroup, type NavGroup, type NavLeaf, type NavNo
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { ROLE_LABELS } from "@/constants/roles";
 import { Logo } from "@/components/ui/Logo";
+import { SidebarClockWeather } from "@/components/layouts/SidebarClockWeather";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -282,6 +283,8 @@ export function Sidebar({ collapsed, mobileOpen, onClose, onToggle }: SidebarPro
             )}
           </ul>
         </nav>
+
+        <SidebarClockWeather collapsed={collapsed} />
 
         <div ref={accountRef} className="relative p-3">
           {accountOpen && (

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Bell, ChevronDown, CloudSun, Menu, Plus, RefreshCw } from "lucide-react";
+import { Bell, ChevronDown, Menu, MessagesSquare, Plus, RefreshCw } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -9,33 +9,6 @@ import { subscribeChatThreads } from "@/services/firestore/chat";
 import { ROUTES } from "@/constants/routes";
 import { findPageDescription, findPageTitle } from "@/constants/navigation";
 import { playNotificationSound, unlockNotificationSound } from "@/utils/notificationSound";
-
-const WEATHER_KEY = "edumatrix-weather-hanoi";
-type WeatherData = { temperature: number; code: number; cachedAt: number };
-
-function useClock() {
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => { const timer = window.setInterval(() => setNow(new Date()), 1000); return () => window.clearInterval(timer); }, []);
-  return now;
-}
-
-function useWeather() {
-  const [weather, setWeather] = useState<WeatherData | null>(() => {
-    try { const value = JSON.parse(localStorage.getItem(WEATHER_KEY) ?? "null") as WeatherData | null; return value && Date.now() - value.cachedAt < 1_800_000 ? value : null; } catch { return null; }
-  });
-  useEffect(() => {
-    if (weather) return;
-    const controller = new AbortController();
-    fetch("https://api.open-meteo.com/v1/forecast?latitude=21.0285&longitude=105.8542&current=temperature_2m,weather_code&timezone=Asia%2FBangkok", { signal: controller.signal })
-      .then((response) => response.ok ? response.json() : Promise.reject(new Error("weather")))
-      .then((data: { current: { temperature_2m: number; weather_code: number } }) => {
-        const next = { temperature: Math.round(data.current.temperature_2m), code: data.current.weather_code, cachedAt: Date.now() };
-        localStorage.setItem(WEATHER_KEY, JSON.stringify(next)); setWeather(next);
-      }).catch(() => undefined);
-    return () => controller.abort();
-  }, [weather]);
-  return weather;
-}
 
 type Notification = { id: string; title: string; time: string };
 
@@ -129,7 +102,40 @@ function NotificationSoundMonitor() {
   return null;
 }
 
-function StaffActions() {
+/** Tổng số hội thoại chưa đọc (unreadStaffCount) - dùng cho badge trên nút Chat của Topbar. */
+function useChatUnreadCount(): number {
+  const { firebaseUser, userDoc, isStaff } = useAuth();
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!isStaff || !firebaseUser) { setCount(0); return; }
+    const role = userDoc?.role === "admin" ? "admin" : "teacher";
+    return subscribeChatThreads(role, firebaseUser.uid, (threads) => {
+      setCount(threads.reduce((sum, thread) => sum + (thread.unreadStaffCount || 0), 0));
+    }, () => undefined);
+  }, [firebaseUser, isStaff, userDoc?.role]);
+  return count;
+}
+
+function ChatButton() {
+  const unread = useChatUnreadCount();
+  return (
+    <Link to={ROUTES.STAFF_CHAT} aria-label={`Chat${unread ? ` (${unread} tin chưa đọc)` : ""}`} title="Chat" className="icon-button relative flex">
+      <MessagesSquare size={20} />
+      {unread > 0 && <span aria-live="polite" className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-gradient-to-br from-primary-500 to-primary-700 px-1 text-3xs font-bold text-white ring-2 ring-white">{unread > 99 ? "99+" : unread}</span>}
+    </Link>
+  );
+}
+
+function RefreshButton() {
+  return (
+    <button type="button" onClick={() => window.location.reload()} aria-label="Tải lại trang" title="Tải lại" className="motion-control grid size-9 shrink-0 place-items-center rounded-input border border-neutral-300 bg-white/80 text-neutral-600 hover:bg-white hover:text-primary-700 active:scale-[.96]">
+      <RefreshCw size={16} />
+    </button>
+  );
+}
+
+/** Menu "+ Thêm" - tạo nhanh học sinh/lớp/môn học/khóa học/giáo án/thông báo (chỉ Staff). */
+function AddMenu() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -146,8 +152,7 @@ function StaffActions() {
     { label: "Giáo án", to: `${ROUTES.STAFF_LESSON_PLANS}?create=lesson-plan` },
     { label: "Thông báo", to: `${ROUTES.STAFF_CHAT}?create=message` },
   ];
-  return <div className="flex items-center gap-2">
-    <button type="button" onClick={() => window.location.reload()} aria-label="Tải lại trang" title="Tải lại" className="motion-control grid size-9 shrink-0 place-items-center rounded-input border border-neutral-300 bg-white/80 text-neutral-600 hover:bg-white hover:text-primary-700 active:scale-[.96]"><RefreshCw size={16} /></button>
+  return (
     <div ref={ref} className="relative">
       <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-haspopup="menu" className="motion-control inline-flex h-9 items-center gap-1.5 rounded-input bg-primary-600 px-3 text-xs font-bold text-white shadow-[0_5px_14px_rgba(35,72,214,.2)] hover:bg-primary-700 active:scale-[.98]"><Plus size={15} />Thêm<ChevronDown size={14} /></button>
       {open && <div role="menu" className="absolute right-0 z-40 mt-2 w-48 overflow-hidden rounded-card border border-neutral-200 bg-white p-1.5 shadow-[var(--shadow-3)]">
@@ -156,13 +161,11 @@ function StaffActions() {
         })}
       </div>}
     </div>
-  </div>;
+  );
 }
 
 export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const { isStaff } = useAuth();
-  const now = useClock();
-  const weather = useWeather();
   const { pathname } = useLocation();
   const title = findPageTitle(pathname);
   const description = findPageDescription(pathname);
@@ -174,16 +177,12 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
       {onMenuClick && <button type="button" onClick={onMenuClick} aria-label="Mở menu điều hướng" className="icon-button lg:hidden"><Menu size={20} /></button>}
       <div className="min-w-0"><h1 className="truncate text-lg font-semibold text-neutral-900">{title}</h1><p className="hidden max-w-[78ch] truncate text-xs text-neutral-500 sm:block">{description}</p></div>
     </div>
+    {/* Cụm hành động (Tải lại / Thêm) tách khỏi cụm liên lạc (Chat / Thông báo) bằng dải phân cách - rõ nhóm chức năng, tối ưu quét mắt. */}
     <div className="flex items-center gap-2 sm:gap-3">
-      {isStaff ? (
-        <StaffActions />
-      ) : (
-        <button type="button" onClick={() => window.location.reload()} aria-label="Tải lại trang" title="Tải lại" className="motion-control grid size-9 shrink-0 place-items-center rounded-input border border-neutral-300 bg-white/80 text-neutral-600 hover:bg-white hover:text-primary-700 active:scale-[.96]">
-          <RefreshCw size={16} />
-        </button>
-      )}
-      <div className="hidden text-right md:block"><p className="text-sm font-semibold tabular-nums text-neutral-800">{now.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}</p><p className="text-2xs text-neutral-500">{now.toLocaleDateString("vi-VN", { weekday: "short", day: "2-digit", month: "2-digit" })}</p></div>
-      <div className="flex min-h-touch items-center gap-2 rounded-card bg-white/60 px-2.5 text-sm text-neutral-700"><CloudSun size={18} className="text-primary-600" /><span className="tabular-nums">{weather ? `${weather.temperature}°C` : "--°"}</span><span className="hidden text-xs text-neutral-500 xl:inline">Hà Nội</span></div>
+      <RefreshButton />
+      {isStaff && <AddMenu />}
+      {isStaff && <span aria-hidden="true" className="hidden h-6 w-px bg-neutral-200 sm:block" />}
+      {isStaff && <ChatButton />}
       <NotificationBell seeAllHref={seeAllHref} />
     </div>
   </header>;
