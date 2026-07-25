@@ -1,9 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { addDays, subDays } from "date-fns";
-import { Plus, Save, X } from "lucide-react";
+import { Cloud, ExternalLink, FileUp, FolderOpen, Plus, Save, ShieldCheck, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { listClasses } from "@/services/firestore/classes";
@@ -14,9 +14,19 @@ import {
   listLessonPlanTemplates,
   updateLessonPlan,
 } from "@/services/firestore/lessonPlans";
+import { getIntegrationSettings } from "@/services/firestore/settings";
+import {
+  connectGoogleDrive,
+  driveErrorMessage,
+  isGoogleDriveConfigured,
+  isGoogleDriveConnected,
+  mapDriveMetadata,
+  openGoogleDrivePicker,
+  uploadGoogleDriveFile,
+} from "@/services/integrations/googleDrive";
 import { formatSessionLabel } from "@/utils/lessonPlan";
 import { lessonPlanFormSchema, type LessonPlanFormValues } from "@/schemas/lessonPlan";
-import type { LessonPlanDoc } from "@/types/academic";
+import type { LessonPlanDoc, LessonPlanDriveAttachment } from "@/types/academic";
 
 interface LessonPlanFormProps {
   /** Neu co gia tri => form o che do sua. */
@@ -53,13 +63,31 @@ const SECTION_TITLE = "mb-3 text-xs font-bold uppercase tracking-wide text-prima
 /** Khung ngăn cách các khối trong 1 cột (không dùng card lồng card vì cột đã có viền riêng). */
 const BLOCK = "border-b border-neutral-200 pb-4 last:border-b-0 last:pb-0";
 
+function driveAttachmentFromPlan(plan?: LessonPlanDoc | null): LessonPlanDriveAttachment | null {
+  if (!plan?.driveFileId || !plan.driveFileName || !plan.driveMimeType || !plan.driveWebViewLink || !plan.driveModifiedTime) return null;
+  return {
+    driveFileId: plan.driveFileId,
+    driveFileName: plan.driveFileName,
+    driveMimeType: plan.driveMimeType,
+    driveWebViewLink: plan.driveWebViewLink,
+    driveModifiedTime: plan.driveModifiedTime,
+  };
+}
+
 export function LessonPlanForm({ editingPlan, onDone }: LessonPlanFormProps) {
   const { firebaseUser } = useAuth();
   const queryClient = useQueryClient();
   const isEditing = !!editingPlan;
+  const driveInputRef = useRef<HTMLInputElement>(null);
+  const [driveAttachment, setDriveAttachment] = useState<LessonPlanDriveAttachment | null>(() => driveAttachmentFromPlan(editingPlan));
+  const [driveBusy, setDriveBusy] = useState(false);
+  const [driveError, setDriveError] = useState<string | null>(null);
 
   const { data: classes } = useQuery({ queryKey: ["classes"], queryFn: listClasses });
   const { data: templates } = useQuery({ queryKey: ["lesson-plan-templates"], queryFn: listLessonPlanTemplates });
+  const integrations = useQuery({ queryKey: ["settings", "integrations"], queryFn: getIntegrationSettings });
+  const driveFolderId = integrations.data?.driveFolderId?.trim() ?? "";
+  const driveConfigured = isGoogleDriveConfigured();
 
   const {
     register,
@@ -77,6 +105,8 @@ export function LessonPlanForm({ editingPlan, onDone }: LessonPlanFormProps) {
   const activities = useFieldArray({ control, name: "activities" });
 
   useEffect(() => {
+    setDriveAttachment(driveAttachmentFromPlan(editingPlan));
+    setDriveError(null);
     if (editingPlan) {
       reset({
         title: editingPlan.title,
@@ -117,8 +147,10 @@ export function LessonPlanForm({ editingPlan, onDone }: LessonPlanFormProps) {
   const durationMatches = sessionDurationMinutes != null && totalMinutes === sessionDurationMinutes;
 
   const saveMutation = useMutation({
-    mutationFn: (values: LessonPlanFormValues) =>
-      isEditing ? updateLessonPlan(editingPlan.id, values) : createLessonPlan(values, firebaseUser?.uid ?? "unknown"),
+    mutationFn: async (values: LessonPlanFormValues) => {
+      if (isEditing) await updateLessonPlan(editingPlan.id, values, driveAttachment);
+      else await createLessonPlan(values, firebaseUser?.uid ?? "unknown", driveAttachment);
+    },
     onSuccess: () => {
       reset(DEFAULT_VALUES);
       queryClient.invalidateQueries({ queryKey: ["lesson-plans"] });
@@ -154,11 +186,38 @@ export function LessonPlanForm({ editingPlan, onDone }: LessonPlanFormProps) {
     setValue("sessionId", null);
   };
 
+  async function runDrive(action: () => Promise<void>) {
+    setDriveBusy(true);
+    setDriveError(null);
+    try {
+      await connectGoogleDrive();
+      await action();
+    } catch (error) {
+      setDriveError(driveErrorMessage(error));
+    } finally {
+      setDriveBusy(false);
+    }
+  }
+
+  function pickDriveFile() {
+    void runDrive(async () => {
+      const metadata = await openGoogleDrivePicker(driveFolderId || undefined);
+      if (metadata) setDriveAttachment(mapDriveMetadata(metadata));
+    });
+  }
+
+  function uploadDriveFile(file: File) {
+    void runDrive(async () => {
+      const metadata = await uploadGoogleDriveFile(file, driveFolderId);
+      setDriveAttachment(mapDriveMetadata(metadata));
+    });
+  }
+
   return (
     <form onSubmit={handleSubmit((values) => saveMutation.mutate(values))} className="flex h-full min-h-0 flex-col">
       {/* Popup ngang: 1 cột trái gọn (thông tin/mục tiêu/chuẩn bị/đính kèm) + 1 cột phải nội dung chính (tiến trình buổi học). Không tab, không phân nhánh. */}
-      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-[340px_1fr] lg:overflow-hidden">
-        <div className="space-y-4 border-b border-neutral-200 bg-white/60 p-4 sm:p-5 lg:min-h-0 lg:overflow-y-auto lg:border-b-0 lg:border-r">
+      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-[minmax(360px,400px)_minmax(0,1fr)] lg:overflow-hidden">
+        <div className="space-y-4 border-b border-neutral-200 bg-white/60 p-4 lg:min-h-0 lg:overflow-y-auto lg:border-b-0 lg:border-r">
           <div className={BLOCK}>
             <h3 className={SECTION_TITLE}>Thông tin chung</h3>
             <div className="space-y-3">
@@ -259,24 +318,45 @@ export function LessonPlanForm({ editingPlan, onDone }: LessonPlanFormProps) {
           </div>
 
           <div className={BLOCK}>
-            <h3 className={SECTION_TITLE}>
-              Tài liệu đính kèm <span className="text-xs font-normal normal-case tracking-normal text-neutral-500">— dán link, không upload</span>
-            </h3>
-            <div className="space-y-3">
-              <div>
-                <label htmlFor="lp-attach-label" className={LABEL}>Tên hiển thị</label>
-                <input id="lp-attach-label" type="text" placeholder="VD: Đề luyện tập Unit 5.pdf" className={INPUT} {...register("attachmentLabel")} />
+            <h3 className={SECTION_TITLE}>Tài liệu Google Drive</h3>
+            <div className="rounded-card border border-primary-100 bg-white p-3 shadow-[var(--shadow-1)]">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-sm font-bold text-neutral-900"><Cloud size={18} className="text-primary-600" />Google Drive</div>
+                <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-2xs font-bold ${isGoogleDriveConnected() ? "bg-success-50 text-success-700" : "bg-neutral-100 text-neutral-600"}`}>
+                  <ShieldCheck size={12} />{isGoogleDriveConnected() ? "Đã kết nối" : "Sẵn sàng kết nối"}
+                </span>
               </div>
-              <div>
-                <label htmlFor="lp-attach-url" className={LABEL}>Link chia sẻ (Google Drive / OneDrive...)</label>
-                <input id="lp-attach-url" type="url" placeholder="https://drive.google.com/..." className={INPUT} {...register("attachmentUrl")} />
-                {errors.attachmentUrl && <p role="alert" className="mt-1 text-xs text-danger-700">{errors.attachmentUrl.message}</p>}
+              {driveAttachment ? (
+                <div className="mt-3 rounded-input border border-neutral-200 bg-neutral-50 p-3">
+                  <p className="truncate text-xs font-bold text-neutral-900">{driveAttachment.driveFileName}</p>
+                  <p className="mt-1 truncate text-2xs text-neutral-500">{driveAttachment.driveMimeType}</p>
+                </div>
+              ) : <p className="mt-3 rounded-input border border-dashed border-neutral-300 bg-neutral-50 px-3 py-4 text-center text-xs text-neutral-500">Chưa chọn tệp cho giáo án.</p>}
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <Button type="button" size="sm" disabled={!driveConfigured || driveBusy} onClick={pickDriveFile} icon={<FolderOpen size={14} />}>Chọn từ Drive</Button>
+                <Button type="button" size="sm" disabled={!driveConfigured || !driveFolderId || driveBusy} onClick={() => driveInputRef.current?.click()} icon={<FileUp size={14} />}>Tải tệp mới</Button>
+                {driveAttachment && (
+                  <a href={driveAttachment.driveWebViewLink} target="_blank" rel="noopener noreferrer" className="col-span-2 inline-flex min-h-9 items-center justify-center gap-2 rounded-input bg-primary-600 px-3 text-xs font-bold text-white hover:bg-primary-700">
+                    Mở trực tiếp trên Drive <ExternalLink size={14} />
+                  </a>
+                )}
+                <input ref={driveInputRef} type="file" className="sr-only" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,image/*" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) uploadDriveFile(file); }} />
               </div>
+              {!driveConfigured && <p className="mt-2 text-xs text-warning-700">Google Drive chưa được cấu hình đầy đủ.</p>}
+              {driveConfigured && !driveFolderId && <p className="mt-2 text-xs text-warning-700">Chưa có Folder ID; vẫn chọn được tệp nhưng chưa thể tải tệp mới.</p>}
+              {driveError && <p role="alert" className="mt-2 text-xs font-semibold text-danger-700">{driveError}</p>}
             </div>
+            <details className="mt-3">
+              <summary className="cursor-pointer text-xs font-semibold text-neutral-600">Dùng liên kết tài liệu khác</summary>
+              <div className="mt-3 space-y-3">
+                <div><label htmlFor="lp-attach-label" className={LABEL}>Tên hiển thị</label><input id="lp-attach-label" type="text" className={INPUT} {...register("attachmentLabel")} /></div>
+                <div><label htmlFor="lp-attach-url" className={LABEL}>Liên kết HTTPS</label><input id="lp-attach-url" type="url" className={INPUT} {...register("attachmentUrl")} />{errors.attachmentUrl && <p role="alert" className="mt-1 text-xs text-danger-700">{errors.attachmentUrl.message}</p>}</div>
+              </div>
+            </details>
           </div>
         </div>
 
-        <div className="space-y-5 p-4 sm:p-5 lg:min-h-0 lg:overflow-y-auto">
+        <div className="space-y-4 p-4 lg:min-h-0 lg:overflow-y-auto">
           {templates && templates.length > 0 && (
             <div className={BLOCK}>
               <h3 className={SECTION_TITLE}>Thư viện mẫu</h3>

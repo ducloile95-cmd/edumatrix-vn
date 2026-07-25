@@ -138,31 +138,31 @@
   .field input:focus, .field select:focus, .field textarea:focus { border-color:var(--primary-500); }
 
   /* ===== POPUP NGANG (Form thiết lập giáo án) — không tab, 1 popup rộng chia 2 cột ===== */
-  .overlay { position:fixed; inset:0; background:rgb(28 26 21 / 55%); display:none; align-items:center;
-    justify-content:center; padding:24px 16px; z-index:100; }
+  .overlay { position:fixed; inset:0; background:rgb(15 23 42 / 64%); display:none; align-items:center;
+    justify-content:center; padding:12px; z-index:100; backdrop-filter:blur(5px); }
   .overlay.open { display:flex; animation:fade-in var(--motion) ease-out both; }
   @keyframes fade-in { from { opacity:0; } to { opacity:1; } }
   @keyframes pop-in { from { opacity:0; transform:translateY(8px) scale(.98); } to { opacity:1; transform:none; } }
 
-  .lp-modal { background:#fff; border-radius:var(--r-modal); width:100%; max-width:1320px;
-    max-height:calc(100dvh - 48px); box-shadow:0 24px 60px rgb(28 26 21 / 24%);
+  .lp-modal { background:#fff; border-radius:var(--r-modal); width:100%; max-width:1920px;
+    height:calc(100dvh - 24px); max-height:calc(100dvh - 24px); box-shadow:0 28px 80px rgb(15 23 42 / 30%);
     animation:pop-in var(--motion) ease-out both; display:flex; flex-direction:column; overflow:hidden; }
 
-  .lp-modal-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
-    padding:18px 24px; border-bottom:1px solid var(--n200); flex:none; }
+  .lp-modal-head { display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:12px 18px; border-bottom:1px solid var(--n200); flex:none; background:#fff; }
   .lp-modal-head h3 { font-size:17px; font-weight:700; }
   .lp-modal-head p { font-size:12px; color:var(--n500); margin-top:3px; }
   .lp-modal-close { width:34px; height:34px; border-radius:var(--r-input); border:1px solid var(--n200); background:#fff; color:var(--n500); flex:none; }
   .lp-modal-close:hover { color:var(--danger-700); border-color:var(--danger-500); }
 
   /* Nam ngang: sidebar trai (thong tin gon) + noi dung chinh phai (tien trinh buoi hoc) - khong con tab/phan nhanh. */
-  .lp-modal-body { display:grid; grid-template-columns:340px 1fr; flex:1; min-height:0; }
+  .lp-modal-body { display:grid; grid-template-columns:minmax(360px,400px) minmax(0,1fr); flex:1; min-height:0; }
   @media (max-width:920px) { .lp-modal-body { grid-template-columns:1fr; } }
 
-  .lp-side { border-right:1px solid var(--n200); background:var(--n50); padding:18px; overflow-y:auto; }
-  .lp-main { padding:18px 22px; overflow-y:auto; }
+  .lp-side { border-right:1px solid var(--n200); background:#f8fafc; padding:14px 16px; overflow-y:auto; scrollbar-gutter:stable; }
+  .lp-main { padding:14px 18px; overflow-y:auto; scrollbar-gutter:stable; }
 
-  .lp-block { margin-bottom:18px; }
+  .lp-block { margin-bottom:14px; }
   .lp-block:last-child { margin-bottom:0; }
   .lp-block h4 { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.03em; color:var(--primary-700);
     margin-bottom:10px; padding-bottom:6px; border-bottom:1px solid var(--n200); }
@@ -209,10 +209,40 @@
   .lp-duration-summary { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:12px;
     padding:9px 12px; border-radius:var(--r-input); background:var(--success-50); border:1px solid #BBF7D0; font-size:12px; font-weight:600; color:var(--success-700); }
 
-  .lp-modal-foot { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:14px 22px;
-    border-top:1px solid var(--n200); flex:none; background:#fff; }
+  .lp-modal-foot { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 18px;
+    border-top:1px solid var(--n200); flex:none; background:#fff; box-shadow:0 -8px 24px rgb(15 23 42 / 4%); }
   .lp-modal-foot .save-hint { font-size:11px; color:var(--n500); }
   .lp-modal-foot .actions { display:flex; gap:8px; }
+
+  .lp-head-copy { display:flex; align-items:center; gap:14px; min-width:0; }
+  .lp-head-icon { width:38px; height:38px; display:grid; place-items:center; flex:none; border-radius:10px;
+    color:#fff; background:var(--primary-600); box-shadow:0 8px 18px rgb(35 72 214 / 22%); }
+  .lp-head-meta { display:flex; align-items:center; gap:7px; margin-top:4px; font-size:11px; color:var(--n500); }
+  .lp-head-meta b { color:var(--success-700); background:var(--success-50); border-radius:999px; padding:3px 8px; }
+  .lp-section-nav { display:flex; gap:4px; padding:7px 16px; border-bottom:1px solid var(--n200); background:#f8fafc; overflow-x:auto; flex:none; }
+  .lp-section-nav button { border:0; background:transparent; min-height:30px; padding:0 10px; border-radius:7px;
+    color:var(--n600); font:600 11px inherit; white-space:nowrap; }
+  .lp-section-nav button.active { background:#fff; color:var(--primary-700); box-shadow:0 1px 4px rgb(15 23 42 / 10%); }
+  .drive-box { border:1px solid #dbe6fe; background:#fff; border-radius:10px; padding:11px; }
+  .drive-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .drive-title { display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; color:var(--n900); }
+  .drive-status { color:var(--success-700); background:var(--success-50); border-radius:999px; padding:3px 7px; font-size:10px; font-weight:700; }
+  .drive-file { margin-top:9px; padding:9px; border-radius:8px; background:#f8fafc; border:1px solid var(--n200); }
+  .drive-file strong { display:block; font-size:11.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .drive-file span { display:block; margin-top:2px; color:var(--n500); font-size:10px; }
+  .drive-actions { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-top:9px; }
+  .drive-actions button { min-height:34px; border-radius:8px; border:1px solid var(--n300); background:#fff; color:var(--n700); font-size:11px; font-weight:700; }
+  .drive-actions button.primary { grid-column:1/-1; background:var(--primary-600); border-color:var(--primary-600); color:#fff; }
+  .demo-toast { position:fixed; right:24px; bottom:24px; z-index:200; display:none; max-width:360px; padding:12px 14px;
+    border-radius:10px; background:#0f172a; color:#fff; box-shadow:0 18px 44px rgb(15 23 42 / 30%); font-size:12px; line-height:1.5; }
+  .demo-toast.show { display:block; animation:pop-in var(--motion) ease-out both; }
+  @media (max-width:920px) {
+    .overlay { padding:0; }
+    .lp-modal { height:100dvh; max-height:100dvh; border-radius:0; }
+    .lp-modal-body { grid-template-columns:1fr; overflow-y:auto; }
+    .lp-side,.lp-main { overflow:visible; }
+    .lp-head-icon,.lp-modal-head p,.lp-modal-foot .save-hint { display:none; }
+  }
 
   .sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; }
 </style>
@@ -369,19 +399,32 @@
 <div class="overlay" id="formOverlay">
   <div class="lp-modal">
     <div class="lp-modal-head">
-      <div>
+      <div class="lp-head-copy">
+        <span class="lp-head-icon" aria-hidden="true">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>
+        </span>
+        <div>
         <h3 id="formTitle">Soạn giáo án mới</h3>
-        <p>Điền thông tin bên trái, soạn tiến trình buổi học bên phải — tất cả trong 1 popup, không chuyển trang.</p>
+        <div class="lp-head-meta"><b>Đã tự động lưu</b><span>Vừa xong</span><span>•</span><span>90 phút</span><span>•</span><span>4 hoạt động</span></div>
+        </div>
       </div>
       <button class="lp-modal-close" aria-label="Đóng" onclick="closeForm()">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
       </button>
     </div>
 
+    <div class="lp-section-nav" aria-label="Đi nhanh đến phần">
+      <button type="button" class="active" onclick="scrollPanel('generalBlock',this)">Thông tin chung</button>
+      <button type="button" onclick="scrollPanel('objectiveBlock',this)">Mục tiêu</button>
+      <button type="button" onclick="scrollPanel('driveBlock',this)">Tài liệu Drive</button>
+      <button type="button" onclick="scrollPanel('activityBlock',this)">Tiến trình</button>
+      <button type="button" onclick="scrollPanel('summaryBlock',this)">Bài tập và tóm tắt</button>
+    </div>
+
     <div class="lp-modal-body">
       <!-- CỘT TRÁI: thông tin gọn -->
       <div class="lp-side">
-        <div class="lp-block">
+        <div class="lp-block" id="generalBlock">
           <h4>Thông tin chung</h4>
           <div class="field"><label>Tiêu đề bài học<span class="req">*</span></label><input type="text" value="Unit 5 — Describing People" /></div>
           <div class="lp-side-grid2">
@@ -395,7 +438,7 @@
           </div>
         </div>
 
-        <div class="lp-block">
+        <div class="lp-block" id="objectiveBlock">
           <h4>Mục tiêu buổi học</h4>
           <div class="field"><label>Kiến thức</label><textarea>Nhận biết và sử dụng được 10 tính từ miêu tả ngoại hình, tính cách.</textarea></div>
           <div class="field"><label>Kỹ năng</label><textarea>Miêu tả được 1 người quen thuộc bằng 4-5 câu.</textarea></div>
@@ -408,10 +451,26 @@
           <div class="field"><label>Học sinh</label><textarea>Ôn lại bài từ vựng Unit 4.</textarea></div>
         </div>
 
-        <div class="lp-block">
-          <h4>Tài liệu đính kèm <span class="hint">— dán link, không upload</span></h4>
-          <div class="field"><label>Tên hiển thị</label><input type="text" value="Đề luyện tập Unit 5.pdf" /></div>
-          <div class="field"><label>Link chia sẻ</label><input type="url" value="https://drive.google.com/file/d/1AbCd/view" /></div>
+        <div class="lp-block" id="driveBlock">
+          <h4>Tài liệu Google Drive <span class="hint">chọn, tải lên hoặc mở trực tiếp</span></h4>
+          <div class="drive-box">
+            <div class="drive-head">
+              <div class="drive-title">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#2348D6" stroke-width="2"><path d="M3 15h18M5 15l4-8h6l4 8M8 15l4 6 4-6"/></svg>
+                Google Drive
+              </div>
+              <span class="drive-status">Đã kết nối</span>
+            </div>
+            <div class="drive-file">
+              <strong>Đề luyện tập Unit 5.pdf</strong>
+              <span>PDF · cập nhật 09:42 hôm nay</span>
+            </div>
+            <div class="drive-actions">
+              <button type="button" onclick="showDemoToast('Google Picker sẽ mở tại đây để chọn tệp trong thư mục giáo án đã cấu hình.')">Chọn từ Drive</button>
+              <button type="button" onclick="showDemoToast('Luồng tải tệp mới lên Drive sẽ dùng thư mục do Admin cấu hình.')">Tải tệp mới</button>
+              <button type="button" class="primary" onclick="showDemoToast('Bản thật sẽ mở webViewLink của tệp trong tab Google Drive mới.')">Mở trực tiếp trên Drive ↗</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -426,7 +485,7 @@
           </div>
         </div>
 
-        <div class="lp-block">
+        <div class="lp-block" id="activityBlock">
           <h4>Tiến trình buổi học</h4>
           <div class="lp-activity-list">
             <div class="lp-activity-row">
@@ -488,7 +547,7 @@
           </div>
         </div>
 
-        <div class="lp-block">
+        <div class="lp-block" id="summaryBlock">
           <h4>Bài tập về nhà &amp; ghi chú</h4>
           <div class="lp-main-grid2">
             <div class="field"><label>Bài tập về nhà</label><textarea>Viết đoạn văn 5 câu miêu tả 1 người trong gia đình.</textarea></div>
@@ -504,7 +563,7 @@
     </div>
 
     <div class="lp-modal-foot">
-      <span class="save-hint">Popup rộng nằm ngang · không tab · cuộn độc lập theo từng cột</span>
+      <span class="save-hint">Demo 1920 px · cao gần toàn màn hình · tự động lưu bản nháp · cuộn độc lập từng cột</span>
       <div class="actions">
         <button class="btn btn-secondary">Lưu thành mẫu</button>
         <button class="btn btn-secondary" onclick="closeForm()">Hủy</button>
@@ -514,6 +573,8 @@
   </div>
 </div>
 
+<div class="demo-toast" id="demoToast" role="status"></div>
+
 <script>
   function openForm(mode) {
     document.getElementById('formTitle').textContent = mode === 'edit' ? 'Sửa giáo án' : 'Soạn giáo án mới';
@@ -521,6 +582,19 @@
   }
   function closeForm() {
     document.getElementById('formOverlay').classList.remove('open');
+  }
+  function showDemoToast(message) {
+    const toast = document.getElementById('demoToast');
+    toast.textContent = message;
+    toast.classList.add('show');
+    window.clearTimeout(window.demoToastTimer);
+    window.demoToastTimer = window.setTimeout(() => toast.classList.remove('show'), 3200);
+  }
+  function scrollPanel(id, button) {
+    const target = document.getElementById(id);
+    if (target) target.scrollIntoView({ behavior:'smooth', block:'start' });
+    document.querySelectorAll('.lp-section-nav button').forEach((item) => item.classList.remove('active'));
+    button.classList.add('active');
   }
   document.getElementById('formOverlay').addEventListener('click', (e) => {
     if (e.target.id === 'formOverlay') closeForm();

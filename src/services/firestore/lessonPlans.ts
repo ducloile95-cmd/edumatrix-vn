@@ -10,7 +10,17 @@ import type { LessonPlanFormValues } from "@/schemas/lessonPlan";
 
 function nullable(value: string | null): string | null { return value || null; }
 
-export async function createLessonPlan(input: LessonPlanFormValues, actorUid: string): Promise<void> {
+function driveFields(metadata?: LessonPlanDriveAttachment | null) {
+  return {
+    driveFileId: metadata?.driveFileId ?? null,
+    driveFileName: metadata?.driveFileName ?? null,
+    driveMimeType: metadata?.driveMimeType ?? null,
+    driveWebViewLink: metadata?.driveWebViewLink ?? null,
+    driveModifiedTime: metadata?.driveModifiedTime ?? null,
+  };
+}
+
+export async function createLessonPlan(input: LessonPlanFormValues, actorUid: string, driveAttachment?: LessonPlanDriveAttachment | null): Promise<string> {
   const ref = doc(collection(db, COLLECTIONS.LESSON_PLANS));
   const batch = writeBatch(db);
   batch.set(ref, {
@@ -20,6 +30,7 @@ export async function createLessonPlan(input: LessonPlanFormValues, actorUid: st
     subjectId: nullable(input.subjectId),
     sessionId: nullable(input.sessionId),
     attachmentUrl: nullable(input.attachmentUrl),
+    ...driveFields(driveAttachment),
     createdBy: actorUid,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -28,9 +39,10 @@ export async function createLessonPlan(input: LessonPlanFormValues, actorUid: st
     batch.set(doc(db, COLLECTIONS.LESSON_PLAN_PUBLIC, ref.id), publicSummary(ref.id, input));
   }
   await batch.commit();
+  return ref.id;
 }
 
-export async function updateLessonPlan(id: string, input: LessonPlanFormValues): Promise<void> {
+export async function updateLessonPlan(id: string, input: LessonPlanFormValues, driveAttachment?: LessonPlanDriveAttachment | null): Promise<void> {
   const batch = writeBatch(db);
   batch.update(doc(db, COLLECTIONS.LESSON_PLANS, id), {
     ...input,
@@ -39,6 +51,7 @@ export async function updateLessonPlan(id: string, input: LessonPlanFormValues):
     subjectId: nullable(input.subjectId),
     sessionId: nullable(input.sessionId),
     attachmentUrl: nullable(input.attachmentUrl),
+    ...(driveAttachment === undefined ? {} : driveFields(driveAttachment)),
     updatedAt: serverTimestamp(),
   });
   const summaryRef = doc(db, COLLECTIONS.LESSON_PLAN_PUBLIC, id);

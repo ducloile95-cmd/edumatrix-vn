@@ -8,12 +8,12 @@ interface ModalProps {
   description?: string;
   children: ReactNode;
   onClose: () => void;
-  size?: "sm" | "md" | "lg" | "xl";
+  size?: "sm" | "md" | "lg" | "xl" | "2xl";
   /** Ghi đè class của vùng nội dung (mặc định có scroll + padding). Dùng khi children tự quản lý scroll/layout riêng (VD: popup ngang chia cột). */
   bodyClassName?: string;
 }
 
-const sizes = { sm: "max-w-md", md: "max-w-2xl", lg: "max-w-[960px]", xl: "max-w-[1320px]" };
+const sizes = { sm: "max-w-md", md: "max-w-2xl", lg: "max-w-[960px]", xl: "max-w-[1320px]", "2xl": "max-w-[1920px]" };
 
 export function Modal({ open, title, description, children, onClose, size = "md", bodyClassName }: ModalProps) {
   const titleId = useId(); const descriptionId = useId(); const panelRef = useRef<HTMLDivElement>(null); const previousFocus = useRef<HTMLElement | null>(null); const onCloseRef = useRef(onClose);
@@ -50,7 +50,7 @@ export function Modal({ open, title, description, children, onClose, size = "md"
   if (!mounted) return null;
   const state = open ? "open" : "closed";
   return createPortal(<div data-state={state} className="modal-backdrop fixed inset-0 z-50 grid place-items-center overflow-hidden bg-neutral-900/50 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-    <div data-state={state} ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={description ? descriptionId : undefined} className={`modal-panel grid max-h-[calc(100dvh-2rem)] w-full grid-rows-[auto_1fr] overflow-hidden rounded-modal border border-neutral-200 bg-neutral-50 shadow-[var(--shadow-4)] ${sizes[size]}`}>
+    <div data-state={state} ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={description ? descriptionId : undefined} className={`modal-panel grid max-h-[calc(100dvh-2rem)] w-full grid-rows-[auto_1fr] overflow-hidden rounded-modal border border-neutral-200 bg-neutral-50 shadow-[var(--shadow-4)] ${size === "2xl" ? "h-[calc(100dvh-2rem)]" : ""} ${sizes[size]}`}>
       <header className="flex items-start justify-between border-b border-neutral-200 bg-white px-5 py-4"><div><h2 id={titleId} className="text-lg font-semibold text-neutral-900">{title}</h2>{description && <p id={descriptionId} className="mt-1 text-sm text-neutral-500">{description}</p>}</div><button type="button" onClick={onClose} aria-label="Đóng hộp thoại" className="icon-button -mr-2 -mt-1 flex"><X size={19} /></button></header>
       <div className={bodyClassName ?? "overflow-y-auto bg-neutral-50 p-5 sm:p-6"}>{children}</div>
     </div>
