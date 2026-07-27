@@ -36,13 +36,7 @@ export async function listMessageOutbox(role: UserRole, uid: string): Promise<Ar
   const source = collection(db, COLLECTIONS.MESSAGE_OUTBOX);
   const q = role === "admin"
     ? query(source, orderBy("createdAt", "desc"), limit(50))
-    : query(source, where("actorUid", "==", uid), limit(50));
+    : query(source, where("actorUid", "==", uid), orderBy("createdAt", "desc"), limit(50));
   const snapshot = await getDocs(q);
-  return snapshot.docs
-    .map((item) => ({ id: item.id, ...(item.data() as MessageOutboxDoc) }))
-    .sort((a, b) => timestampMillis(b.createdAt) - timestampMillis(a.createdAt));
-}
-
-function timestampMillis(value: MessageOutboxDoc["createdAt"]): number {
-  return typeof value === "string" ? Date.parse(value) || 0 : value?.toMillis?.() ?? 0;
+  return snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as MessageOutboxDoc) }));
 }

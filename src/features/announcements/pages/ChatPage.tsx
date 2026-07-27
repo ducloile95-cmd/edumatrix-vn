@@ -2,10 +2,10 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
-  ArrowLeft, Checks, ClockCounterClockwise, Copy, ArrowSquareOut, FacebookLogo,
-  Warning, Info, ChatCircleDots, DotsThree, Plus, MagnifyingGlass,
-  PaperPlaneTilt, WifiSlash,
-} from "@phosphor-icons/react";
+  ArrowLeft, CheckCheck, History, Copy, ExternalLink,
+  AlertTriangle, Info, MessageCircle, MoreHorizontal, Plus, Search,
+  Send, WifiOff,
+} from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
@@ -13,14 +13,13 @@ import { Modal } from "@/components/ui/Modal";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Tab, Tabs } from "@/components/ui/Tabs";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { FanpagePanel } from "@/features/announcements/components/fanpage/FanpagePanel";
 import { listChatThreads, listMessageOutbox, subscribeChatMessages } from "@/services/firestore/chat";
 import { listStudents } from "@/services/firestore/students";
 import { createMessengerInviteLink, isMessengerInviteConfigured, linkMessengerConversation, MessengerSendError, messengerPageUrl, sendMessenger } from "@/services/integrations/messenger";
 import { queryKeys } from "@/hooks/queryKeys";
 import type { ChatMessageDoc, ChatThreadDoc } from "@/types/chat";
 
-type Section = "conversations" | "outbox" | "fanpage";
+type Section = "conversations" | "outbox";
 type Thread = ChatThreadDoc & { id: string };
 type Message = ChatMessageDoc & { id: string };
 type MessageTopic = "lesson_review" | "course_review" | "general_notice" | "tuition_reminder";
@@ -68,7 +67,7 @@ function ConnectionBar({ configured, onNewMessage }: { configured: boolean; onNe
     <div className={`flex flex-wrap items-center justify-between gap-2 border-b px-5 py-3 text-xs ${configured ? "border-neutral-100 bg-white text-neutral-600" : "border-warning-100 bg-warning-50 text-warning-800"}`}>
       <div className="flex items-center gap-2">
         <span className={`size-2 rounded-full ${configured ? "bg-success-500 animate-pulse" : "bg-warning-500"}`} />
-        {configured ? <ChatCircleDots size={16} weight="bold" className="text-primary-700" /> : <WifiSlash size={16} />}
+        {configured ? <MessageCircle size={16} className="text-primary-700" /> : <WifiOff size={16} />}
         <b className="text-neutral-900">{configured ? "Messenger đang trực tuyến" : "Messenger chưa cấu hình"}</b>
         <span className="hidden sm:inline">
           {configured ? "Hội thoại cập nhật từ Firestore theo thời gian thực." : "Có thể xem dữ liệu đã lưu nhưng chưa thể gửi tin mới."}
@@ -76,11 +75,11 @@ function ConnectionBar({ configured, onNewMessage }: { configured: boolean; onNe
       </div>
       <div className="flex items-center gap-2">
         <button type="button" onClick={onNewMessage} className="motion-control inline-flex min-h-8 items-center gap-1.5 rounded-input bg-primary-600 px-3 text-xs font-semibold text-white hover:bg-primary-700 active:scale-[.97]">
-          <Plus size={14} weight="bold" />Nhắn mới
+          <Plus size={14} />Nhắn mới
         </button>
         {!configured && pageUrl && (
           <a href={pageUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-input border border-warning-300 bg-white px-2.5 py-1 font-semibold text-warning-800 hover:bg-warning-100">
-            <ArrowSquareOut size={12} />Mở Trang Facebook để nhắn thủ công
+            <ExternalLink size={12} />Mở Trang Facebook để nhắn thủ công
           </a>
         )}
         <StatusBadge tone={configured ? "success" : "warning"}>{configured ? "Đã kết nối" : "Chỉ đọc"}</StatusBadge>
@@ -136,7 +135,7 @@ function ThreadInfo({ thread }: { thread: Thread }) {
         <div><dt className="text-xs font-semibold text-neutral-400">Học sinh</dt><dd className="mt-1 font-semibold">{thread.studentName} · {thread.studentId}</dd></div>
         <div><dt className="text-xs font-semibold text-neutral-400">Lớp học</dt><dd className="mt-1 font-semibold">{thread.className || "Chưa xếp lớp"}</dd></div>
         <div><dt className="text-xs font-semibold text-neutral-400">Kết nối</dt><dd className="mt-1"><StatusBadge tone={thread.status === "blocked" ? "danger" : "success"}>{thread.status === "blocked" ? "Đã chặn" : "Đang hoạt động"}</StatusBadge></dd></div>
-        <div><dt className="text-xs font-semibold text-neutral-400">Cửa sổ phản hồi</dt><dd className={`mt-1 flex items-center gap-2 font-semibold ${activeWindow ? "text-success-700" : "text-warning-700"}`}><ClockCounterClockwise size={14} />{activeWindow ? `Đến ${time(thread.responseWindowEndsAt)}` : "Cần kiểm tra chính sách gửi"}</dd></div>
+        <div><dt className="text-xs font-semibold text-neutral-400">Cửa sổ phản hồi</dt><dd className={`mt-1 flex items-center gap-2 font-semibold ${activeWindow ? "text-success-700" : "text-warning-700"}`}><History size={14} />{activeWindow ? `Đến ${time(thread.responseWindowEndsAt)}` : "Cần kiểm tra chính sách gửi"}</dd></div>
       </dl>
     </div>
   );
@@ -240,17 +239,17 @@ function ConversationPanel({ thread, configured, onBack }: { thread: Thread; con
           </div>
           <div className="relative flex">
             <button type="button" onClick={() => setInfoOpen(true)} className="icon-button flex xl:hidden" aria-label="Xem thông tin"><Info size={18} /></button>
-            <button type="button" onClick={() => setMenuOpen((open) => !open)} aria-expanded={menuOpen} className="icon-button flex" aria-label="Thêm thao tác"><DotsThree size={21} weight="bold" /></button>
+            <button type="button" onClick={() => setMenuOpen((open) => !open)} aria-expanded={menuOpen} className="icon-button flex" aria-label="Thêm thao tác"><MoreHorizontal size={21} /></button>
             {menuOpen && (
               <div className="absolute right-0 top-11 z-20 w-52 overflow-hidden rounded-[12px] border border-neutral-200 bg-white py-1 shadow-[0_16px_40px_-18px_rgba(15,23,42,.35)]">
                 <button type="button" onClick={() => { setInfoOpen(true); setMenuOpen(false); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-neutral-700 hover:bg-neutral-50"><Info size={16} />Xem thông tin hội thoại</button>
-                {messengerPageUrl() && <a href={messengerPageUrl()!} target="_blank" rel="noreferrer" onClick={() => setMenuOpen(false)} className="flex w-full items-center gap-2 px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-50"><ArrowSquareOut size={16} />Mở Fanpage</a>}
+                {messengerPageUrl() && <a href={messengerPageUrl()!} target="_blank" rel="noreferrer" onClick={() => setMenuOpen(false)} className="flex w-full items-center gap-2 px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-50"><ExternalLink size={16} />Mở Fanpage</a>}
                 <button type="button" onClick={async () => { await navigator.clipboard.writeText(thread.id); setCopiedThreadId(true); setMenuOpen(false); window.setTimeout(() => setCopiedThreadId(false), 2000); }} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-neutral-700 hover:bg-neutral-50"><Copy size={16} />{copiedThreadId ? "Đã sao chép" : "Sao chép mã hội thoại"}</button>
               </div>
             )}
           </div>
         </header>
-        {!configured && <div className="flex gap-2 border-b border-warning-100 bg-warning-50 px-4 py-3 text-xs text-warning-800"><WifiSlash size={16} />Worker chưa cấu hình. Composer đang bị khóa.</div>}
+        {!configured && <div className="flex gap-2 border-b border-warning-100 bg-warning-50 px-4 py-3 text-xs text-warning-800"><WifiOff size={16} />Worker chưa cấu hình. Composer đang bị khóa.</div>}
         <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 sm:px-5">
           <div className="w-full space-y-2">
             {messageError ? <ErrorState message="Không tải được lịch sử hội thoại." /> : messages.length ? messages.map((message) => (
@@ -259,12 +258,12 @@ function ConversationPanel({ thread, configured, onBack }: { thread: Thread; con
                   <p>{message.text}</p>
                   <div className={`mt-1 flex items-center justify-end gap-1 text-3xs ${message.direction === "outbound" ? "text-primary-100" : "text-neutral-400"}`}>
                     <span>{time(message.createdAt)}</span>
-                    {message.status === "sent" && <Checks size={12} />}
-                    {message.status === "failed" && <Warning size={12} />}
+                    {message.status === "sent" && <CheckCheck size={12} />}
+                    {message.status === "failed" && <AlertTriangle size={12} />}
                   </div>
                 </div>
               </div>
-            )) : <div className="py-16 text-center"><ChatCircleDots className="mx-auto text-neutral-300" size={36} /><p className="mt-3 text-sm font-semibold">Chưa có tin nhắn</p></div>}
+            )) : <div className="py-16 text-center"><MessageCircle className="mx-auto text-neutral-300" size={36} /><p className="mt-3 text-sm font-semibold">Chưa có tin nhắn</p></div>}
           </div>
         </div>
         <form onSubmit={submit} className="border-t border-neutral-100 bg-white px-3 py-2 sm:px-5">
@@ -295,7 +294,7 @@ function ConversationPanel({ thread, configured, onBack }: { thread: Thread; con
                   className="max-h-24 min-h-[42px] w-full resize-none rounded-[12px] border border-neutral-200 bg-white px-3.5 py-2.5 text-sm leading-5 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:bg-neutral-100"
                 />
               </label>
-              <button type="submit" disabled={!configured || !draft.trim() || tagInvalid || send.isPending} aria-label="Gửi tin nhắn" className="motion-control flex size-[42px] shrink-0 items-center justify-center rounded-[11px] bg-primary-600 text-white active:scale-[.97] disabled:opacity-40"><PaperPlaneTilt size={18} weight="fill" /></button>
+              <button type="submit" disabled={!configured || !draft.trim() || tagInvalid || send.isPending} aria-label="Gửi tin nhắn" className="motion-control flex size-[42px] shrink-0 items-center justify-center rounded-[11px] bg-primary-600 text-white active:scale-[.97] disabled:opacity-40"><Send size={18} /></button>
             </div>
             <div className="mt-1 flex items-center justify-between gap-3 text-3xs text-neutral-400">
               <span>Enter để gửi · Shift + Enter để xuống dòng</span>
@@ -388,7 +387,7 @@ function NewConversationPicker({ open, onClose, configured, onSent }: { open: bo
           <div className="border-b border-neutral-200 p-4">
             <h3 className="mb-2 text-sm font-bold text-neutral-900">Học sinh</h3>
             <label className="relative block">
-              <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={16} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={16} />
               <span className="sr-only">Tìm học sinh</span>
               <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm tên hoặc mã học sinh" className="min-h-touch w-full rounded-input border border-neutral-300 bg-white pl-9 pr-3 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100" />
             </label>
@@ -466,7 +465,7 @@ function NewConversationPicker({ open, onClose, configured, onSent }: { open: bo
                 )}
               </>
             ) : (
-              <div className="flex h-full min-h-60 items-center justify-center text-center"><div><ChatCircleDots className="mx-auto text-neutral-300" size={34} /><p className="mt-3 text-sm font-semibold text-neutral-700">Chọn một học sinh</p><p className="mt-1 text-xs text-neutral-500">Danh sách học sinh nằm ở cột bên trái.</p></div></div>
+              <div className="flex h-full min-h-60 items-center justify-center text-center"><div><MessageCircle className="mx-auto text-neutral-300" size={34} /><p className="mt-3 text-sm font-semibold text-neutral-700">Chọn một học sinh</p><p className="mt-1 text-xs text-neutral-500">Danh sách học sinh nằm ở cột bên trái.</p></div></div>
             )}
           </div>
 
@@ -474,7 +473,7 @@ function NewConversationPicker({ open, onClose, configured, onSent }: { open: bo
             <span className="hidden text-xs text-neutral-500 sm:block">{selected ? `Đang gửi cho ${selected.fullName}` : "Chưa chọn học sinh"}</span>
             <div className="ml-auto flex gap-2">
               <Button type="button" onClick={() => { reset(); onClose(); }}>Hủy</Button>
-              <Button type="submit" variant="primary" icon={<PaperPlaneTilt size={16} weight="fill" />} disabled={!configured || !selected || !draft.trim() || send.isPending}>
+              <Button type="submit" variant="primary" icon={<Send size={16} />} disabled={!configured || !selected || !draft.trim() || send.isPending}>
                 {send.isPending ? "Đang gửi..." : "Gửi tin nhắn"}
               </Button>
             </div>
@@ -522,14 +521,14 @@ function Conversations({ threads, configured, initialPickerOpen = false, newMess
       <aside className={`${mobileThreadOpen ? "hidden lg:flex" : "flex"} min-h-0 flex-col border-r border-neutral-200 bg-white`}>
         <div className="border-b border-neutral-100 p-4">
           <div className="mb-2"><h2 className="text-sm font-bold text-neutral-900">Tin nhắn</h2><p className="mt-0.5 text-3xs text-neutral-400">{threads.length} hội thoại</p></div>
-          <label className="relative block"><MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={16} /><span className="sr-only">Tìm hội thoại</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm tên tài khoản..." className="min-h-touch w-full rounded-input border border-neutral-300 bg-neutral-50 pl-9 pr-3 text-sm outline-none focus:border-primary-500" /></label>
+          <label className="relative block"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={16} /><span className="sr-only">Tìm hội thoại</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm tên tài khoản..." className="min-h-touch w-full rounded-input border border-neutral-300 bg-neutral-50 pl-9 pr-3 text-sm outline-none focus:border-primary-500" /></label>
           <div className="mt-2 grid grid-cols-2 gap-1 rounded-input bg-neutral-100 p-1">
             {([["all", "Tất cả"], ["unread", "Chưa đọc"]] as const).map(([value, label]) => <button key={value} type="button" onClick={() => setFilter(value)} className={`min-h-9 rounded-[7px] text-xs font-semibold ${filter === value ? "bg-white text-primary-700 shadow-sm" : "text-neutral-500"}`}>{label}</button>)}
           </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
           {!threads.length ? (
-            <div className="p-6 text-center"><ChatCircleDots className="mx-auto text-neutral-300" size={32} /><p className="mt-3 text-sm font-semibold">Chưa có hội thoại</p><p className="mt-1 text-xs leading-5 text-neutral-500">Bấm &quot;Nhắn mới&quot; để bắt đầu, hoặc chờ phụ huynh liên kết và nhắn qua Facebook Page.</p></div>
+            <div className="p-6 text-center"><MessageCircle className="mx-auto text-neutral-300" size={32} /><p className="mt-3 text-sm font-semibold">Chưa có hội thoại</p><p className="mt-1 text-xs leading-5 text-neutral-500">Bấm &quot;Nhắn mới&quot; để bắt đầu, hoặc chờ phụ huynh liên kết và nhắn qua Facebook Page.</p></div>
           ) : filtered.map((thread) => (
             <button key={thread.id} type="button" onClick={() => { setSelectedId(thread.id); setMobileThreadOpen(true); }} className={`flex w-full gap-3 border-b border-neutral-100 px-4 py-3 text-left transition active:scale-[.99] ${thread.id === selectedId ? "bg-primary-50 shadow-[inset_3px_0_0_rgb(36,71,216)]" : "hover:bg-neutral-50"}`}>
               <AccountAvatar thread={thread} />
@@ -541,7 +540,7 @@ function Conversations({ threads, configured, initialPickerOpen = false, newMess
       </aside>
       <div className={`${mobileThreadOpen ? "flex" : "hidden lg:flex"} min-h-0`}>
         {selected ? <ConversationPanel thread={selected} configured={configured} onBack={() => setMobileThreadOpen(false)} /> : (
-          <div className="flex min-h-0 flex-1 items-center justify-center bg-neutral-50 p-6 text-center"><div><ChatCircleDots className="mx-auto text-neutral-300" size={36} /><p className="mt-3 text-sm font-semibold">Chưa có hội thoại Messenger</p><p className="mt-1 max-w-sm text-sm leading-6 text-neutral-500">Bấm &quot;Nhắn mới&quot; để bắt đầu, hoặc hội thoại sẽ xuất hiện khi phụ huynh liên kết và gửi tin qua Facebook Page.</p></div></div>
+          <div className="flex min-h-0 flex-1 items-center justify-center bg-neutral-50 p-6 text-center"><div><MessageCircle className="mx-auto text-neutral-300" size={36} /><p className="mt-3 text-sm font-semibold">Chưa có hội thoại Messenger</p><p className="mt-1 max-w-sm text-sm leading-6 text-neutral-500">Bấm &quot;Nhắn mới&quot; để bắt đầu, hoặc hội thoại sẽ xuất hiện khi phụ huynh liên kết và gửi tin qua Facebook Page.</p></div></div>
         )}
       </div>
       <aside className="hidden min-h-0 overflow-y-auto border-l border-neutral-100 bg-white p-5 xl:block">{selected && <ConversationContext thread={selected} />}</aside>
@@ -576,9 +575,8 @@ export default function ChatPage() {
   const [newMessageSignal, setNewMessageSignal] = useState(0);
   const threads = useQuery({ queryKey: ["chat-threads", role, uid], queryFn: () => listChatThreads(role, uid), enabled: Boolean(uid) });
   const tabs = [
-    { value: "conversations" as const, label: "Hội thoại", icon: ChatCircleDots },
-    { value: "outbox" as const, label: "Nhật ký gửi", icon: ClockCounterClockwise },
-    ...(role === "admin" ? [{ value: "fanpage" as const, label: "Đăng Fanpage", icon: FacebookLogo }] : []),
+    { value: "conversations" as const, label: "Hội thoại", icon: MessageCircle },
+    { value: "outbox" as const, label: "Nhật ký gửi", icon: History },
   ];
 
   return (
@@ -590,9 +588,6 @@ export default function ChatPage() {
         </Tabs>
         {section === "conversations" && (threads.isLoading ? <div className="p-5"><LoadingSkeleton rows={7} /></div> : threads.isError ? <div className="p-5"><ErrorState message="Không tải được hội thoại." onRetry={() => threads.refetch()} /></div> : <Conversations threads={threads.data ?? []} configured={configured} initialPickerOpen={initialPickerOpen} newMessageSignal={newMessageSignal} />)}
         {section === "outbox" && <Outbox role={role} uid={uid} />}
-        {section === "fanpage" && role === "admin" && (
-          <FanpagePanel configured={configured} actorUid={uid} actorName={userDoc?.displayName ?? "Admin"} />
-        )}
       </div>
     </>
   );

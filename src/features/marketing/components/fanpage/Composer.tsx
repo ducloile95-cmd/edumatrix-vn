@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Facebook, Send } from "lucide-react";
-import { ImageUrlInput } from "@/features/announcements/components/fanpage/ImageUrlInput";
-import { PostPreviewCard } from "@/features/announcements/components/fanpage/PostPreviewCard";
+import { ImageUrlInput } from "@/features/marketing/components/fanpage/ImageUrlInput";
+import { PostPreviewCard } from "@/features/marketing/components/fanpage/PostPreviewCard";
 import { createFanpagePost } from "@/services/firestore/fanpagePosts";
 import { postToPage } from "@/services/integrations/messenger";
 
@@ -70,7 +70,7 @@ export function Composer({ configured, actorUid, actorName }: ComposerProps) {
   const canSubmit = configured && message.trim().length > 0 && !submit.isPending;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1.2fr_.8fr]">
+    <div className="grid gap-5 lg:grid-cols-[1.15fr_.85fr] lg:items-start xl:gap-6">
       <section className="rounded-card border border-neutral-200 bg-white">
         <header className="border-b border-neutral-200 px-5 py-4">
           <h2 className="flex items-center gap-2 text-sm font-bold"><Facebook size={16} className="text-primary-700" />Soạn bài Fanpage</h2>
@@ -166,7 +166,7 @@ export function Composer({ configured, actorUid, actorName }: ComposerProps) {
         </form>
       </section>
 
-      <section className="rounded-card border border-neutral-200 bg-white">
+      <section className="rounded-card border border-neutral-200 bg-white lg:sticky lg:top-5">
         <header className="border-b border-neutral-200 px-5 py-4">
           <h2 className="text-sm font-bold">Bản xem trước</h2>
           <p className="mt-1 text-xs text-neutral-500">Hiển thị gần đúng như bài viết sẽ xuất hiện trên Facebook.</p>

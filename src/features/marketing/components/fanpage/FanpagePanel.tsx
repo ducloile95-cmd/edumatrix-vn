@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Composer } from "@/features/announcements/components/fanpage/Composer";
-import { PostQueueList } from "@/features/announcements/components/fanpage/PostQueueList";
+import { Composer } from "@/features/marketing/components/fanpage/Composer";
+import { PostQueueList } from "@/features/marketing/components/fanpage/PostQueueList";
 import { listFanpagePosts } from "@/services/firestore/fanpagePosts";
 
 type Sub = "compose" | "queue";
@@ -19,9 +19,9 @@ export function FanpagePanel({ configured, actorUid, actorName }: FanpagePanelPr
   const pendingCount = (posts.data ?? []).filter((post) => post.status === "scheduled").length;
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto bg-neutral-50 p-3 sm:p-5">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-4 inline-grid grid-flow-col gap-0.5 rounded-input bg-neutral-100 p-1">
+    <div className="bg-neutral-50 p-3 sm:p-5 lg:p-6">
+      <div className="mx-auto max-w-[1400px]">
+        <div className="mb-5 inline-grid grid-flow-col gap-0.5 rounded-input bg-neutral-100 p-1">
           <button
             type="button"
             onClick={() => setSub("compose")}

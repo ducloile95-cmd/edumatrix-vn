@@ -40,8 +40,7 @@ const groupChucNang: NavGroup = {
   ],
 };
 
-// Marketing là module tương lai nên chưa mở điều hướng.
-const MARKETING: NavLeaf = { to: "#", label: "Marketing", icon: Megaphone, disabled: true };
+const MARKETING: NavLeaf = { to: ROUTES.STAFF_MARKETING, label: "Marketing", icon: Megaphone };
 const TAI_CHINH: NavLeaf = { to: ROUTES.STAFF_INVOICES, label: "Tài chính", icon: Wallet };
 // Cai dat: Admin thay 4 muc, Giao vien chi thay Thong bao + Giao dien (loc theo role trong SettingsPage).
 const CAI_DAT: NavLeaf = { to: ROUTES.STAFF_SETTINGS, label: "Cài đặt", icon: Settings };
@@ -96,6 +95,7 @@ const PAGE_DESCRIPTIONS: Record<string, string> = {
   [ROUTES.STAFF_ASSIGNMENTS]: "Giao bài, theo dõi bài nộp và phản hồi kết quả cho học sinh.",
   [ROUTES.STAFF_SCORES]: "Nhập điểm theo lớp, lưu nhận xét và theo dõi tiến bộ học tập.",
   [ROUTES.STAFF_INVOICES]: "Tạo hóa đơn, theo dõi công nợ và đối soát thanh toán.",
+  [ROUTES.STAFF_MARKETING]: "Soạn bài, lên lịch và theo dõi hàng chờ đăng Fanpage.",
   [ROUTES.STAFF_USERS]: "Mời tài khoản mới, theo dõi lời mời và khóa hoặc mở tài khoản.",
   [ROUTES.STAFF_ANNOUNCEMENTS]: "Đăng thông báo lên Fanpage và nhắn phụ huynh qua Messenger.",
   [ROUTES.STAFF_CHAT]: "Hội thoại Messenger với phụ huynh, nhật ký gửi và quản lý kết nối.",

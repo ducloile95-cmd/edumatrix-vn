@@ -99,6 +99,197 @@ Kết luận cổng sau kiểm tra:
 - **Quyền Utility production: chưa đạt, hồ sơ chưa gửi.**
 - **Bước tiếp theo: chuẩn bị và làm sạch hồ sơ App Review, tạo bằng chứng kiểm thử và chỉ gửi các quyền thật sự cần cho Messenger.**
 
+### Lần 3 — Xây dựng nền tảng Utility trong Worker, 27/07/2026
+
+Đã hoàn thành:
+
+- Bổ sung feature flag `UTILITY_MESSAGING_ENABLED`.
+- Cấu hình development và production đều giữ flag ở `false`.
+- Giữ nguyên luồng `RESPONSE` và Message Tag hiện tại để bảo đảm tương thích ngược.
+- Bổ sung sáu `templateKey` nội bộ:
+  - `tuition_payment_reminder`;
+  - `tuition_payment_confirmation`;
+  - `class_schedule_adjustment`;
+  - `lesson_feedback_request`;
+  - `enrollment_confirmation`;
+  - `parent_account_link_confirmation`.
+- Tạo registry template phía Worker gồm:
+  - tên template Meta dự kiến;
+  - mã ngôn ngữ;
+  - danh sách tham số bắt buộc;
+  - nhãn hiển thị;
+  - quyền Teacher;
+  - phiên bản template.
+- Frontend không được gửi tên template Meta tùy ý; chỉ gửi `templateKey`.
+- Worker kiểm tra chính xác tham số bắt buộc, chặn tham số thừa, giá trị rỗng hoặc
+  quá dài.
+- Utility và Message Tag không được dùng chung trong một request.
+- Utility yêu cầu hội thoại đã liên kết với học sinh.
+- Teacher bị chặn khỏi mẫu `parent_account_link_confirmation`.
+- Worker tiếp tục kiểm tra vai trò và phạm vi học sinh từ Firestore.
+- Outbox bổ sung:
+  - `deliveryMode`;
+  - `templateKey`;
+  - `templateName`;
+  - `templateLanguage`;
+  - `templateParameters`;
+  - `templateVersion`;
+  - `metaErrorCode`.
+- Bổ sung mã lỗi công khai:
+  - `utility_disabled`;
+  - `utility_parameters_invalid`;
+  - `utility_template_not_allowed`;
+  - `utility_template_not_approved`.
+- Adapter frontend đã hỗ trợ request Utility và thông báo lỗi tiếng Việt.
+
+Webhook template đã hoàn thành:
+
+- Hỗ trợ cả `message_template_status_update` và
+  `messenger_template_status_update`.
+- Lưu trạng thái rút gọn vào `messenger_template_status`.
+- Không lưu toàn bộ payload webhook hoặc dữ liệu bí mật.
+
+Kiểm thử đã đạt:
+
+- Worker: `37/37`.
+- Ứng dụng: `82/82`.
+- Firestore Rules: `137/137`.
+- `npm run typecheck`: đạt.
+- `npm run lint`: đạt.
+- `npm run check:mojibake`: đạt.
+- `npm run build`: đạt.
+- Worker production dry-run: đạt.
+
+Commit kỹ thuật:
+
+- Commit: `c7c31d0`
+- Nội dung: `feat(messenger): prepare utility messaging behind feature flag`
+
+### Lần 4 — Deploy Worker production an toàn, 27/07/2026
+
+Đã deploy:
+
+- Worker: `edumatrix-messenger-production`.
+- URL:
+  `https://edumatrix-messenger-production.edumatrix-vn.workers.dev`
+- Version ID mới:
+  `373ddf69-c50e-4039-a36f-15bc58c380a8`.
+- Health:
+  - `ok: true`;
+  - `service: messenger-worker`;
+  - `environment: production`.
+- `UTILITY_MESSAGING_ENABLED=false`.
+- Graph API Worker vẫn giữ `v22.0`; chưa tự nâng version.
+
+Chưa thực hiện:
+
+- chưa bật Utility production;
+- chưa deploy frontend Utility;
+- chưa gửi Utility thật;
+- chưa thay đổi secret;
+- chưa thay đổi Firebase plan.
+
+Lý do chưa deploy frontend:
+
+- working tree đang chứa nhiều thay đổi giao diện, marketing và cấu hình khác;
+- deploy lúc này có thể đưa các phần chưa duyệt lên production;
+- cần tách và kiểm tra frontend thành commit riêng trước khi deploy.
+
+### Lần 5 — Làm sạch và chuẩn bị Meta App Review, 27/07/2026
+
+Hồ sơ `Chưa gửi` đã được làm sạch.
+
+Đã gỡ khỏi hồ sơ xét duyệt lần này:
+
+- `business_management`;
+- `ads_read`;
+- `ads_management`;
+- `whatsapp_business_messaging`;
+- `whatsapp_business_management`;
+- `marketing_messages_messenger`;
+- `public_profile`;
+- `Marketing API Access Tier`.
+
+Việc gỡ chỉ áp dụng cho hồ sơ App Review đang chuẩn bị; không xóa sản phẩm hoặc cấu
+hình tương ứng khỏi ứng dụng.
+
+Năm quyền còn lại:
+
+1. `pages_show_list`;
+2. `pages_manage_metadata`;
+3. `pages_utility_messaging`;
+4. `pages_messaging`;
+5. `pages_read_engagement`.
+
+Đã lưu bản nháp mô tả tiếng Anh cho cả năm quyền.
+
+Đối với `pages_messaging`:
+
+- đã chọn Page `Luyện Chữ Đẹp Cô Chi`;
+- đã điền hướng dẫn kiểm thử từng bước;
+- link Messenger dùng trong hướng dẫn:
+  `https://m.me/cochichudep`;
+- Meta hiển thị API test là `Đã hoàn tất`;
+- chưa nhập tài khoản/mật khẩu reviewer;
+- chưa tải video;
+- chưa đánh dấu cam kết tuân thủ;
+- chưa gửi xét duyệt.
+
+Trạng thái API test còn thiếu:
+
+- `pages_manage_metadata`: `0/1`;
+- `pages_utility_messaging`: `0/1`;
+- `pages_read_engagement`: `0/1`.
+
+Trạng thái xác minh:
+
+- App đã kết nối hồ sơ doanh nghiệp `Daltom Việt Nam`;
+- hồ sơ doanh nghiệp hiển thị `Đã xác minh`.
+
+Các blocker mới phát hiện:
+
+1. Privacy Policy trong Meta đang trỏ tới:
+   `https://quancandaltom.vn/page/chinh-sach-va-lien-he-9bdbd6`
+   thay vì một trang chính sách dành riêng cho EduMatrix.
+2. Codebase chưa có trang Privacy Policy công khai dành cho EduMatrix.
+3. Meta báo App chưa khai báo nền tảng Website, vì vậy chưa thể thêm đầy đủ hướng
+   dẫn reviewer.
+4. Chưa có video quay màn hình cho năm quyền.
+5. Chưa có tài khoản EduMatrix reviewer tạm thời.
+6. Chưa có Facebook thật được thêm vai trò App Tester phục vụ kiểm thử
+   `pages_messaging`.
+7. Chưa có Utility Template được Meta phê duyệt để hoàn thành API test Utility.
+8. Chưa có xác nhận của chủ ứng dụng cho các checkbox cam kết sử dụng dữ liệu đúng
+   chính sách.
+
+Tài liệu hồ sơ chi tiết:
+
+- `docs/HO-SO-XET-DUYET-META-MESSENGER-UTILITY.md`
+
+### Điểm dừng ngày 27/07/2026
+
+Hệ thống dừng ở trạng thái an toàn:
+
+- Worker Utility đã có trên production nhưng flag đang tắt.
+- Chat 24 giờ và webhook hiện tại không bị thay thế.
+- Hồ sơ App Review đã làm sạch và có bản nháp mô tả.
+- Meta App Review vẫn ở trạng thái chưa gửi.
+- Không có video hoặc thông tin đăng nhập nào được tải lên Meta.
+- Không có checkbox cam kết pháp lý nào được đánh dấu.
+- Không bấm `Gửi đi xét duyệt`.
+
+Bước tiếp tục sau khi mở lại công việc:
+
+1. Tạo Privacy Policy và hướng dẫn xóa dữ liệu dành riêng cho EduMatrix.
+2. Tách thay đổi frontend hiện có trước khi thêm và deploy các trang pháp lý.
+3. Thêm Website platform `https://edumatrix.id.vn` vào Meta App.
+4. Thay URL Privacy Policy cũ bằng URL EduMatrix đã kiểm tra truy cập công khai.
+5. Hoàn thành ba API test còn thiếu.
+6. Chuẩn bị tài khoản reviewer và Facebook App Tester.
+7. Quay video theo checklist.
+8. Chủ ứng dụng kiểm tra và xác nhận các cam kết tuân thủ.
+9. Chỉ sau một xác nhận riêng mới bấm `Gửi đi xét duyệt`.
+
 ## 1. Mục tiêu cuối
 
 EduMatrix cần đạt bốn khả năng độc lập:

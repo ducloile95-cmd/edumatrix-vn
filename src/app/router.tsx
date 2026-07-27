@@ -28,6 +28,7 @@ const AttendancePage = lazy(() => import("@/features/attendance/pages/Attendance
 const LearningPage = lazy(() => import("@/features/learning/pages/LearningPage"));
 const ViewerAssignmentsPage = lazy(() => import("@/features/assignments/pages/ViewerAssignmentsPage"));
 const InvoicesPage = lazy(() => import("@/features/invoices/pages/InvoicesPage"));
+const MarketingPage = lazy(() => import("@/features/marketing/pages/MarketingPage"));
 const ChatPage = lazy(() => import("@/features/announcements/pages/ChatPage"));
 const ChatDemoPage = lazy(() => import("@/features/announcements/pages/ChatDemoPage"));
 const SettingsPage = lazy(() => import("@/features/settings/pages/SettingsPage"));
@@ -84,12 +85,20 @@ export function AppRouter() {
             <Route path={ROUTES.STAFF_CHAT_DEMO} element={<ChatDemoPage />} />
             <Route path={ROUTES.STAFF_SETTINGS} element={<SettingsPage />} />
 
-            {/* Rieng module Nguoi dung chi danh cho Admin - guard long them ben trong shell. */}
+            {/* Rieng module Nguoi dung va Marketing chi danh cho Admin - guard long them ben trong shell. */}
             <Route
               path={ROUTES.STAFF_USERS}
               element={
                 <RequireRole roles={[USER_ROLES.ADMIN]} redirectTo={ROUTES.STAFF_DASHBOARD}>
                   <UsersPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path={ROUTES.STAFF_MARKETING}
+              element={
+                <RequireRole roles={[USER_ROLES.ADMIN]} redirectTo={ROUTES.STAFF_DASHBOARD}>
+                  <MarketingPage />
                 </RequireRole>
               }
             />
