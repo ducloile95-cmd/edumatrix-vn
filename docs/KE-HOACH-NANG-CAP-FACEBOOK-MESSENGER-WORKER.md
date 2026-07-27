@@ -162,13 +162,13 @@ ALLOWED_ORIGIN = "https://edumatrix-vn-576b1.web.app"
 ### Deployment mới
 
 ```text
-Version ID: 57b9eea8-41b2-4eef-809c-9034eb134c2f
+Version ID: 6da968f8-436d-4444-99af-5ecdf4e947dd
 ```
 
 ### Version dùng để rollback
 
 ```text
-Version ID: b5f9ff83-466a-4825-9d83-f8a1354bb857
+Version ID: 57b9eea8-41b2-4eef-809c-9034eb134c2f
 ```
 
 ### Kết quả sau deploy
@@ -350,7 +350,7 @@ Nếu deployment mới gặp lỗi:
 1. Rollback về version:
 
 ```text
-b5f9ff83-466a-4825-9d83-f8a1354bb857
+57b9eea8-41b2-4eef-809c-9034eb134c2f
 ```
 
 2. Kiểm tra lại `/health`.
@@ -392,10 +392,16 @@ Hạng mục được xem là hoàn thành khi:
 | Smoke test Road Teacher | Chờ thực hiện |
 | Xác định lỗi phân quyền cụ thể | Chờ smoke test |
 | Kiểm tra gửi và nhận hai chiều | Chờ thực hiện |
-| Quyết định có cần Worker V2 | Chưa cần tại thời điểm hiện tại |
+| Đợt 1: Authorization header và Message Tag allowlist | Hoàn thành local |
+| Đợt 2: Firebase cache và webhook dedupe | Hoàn thành local |
+| Đợt 3: Health version, log an toàn và mã lỗi ổn định | Hoàn thành local |
+| Đợt 4: Mở rộng kiểm thử Worker và frontend | Hoàn thành local |
+| Kiểm thử Worker sau nâng cấp | 33/33 test đạt |
+| Kiểm thử frontend | 81/81 test đạt |
+| Deploy nâng cấp lên production | Hoàn thành |
 
 ## 15. Quyết định hiện tại
 
-Chưa xây dựng Worker V2 mới.
+Đã triển khai local bốn đợt gia cố Worker: bảo mật Page Access Token, Message Tag theo allowlist, cache Firebase, chống xử lý lặp webhook, Cloudflare Version Metadata trong `/health`, log có cấu trúc, mã lỗi công khai ổn định và kiểm thử hồi quy.
 
-Ưu tiên hoàn tất smoke test Road Teacher trên Worker production đã được đồng bộ cấu hình. Chỉ mở Giai đoạn 3 khi xuất hiện bằng chứng về lỗi kiến trúc hoặc lỗi vận hành lặp lại.
+Đã deploy Worker production với Version ID `6da968f8-436d-4444-99af-5ecdf4e947dd`. Bước tiếp theo là smoke test hai chiều theo vai trò trước khi deploy frontend.

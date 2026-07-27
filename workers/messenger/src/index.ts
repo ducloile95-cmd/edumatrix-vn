@@ -9,6 +9,7 @@ export interface Env {
   META_WEBHOOK_VERIFY_TOKEN: string;
   META_GRAPH_VERSION: string;
   ALLOWED_ORIGIN: string;
+  CF_VERSION_METADATA?: { id: string; tag: string; timestamp: string };
 }
 
 interface FirebaseClaims { sub: string; user_id?: string; email?: string }
@@ -26,6 +27,15 @@ export interface SendBody { recipientPsid?: string; text: string; type?: string;
 export interface LinkConversationBody { psid?: string; studentId?: string }
 export interface PostBody { message: string; link?: string; imageUrls?: string[] }
 export interface InboundMessage { psid: string; pageId: string; text: string; messageId: string; timestamp: number }
+
+const ALLOWED_MESSENGER_TAGS = new Set([
+  "ACCOUNT_UPDATE",
+  "CONFIRMED_EVENT_UPDATE",
+  "POST_PURCHASE_UPDATE",
+]);
+const CACHE_REFRESH_MARGIN_MS = 5 * 60 * 1000;
+let firebaseCertCache: { certs: Record<string, string>; expiresAt: number } | null = null;
+let serviceTokenCache: { key: string; token: string; expiresAt: number } | null = null;
 
 function allowedOrigin(request: Request, env: Env): string {
   if (env.ALLOWED_ORIGIN.trim() === "*") return "*";
@@ -54,7 +64,36 @@ export function extractBearer(value: string | null): string | null {
 }
 
 export function isMessengerTagShape(value: unknown): value is string {
-  return typeof value === "string" && /^[A-Z_]{3,64}$/.test(value.trim());
+  return typeof value === "string" && ALLOWED_MESSENGER_TAGS.has(value.trim());
+}
+
+export function publicErrorCode(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  if (message.includes("\"code\":190")) return "meta_token_invalid";
+  if (message.startsWith("meta_")) return "meta_request_failed";
+  const known = new Set([
+    "admin_required",
+    "firebase_keys_unavailable",
+    "invalid_message",
+    "invalid_message_tag",
+    "missing_bearer_token",
+    "missing_recipient",
+    "no_recipient",
+    "parent_scope_denied",
+    "service_auth_failed",
+    "staff_required",
+    "student_not_found",
+    "student_scope_denied",
+    "unlinked_conversation_not_found",
+  ]);
+  return known.has(message) ? message : "internal_error";
+}
+
+function logEvent(level: "info" | "warn" | "error", event: string, fields: Record<string, unknown>): void {
+  const entry = JSON.stringify({ event, ...fields });
+  if (level === "error") console.error(entry);
+  else if (level === "warn") console.warn(entry);
+  else console.log(entry);
 }
 
 function normalizeSecret(value: string, key: string): string {
@@ -122,15 +161,28 @@ export function extractInboundMessages(payload: unknown): InboundMessage[] {
 async function verifyFirebaseToken(token: string, env: Env): Promise<FirebaseClaims> {
   const header = decodeProtectedHeader(token);
   if (header.alg !== "RS256" || !header.kid) throw new Error("invalid_token_header");
-  const response = await fetch("https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com");
-  if (!response.ok) throw new Error("firebase_keys_unavailable");
-  const certs = await response.json<Record<string, string>>();
+  const certs = await firebaseCertificates();
   const cert = certs[header.kid];
   if (!cert) throw new Error("unknown_token_key");
   const key = await importX509(cert, "RS256");
   const { payload } = await jwtVerify(token, key, { audience: env.FIREBASE_PROJECT_ID, issuer: `https://securetoken.google.com/${env.FIREBASE_PROJECT_ID}`, algorithms: ["RS256"] });
   if (!payload.sub) throw new Error("missing_uid");
   return payload as unknown as FirebaseClaims;
+}
+
+function cacheMaxAge(response: Response, fallbackSeconds: number): number {
+  const maxAge = response.headers.get("cache-control")?.match(/(?:^|,)\s*max-age=(\d+)/i)?.[1];
+  return (Number(maxAge) || fallbackSeconds) * 1000;
+}
+
+export async function firebaseCertificates(): Promise<Record<string, string>> {
+  const now = Date.now();
+  if (firebaseCertCache && firebaseCertCache.expiresAt - CACHE_REFRESH_MARGIN_MS > now) return firebaseCertCache.certs;
+  const response = await fetch("https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com");
+  if (!response.ok) throw new Error("firebase_keys_unavailable");
+  const certs = await response.json<Record<string, string>>();
+  firebaseCertCache = { certs, expiresAt: now + cacheMaxAge(response, 60 * 60) };
+  return certs;
 }
 
 function fieldString(document: unknown, name: string): string | undefined {
@@ -149,7 +201,10 @@ function fieldTimestamp(document: unknown, name: string): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-async function serviceAccessToken(env: Env): Promise<string> {
+export async function serviceAccessToken(env: Env): Promise<string> {
+  const cacheKey = `${env.FIREBASE_PROJECT_ID}:${env.FIREBASE_CLIENT_EMAIL}`;
+  const now = Date.now();
+  if (serviceTokenCache?.key === cacheKey && serviceTokenCache.expiresAt - CACHE_REFRESH_MARGIN_MS > now) return serviceTokenCache.token;
   let privateKey = env.FIREBASE_PRIVATE_KEY.trim();
   try {
     if (privateKey.startsWith("{")) {
@@ -175,7 +230,15 @@ async function serviceAccessToken(env: Env): Promise<string> {
     .setAudience("https://oauth2.googleapis.com/token").setIssuedAt().setExpirationTime("1h").sign(key);
   const response = await fetch("https://oauth2.googleapis.com/token", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion }) });
   if (!response.ok) throw new Error("service_auth_failed");
-  return String((await response.json<{ access_token: string }>()).access_token);
+  const data = await response.json<{ access_token: string; expires_in?: number }>();
+  const token = String(data.access_token);
+  serviceTokenCache = { key: cacheKey, token, expiresAt: now + (Number(data.expires_in) || 3600) * 1000 };
+  return token;
+}
+
+export function resetFirebaseCachesForTest(): void {
+  firebaseCertCache = null;
+  serviceTokenCache = null;
 }
 
 async function readDocument(collectionId: string, id: string, token: string, env: Env): Promise<unknown | null> {
@@ -323,7 +386,7 @@ async function threadContext(studentId: string, serviceToken: string, env: Env):
   };
 }
 
-async function assertStudentScope(profile: StaffProfile, uid: string, context: ThreadContext | null): Promise<void> {
+export async function assertStudentScope(profile: StaffProfile, uid: string, context: ThreadContext | null): Promise<void> {
   if (!context) throw new Error("student_not_found");
   if (profile.role === "teacher" && !context.assignedTeacherIds.includes(uid)) throw new Error("student_scope_denied");
 }
@@ -373,7 +436,7 @@ async function fetchMessengerProfile(psid: string, env: Env): Promise<MessengerP
   url.searchParams.set("fields", "first_name,last_name,profile_pic");
   const response = await fetch(url, { headers: { authorization: `Bearer ${pageAccessToken}` } });
   if (!response.ok) {
-    console.warn("messenger_profile_unavailable", { psidSuffix: psid.slice(-4), status: response.status });
+    logEvent("warn", "messenger_profile_unavailable", { psidSuffix: psid.slice(-4), status: response.status });
     return { name: null, avatarUrl: null };
   }
   return parseMessengerProfile(await response.json<Record<string, unknown>>());
@@ -429,16 +492,29 @@ async function writeUnlinkedInbound(message: InboundMessage, profile: MessengerP
   }, serviceToken, env);
 }
 
+export async function webhookMessageProcessed(messageId: string, serviceToken: string, env: Env): Promise<boolean> {
+  return Boolean(await readDocument("messenger_webhook_events", messageId, serviceToken, env));
+}
+
+export async function markWebhookMessageProcessed(message: InboundMessage, serviceToken: string, env: Env): Promise<void> {
+  await writeDocument("messenger_webhook_events", message.messageId, {
+    messageId: message.messageId,
+    psid: message.psid,
+    pageId: message.pageId,
+    processedAt: new Date(),
+  }, serviceToken, env);
+}
+
 /** Ma loi Meta doc duoc: object -> JSON (giu "code":190... de client chan doan token), con lai -> chuoi. */
 export function metaErrorCode(data: Record<string, unknown>, status: number): string {
   if (data.error && typeof data.error === "object") return JSON.stringify(data.error).slice(0, 200);
   return String(data.error ?? status);
 }
 
-async function sendGraph(body: SendBody, env: Env): Promise<{ message_id?: string; recipient_id?: string }> {
+export async function sendGraph(body: SendBody, env: Env): Promise<{ message_id?: string; recipient_id?: string }> {
   const pageAccessToken = normalizeSecret(env.META_PAGE_ACCESS_TOKEN, "META_PAGE_ACCESS_TOKEN");
-  const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/me/messages?access_token=${encodeURIComponent(pageAccessToken)}`;
-  const request = () => fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(buildMessengerPayload(body)) });
+  const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/me/messages`;
+  const request = () => fetch(url, { method: "POST", headers: { authorization: `Bearer ${pageAccessToken}`, "content-type": "application/json" }, body: JSON.stringify(buildMessengerPayload(body)) });
   let response = await request();
   if (response.status >= 500 || response.status === 429) {
     // 429: doi theo Retry-After (chan tren 5s) roi thu lai dung 1 lan; 5xx: thu lai ngay.
@@ -452,10 +528,7 @@ async function sendGraph(body: SendBody, env: Env): Promise<{ message_id?: strin
   if (!response.ok) {
     const metaError = data.error as Record<string, unknown> | undefined;
     if (metaError?.code === 190) {
-      console.warn("meta_page_access_token_rejected", {
-        tokenLength: pageAccessToken.length,
-        status: response.status,
-      });
+      logEvent("warn", "meta_page_access_token_rejected", { status: response.status });
     }
     throw new Error(`meta_${metaErrorCode(data, response.status)}`);
   }
@@ -488,8 +561,9 @@ async function handleSend(request: Request, env: Env): Promise<Response> {
       return new Response(JSON.stringify({ id, status: "sent", sent: 1, total: 1 }), { headers: corsHeaders(env, request) });
     } catch (error) {
       const code = (error instanceof Error ? error.message : String(error)).slice(0, 240);
+      const responseCode = publicErrorCode(error);
       await writeDocument("message_outbox", id, { type: body.type ?? "manual", studentId: null, recipientPsid: body.recipientPsid, content: body.text, status: "failed", messageTag: body.tag ?? null, metaMessageId: null, error: code, actorUid: claims.sub, createdAt: new Date() }, serviceToken, env);
-      return new Response(JSON.stringify({ id, status: "failed", sent: 0, total: 1, error: code }), { status: 502, headers: corsHeaders(env, request) });
+      return new Response(JSON.stringify({ id, status: "failed", sent: 0, total: 1, error: responseCode }), { status: 502, headers: corsHeaders(env, request) });
     }
   }
   if (!body.studentId) return new Response(JSON.stringify({ error: "missing_recipient" }), { status: 400, headers: corsHeaders(env, request) });
@@ -509,7 +583,7 @@ async function handleSend(request: Request, env: Env): Promise<Response> {
       const code = (error instanceof Error ? error.message : String(error)).slice(0, 240);
       await writeDocument("message_outbox", id, { type: body.type ?? "general", studentId: body.studentId, recipientPsid: recipient.psid, content: body.text, status: "failed", messageTag: body.tag ?? null, metaMessageId: null, error: code, actorUid: claims.sub, createdAt: new Date() }, serviceToken, env);
       if (context) await writeChatEvent({ context, parentUid: recipient.parentUid, direction: "outbound", text: body.text, status: "failed", actorUid: claims.sub, metaMessageId: null, errorCode: code, occurredAt: new Date(), threadId: recipient.threadId }, serviceToken, env);
-      results.push({ id, status: "failed", error: code });
+      results.push({ id, status: "failed", error: publicErrorCode(error) });
     }
   }
   const sent = results.filter((result) => result.status === "sent").length;
@@ -567,17 +641,19 @@ export function buildFeedPayload(body: PostBody, photoIds: string[]): Record<str
 }
 
 async function uploadPhoto(imageUrl: string, env: Env): Promise<string> {
-  const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/me/photos?access_token=${encodeURIComponent(env.META_PAGE_ACCESS_TOKEN)}`;
-  const response = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url: imageUrl, published: false }) });
+  const pageAccessToken = normalizeSecret(env.META_PAGE_ACCESS_TOKEN, "META_PAGE_ACCESS_TOKEN");
+  const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/me/photos`;
+  const response = await fetch(url, { method: "POST", headers: { authorization: `Bearer ${pageAccessToken}`, "content-type": "application/json" }, body: JSON.stringify({ url: imageUrl, published: false }) });
   const data = await response.json<Record<string, unknown>>();
   if (!response.ok || typeof data.id !== "string") throw new Error(`meta_photo_${metaErrorCode(data, response.status)}`);
   return data.id;
 }
 
-async function postGraph(body: PostBody, env: Env): Promise<{ id?: string }> {
+export async function postGraph(body: PostBody, env: Env): Promise<{ id?: string }> {
   const photoIds = await Promise.all((body.imageUrls ?? []).map((imageUrl) => uploadPhoto(imageUrl, env)));
-  const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/me/feed?access_token=${encodeURIComponent(env.META_PAGE_ACCESS_TOKEN)}`;
-  const response = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(buildFeedPayload(body, photoIds)) });
+  const pageAccessToken = normalizeSecret(env.META_PAGE_ACCESS_TOKEN, "META_PAGE_ACCESS_TOKEN");
+  const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/me/feed`;
+  const response = await fetch(url, { method: "POST", headers: { authorization: `Bearer ${pageAccessToken}`, "content-type": "application/json" }, body: JSON.stringify(buildFeedPayload(body, photoIds)) });
   const data = await response.json<Record<string, unknown>>();
   if (!response.ok) throw new Error(`meta_${metaErrorCode(data, response.status)}`);
   return data;
@@ -600,7 +676,7 @@ async function handlePost(request: Request, env: Env): Promise<Response> {
     return new Response(JSON.stringify({ id, status: "sent", postId: result.id }), { headers: corsHeaders(env) });
   } catch (error) {
     await writeDocument("message_outbox", id, { type: "page_post", studentId: null, recipientPsid: "page", content: body.message, status: "failed", error: String(error).slice(0, 240), actorUid: claims.sub, createdAt: new Date() }, serviceToken, env);
-    return new Response(JSON.stringify({ id, status: "failed", error: String(error) }), { status: 502, headers: corsHeaders(env) });
+    return new Response(JSON.stringify({ id, status: "failed", error: publicErrorCode(error) }), { status: 502, headers: corsHeaders(env) });
   }
 }
 
@@ -647,7 +723,11 @@ async function handleWebhook(request: Request, env: Env): Promise<Response> {
         entryKeys: value.entry?.[0] ? Object.keys(value.entry[0]).sort() : [],
       };
     } catch { /* invalid JSON is already rejected by signature */ }
-    console.warn("webhook_signature_invalid", { secretLength: appSecret.length, ...diagnostic });
+    logEvent("warn", "webhook_signature_invalid", {
+      object: diagnostic.object,
+      pageIdSuffix: diagnostic.pageId?.slice(-4),
+      entryKeys: diagnostic.entryKeys,
+    });
     return new Response("Invalid signature", { status: 401 });
   }
   const payload = JSON.parse(raw) as unknown;
@@ -655,7 +735,7 @@ async function handleWebhook(request: Request, env: Env): Promise<Response> {
   const referralLinks = extractReferralLinks(payload);
   const inboundMessages = extractInboundMessages(payload);
   const entries = payload && typeof payload === "object" ? (payload as { entry?: unknown[] }).entry ?? [] : [];
-  console.log("webhook_received", {
+  logEvent("info", "webhook_received", {
     entries: entries.length,
     messagingEvents: entries.reduce((count, entry) => count + (
       entry && typeof entry === "object" && Array.isArray((entry as { messaging?: unknown[] }).messaging)
@@ -669,11 +749,13 @@ async function handleWebhook(request: Request, env: Env): Promise<Response> {
     await claimReferralNonce(link.nonce, link.psid, link.pageId, serviceToken, env);
   }
   for (const message of inboundMessages) {
+    if (await webhookMessageProcessed(message.messageId, serviceToken, env)) continue;
     const messengerProfile = await fetchMessengerProfile(message.psid, env);
     const link = await readDocument("messenger_psid_links", message.psid, serviceToken, env);
     const parentUid = fieldString(link, "uid") ?? await findConnectionByPsid(message.psid, serviceToken, env);
     if (!parentUid) {
       await writeUnlinkedInbound(message, messengerProfile, serviceToken, env);
+      await markWebhookMessageProcessed(message, serviceToken, env);
       continue;
     }
     if (!link) await writeDocument("messenger_psid_links", message.psid, { uid: parentUid, pageId: message.pageId, status: "active", updatedAt: new Date() }, serviceToken, env);
@@ -681,25 +763,41 @@ async function handleWebhook(request: Request, env: Env): Promise<Response> {
     const studentId = fieldStringArray(user, "studentIds")[0];
     if (!studentId) continue;
     const context = await threadContext(studentId, serviceToken, env);
-    if (context) await writeChatEvent({ context, parentUid, direction: "inbound", text: message.text, status: "received", actorUid: null, metaMessageId: message.messageId, errorCode: null, occurredAt: new Date(message.timestamp), threadId: fieldString(link, "threadId"), messengerProfile }, serviceToken, env);
+    if (context) {
+      await writeChatEvent({ context, parentUid, direction: "inbound", text: message.text, status: "received", actorUid: null, metaMessageId: message.messageId, errorCode: null, occurredAt: new Date(message.timestamp), threadId: fieldString(link, "threadId"), messengerProfile }, serviceToken, env);
+      await markWebhookMessageProcessed(message, serviceToken, env);
+    }
   }
   return new Response("EVENT_RECEIVED");
 }
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(env, request) });
+    const startedAt = Date.now();
+    const requestId = request.headers.get("cf-ray") ?? crypto.randomUUID();
     const path = new URL(request.url).pathname;
     try {
-      if (path === "/health") return new Response(JSON.stringify({ ok: true }), { headers: corsHeaders(env, request) });
-      if (path === "/api/messenger/send" && request.method === "POST") return handleSend(request, env);
-      if (path === "/api/messenger/post" && request.method === "POST") return handlePost(request, env);
-      if (path === "/api/messenger/referral" && request.method === "POST") return handleCreateReferral(request, env);
-      if (path === "/api/messenger/link" && request.method === "POST") return handleLinkConversation(request, env);
-      if (path === "/webhook") return handleWebhook(request, env);
-      return new Response("Not found", { status: 404 });
+      let response: Response;
+      if (request.method === "OPTIONS") response = new Response(null, { status: 204, headers: corsHeaders(env, request) });
+      else if (path === "/health") response = new Response(JSON.stringify({
+        ok: true,
+        service: "messenger-worker",
+        version: env.CF_VERSION_METADATA?.id ?? "local",
+        environment: env.ALLOWED_ORIGIN.includes("localhost") ? "development" : "production",
+      }), { headers: corsHeaders(env, request) });
+      else if (path === "/api/messenger/send" && request.method === "POST") response = await handleSend(request, env);
+      else if (path === "/api/messenger/post" && request.method === "POST") response = await handlePost(request, env);
+      else if (path === "/api/messenger/referral" && request.method === "POST") response = await handleCreateReferral(request, env);
+      else if (path === "/api/messenger/link" && request.method === "POST") response = await handleLinkConversation(request, env);
+      else if (path === "/webhook") response = await handleWebhook(request, env);
+      else response = new Response("Not found", { status: 404 });
+      response.headers.set("x-request-id", requestId);
+      logEvent("info", "request_completed", { requestId, method: request.method, path, status: response.status, durationMs: Date.now() - startedAt });
+      return response;
     } catch (error) {
-      return new Response(JSON.stringify({ error: String(error) }), { status: 500, headers: corsHeaders(env, request) });
+      const errorCode = publicErrorCode(error);
+      logEvent("error", "request_failed", { requestId, method: request.method, path, errorCode, durationMs: Date.now() - startedAt });
+      return new Response(JSON.stringify({ error: errorCode, requestId }), { status: 500, headers: { ...corsHeaders(env, request), "x-request-id": requestId } });
     }
   },
 };

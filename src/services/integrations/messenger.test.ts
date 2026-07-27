@@ -4,7 +4,7 @@ vi.mock("@/services/firebase/authClient", () => ({
   auth: { currentUser: { getIdToken: vi.fn().mockResolvedValue("firebase-id-token") } },
 }));
 
-import { createMessengerInviteLink, postToPage, sendMessenger } from "@/services/integrations/messenger";
+import { createMessengerInviteLink, friendlyMessengerError, postToPage, sendMessenger } from "@/services/integrations/messenger";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -12,6 +12,12 @@ afterEach(() => {
 });
 
 describe("Messenger integration adapter", () => {
+  test("explains stable Worker error codes in Vietnamese", () => {
+    expect(friendlyMessengerError("meta_token_invalid")).toContain("Page Access Token");
+    expect(friendlyMessengerError("meta_request_failed")).toContain("Facebook");
+    expect(friendlyMessengerError("internal_error")).toContain("mã yêu cầu");
+  });
+
   test("sends Firebase token only to configured Worker", async () => {
     vi.stubEnv("VITE_MESSENGER_WORKER_URL", "https://messenger.example.workers.dev/");
     const fetchMock = vi.fn().mockResolvedValue(new Response('{"id":"out-1","status":"sent"}', { status: 200 }));

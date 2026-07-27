@@ -3,7 +3,10 @@ import { auth } from "@/services/firebase/authClient";
 
 const FRIENDLY_ERRORS: Record<string, string> = {
   no_recipient: "Phụ huynh học sinh này chưa liên kết Messenger (chưa nhắn vào Fanpage qua link liên kết).",
-  invalid_message_tag: "Tag không hợp lệ - chỉ dùng chữ in hoa và dấu gạch dưới, 3-64 ký tự.",
+  invalid_message_tag: "Tag không hợp lệ. Chỉ dùng loại thông báo được Meta cho phép.",
+  meta_token_invalid: "Page Access Token không hợp lệ hoặc đã hết hạn. Vui lòng cập nhật token trong Worker Production.",
+  meta_request_failed: "Facebook từ chối yêu cầu. Hãy kiểm tra cửa sổ phản hồi 24 giờ và chính sách Message Tag.",
+  internal_error: "Worker gặp lỗi nội bộ. Vui lòng thử lại và cung cấp mã yêu cầu nếu lỗi tiếp diễn.",
   invalid_message: "Nội dung tin nhắn không hợp lệ (trống hoặc quá 2000 ký tự).",
   missing_recipient: "Chưa xác định được tài khoản Messenger nhận tin.",
   unlinked_conversation_not_found: "Không tìm thấy hội thoại Facebook chưa liên kết để trả lời.",
