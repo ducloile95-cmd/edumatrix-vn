@@ -3,7 +3,6 @@ import {
   ArrowLeft, Check, CheckCheck, CircleAlert, Clock3, Facebook, FileWarning, Info,
   Link2, MessageCircle, MoreHorizontal, Paperclip, Search, Send, SlidersHorizontal, WifiOff,
 } from "lucide-react";
-import { AppShell } from "@/components/layouts/AppShell";
 import { Modal } from "@/components/ui/Modal";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Tab, Tabs } from "@/components/ui/Tabs";
@@ -88,5 +87,5 @@ function Fanpage() {
 export default function ChatDemoPage() {
   const { userDoc } = useAuth(); const [section, setSection] = useState<Section>("conversations");
   const tabs = [{ value: "conversations" as const, label: "Hội thoại", icon: MessageCircle }, { value: "outbox" as const, label: "Nhật ký gửi", icon: Clock3 }, ...(userDoc?.role === "admin" ? [{ value: "fanpage" as const, label: "Đăng Fanpage", icon: Facebook }] : [])];
-  return <AppShell><div className="flex h-[calc(100dvh-112px)] min-h-[620px] flex-col overflow-hidden rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)]"><DemoBar /><Tabs label="Nhánh Chat demo" className="shrink-0 px-3">{tabs.map(({ value, label, icon: Icon }) => <Tab key={value} active={section === value} onClick={() => setSection(value)} className="min-h-[50px]"><Icon size={16} />{label}</Tab>)}</Tabs>{section === "conversations" && <Conversations />}{section === "outbox" && <Outbox />}{section === "fanpage" && <Fanpage />}</div></AppShell>;
+  return <div className="flex h-[calc(100dvh-112px)] min-h-[620px] flex-col overflow-hidden rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)]"><DemoBar /><Tabs label="Nhánh Chat demo" className="shrink-0 px-3">{tabs.map(({ value, label, icon: Icon }) => <Tab key={value} active={section === value} onClick={() => setSection(value)} className="min-h-[50px]"><Icon size={16} />{label}</Tab>)}</Tabs>{section === "conversations" && <Conversations />}{section === "outbox" && <Outbox />}{section === "fanpage" && <Fanpage />}</div>;
 }

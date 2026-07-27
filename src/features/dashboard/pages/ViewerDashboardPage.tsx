@@ -26,7 +26,6 @@ import {
   Trophy,
   UserRound,
 } from "lucide-react";
-import { ViewerShell } from "@/components/layouts/ViewerShell";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { EmptyState } from "@/components/feedback/EmptyState";
@@ -168,7 +167,7 @@ export default function ViewerDashboardPage() {
   }, [academicSettings.data?.rankThresholds, data, selectedStudentId]);
 
   return (
-    <ViewerShell>
+    <>
       <PageHeader
         actions={(
           <Button
@@ -364,7 +363,7 @@ export default function ViewerDashboardPage() {
 
         </div>
       )}
-    </ViewerShell>
+    </>
   );
 }
 

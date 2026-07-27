@@ -6,7 +6,6 @@ import {
   Warning, Info, ChatCircleDots, DotsThree, Plus, MagnifyingGlass,
   PaperPlaneTilt, WifiSlash,
 } from "@phosphor-icons/react";
-import { AppShell } from "@/components/layouts/AppShell";
 import { Button } from "@/components/ui/Button";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
@@ -583,7 +582,7 @@ export default function ChatPage() {
   ];
 
   return (
-    <AppShell>
+    <>
       <div className="flex h-[calc(100dvh-112px)] min-h-[620px] flex-col overflow-hidden rounded-[18px] border border-neutral-200/80 bg-white shadow-[0_18px_60px_-42px_rgba(15,23,42,.45)]">
         <ConnectionBar configured={configured} onNewMessage={() => { setSection("conversations"); setNewMessageSignal((signal) => signal + 1); }} />
         <Tabs label="Nhánh Chat" className="shrink-0 px-3">
@@ -595,6 +594,6 @@ export default function ChatPage() {
           <FanpagePanel configured={configured} actorUid={uid} actorName={userDoc?.displayName ?? "Admin"} />
         )}
       </div>
-    </AppShell>
+    </>
   );
 }

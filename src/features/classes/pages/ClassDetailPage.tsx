@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { AppShell } from "@/components/layouts/AppShell";
 import { getClass } from "@/services/firestore/classes";
 import { listCourses } from "@/services/firestore/courses";
 import { listSubjects } from "@/services/firestore/subjects";
@@ -60,7 +59,7 @@ export default function ClassDetailPage() {
   }, [klass, teachersQuery.data]);
 
   return (
-    <AppShell>
+    <>
       <Link to={ROUTES.STAFF_CLASSES} className="text-sm text-primary-700 hover:underline">
         ← Quay lại danh sách lớp
       </Link>
@@ -117,7 +116,7 @@ export default function ClassDetailPage() {
           </>
         )}
       </div>
-    </AppShell>
+    </>
   );
 }
 

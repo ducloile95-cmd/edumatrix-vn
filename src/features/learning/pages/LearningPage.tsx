@@ -1,5 +1,4 @@
 import { useSearchParams } from "react-router-dom";
-import { AppShell } from "@/components/layouts/AppShell";
 import AssignmentsPage from "@/features/assignments/pages/AssignmentsPage";
 import ScoresPage from "@/features/scores/pages/ScoresPage";
 import { LearningOverview } from "@/features/learning/components/LearningOverview";
@@ -20,7 +19,7 @@ export default function LearningPage() {
   }
 
   return (
-    <AppShell>
+    <>
       <Tabs label="Bài tập và điểm học tập" className="mb-5">
         <Tab active={tab === "overview"} onClick={() => selectTab("overview")}>
           Tổng quan
@@ -38,6 +37,6 @@ export default function LearningPage() {
         {tab === "assignments" && <AssignmentsPage embedded />}
         {tab === "gradebook" && <ScoresPage embedded />}
       </MotionTabPanel>
-    </AppShell>
+    </>
   );
 }

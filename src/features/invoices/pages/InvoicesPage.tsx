@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Bar, BarChart, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CircleDollarSign, Clock3, Plus, ReceiptText, ShieldCheck, WalletCards } from "lucide-react";
-import { AppShell } from "@/components/layouts/AppShell";
 import { ChartEmpty, ChartPanel } from "@/components/charts/ChartPanel";
 import { ChartGradientDefs, CHART_DEPTH_FILTER, CHART_GRADIENT } from "@/components/charts/ChartGradientDefs";
 import { CHART_AXIS_TICK, CHART_TOOLTIP_STYLE } from "@/components/charts/chartTheme";
@@ -191,7 +190,7 @@ export default function InvoicesPage() {
   const isLoading = invoices.isLoading || payments.isLoading || students.isLoading;
 
   return (
-    <AppShell>
+    <>
       <PageHeader
         actions={isAdmin ? <Button variant="primary" icon={<Plus size={17} />} onClick={() => setCreateOpen(true)}>Tạo hóa đơn</Button> : undefined}
       />
@@ -357,7 +356,7 @@ export default function InvoicesPage() {
           </aside>
         </form>
       </Modal>}
-    </AppShell>
+    </>
   );
 }
 

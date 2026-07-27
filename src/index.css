@@ -107,7 +107,20 @@
 @keyframes modal-out { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(5px) scale(.99); } }
 @keyframes toast-lifecycle { 0% { opacity: 0; transform: translateY(-18px); } 8%, 88% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-8px); } }
 @keyframes skeleton-shimmer { from { background-position: 100% 0; } to { background-position: -120% 0; } }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
+
+/*
+ * Chuyen canh giua cac route dung View Transitions API (native, khong them thu vien).
+ * Chi vung <main class="page-view"> tham gia chuyen canh; Sidebar/Topbar dung yen tuyet doi.
+ * Trinh duyet chua ho tro (Firefox) se bo qua toan bo khoi nay - dieu huong van chay binh thuong.
+ */
+.page-view { view-transition-name: page; }
+::view-transition-old(page) { animation: content-exit var(--motion-fast) var(--ease-exit) both; }
+::view-transition-new(page) { animation: content-enter var(--motion-standard) var(--ease-enter) both; }
+@keyframes content-exit { from { opacity: 1; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  ::view-transition-old(page), ::view-transition-new(page) { animation: none !important; }
+}
 
 /* In giáo án (module Giáo án - LessonPlanDetail): chỉ áp dụng khi body có class .printing-lesson-plan (bật/tắt bằng JS quanh window.print()). */
 @media print {

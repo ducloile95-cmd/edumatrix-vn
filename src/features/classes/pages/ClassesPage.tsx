@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { AppShell } from "@/components/layouts/AppShell";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -32,7 +31,7 @@ export default function ClassesPage() {
   });
 
   return (
-    <AppShell>
+    <>
       {canManageClasses && (
         <PageHeader actions={<Button variant="primary" icon={<Plus size={17} />} onClick={() => { setEditingClass(null); setOpen(true); }}>Tạo lớp học</Button>} />
       )}
@@ -75,6 +74,6 @@ export default function ClassesPage() {
           </Button>
         </div>
       </Modal>
-    </AppShell>
+    </>
   );
 }

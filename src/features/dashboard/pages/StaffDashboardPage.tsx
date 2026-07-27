@@ -1,15 +1,18 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Bar, BarChart, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { AlertTriangle, BookOpenCheck, CalendarDays, ChevronRight, ClipboardCheck, Cloud, GraduationCap, MessageCircle, QrCode, Settings2, UserRound, UserX, type LucideIcon } from "lucide-react";
-import { AppShell } from "@/components/layouts/AppShell";
 import { ChartPanel } from "@/components/charts/ChartPanel";
-import { CHART_AXIS_TICK, CHART_PRIMARY, CHART_TOOLTIP_STYLE } from "@/components/charts/chartTheme";
+import { ChartGradientDefs, CHART_DEPTH_FILTER, CHART_GLOW_FILTER, CHART_GRADIENT } from "@/components/charts/ChartGradientDefs";
+import { CHART_AXIS_TICK, CHART_GRID_COLOR, CHART_PRIMARY, CHART_TOOLTIP_STYLE } from "@/components/charts/chartTheme";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
+import { CollapsibleSection } from "@/components/ui/CollapsibleSection";
+import { MotionTabPanel } from "@/components/motion/MotionTabPanel";
+import { Tab, Tabs } from "@/components/ui/Tabs";
 import { classroomSessionPath, ROUTES } from "@/constants/routes";
 import { USER_ROLES } from "@/constants/roles";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -30,18 +33,14 @@ function Panel({ title, description, children, action }: { title: string; descri
   return <section className="min-w-0 overflow-hidden rounded-card border border-neutral-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,.04)]"><div className="flex flex-wrap items-start justify-between gap-3 border-b border-neutral-100 px-5 py-4"><div><h2 className="text-base font-bold tracking-tight text-neutral-900">{title}</h2>{description && <p className="mt-1 text-xs leading-5 text-neutral-500">{description}</p>}</div>{action}</div>{children}</section>;
 }
 
-function SectionHeader({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
-  return <div className="flex flex-col gap-2 pt-2 xl:flex-row xl:items-end xl:justify-between"><h2 className="shrink-0 text-lg font-bold tracking-tight text-neutral-950">{title}</h2>{action ?? (description && <p className="text-xs leading-5 text-neutral-500">{description}</p>)}</div>;
-}
-
 function MetricCell({ icon: Icon, value, label, hint, tone = "primary" }: { icon: LucideIcon; value: ReactNode; label: string; hint: string; tone?: "primary" | "warning" | "accent" }) {
   const colors = tone === "warning" ? "bg-warning-50 text-warning-700" : tone === "accent" ? "bg-accent-50 text-accent-700" : "bg-primary-50 text-primary-700";
   return <div className="min-w-0 px-4 py-4 sm:px-5"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-xs font-semibold text-neutral-500">{label}</p><p className="mt-1 text-2xl font-black tracking-tight text-neutral-950 tabular-nums">{value}</p></div><span className={`grid size-9 shrink-0 place-items-center rounded-input ${colors}`}><Icon size={17} strokeWidth={1.8} /></span></div><p className="mt-2 truncate text-xs text-neutral-500" title={hint}>{hint}</p></div>;
 }
 
 function StaffGreeting({ name, intro, metrics }: { name: string; intro: string; metrics: { label: string; value: number; icon: LucideIcon }[] }) {
-  return <section className="mb-5 overflow-hidden rounded-card border border-primary-100 bg-primary-50/70" aria-label={`Lời chào dành cho ${name}`}>
-    <div className="grid gap-5 px-5 py-5 lg:grid-cols-[minmax(260px,.8fr)_minmax(0,1.2fr)] lg:items-center lg:px-6">
+  return <section className="mb-2 overflow-hidden rounded-card border border-primary-100 bg-primary-50/70" aria-label={`Lời chào dành cho ${name}`}>
+    <div className="grid gap-4 px-5 py-4 lg:grid-cols-[minmax(260px,.8fr)_minmax(0,1.2fr)] lg:items-center lg:px-6">
       <div>
         <h2 className="text-2xl font-black tracking-tight text-neutral-950"><span className="text-primary-700">Xin chào!</span> {name}</h2>
         <p className="mt-1.5 text-sm leading-6 text-neutral-600">{intro}</p>
@@ -73,6 +72,12 @@ const ACTION_ROUTES = {
   lesson: ROUTES.STAFF_LESSON_PLANS,
 };
 
+/**
+ * Cac nhom sau cua dashboard duoc tach thanh tab de mot man hinh khong phai gánh
+ * 16 chi so + 3 bieu do + 5 bang cung luc. Tab luu tren URL (?tab=) giong LearningPage.
+ */
+type DashboardTab = "quality" | "finance" | "system";
+
 export default function StaffDashboardPage() {
   const { firebaseUser, role, userDoc } = useAuth();
   const isAdmin = role === USER_ROLES.ADMIN;
@@ -80,6 +85,16 @@ export default function StaffDashboardPage() {
   const [days, setDays] = useState<7 | 30 | 90>(30);
   const [filters, setFilters] = useState<DashboardFilters>({});
   const range = useMemo(() => dashboardRange(days), [days]);
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedTab = searchParams.get("tab");
+  const tab: DashboardTab =
+    requestedTab === "finance" || (requestedTab === "system" && isAdmin) ? requestedTab : "quality";
+  function selectTab(nextTab: DashboardTab) {
+    const next = new URLSearchParams(searchParams);
+    next.set("tab", nextTab);
+    setSearchParams(next, { replace: true });
+  }
 
   const classes = useQuery({ queryKey: ["dashboard-filter-classes", role, firebaseUser?.uid], queryFn: listClasses, enabled: !!firebaseUser });
   const courses = useQuery({ queryKey: ["dashboard-filter-courses"], queryFn: listCourses, enabled: isAdmin });
@@ -93,15 +108,17 @@ export default function StaffDashboardPage() {
   const learning = useQuery({
     queryKey: ["staff-dashboard", "learning", role, firebaseUser?.uid, days, filters, academic.data?.rankThresholds],
     queryFn: () => getDashboardLearning(range, filters, academic.data?.rankThresholds ?? DEFAULT_RANK_THRESHOLDS),
-    enabled: !!firebaseUser && academic.isSuccess,
+    // Chi tai khi tab tuong ung dang mo - giam tu 8 xuong 5 query luc vao trang.
+    // React Query giu cache 60s nen quay lai tab la hien ngay, khong goi lai Firestore.
+    enabled: !!firebaseUser && academic.isSuccess && tab === "quality",
   });
   const finance = useQuery({
     queryKey: ["staff-dashboard", "finance", role, firebaseUser?.uid, days, filters.classId, filters.courseId, filters.teacherId],
     queryFn: listInvoices,
-    enabled: !!firebaseUser,
+    enabled: !!firebaseUser && tab === "finance",
   });
-  const integrationSettings = useQuery({ queryKey: ["settings", "integrations"], queryFn: getIntegrationSettings, enabled: isAdmin });
-  const paymentSettings = useQuery({ queryKey: ["settings", "payment"], queryFn: getPaymentSettings, enabled: isAdmin });
+  const integrationSettings = useQuery({ queryKey: ["settings", "integrations"], queryFn: getIntegrationSettings, enabled: isAdmin && tab === "system" });
+  const paymentSettings = useQuery({ queryKey: ["settings", "payment"], queryFn: getPaymentSettings, enabled: isAdmin && tab === "system" });
   const filteredFinanceInvoices = useMemo(() => {
     const scopedClasses = (classes.data ?? []).filter((klass) =>
       (!filters.classId || klass.id === filters.classId) &&
@@ -120,7 +137,17 @@ export default function StaffDashboardPage() {
     return { uid: teacher.uid, name: teacher.displayName, classes: assignedClasses.length, students: new Set(assignedClasses.flatMap((klass) => klass.studentIds)).size };
   }), [classes.data, filters.courseId, teachers.data]);
   const activeTeacherCount = (teachers.data ?? []).filter((teacher) => teacher.status === "active").length;
-  return <AppShell>
+
+  // Bo loc o cap trang: no ap cho ca khoi Van hanh lan moi tab ben duoi.
+  // Dat vao header cua CollapsibleSection de khong ton them mot hang rieng.
+  const filterBar = <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center xl:justify-end" aria-label="Phạm vi dữ liệu">
+    <div className="flex shrink-0 rounded-input bg-neutral-100 p-1" aria-label="Khoảng thời gian">{([7, 30, 90] as const).map((value) => <button key={value} type="button" onClick={() => setDays(value)} className={`min-h-8 flex-1 rounded-[7px] px-3 text-xs font-bold transition sm:flex-none ${days === value ? "bg-white text-primary-700 shadow-sm" : "text-neutral-500 hover:text-neutral-800"}`}>{value} ngày</button>)}</div>
+    {isAdmin && <select aria-label="Khóa học" value={filters.courseId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, courseId: event.target.value || undefined, classId: undefined }))} className={`${FIELD_CLASS} w-full sm:w-40`}><option value="">Tất cả khóa học</option>{courses.data?.map((course) => <option key={course.id} value={course.id}>{course.name}</option>)}</select>}
+    <select aria-label={isAdmin ? "Lớp học" : "Lớp phụ trách"} value={filters.classId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, classId: event.target.value || undefined }))} className={`${FIELD_CLASS} w-full sm:w-40`}><option value="">{isAdmin ? "Tất cả lớp" : "Lớp phụ trách"}</option>{classes.data?.filter((klass) => !filters.courseId || klass.courseId === filters.courseId).map((klass) => <option key={klass.id} value={klass.id}>{klass.name}</option>)}</select>
+    {isAdmin && <select aria-label="Giáo viên" value={filters.teacherId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, teacherId: event.target.value || undefined }))} className={`${FIELD_CLASS} w-full sm:w-40`}><option value="">Tất cả giáo viên</option>{teachers.data?.map((teacher) => <option key={teacher.uid} value={teacher.uid}>{teacher.displayName}</option>)}</select>}
+  </div>;
+
+  return <>
 
     {overview.data && (!isAdmin || teachers.isSuccess) && <StaffGreeting
       name={userDoc?.displayName?.trim() || firebaseUser?.displayName?.trim() || (isAdmin ? "Admin" : "Thầy/cô")}
@@ -137,19 +164,15 @@ export default function StaffDashboardPage() {
     />}
 
     <div className="space-y-4">
+      <CollapsibleSection
+        title="Nhịp vận hành hôm nay"
+        description="Các chỉ số cần xem trước khi bắt đầu công việc."
+        persistKey="dashboard-ops"
+        action={filterBar}
+      >
       <QueryPanel loading={overview.isLoading} error={overview.isError} retry={() => overview.refetch()}>
         {overview.data && <>
-          <SectionHeader
-            title="Nhịp vận hành hôm nay"
-            description="Các chỉ số cần xem trước khi bắt đầu công việc."
-            action={<div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center xl:w-auto xl:justify-end" aria-label="Phạm vi dữ liệu">
-              <div className="flex shrink-0 rounded-input bg-neutral-100 p-1" aria-label="Khoảng thời gian">{([7, 30, 90] as const).map((value) => <button key={value} type="button" onClick={() => setDays(value)} className={`min-h-8 flex-1 rounded-[7px] px-3 text-xs font-bold transition sm:flex-none ${days === value ? "bg-white text-primary-700 shadow-sm" : "text-neutral-500 hover:text-neutral-800"}`}>{value} ngày</button>)}</div>
-              {isAdmin && <select aria-label="Khóa học" value={filters.courseId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, courseId: event.target.value || undefined, classId: undefined }))} className={`${FIELD_CLASS} w-full sm:w-44`}><option value="">Tất cả khóa học</option>{courses.data?.map((course) => <option key={course.id} value={course.id}>{course.name}</option>)}</select>}
-              <select aria-label={isAdmin ? "Lớp học" : "Lớp phụ trách"} value={filters.classId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, classId: event.target.value || undefined }))} className={`${FIELD_CLASS} w-full sm:w-44`}><option value="">{isAdmin ? "Tất cả lớp" : "Lớp phụ trách"}</option>{classes.data?.filter((klass) => !filters.courseId || klass.courseId === filters.courseId).map((klass) => <option key={klass.id} value={klass.id}>{klass.name}</option>)}</select>
-              {isAdmin && <select aria-label="Giáo viên" value={filters.teacherId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, teacherId: event.target.value || undefined }))} className={`${FIELD_CLASS} w-full sm:w-44`}><option value="">Tất cả giáo viên</option>{teachers.data?.map((teacher) => <option key={teacher.uid} value={teacher.uid}>{teacher.displayName}</option>)}</select>}
-            </div>}
-          />
-          <section className="mt-3 grid overflow-hidden rounded-card border border-neutral-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,.04)] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 [&>*]:border-neutral-100 [&>*:not(:last-child)]:border-b sm:[&>*]:border-b sm:[&>*]:border-r xl:[&>*]:border-b-0">
+          <section className="grid overflow-hidden rounded-card border border-neutral-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,.04)] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 [&>*]:border-neutral-100 [&>*:not(:last-child)]:border-b sm:[&>*]:border-b sm:[&>*]:border-r xl:[&>*]:border-b-0">
             <MetricCell icon={CalendarDays} value={overview.data.today.total} label={isAdmin ? "Buổi học hôm nay" : "Buổi dạy hôm nay"} hint={`${overview.data.today.done} đã xong · ${overview.data.today.upcoming} sắp tới`} />
             <MetricCell icon={GraduationCap} value={overview.data.activeClasses} label="Lớp đang hoạt động" hint={isAdmin ? "Theo bộ lọc hiện tại" : "Được phân công"} />
             <MetricCell icon={UserRound} value={overview.data.activeStudents} label={isAdmin ? "Học sinh active" : "Học sinh phụ trách"} hint="Không trùng học sinh" />
@@ -164,33 +187,44 @@ export default function StaffDashboardPage() {
           </div>
         </>}
       </QueryPanel>
+      </CollapsibleSection>
 
-      <QueryPanel loading={learning.isLoading} error={learning.isError || academic.isError} retry={() => { academic.refetch(); learning.refetch(); }}>
+      <Tabs label="Nhóm chỉ số chi tiết" className="mt-2">
+        <Tab active={tab === "quality"} onClick={() => selectTab("quality")}>Chất lượng học tập</Tab>
+        <Tab active={tab === "finance"} onClick={() => selectTab("finance")}>Tài chính</Tab>
+        {isAdmin && <Tab active={tab === "system"} onClick={() => selectTab("system")}>Trạng thái hệ thống</Tab>}
+      </Tabs>
+
+      <MotionTabPanel motionKey={tab} className="space-y-4">
+      {tab === "quality" && <QueryPanel loading={learning.isLoading} error={learning.isError || academic.isError} retry={() => { academic.refetch(); learning.refetch(); }}>
         {learning.data && <>
-          <SectionHeader title="Chất lượng học tập" description={`Tổng hợp theo phạm vi ${days} ngày và bộ lọc hiện tại.`} />
+          <p className="text-xs leading-5 text-neutral-500">{`Tổng hợp theo phạm vi ${days} ngày và bộ lọc hiện tại.`}</p>
           <section className="mt-3 grid overflow-hidden rounded-card border border-neutral-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,.04)] sm:grid-cols-3 [&>*:not(:last-child)]:border-b sm:[&>*:not(:last-child)]:border-b-0 sm:[&>*:not(:last-child)]:border-r [&>*]:border-neutral-100">
             <MetricCell icon={CalendarDays} value={`${learning.data.attendanceRate}%`} label="Tỉ lệ chuyên cần" hint={`Trong ${days} ngày`} />
             <MetricCell icon={ClipboardCheck} value={`${learning.data.assignmentRate}%`} label="Hoàn thành bài tập" hint={`Trong ${days} ngày`} tone="accent" />
             <MetricCell icon={GraduationCap} value={`${learning.data.averageScore}%`} label="Điểm trung bình" hint="Theo điểm đã công bố" />
           </section>
           <div className="grid gap-4 lg:grid-cols-2">
-            <ChartPanel title={`Chuyên cần ${days} ngày`} description="Tỉ lệ có mặt theo ngày" className="min-h-[300px]"><div className="h-60"><ResponsiveContainer width="100%" height="100%"><LineChart data={learning.data.attendanceTrend}><XAxis dataKey="date" tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} minTickGap={22} /><YAxis domain={[0, 100]} unit="%" tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} /><Tooltip contentStyle={CHART_TOOLTIP_STYLE} /><Line type="monotone" dataKey="rate" stroke={CHART_PRIMARY} strokeWidth={3} dot={false} isAnimationActive={!reducedMotion} /></LineChart></ResponsiveContainer></div></ChartPanel>
-            <ChartPanel title="Phân bố xếp hạng S/A/B/D" description="Dùng thang chung do Admin cấu hình" className="min-h-[300px]"><div className="h-60"><ResponsiveContainer width="100%" height="100%"><BarChart data={learning.data.rankDistribution}><XAxis dataKey="rank" tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} /><YAxis allowDecimals={false} tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} /><Tooltip contentStyle={CHART_TOOLTIP_STYLE} /><Bar dataKey="count" fill={CHART_PRIMARY} radius={[8, 8, 0, 0]} isAnimationActive={!reducedMotion} /></BarChart></ResponsiveContainer></div></ChartPanel>
+            <ChartPanel title={`Chuyên cần ${days} ngày`} description="Tỉ lệ có mặt theo ngày" className="min-h-[300px]"><div className="h-60"><ResponsiveContainer width="100%" height="100%"><AreaChart data={learning.data.attendanceTrend} margin={{ top: 14, right: 8, left: -20, bottom: 0 }}>{ChartGradientDefs()}<CartesianGrid stroke={CHART_GRID_COLOR} strokeDasharray="3 5" vertical={false} /><XAxis dataKey="date" tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} minTickGap={22} /><YAxis domain={[0, 100]} unit="%" tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} /><Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number) => [`${value}%`, "Có mặt"]} /><Area type="monotone" dataKey="rate" stroke={CHART_GRADIENT.primary} strokeWidth={4} fill={CHART_GRADIENT.area} filter={CHART_GLOW_FILTER} activeDot={{ r: 6, fill: "#fff", stroke: CHART_PRIMARY, strokeWidth: 3 }} isAnimationActive={!reducedMotion} animationDuration={280} /></AreaChart></ResponsiveContainer></div></ChartPanel>
+            <ChartPanel title="Phân bố xếp hạng S/A/B/D" description="Dùng thang chung do Admin cấu hình" className="min-h-[300px]"><div className="h-60"><ResponsiveContainer width="100%" height="100%"><BarChart data={learning.data.rankDistribution} margin={{ top: 12, right: 6, left: -20, bottom: 0 }}>{ChartGradientDefs()}<CartesianGrid stroke={CHART_GRID_COLOR} strokeDasharray="3 5" vertical={false} /><XAxis dataKey="rank" tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} /><YAxis allowDecimals={false} tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} /><Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number) => [`${value} học sinh`, "Số lượng"]} /><Bar dataKey="count" fill={CHART_GRADIENT.primarySoft} filter={CHART_DEPTH_FILTER} radius={[10, 10, 3, 3]} barSize={32} isAnimationActive={!reducedMotion} animationDuration={280} /></BarChart></ResponsiveContainer></div></ChartPanel>
           </div>
+          <CollapsibleSection title="Chi tiết theo lớp và học sinh" description="Bảng so sánh và danh sách cần chú ý." persistKey="dashboard-quality-tables">
           <div className="grid gap-4 xl:grid-cols-[1.15fr_.85fr]">
             <Panel title={isAdmin ? "So sánh chất lượng theo lớp" : "Chất lượng các lớp phụ trách"} description="Chuyên cần, bài tập và điểm trung bình."><div className="overflow-x-auto"><table className="w-full min-w-[560px] text-left text-sm"><thead className="bg-neutral-50 text-xs text-neutral-500"><tr><th className="px-5 py-3">Lớp</th><th className="px-4 py-3">Chuyên cần</th><th className="px-4 py-3">Bài tập</th><th className="px-4 py-3">Điểm TB</th></tr></thead><tbody>{learning.data.classMetrics.map((item) => <tr key={item.classId} className="border-t border-neutral-100"><td className="px-5 py-3 font-bold text-neutral-900">{item.className}</td><td className="px-4 py-3 tabular-nums">{item.attendance}%</td><td className="px-4 py-3 tabular-nums">{item.assignments}%</td><td className="px-4 py-3 tabular-nums">{item.averageScore}%</td></tr>)}</tbody></table></div></Panel>
             <Panel title="Học sinh cần chú ý" description="Hiển thị từng nguyên nhân để có thể xử lý ngay."><div className="max-h-[390px] overflow-y-auto px-5">{learning.data.atRiskStudents.length === 0 ? <EmptyState title="Chưa có cảnh báo" description="Không có học sinh chạm ngưỡng cảnh báo." /> : <ul>{learning.data.atRiskStudents.slice(0, 20).map((student) => <li key={student.id} className="border-b border-neutral-100 py-4 last:border-0"><div className="flex items-center justify-between gap-2"><div className="min-w-0"><p className="truncate font-bold text-neutral-900">{student.name}</p><p className="mt-0.5 truncate text-xs text-neutral-500">{student.classNames.join(", ") || "Chưa có lớp"}</p></div>{student.rank && <span className="shrink-0 rounded-input bg-warning-50 px-2 py-1 text-xs font-black text-warning-800">Hạng {student.rank}</span>}</div><ul className="mt-2 space-y-1 text-xs text-warning-900">{student.reasons.map((reason) => <li key={reason} className="flex gap-1.5"><AlertTriangle size={13} className="mt-0.5 shrink-0" />{reason}</li>)}</ul></li>)}</ul>}</div></Panel>
           </div>
+          </CollapsibleSection>
           {!isAdmin && <Panel title="Phân tích từng học sinh" description="Xu hướng điểm, chuyên cần, bài tập, số lần làm lại và nhận xét gần nhất."><div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead className="bg-neutral-50 text-xs text-neutral-500"><tr><th className="px-5 py-3">Học sinh</th><th className="px-4 py-3">Hạng</th><th className="px-4 py-3">Chuyên cần</th><th className="px-4 py-3">Bài tập</th><th className="px-4 py-3">3 điểm gần nhất</th><th className="px-4 py-3">Làm lại</th><th className="px-4 py-3">Nhận xét</th></tr></thead><tbody>{learning.data.studentInsights.map((student) => <tr key={student.id} className="border-t border-neutral-100 transition hover:bg-neutral-50/70"><td className="px-5 py-3"><p className="font-bold text-neutral-900">{student.name}</p><p className="text-xs text-neutral-500">{student.classNames.join(", ")}</p></td><td className="px-4 py-3 font-black">{student.rank ?? "Chưa có"}</td><td className="px-4 py-3 tabular-nums">{student.attendanceRate}%</td><td className="px-4 py-3 tabular-nums">{student.assignmentRate}%</td><td className="px-4 py-3 tabular-nums">{student.scoreTrend.length ? student.scoreTrend.join(" → ") : "Chưa có"}</td><td className="px-4 py-3 tabular-nums">{student.redoCount}</td><td className="max-w-56 truncate px-4 py-3 text-xs text-neutral-600" title={student.latestComment}>{student.latestComment || "Chưa có"}</td></tr>)}</tbody></table></div></Panel>}
           {isAdmin && <Panel title="Khối lượng giảng dạy theo Teacher" description="Số lớp và học sinh không trùng của mỗi giáo viên."><div className="divide-y divide-neutral-100 px-5">{teacherWorkload.map((teacher) => <div key={teacher.uid} className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-5 py-3.5"><p className="truncate text-sm font-bold text-neutral-900">{teacher.name}</p><p className="text-xs text-neutral-500"><b className="text-base text-primary-700 tabular-nums">{teacher.classes}</b> lớp</p><p className="text-xs text-neutral-500"><b className="text-base text-primary-700 tabular-nums">{teacher.students}</b> học sinh</p></div>)}</div></Panel>}
         </>}
-      </QueryPanel>
+      </QueryPanel>}
 
-      <QueryPanel loading={finance.isLoading} error={finance.isError} retry={() => finance.refetch()}>
-        <><SectionHeader title="Tài chính" description={isAdmin ? "Theo dõi thu học phí và tuổi nợ toàn trung tâm." : "Dữ liệu chỉ đọc của học sinh thuộc lớp phụ trách."} /><Panel title={isAdmin ? "Tài chính và công nợ" : "Tài chính học sinh phụ trách"} description={isAdmin ? "Các số liệu tài chính theo phạm vi đã chọn." : "Teacher không thể tạo hóa đơn hoặc đối soát thanh toán."} action={<Link to={ROUTES.STAFF_INVOICES} className="inline-flex min-h-9 items-center rounded-input px-3 text-xs font-bold text-primary-700 hover:bg-primary-50">Mở module học phí</Link>}><div className="grid divide-y divide-neutral-100 sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4"><div className="p-5"><p className="text-xs font-semibold text-neutral-500">Chưa thu</p><p className="mt-1 text-xl font-black text-neutral-900">{money(financeMetrics.outstandingAmount)}</p></div><div className="p-5"><p className="text-xs font-semibold text-neutral-500">Quá hạn</p><p className="mt-1 text-xl font-black text-danger-700">{money(financeMetrics.overdueAmount)}</p></div><div className="p-5"><p className="text-xs font-semibold text-neutral-500">Chờ xác nhận</p><p className="mt-1 text-xl font-black text-neutral-900">{financeMetrics.pendingCount}</p></div>{isAdmin && <div className="p-5"><p className="text-xs font-semibold text-neutral-500">Tỉ lệ thu</p><p className="mt-1 text-xl font-black text-success-700">{financeMetrics.collectionRate}%</p></div>}</div>{isAdmin && <div className="h-52 border-t border-neutral-100 p-4"><ResponsiveContainer width="100%" height="100%"><BarChart data={financeMetrics.aging} layout="vertical"><XAxis type="number" hide /><YAxis type="category" dataKey="label" width={90} tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} /><Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number) => money(value)} /><Bar dataKey="amount" fill={CHART_PRIMARY} radius={[0, 8, 8, 0]} isAnimationActive={!reducedMotion} /></BarChart></ResponsiveContainer></div>}</Panel></>
-      </QueryPanel>
+      {tab === "finance" && <QueryPanel loading={finance.isLoading} error={finance.isError} retry={() => finance.refetch()}>
+        <><p className="text-xs leading-5 text-neutral-500">{isAdmin ? "Theo dõi thu học phí và tuổi nợ toàn trung tâm." : "Dữ liệu chỉ đọc của học sinh thuộc lớp phụ trách."}</p><Panel title={isAdmin ? "Tài chính và công nợ" : "Tài chính học sinh phụ trách"} description={isAdmin ? "Các số liệu tài chính theo phạm vi đã chọn." : "Teacher không thể tạo hóa đơn hoặc đối soát thanh toán."} action={<Link to={ROUTES.STAFF_INVOICES} className="inline-flex min-h-9 items-center rounded-input px-3 text-xs font-bold text-primary-700 hover:bg-primary-50">Mở module học phí</Link>}><div className="grid divide-y divide-neutral-100 sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4"><div className="p-5"><p className="text-xs font-semibold text-neutral-500">Chưa thu</p><p className="mt-1 text-xl font-black text-neutral-900">{money(financeMetrics.outstandingAmount)}</p></div><div className="p-5"><p className="text-xs font-semibold text-neutral-500">Quá hạn</p><p className="mt-1 text-xl font-black text-danger-700">{money(financeMetrics.overdueAmount)}</p></div><div className="p-5"><p className="text-xs font-semibold text-neutral-500">Chờ xác nhận</p><p className="mt-1 text-xl font-black text-neutral-900">{financeMetrics.pendingCount}</p></div>{isAdmin && <div className="p-5"><p className="text-xs font-semibold text-neutral-500">Tỉ lệ thu</p><p className="mt-1 text-xl font-black text-success-700">{financeMetrics.collectionRate}%</p></div>}</div>{isAdmin && <div className="h-52 border-t border-neutral-100 p-4"><ResponsiveContainer width="100%" height="100%"><BarChart data={financeMetrics.aging} layout="vertical" margin={{ top: 4, right: 20, left: 4, bottom: 0 }}>{ChartGradientDefs()}<CartesianGrid stroke={CHART_GRID_COLOR} strokeDasharray="3 5" horizontal={false} /><XAxis type="number" hide /><YAxis type="category" dataKey="label" width={90} tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} /><Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number) => money(value)} /><Bar dataKey="amount" fill={CHART_GRADIENT.primary} filter={CHART_DEPTH_FILTER} radius={[0, 10, 10, 0]} barSize={18} isAnimationActive={!reducedMotion} animationDuration={280} /></BarChart></ResponsiveContainer></div>}</Panel></>
+      </QueryPanel>}
 
-      {isAdmin && <Panel title="Trạng thái vận hành" description="Các kết nối dành riêng cho Admin." action={<Link to={`${ROUTES.STAFF_SETTINGS}?section=integrations`} className="inline-flex items-center gap-1 text-xs font-bold text-primary-700"><Settings2 size={14} />Quản lý</Link>}><div className="grid md:grid-cols-3"><div className="flex items-center gap-3 border-b border-neutral-100 px-5 py-4 md:border-b-0 md:border-r"><Cloud size={18} className="text-primary-600" /><p className="text-xs font-bold">Google Drive<br /><span className="font-normal text-neutral-500">{isGoogleDriveConfigured() && integrationSettings.data?.driveFolderId ? "Sẵn sàng" : "Cần cấu hình"}</span></p></div><div className="flex items-center gap-3 border-b border-neutral-100 px-5 py-4 md:border-b-0 md:border-r"><MessageCircle size={18} className="text-primary-600" /><p className="text-xs font-bold">Messenger Worker<br /><span className="font-normal text-neutral-500">{import.meta.env.VITE_MESSENGER_WORKER_URL ? "Đã kết nối" : "Thiếu endpoint"}</span></p></div><div className="flex items-center gap-3 px-5 py-4"><QrCode size={18} className="text-primary-600" /><p className="text-xs font-bold">VietQR<br /><span className="font-normal text-neutral-500">{paymentSettings.data?.accountNumber ? "Đã thiết lập" : "Cần thiết lập"}</span></p></div></div></Panel>}
+      {tab === "system" && isAdmin && <Panel title="Trạng thái vận hành" description="Các kết nối dành riêng cho Admin." action={<Link to={`${ROUTES.STAFF_SETTINGS}?section=integrations`} className="inline-flex items-center gap-1 text-xs font-bold text-primary-700"><Settings2 size={14} />Quản lý</Link>}><div className="grid md:grid-cols-3"><div className="flex items-center gap-3 border-b border-neutral-100 px-5 py-4 md:border-b-0 md:border-r"><Cloud size={18} className="text-primary-600" /><p className="text-xs font-bold">Google Drive<br /><span className="font-normal text-neutral-500">{isGoogleDriveConfigured() && integrationSettings.data?.driveFolderId ? "Sẵn sàng" : "Cần cấu hình"}</span></p></div><div className="flex items-center gap-3 border-b border-neutral-100 px-5 py-4 md:border-b-0 md:border-r"><MessageCircle size={18} className="text-primary-600" /><p className="text-xs font-bold">Messenger Worker<br /><span className="font-normal text-neutral-500">{import.meta.env.VITE_MESSENGER_WORKER_URL ? "Đã kết nối" : "Thiếu endpoint"}</span></p></div><div className="flex items-center gap-3 px-5 py-4"><QrCode size={18} className="text-primary-600" /><p className="text-xs font-bold">VietQR<br /><span className="font-normal text-neutral-500">{paymentSettings.data?.accountNumber ? "Đã thiết lập" : "Cần thiết lập"}</span></p></div></div></Panel>}
+      </MotionTabPanel>
     </div>
-  </AppShell>;
+  </>;
 }

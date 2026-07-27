@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { ViewerShell } from "@/components/layouts/ViewerShell";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
@@ -94,7 +93,7 @@ export default function ViewerAssignmentsPage() {
   };
 
   return (
-    <ViewerShell>
+    <>
       {isLoading && <LoadingSkeleton rows={5} />}
       {!isLoading && firstError && <ErrorState message="Không thể tải danh sách bài tập. Vui lòng kiểm tra kết nối và thử lại." onRetry={retry} />}
       {!isLoading && !firstError && !selectedStudent && (
@@ -148,7 +147,7 @@ export default function ViewerAssignmentsPage() {
           <FilterTabs filter={filter} counts={counts} onChange={setFilter} className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-neutral-200 bg-white/95 px-2 pt-2 shadow-[0_-10px_30px_rgba(37,61,124,.1)] backdrop-blur-md [padding-bottom:calc(.5rem+env(safe-area-inset-bottom))] sm:hidden" mobile />
         </div>
       )}
-    </ViewerShell>
+    </>
   );
 }
 

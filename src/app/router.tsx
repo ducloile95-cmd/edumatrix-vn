@@ -6,6 +6,8 @@ import { RoleRedirect } from "@/app/RoleRedirect";
 import { USER_ROLES } from "@/constants/roles";
 import { ROUTES } from "@/constants/routes";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
+import { AppShell } from "@/components/layouts/AppShell";
+import { ViewerShell } from "@/components/layouts/ViewerShell";
 import { useDelayedPending } from "@/hooks/useDelayedPending";
 
 // Lazy load tung page de tach bundle theo route (React.lazy + Suspense).
@@ -52,101 +54,63 @@ export function AppRouter() {
           <Route path={ROUTES.ACCESS_DENIED} element={<AccessDeniedPage />} />
           <Route path={ROUTES.ACCOUNT_DISABLED} element={<AccountDisabledPage />} />
 
+          {/*
+            Layout route Staff: AppShell dat o day nen Sidebar/Topbar/dong ho chi mount 1 lan
+            va khong bi dung lai khi chuyen tab. Cac redirect thuan tuy (Navigate) de ngoai
+            vi chung khong can shell.
+          */}
           <Route
-            path={ROUTES.STAFF_DASHBOARD}
             element={
               <RequireAuth>
                 <RequireRole roles={[USER_ROLES.ADMIN, USER_ROLES.TEACHER]}>
-                  <StaffDashboardPage />
+                  <AppShell />
                 </RequireRole>
               </RequireAuth>
             }
-          />
+          >
+            <Route path={ROUTES.STAFF_DASHBOARD} element={<StaffDashboardPage />} />
+            <Route path={ROUTES.STAFF_STUDENTS} element={<StudentsPage />} />
+            <Route path={ROUTES.STAFF_CLASSES} element={<ClassesPage />} />
+            <Route path={ROUTES.STAFF_CLASS_DETAIL} element={<ClassDetailPage />} />
+            <Route path={ROUTES.STAFF_CATALOG} element={<CatalogPage />} />
+            <Route path={ROUTES.STAFF_SESSIONS} element={<SessionsPage />} />
+            <Route path={ROUTES.STAFF_CLASSROOM} element={<ClassroomInteractionPage />} />
+            <Route path={ROUTES.STAFF_CLASSROOM_DETAIL} element={<ClassroomInteractionPage />} />
+            <Route path={ROUTES.STAFF_LESSON_PLANS} element={<LessonPlansPage />} />
+            <Route path={ROUTES.STAFF_ATTENDANCE} element={<AttendancePage />} />
+            <Route path={ROUTES.STAFF_LEARNING} element={<LearningPage />} />
+            <Route path={ROUTES.STAFF_INVOICES} element={<InvoicesPage />} />
+            <Route path={ROUTES.STAFF_CHAT} element={<ChatPage />} />
+            <Route path={ROUTES.STAFF_CHAT_DEMO} element={<ChatDemoPage />} />
+            <Route path={ROUTES.STAFF_SETTINGS} element={<SettingsPage />} />
 
-          <Route
-            path={ROUTES.STAFF_USERS}
-            element={
-              <RequireAuth>
+            {/* Rieng module Nguoi dung chi danh cho Admin - guard long them ben trong shell. */}
+            <Route
+              path={ROUTES.STAFF_USERS}
+              element={
                 <RequireRole roles={[USER_ROLES.ADMIN]} redirectTo={ROUTES.STAFF_DASHBOARD}>
                   <UsersPage />
                 </RequireRole>
-              </RequireAuth>
-            }
-          />
+              }
+            />
+          </Route>
 
+          {/* Layout route Viewer: ViewerShell boc AppShell + BottomNavigation. */}
           <Route
-            path={ROUTES.STAFF_CATALOG}
             element={
               <RequireAuth>
-                <RequireRole roles={[USER_ROLES.ADMIN, USER_ROLES.TEACHER]}>
-                  <CatalogPage />
+                <RequireRole roles={[USER_ROLES.VIEWER]}>
+                  <ViewerShell />
                 </RequireRole>
               </RequireAuth>
             }
-          />
-
-          <Route
-            path={ROUTES.STAFF_STUDENTS}
-            element={
-              <RequireAuth>
-                <RequireRole roles={[USER_ROLES.ADMIN, USER_ROLES.TEACHER]}>
-                  <StudentsPage />
-                </RequireRole>
-              </RequireAuth>
-            }
-          />
-
-          <Route
-            path={ROUTES.STAFF_CLASSES}
-            element={
-              <RequireAuth>
-                <RequireRole roles={[USER_ROLES.ADMIN, USER_ROLES.TEACHER]}>
-                  <ClassesPage />
-                </RequireRole>
-              </RequireAuth>
-            }
-          />
-
-          <Route
-            path={ROUTES.STAFF_CLASS_DETAIL}
-            element={
-              <RequireAuth>
-                <RequireRole roles={[USER_ROLES.ADMIN, USER_ROLES.TEACHER]}>
-                  <ClassDetailPage />
-                </RequireRole>
-              </RequireAuth>
-            }
-          />
-
-          <Route
-            path={ROUTES.STAFF_SESSIONS}
-            element={<RequireAuth><RequireRole roles={[USER_ROLES.ADMIN, USER_ROLES.TEACHER]}><SessionsPage /></RequireRole></RequireAuth>}
-          />
-
-          <Route
-            path={ROUTES.STAFF_CLASSROOM}
-            element={<RequireAuth><RequireRole roles={[USER_ROLES.ADMIN, USER_ROLES.TEACHER]}><ClassroomInteractionPage /></RequireRole></RequireAuth>}
-          />
-
-          <Route
-            path={ROUTES.STAFF_CLASSROOM_DETAIL}
-            element={<RequireAuth><RequireRole roles={[USER_ROLES.ADMIN, USER_ROLES.TEACHER]}><ClassroomInteractionPage /></RequireRole></RequireAuth>}
-          />
-
-          <Route
-            path={ROUTES.STAFF_LESSON_PLANS}
-            element={<RequireAuth><RequireRole roles={[USER_ROLES.ADMIN, USER_ROLES.TEACHER]}><LessonPlansPage /></RequireRole></RequireAuth>}
-          />
-
-          <Route
-            path={ROUTES.STAFF_ATTENDANCE}
-            element={<RequireAuth><RequireRole roles={[USER_ROLES.ADMIN, USER_ROLES.TEACHER]}><AttendancePage /></RequireRole></RequireAuth>}
-          />
-
-          <Route
-            path={ROUTES.STAFF_LEARNING}
-            element={<RequireAuth><RequireRole roles={[USER_ROLES.ADMIN, USER_ROLES.TEACHER]}><LearningPage /></RequireRole></RequireAuth>}
-          />
+          >
+            <Route path={ROUTES.VIEWER_DASHBOARD} element={<ViewerDashboardPage />} />
+            <Route path={ROUTES.VIEWER_SCHEDULE} element={<ViewerSchedulePage />} />
+            <Route path={ROUTES.VIEWER_ANNOUNCEMENTS} element={<ViewerAnnouncementsPage />} />
+            <Route path={ROUTES.VIEWER_TUITION} element={<ViewerTuitionPage />} />
+            <Route path={ROUTES.VIEWER_ASSIGNMENTS} element={<ViewerAssignmentsPage />} />
+          </Route>
 
           <Route
             path={ROUTES.STAFF_ASSIGNMENTS}
@@ -159,64 +123,13 @@ export function AppRouter() {
           />
 
           <Route
-            path={ROUTES.STAFF_INVOICES}
-            element={<RequireAuth><RequireRole roles={[USER_ROLES.ADMIN, USER_ROLES.TEACHER]}><InvoicesPage /></RequireRole></RequireAuth>}
-          />
-
-          <Route
             path={ROUTES.STAFF_ANNOUNCEMENTS}
             element={<Navigate to={ROUTES.STAFF_CHAT} replace />}
           />
 
           <Route
-            path={ROUTES.STAFF_CHAT}
-            element={<RequireAuth><RequireRole roles={[USER_ROLES.ADMIN, USER_ROLES.TEACHER]}><ChatPage /></RequireRole></RequireAuth>}
-          />
-
-          <Route
-            path={ROUTES.STAFF_CHAT_DEMO}
-            element={<RequireAuth><RequireRole roles={[USER_ROLES.ADMIN, USER_ROLES.TEACHER]}><ChatDemoPage /></RequireRole></RequireAuth>}
-          />
-
-          <Route
-            path={ROUTES.STAFF_SETTINGS}
-            element={<RequireAuth><RequireRole roles={[USER_ROLES.ADMIN, USER_ROLES.TEACHER]}><SettingsPage /></RequireRole></RequireAuth>}
-          />
-
-          <Route
             path={ROUTES.STAFF_SETTINGS_DEMO}
             element={<Navigate to={ROUTES.STAFF_SETTINGS} replace />}
-          />
-
-          <Route
-            path={ROUTES.VIEWER_SCHEDULE}
-            element={<RequireAuth><RequireRole roles={[USER_ROLES.VIEWER]}><ViewerSchedulePage /></RequireRole></RequireAuth>}
-          />
-
-          <Route
-            path={ROUTES.VIEWER_ANNOUNCEMENTS}
-            element={<RequireAuth><RequireRole roles={[USER_ROLES.VIEWER]}><ViewerAnnouncementsPage /></RequireRole></RequireAuth>}
-          />
-
-          <Route
-            path={ROUTES.VIEWER_TUITION}
-            element={<RequireAuth><RequireRole roles={[USER_ROLES.VIEWER]}><ViewerTuitionPage /></RequireRole></RequireAuth>}
-          />
-
-          <Route
-            path={ROUTES.VIEWER_ASSIGNMENTS}
-            element={<RequireAuth><RequireRole roles={[USER_ROLES.VIEWER]}><ViewerAssignmentsPage /></RequireRole></RequireAuth>}
-          />
-
-          <Route
-            path={ROUTES.VIEWER_DASHBOARD}
-            element={
-              <RequireAuth>
-                <RequireRole roles={[USER_ROLES.VIEWER]}>
-                  <ViewerDashboardPage />
-                </RequireRole>
-              </RequireAuth>
-            }
           />
 
           <Route

@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ViewerShell } from "@/components/layouts/ViewerShell";
 import { Modal } from "@/components/ui/Modal";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { ErrorState } from "@/components/feedback/ErrorState";
@@ -26,7 +25,7 @@ export default function ViewerTuitionPage() {
   });
 
   return (
-    <ViewerShell>
+    <>
       {invoices.isLoading && <LoadingSkeleton rows={3} />}
       {invoices.error && (
         <ErrorState message="Không thể tải danh sách học phí. Vui lòng kiểm tra kết nối và thử lại." onRetry={() => invoices.refetch()} />
@@ -106,6 +105,6 @@ export default function ViewerTuitionPage() {
           </div>
         )}
       </Modal>
-    </ViewerShell>
+    </>
   );
 }

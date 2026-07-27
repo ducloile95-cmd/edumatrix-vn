@@ -1,0 +1,978 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Demo Tương tác lớp học | EduMatrix</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --primary-50: #eff4ff;
+      --primary-100: #dbe6fe;
+      --primary-200: #bfd3fe;
+      --primary-600: #2348d6;
+      --primary-700: #1d39ac;
+      --primary-900: #1b2e6e;
+      --success-50: #ecfdf3;
+      --success-100: #d1fadf;
+      --success-700: #0f7a37;
+      --warning-50: #fffbeb;
+      --warning-100: #fef3c7;
+      --warning-700: #b45309;
+      --neutral-0: #ffffff;
+      --neutral-50: #fafaf9;
+      --neutral-100: #f4f3f1;
+      --neutral-200: #e7e5e2;
+      --neutral-300: #d3d0cb;
+      --neutral-500: #78746d;
+      --neutral-600: #57534d;
+      --neutral-700: #403d39;
+      --neutral-900: #1c1a15;
+      --shadow: 0 10px 26px rgba(28, 51, 137, 0.07);
+      --radius-input: 8px;
+      --radius-card: 12px;
+      --sidebar-width: 240px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      background: var(--neutral-50);
+      scroll-behavior: smooth;
+    }
+
+    body {
+      min-width: 320px;
+      margin: 0;
+      color: var(--neutral-900);
+      background: var(--neutral-50);
+      font-family: "Be Vietnam Pro", "Segoe UI", Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    button,
+    a,
+    input,
+    select {
+      outline: none;
+    }
+
+    button:focus-visible,
+    a:focus-visible,
+    input:focus-visible,
+    select:focus-visible {
+      box-shadow: 0 0 0 3px var(--primary-200);
+    }
+
+    .demo-shell {
+      min-height: 100dvh;
+    }
+
+    .sidebar {
+      position: fixed;
+      inset: 0 auto 0 0;
+      z-index: 20;
+      width: var(--sidebar-width);
+      padding: 18px 14px;
+      color: #eef3ff;
+      background: #17245d;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 48px;
+      padding: 0 10px 18px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      font-size: 17px;
+      font-weight: 800;
+    }
+
+    .brand-mark {
+      display: grid;
+      width: 34px;
+      height: 34px;
+      place-items: center;
+      border-radius: var(--radius-input);
+      color: #17245d;
+      background: #ffffff;
+      font-size: 18px;
+      font-weight: 900;
+    }
+
+    .nav-label {
+      margin: 20px 10px 8px;
+      color: #9eaddd;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .nav-item {
+      display: flex;
+      min-height: 44px;
+      align-items: center;
+      margin-bottom: 4px;
+      padding: 0 12px;
+      border-radius: var(--radius-input);
+      color: #cad4f4;
+      text-decoration: none;
+      font-weight: 650;
+    }
+
+    .nav-item.active {
+      color: #ffffff;
+      background: #2944a3;
+    }
+
+    .app {
+      min-height: 100dvh;
+      margin-left: var(--sidebar-width);
+    }
+
+    .topbar {
+      display: flex;
+      min-height: 64px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      border-bottom: 1px solid var(--neutral-200);
+      background: rgba(255, 255, 255, 0.96);
+    }
+
+    .topbar-title {
+      color: var(--neutral-600);
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .account {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .avatar {
+      display: grid;
+      width: 36px;
+      height: 36px;
+      place-items: center;
+      border-radius: 50%;
+      color: var(--primary-700);
+      background: var(--primary-100);
+    }
+
+    main {
+      width: min(1380px, 100%);
+      margin: 0 auto;
+      padding: 24px 28px 48px;
+    }
+
+    .demo-note {
+      display: flex;
+      min-height: 44px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 20px;
+      padding: 10px 14px;
+      border: 1px solid var(--primary-200);
+      border-radius: var(--radius-input);
+      color: var(--primary-900);
+      background: var(--primary-50);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .demo-note button {
+      min-height: 32px;
+      padding: 0 10px;
+      border: 0;
+      color: var(--primary-700);
+      background: transparent;
+      cursor: pointer;
+      font-weight: 750;
+    }
+
+    .breadcrumb {
+      margin: 0 0 8px;
+      color: var(--neutral-500);
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .page-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    h1,
+    h2,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      margin-bottom: 6px;
+      font-size: clamp(24px, 3vw, 32px);
+      line-height: 1.25;
+      letter-spacing: -0.025em;
+    }
+
+    .page-heading p,
+    .section-heading p {
+      margin-bottom: 0;
+      color: var(--neutral-500);
+    }
+
+    .date-chip {
+      flex: 0 0 auto;
+      padding: 10px 12px;
+      border: 1px solid var(--neutral-200);
+      border-radius: var(--radius-input);
+      color: var(--neutral-700);
+      background: var(--neutral-0);
+      font-size: 12px;
+      font-weight: 750;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .today-section,
+    .classes-section {
+      overflow: hidden;
+      border: 1px solid var(--neutral-200);
+      border-radius: var(--radius-card);
+      background: var(--neutral-0);
+      box-shadow: var(--shadow);
+    }
+
+    .classes-section {
+      margin-top: 20px;
+    }
+
+    .section-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 20px;
+      border-bottom: 1px solid var(--neutral-200);
+    }
+
+    .section-heading h2 {
+      margin-bottom: 4px;
+      font-size: 18px;
+      line-height: 1.4;
+    }
+
+    .count {
+      display: inline-flex;
+      min-height: 32px;
+      align-items: center;
+      padding: 0 10px;
+      border-radius: 999px;
+      color: var(--primary-700);
+      background: var(--primary-50);
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .today-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.12fr) minmax(290px, 0.88fr);
+      gap: 16px;
+      padding: 16px;
+      background: var(--neutral-50);
+    }
+
+    .session-card {
+      display: flex;
+      min-width: 0;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 20px;
+      border: 1px solid var(--neutral-200);
+      border-radius: var(--radius-card);
+      background: var(--neutral-0);
+    }
+
+    .session-card.current {
+      border-color: var(--primary-200);
+      background: linear-gradient(145deg, #ffffff 20%, var(--primary-50));
+    }
+
+    .session-status {
+      display: inline-flex;
+      min-height: 28px;
+      align-items: center;
+      align-self: flex-start;
+      padding: 0 9px;
+      border-radius: 999px;
+      color: var(--success-700);
+      background: var(--success-50);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .session-status.upcoming {
+      color: var(--warning-700);
+      background: var(--warning-50);
+    }
+
+    .session-time {
+      margin: 18px 0 4px;
+      color: var(--primary-700);
+      font-size: 24px;
+      font-weight: 850;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.02em;
+    }
+
+    .session-title {
+      margin-bottom: 8px;
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .session-meta {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px 16px;
+      color: var(--neutral-600);
+      font-size: 12px;
+    }
+
+    .session-meta strong {
+      color: var(--neutral-900);
+    }
+
+    .session-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .button {
+      display: inline-flex;
+      min-height: 44px;
+      align-items: center;
+      justify-content: center;
+      padding: 0 16px;
+      border: 1px solid var(--neutral-300);
+      border-radius: var(--radius-input);
+      color: var(--neutral-700);
+      background: var(--neutral-0);
+      cursor: pointer;
+      text-decoration: none;
+      font-weight: 750;
+      transition: background 180ms ease, border-color 180ms ease, color 180ms ease;
+    }
+
+    .button:hover {
+      border-color: var(--primary-200);
+      color: var(--primary-700);
+      background: var(--primary-50);
+    }
+
+    .button.primary {
+      border-color: var(--primary-600);
+      color: #ffffff;
+      background: var(--primary-600);
+    }
+
+    .button.primary:hover {
+      border-color: var(--primary-700);
+      color: #ffffff;
+      background: var(--primary-700);
+    }
+
+    .hidden-history {
+      padding: 12px 16px;
+      border-top: 1px solid var(--neutral-200);
+      color: var(--neutral-500);
+      background: var(--neutral-0);
+      font-size: 12px;
+      text-align: center;
+    }
+
+    .table-tools {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) 190px;
+      gap: 10px;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--neutral-200);
+      background: var(--neutral-50);
+    }
+
+    .field {
+      min-height: 44px;
+      width: 100%;
+      padding: 0 12px;
+      border: 1px solid var(--neutral-300);
+      border-radius: var(--radius-input);
+      color: var(--neutral-900);
+      background: var(--neutral-0);
+    }
+
+    .field::placeholder {
+      color: var(--neutral-500);
+    }
+
+    .table-wrap {
+      overflow: hidden;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th {
+      padding: 11px 16px;
+      color: var(--neutral-500);
+      background: var(--neutral-50);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.025em;
+      text-align: left;
+      text-transform: uppercase;
+    }
+
+    td {
+      padding: 14px 16px;
+      border-top: 1px solid var(--neutral-100);
+      color: var(--neutral-600);
+      vertical-align: middle;
+    }
+
+    tbody tr:hover {
+      background: #f9fbff;
+    }
+
+    .class-name {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--neutral-900);
+      font-weight: 800;
+    }
+
+    .subtle {
+      color: var(--neutral-500);
+      font-size: 12px;
+    }
+
+    .status {
+      display: inline-flex;
+      min-height: 28px;
+      align-items: center;
+      padding: 0 9px;
+      border-radius: 999px;
+      color: var(--success-700);
+      background: var(--success-50);
+      font-size: 11px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .status.completed {
+      color: var(--neutral-600);
+      background: var(--neutral-100);
+    }
+
+    .table-action {
+      display: inline-flex;
+      min-height: 40px;
+      align-items: center;
+      padding: 0 10px;
+      border-radius: var(--radius-input);
+      color: var(--primary-700);
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .table-action:hover {
+      background: var(--primary-50);
+    }
+
+    .table-footer {
+      display: flex;
+      min-height: 52px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 20px;
+      border-top: 1px solid var(--neutral-200);
+      color: var(--neutral-500);
+      font-size: 12px;
+    }
+
+    .empty {
+      display: none;
+      padding: 36px 20px;
+      color: var(--neutral-500);
+      text-align: center;
+    }
+
+    .empty strong {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--neutral-900);
+      font-size: 15px;
+    }
+
+    .toast {
+      position: fixed;
+      z-index: 50;
+      right: 20px;
+      bottom: 20px;
+      max-width: min(360px, calc(100vw - 32px));
+      padding: 12px 14px;
+      border: 1px solid var(--primary-200);
+      border-radius: var(--radius-input);
+      color: var(--primary-900);
+      background: #ffffff;
+      box-shadow: var(--shadow);
+      opacity: 0;
+      transform: translateY(8px);
+      pointer-events: none;
+      transition: opacity 180ms ease, transform 180ms ease;
+    }
+
+    .toast.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 980px) {
+      .sidebar {
+        display: none;
+      }
+
+      .app {
+        margin-left: 0;
+      }
+
+      .today-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .topbar {
+        min-height: 56px;
+        padding: 0 16px;
+      }
+
+      .account span {
+        display: none;
+      }
+
+      main {
+        padding: 16px 12px 36px;
+      }
+
+      .demo-note,
+      .page-heading,
+      .section-heading {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .demo-note {
+        overflow-wrap: anywhere;
+      }
+
+      .date-chip,
+      .count {
+        align-self: flex-start;
+      }
+
+      .table-tools {
+        grid-template-columns: 1fr;
+        padding: 12px;
+      }
+
+      .session-meta {
+        grid-template-columns: 1fr;
+      }
+
+      .session-actions .button {
+        flex: 1 1 150px;
+      }
+
+      thead {
+        display: none;
+      }
+
+      tbody,
+      tr,
+      td {
+        display: block;
+        width: 100%;
+      }
+
+      tbody {
+        padding: 10px;
+      }
+
+      tbody tr {
+        margin-bottom: 10px;
+        padding: 12px;
+        border: 1px solid var(--neutral-200);
+        border-radius: var(--radius-card);
+        background: var(--neutral-0);
+      }
+
+      tbody tr:last-child {
+        margin-bottom: 0;
+      }
+
+      td {
+        display: grid;
+        grid-template-columns: 116px minmax(0, 1fr);
+        gap: 10px;
+        padding: 7px 0;
+        border: 0;
+      }
+
+      td::before {
+        content: attr(data-label);
+        color: var(--neutral-500);
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+      }
+
+      td:first-child {
+        display: block;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--neutral-100);
+      }
+
+      td:first-child::before {
+        content: none;
+      }
+
+      td:last-child {
+        display: block;
+        padding-top: 10px;
+      }
+
+      td:last-child::before {
+        content: none;
+      }
+
+      .table-action {
+        min-height: 44px;
+        width: 100%;
+        justify-content: center;
+        border: 1px solid var(--primary-200);
+        background: var(--primary-50);
+      }
+
+      .table-footer {
+        align-items: flex-start;
+        flex-direction: column;
+        padding: 12px;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .session-actions {
+        flex-direction: column;
+      }
+
+      .session-actions .button {
+        width: 100%;
+        flex: none;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="demo-shell">
+    <aside class="sidebar" aria-label="Điều hướng chính">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">E</span> EduMatrix</div>
+      <p class="nav-label">Giảng dạy</p>
+      <a class="nav-item" href="#today">Lịch học</a>
+      <a class="nav-item active" href="#today" aria-current="page">Tương tác lớp học</a>
+      <a class="nav-item" href="#classes">Lớp học</a>
+      <a class="nav-item" href="#classes">Giáo án</a>
+      <p class="nav-label">Liên lạc</p>
+      <a class="nav-item" href="#classes">Thông báo</a>
+      <a class="nav-item" href="#classes">Chat</a>
+    </aside>
+
+    <div class="app">
+      <header class="topbar">
+        <span class="topbar-title">Trung tâm Anh ngữ EduMatrix</span>
+        <div class="account"><span>Nguyễn Minh Anh</span><span class="avatar" aria-hidden="true">MA</span></div>
+      </header>
+
+      <main id="main-content">
+        <div class="demo-note" id="demo-note">
+          <span>Bản demo giao diện. Tất cả tên lớp và số liệu bên dưới là dữ liệu minh họa.</span>
+          <button type="button" id="dismiss-note">Đã hiểu</button>
+        </div>
+
+        <p class="breadcrumb">Giảng dạy / Tương tác lớp học</p>
+        <div class="page-heading">
+          <div>
+            <h1>Tương tác lớp học</h1>
+            <p>Ưu tiên buổi đang diễn ra và buổi sắp bắt đầu trong hôm nay.</p>
+          </div>
+          <span class="date-chip">Thứ Bảy, 25/07/2026</span>
+        </div>
+
+        <section class="today-section" id="today" aria-labelledby="today-title">
+          <div class="section-heading">
+            <div>
+              <h2 id="today-title">Lớp học hôm nay</h2>
+              <p>Chỉ hiển thị các buổi cần thao tác từ thời điểm hiện tại.</p>
+            </div>
+            <span class="count">2 buổi cần xử lý</span>
+          </div>
+
+          <div class="today-grid">
+            <article class="session-card current">
+              <div>
+                <span class="session-status">Đang diễn ra</span>
+                <p class="session-time">18:00 - 19:30</p>
+                <h3 class="session-title">IELTS Foundation A1</h3>
+                <div class="session-meta">
+                  <span><strong>Buổi 12:</strong> Reading strategies</span>
+                  <span><strong>Phòng:</strong> P.203</span>
+                  <span><strong>Giáo viên:</strong> Nguyễn Minh Anh</span>
+                  <span><strong>Sĩ số:</strong> 14 học sinh</span>
+                </div>
+              </div>
+              <div class="session-actions">
+                <button class="button primary" type="button" data-action="IELTS Foundation A1">Mở tương tác</button>
+                <button class="button" type="button" data-detail="IELTS Foundation A1">Xem thông tin</button>
+              </div>
+            </article>
+
+            <article class="session-card">
+              <div>
+                <span class="session-status upcoming">Sắp diễn ra</span>
+                <p class="session-time">19:45 - 21:15</p>
+                <h3 class="session-title">Tiếng Anh giao tiếp B2</h3>
+                <div class="session-meta">
+                  <span><strong>Buổi 08:</strong> Workplace conversations</span>
+                  <span><strong>Phòng:</strong> P.105</span>
+                  <span><strong>Giáo viên:</strong> Nguyễn Minh Anh</span>
+                  <span><strong>Sĩ số:</strong> 11 học sinh</span>
+                </div>
+              </div>
+              <div class="session-actions">
+                <button class="button primary" type="button" data-action="Tiếng Anh giao tiếp B2">Mở tương tác</button>
+                <button class="button" type="button" data-detail="Tiếng Anh giao tiếp B2">Xem thông tin</button>
+              </div>
+            </article>
+          </div>
+          <div class="hidden-history">2 buổi đã kết thúc hôm nay được ẩn khỏi khu vực ưu tiên.</div>
+        </section>
+
+        <section class="classes-section" id="classes" aria-labelledby="classes-title">
+          <div class="section-heading">
+            <div>
+              <h2 id="classes-title">Danh sách lớp học</h2>
+              <p>Tra cứu thông tin cơ bản của tất cả lớp trong phạm vi được phân quyền.</p>
+            </div>
+            <span class="count" id="result-count">6 lớp</span>
+          </div>
+
+          <div class="table-tools">
+            <label>
+              <span class="subtle">Tìm lớp học</span>
+              <input class="field" id="class-search" type="search" placeholder="Nhập tên lớp, khóa học hoặc giáo viên">
+            </label>
+            <label>
+              <span class="subtle">Trạng thái</span>
+              <select class="field" id="status-filter">
+                <option value="all">Tất cả trạng thái</option>
+                <option value="active">Đang hoạt động</option>
+                <option value="completed">Đã hoàn thành</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Lớp học</th>
+                  <th scope="col">Lịch học</th>
+                  <th scope="col">Giáo viên</th>
+                  <th scope="col">Sĩ số</th>
+                  <th scope="col">Địa điểm</th>
+                  <th scope="col">Trạng thái</th>
+                  <th scope="col"><span class="visually-hidden">Thao tác</span></th>
+                </tr>
+              </thead>
+              <tbody id="class-rows">
+                <tr data-status="active" data-search="ielts foundation a1 ielts nền tảng nguyễn minh anh">
+                  <td data-label="Lớp học"><span class="class-name">IELTS Foundation A1</span><span class="subtle">IELTS nền tảng</span></td>
+                  <td data-label="Lịch học">Thứ 3, Thứ 7<br><span class="subtle">18:00 - 19:30</span></td>
+                  <td data-label="Giáo viên">Nguyễn Minh Anh</td>
+                  <td data-label="Sĩ số">14</td>
+                  <td data-label="Địa điểm">P.203</td>
+                  <td data-label="Trạng thái"><span class="status">Đang hoạt động</span></td>
+                  <td><a class="table-action" href="#today" data-detail="IELTS Foundation A1">Xem lớp</a></td>
+                </tr>
+                <tr data-status="active" data-search="tiếng anh giao tiếp b2 giao tiếp công sở nguyễn minh anh">
+                  <td data-label="Lớp học"><span class="class-name">Tiếng Anh giao tiếp B2</span><span class="subtle">Giao tiếp công sở</span></td>
+                  <td data-label="Lịch học">Thứ 5, Thứ 7<br><span class="subtle">19:45 - 21:15</span></td>
+                  <td data-label="Giáo viên">Nguyễn Minh Anh</td>
+                  <td data-label="Sĩ số">11</td>
+                  <td data-label="Địa điểm">P.105</td>
+                  <td data-label="Trạng thái"><span class="status">Đang hoạt động</span></td>
+                  <td><a class="table-action" href="#today" data-detail="Tiếng Anh giao tiếp B2">Xem lớp</a></td>
+                </tr>
+                <tr data-status="active" data-search="starter kids k3 tiếng anh thiếu nhi trần thu hà">
+                  <td data-label="Lớp học"><span class="class-name">Starter Kids K3</span><span class="subtle">Tiếng Anh thiếu nhi</span></td>
+                  <td data-label="Lịch học">Thứ 2, Thứ 4<br><span class="subtle">17:30 - 19:00</span></td>
+                  <td data-label="Giáo viên">Trần Thu Hà</td>
+                  <td data-label="Sĩ số">16</td>
+                  <td data-label="Địa điểm">P.101</td>
+                  <td data-label="Trạng thái"><span class="status">Đang hoạt động</span></td>
+                  <td><a class="table-action" href="#today" data-detail="Starter Kids K3">Xem lớp</a></td>
+                </tr>
+                <tr data-status="active" data-search="toeic 650 t2 luyện thi toeic lê quốc bảo">
+                  <td data-label="Lớp học"><span class="class-name">TOEIC 650 T2</span><span class="subtle">Luyện thi TOEIC</span></td>
+                  <td data-label="Lịch học">Thứ 3, Thứ 6<br><span class="subtle">19:30 - 21:00</span></td>
+                  <td data-label="Giáo viên">Lê Quốc Bảo</td>
+                  <td data-label="Sĩ số">13</td>
+                  <td data-label="Địa điểm">P.204</td>
+                  <td data-label="Trạng thái"><span class="status">Đang hoạt động</span></td>
+                  <td><a class="table-action" href="#today" data-detail="TOEIC 650 T2">Xem lớp</a></td>
+                </tr>
+                <tr data-status="completed" data-search="phonics p1 phát âm thiếu nhi trần thu hà">
+                  <td data-label="Lớp học"><span class="class-name">Phonics P1</span><span class="subtle">Phát âm thiếu nhi</span></td>
+                  <td data-label="Lịch học">Thứ 2, Thứ 6<br><span class="subtle">17:00 - 18:30</span></td>
+                  <td data-label="Giáo viên">Trần Thu Hà</td>
+                  <td data-label="Sĩ số">12</td>
+                  <td data-label="Địa điểm">P.102</td>
+                  <td data-label="Trạng thái"><span class="status completed">Đã hoàn thành</span></td>
+                  <td><a class="table-action" href="#today" data-detail="Phonics P1">Xem lớp</a></td>
+                </tr>
+                <tr data-status="completed" data-search="ielts writing w1 luyện viết học thuật phạm gia linh">
+                  <td data-label="Lớp học"><span class="class-name">IELTS Writing W1</span><span class="subtle">Luyện viết học thuật</span></td>
+                  <td data-label="Lịch học">Thứ 4, Chủ nhật<br><span class="subtle">18:30 - 20:00</span></td>
+                  <td data-label="Giáo viên">Phạm Gia Linh</td>
+                  <td data-label="Sĩ số">10</td>
+                  <td data-label="Địa điểm">P.202</td>
+                  <td data-label="Trạng thái"><span class="status completed">Đã hoàn thành</span></td>
+                  <td><a class="table-action" href="#today" data-detail="IELTS Writing W1">Xem lớp</a></td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="empty" id="empty-state">
+              <strong>Không tìm thấy lớp phù hợp</strong>
+              Thử thay đổi từ khóa hoặc chọn trạng thái khác.
+            </div>
+          </div>
+
+          <div class="table-footer">
+            <span>Hiển thị tối đa 200 lớp theo phân quyền tài khoản.</span>
+            <span>Không tải danh sách buổi học của ngày khác.</span>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const searchInput = document.querySelector("#class-search");
+    const statusFilter = document.querySelector("#status-filter");
+    const rows = [...document.querySelectorAll("#class-rows tr")];
+    const count = document.querySelector("#result-count");
+    const empty = document.querySelector("#empty-state");
+    const table = document.querySelector("table");
+    const toast = document.querySelector("#toast");
+    let toastTimer;
+
+    function normalize(value) {
+      return value.toLocaleLowerCase("vi").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    }
+
+    function filterClasses() {
+      const query = normalize(searchInput.value.trim());
+      const status = statusFilter.value;
+      let visible = 0;
+
+      rows.forEach((row) => {
+        const matchesText = normalize(row.dataset.search).includes(query);
+        const matchesStatus = status === "all" || row.dataset.status === status;
+        const show = matchesText && matchesStatus;
+        row.hidden = !show;
+        if (show) visible += 1;
+      });
+
+      count.textContent = `${visible} lớp`;
+      empty.style.display = visible ? "none" : "block";
+      table.style.display = visible ? "table" : "none";
+    }
+
+    function showToast(message) {
+      clearTimeout(toastTimer);
+      toast.textContent = message;
+      toast.classList.add("visible");
+      toastTimer = setTimeout(() => toast.classList.remove("visible"), 3200);
+    }
+
+    searchInput.addEventListener("input", filterClasses);
+    statusFilter.addEventListener("change", filterClasses);
+
+    document.querySelectorAll("[data-action]").forEach((button) => {
+      button.addEventListener("click", () => {
+        showToast(`Bản production sẽ mở workspace tương tác của lớp ${button.dataset.action}.`);
+      });
+    });
+
+    document.querySelectorAll("[data-detail]").forEach((button) => {
+      button.addEventListener("click", () => {
+        showToast(`Đang xem thông tin lớp ${button.dataset.detail} trong bản demo.`);
+      });
+    });
+
+    document.querySelector("#dismiss-note").addEventListener("click", () => {
+      document.querySelector("#demo-note").remove();
+    });
+  </script>
+</body>
+</html>

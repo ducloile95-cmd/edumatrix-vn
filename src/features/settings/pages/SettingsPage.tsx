@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { AppShell } from "@/components/layouts/AppShell";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { USER_ROLES } from "@/constants/roles";
 import { NotificationsTab } from "@/features/settings/components/NotificationsTab";
@@ -14,7 +13,7 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<PersonalTab>("notifications");
 
   return (
-    <AppShell>
+    <>
       {role === USER_ROLES.ADMIN ? <SettingsAdminPage /> : (
         <div>
           <Tabs label="Cài đặt cá nhân" className="mb-4">
@@ -27,6 +26,6 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
-    </AppShell>
+    </>
   );
 }

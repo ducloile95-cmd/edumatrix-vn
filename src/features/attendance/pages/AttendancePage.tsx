@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Plus } from "lucide-react";
-import { AppShell } from "@/components/layouts/AppShell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Tab, Tabs } from "@/components/ui/Tabs";
@@ -26,7 +25,7 @@ export default function AttendancePage() {
   }
 
   return (
-    <AppShell>
+    <>
       <PageHeader
         actions={(
           <Button variant="primary" onClick={() => setLeaveModalOpen(true)} icon={<Plus size={18} />}>
@@ -60,6 +59,6 @@ export default function AttendancePage() {
       >
         <RegisterLeaveForm onDone={() => setLeaveModalOpen(false)} />
       </Modal>
-    </AppShell>
+    </>
   );
 }

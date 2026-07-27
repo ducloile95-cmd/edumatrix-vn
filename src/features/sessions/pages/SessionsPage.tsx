@@ -14,7 +14,6 @@ import {
   startOfMonth,
   startOfWeek,
 } from "date-fns";
-import { AppShell } from "@/components/layouts/AppShell";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
@@ -185,7 +184,7 @@ export default function SessionsPage() {
         : `${format(range.from, "dd/MM")} - ${format(range.to, "dd/MM/yyyy")}`;
 
   return (
-    <AppShell>
+    <>
       <PageHeader
         actions={
           <Button variant="primary" onClick={() => { createMutation.reset(); setCreateOpen(true); }} icon={<Plus size={18} />}>
@@ -318,6 +317,6 @@ export default function SessionsPage() {
         onClose={() => { createMutation.reset(); setCreateOpen(false); }}
         onSubmit={(input) => createMutation.mutate(input)}
       />
-    </AppShell>
+    </>
   );
 }

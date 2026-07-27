@@ -25,26 +25,31 @@ export function NotificationsTab() {
   const { firebaseUser, userDoc } = useAuth();
   const prefs = userDoc?.notificationPrefs ?? {};
 
+  // Gui kem `key` de biet dung hang nao dang ghi: chi khoa + hien trang thai lac
+  // quan cho hang do, thay vi lam mo ca 5 nut gat.
   const mutation = useMutation({
-    mutationFn: (nextPrefs: Record<string, boolean>) => {
+    mutationFn: ({ nextPrefs }: { key: string; nextPrefs: Record<string, boolean> }) => {
       if (!firebaseUser) throw new Error("Chưa đăng nhập");
       return updateNotificationPrefs(firebaseUser.uid, nextPrefs);
     },
   });
+  const pending = mutation.isPending ? mutation.variables : undefined;
 
   function toggle(key: string) {
-    mutation.mutate({ ...prefs, [key]: !(prefs[key] ?? true) });
+    mutation.mutate({ key, nextPrefs: { ...prefs, [key]: !(prefs[key] ?? true) } });
   }
 
   return (
     <div className="divide-y divide-neutral-100">
       {NOTIFICATION_ITEMS.map((item) => {
-        const enabled = prefs[item.key] ?? true;
+        const optimistic = pending?.key === item.key ? pending?.nextPrefs[item.key] : undefined;
+        const busy = optimistic !== undefined;
+        const enabled = optimistic ?? prefs[item.key] ?? true;
         return (
-          <div key={item.key} className="flex items-center justify-between gap-3 py-3 first:pt-0">
-            <div>
-              <p className="text-sm font-medium text-neutral-800">{item.title}</p>
-              <p className="text-xs text-neutral-500">{item.description}</p>
+          <div key={item.key} className="flex items-center justify-between gap-4 py-3.5 first:pt-0 last:pb-0">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-neutral-800">{item.title}</p>
+              <p className="mt-0.5 text-xs leading-5 text-neutral-500">{item.description}</p>
             </div>
             <button
               type="button"
@@ -52,20 +57,28 @@ export function NotificationsTab() {
               aria-checked={enabled}
               aria-label={item.title}
               onClick={() => toggle(item.key)}
-              disabled={mutation.isPending}
-              className={`relative h-6 w-10 flex-none rounded-full transition disabled:opacity-50 ${
-                enabled ? "bg-primary-500" : "bg-neutral-300"
+              disabled={busy}
+              className={`relative h-6 w-10 flex-none rounded-full transition-colors outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-primary-500 active:scale-[.96] disabled:cursor-progress ${
+                enabled ? "bg-primary-600" : "bg-neutral-300"
               }`}
+              style={{ transitionDuration: "var(--motion-duration)" }}
             >
               <span
-                className={`absolute top-0.5 size-5 rounded-full bg-white transition-transform ${
-                  enabled ? "translate-x-[18px]" : "translate-x-0.5"
+                aria-hidden="true"
+                className={`absolute left-0.5 top-0.5 size-5 rounded-full bg-white shadow-[0_1px_3px_rgba(15,23,42,.25)] transition-transform ${
+                  enabled ? "translate-x-4" : "translate-x-0"
                 }`}
+                style={{ transitionDuration: "var(--motion-duration)" }}
               />
             </button>
           </div>
         );
       })}
+      {mutation.isError && (
+        <p role="alert" className="pt-3 text-xs font-semibold text-danger-700">
+          Không lưu được thiết lập thông báo. Kiểm tra kết nối rồi bật lại.
+        </p>
+      )}
     </div>
   );
 }

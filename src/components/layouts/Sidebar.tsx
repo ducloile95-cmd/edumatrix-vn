@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { signOut } from "firebase/auth";
+import { prefetchRoute } from "@/app/routePrefetch";
 import { auth } from "@/services/firebase/authClient";
 import { NAVIGATION_BY_ROLE, isNavGroup, type NavGroup, type NavLeaf, type NavNode } from "@/constants/navigation";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -93,6 +94,9 @@ function Leaf({
     <NavLink
       to={item.to}
       onClick={onClose}
+      onPointerEnter={() => prefetchRoute(item.to)}
+      onFocus={() => prefetchRoute(item.to)}
+      viewTransition
       title={collapsed ? item.label : undefined}
       className={({ isActive }) =>
         `motion-control group relative flex ${rowHeight} items-center gap-2 overflow-hidden rounded-input ${pad} ${textSize} font-medium active:scale-[.98] ${
@@ -174,6 +178,8 @@ function Group({
                   <NavLink
                     to={child.to}
                     onClick={onClose}
+                    onPointerEnter={() => prefetchRoute(child.to)}
+                    viewTransition
                     className={({ isActive }) =>
                       `block rounded-input px-2 py-1.5 text-xs ${
                         isActive ? "bg-primary-50 font-medium text-primary-700" : "text-neutral-700 hover:bg-neutral-100 hover:text-primary-700"

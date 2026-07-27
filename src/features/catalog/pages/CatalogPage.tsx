@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { AppShell } from "@/components/layouts/AppShell";
 import { Modal } from "@/components/ui/Modal";
 import { Tab, Tabs } from "@/components/ui/Tabs";
 import { MotionTabPanel } from "@/components/motion/MotionTabPanel";
@@ -66,7 +65,7 @@ export default function CatalogPage() {
   }
 
   return (
-    <AppShell>
+    <>
       <Tabs label="Chuyển tab Môn học & khóa học" className="mb-5">
         <Tab active={tab === "dashboard"} onClick={() => setTab("dashboard")}>
           Tổng quan
@@ -116,6 +115,6 @@ export default function CatalogPage() {
       >
         <CourseForm editingCourse={editingCourse} presetSubjectId={presetSubjectId} onDone={closeCourseModal} />
       </Modal>}
-    </AppShell>
+    </>
   );
 }

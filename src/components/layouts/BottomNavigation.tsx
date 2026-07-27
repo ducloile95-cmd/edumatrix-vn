@@ -1,6 +1,7 @@
 import { NavLink } from "react-router-dom";
 import { isNavGroup, NAVIGATION_BY_ROLE, type NavLeaf } from "@/constants/navigation";
 import { USER_ROLES } from "@/constants/roles";
+import { prefetchRoute } from "@/app/routePrefetch";
 
 const items = NAVIGATION_BY_ROLE[USER_ROLES.VIEWER].filter((node): node is NavLeaf => !isNavGroup(node));
 
@@ -12,6 +13,9 @@ export function BottomNavigation() {
         <NavLink
           key={item.to}
           to={item.to}
+          onPointerEnter={() => prefetchRoute(item.to)}
+          onFocus={() => prefetchRoute(item.to)}
+          viewTransition
           className={({ isActive }) =>
             `flex min-h-touch flex-col items-center justify-center gap-0.5 py-2 text-xs font-medium ${isActive ? "text-primary-700" : "text-neutral-500"}`
           }

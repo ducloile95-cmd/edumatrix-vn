@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { AppShell } from "@/components/layouts/AppShell";
 import { Modal } from "@/components/ui/Modal";
 import { LessonPlanList } from "@/features/lesson-plans/components/LessonPlanList";
 import { LessonPlanForm } from "@/features/lesson-plans/components/LessonPlanForm";
@@ -23,7 +22,7 @@ export default function LessonPlansPage() {
   }
 
   return (
-    <AppShell>
+    <>
       <LessonPlanList onEdit={openEdit} onCreateNew={openCreate} />
 
       <Modal
@@ -36,6 +35,6 @@ export default function LessonPlansPage() {
       >
         <LessonPlanForm editingPlan={editingPlan} onDone={handleDone} />
       </Modal>
-    </AppShell>
+    </>
   );
 }

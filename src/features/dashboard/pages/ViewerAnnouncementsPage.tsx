@@ -1,5 +1,4 @@
 import { useQueries } from "@tanstack/react-query";
-import { ViewerShell } from "@/components/layouts/ViewerShell";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
@@ -19,7 +18,7 @@ export default function ViewerAnnouncementsPage() {
   const firstError = groups.find((group) => group.error)?.error;
 
   return (
-    <ViewerShell>
+    <>
       {isLoading && <LoadingSkeleton rows={3} />}
       {!isLoading && firstError && (
         <ErrorState
@@ -40,6 +39,6 @@ export default function ViewerAnnouncementsPage() {
           ))}
         </ul>
       )}
-    </ViewerShell>
+    </>
   );
 }
