@@ -16,6 +16,10 @@ const FRIENDLY_ERRORS: Record<string, string> = {
   staff_required: "Tài khoản của bạn không có quyền gửi Messenger.",
   missing_bearer_token: "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.",
   invalid_post_images: "Danh sách ảnh không hợp lệ (tối đa 4 URL, phải bắt đầu bằng http/https).",
+  utility_disabled: "Thông báo tiện ích đang tắt trong hệ thống.",
+  utility_parameters_invalid: "Thông tin của mẫu thông báo chưa đầy đủ hoặc không hợp lệ.",
+  utility_template_not_allowed: "Tài khoản của bạn không được phép sử dụng mẫu thông báo này.",
+  utility_template_not_approved: "Mẫu thông báo chưa được Meta phê duyệt hoặc chưa được bật.",
 };
 
 export function friendlyMessengerError(message: string): string {
@@ -48,12 +52,23 @@ export function messengerPageUrl(): string | null {
   return page ? `https://www.facebook.com/${page}` : null;
 }
 
+export type UtilityTemplateKey =
+  | "tuition_payment_reminder"
+  | "tuition_payment_confirmation"
+  | "class_schedule_adjustment"
+  | "lesson_feedback_request"
+  | "enrollment_confirmation"
+  | "parent_account_link_confirmation";
+
 export interface SendMessengerInput {
   recipientPsid?: string;
-  text: string;
+  text?: string;
   type?: string;
   studentId?: string;
   tag?: string;
+  deliveryMode?: "response" | "utility";
+  templateKey?: UtilityTemplateKey;
+  parameters?: Record<string, string>;
 }
 
 export type MessengerFailureReason = "auth_required" | "not_configured" | "error";

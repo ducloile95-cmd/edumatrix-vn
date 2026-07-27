@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import worker, { assertStudentScope, buildFeedPayload, buildMessengerPayload, corsHeaders, extractBearer, extractInboundMessages, extractReferralLinks, firebaseCertificates, isMessengerTagShape, markWebhookMessageProcessed, metaErrorCode, parseMessengerProfile, postGraph, publicErrorCode, referralClaimUid, referralTargetAllowed, resetFirebaseCachesForTest, sendGraph, serviceAccessToken, validPostImages, verifyMetaSignature, webhookMessageProcessed, type Env } from "../src/index";
+import worker, { assertStudentScope, buildFeedPayload, buildMessengerPayload, buildUtilityPayload, corsHeaders, extractBearer, extractInboundMessages, extractReferralLinks, extractUtilityTemplateStatuses, firebaseCertificates, isMessengerTagShape, markWebhookMessageProcessed, metaErrorCode, parseMessengerProfile, postGraph, publicErrorCode, referralClaimUid, referralTargetAllowed, resetFirebaseCachesForTest, sendGraph, serviceAccessToken, validPostImages, validUtilityParameters, verifyMetaSignature, webhookMessageProcessed, type Env } from "../src/index";
 const env={FIREBASE_PROJECT_ID:"project",FIREBASE_CLIENT_EMAIL:"email",FIREBASE_PRIVATE_KEY:"key",META_PAGE_ACCESS_TOKEN:"token",META_APP_SECRET:"app-secret",META_WEBHOOK_VERIFY_TOKEN:"verify-me",META_GRAPH_VERSION:"v22.0",ALLOWED_ORIGIN:"http://localhost:5173"}satisfies Env;
 describe("messenger worker",()=>{
 afterEach(()=>{vi.restoreAllMocks();resetFirebaseCachesForTest()});
@@ -30,10 +30,33 @@ test("limits referral creation to the parent-student relation and teacher assign
   expect(referralTargetAllowed({role:"admin"},"admin-1",["student-1"],"student-1",null)).toBe(false);
 });
 test("extracts inbound text messages",()=>expect(extractInboundMessages({entry:[{messaging:[{sender:{id:"psid"},recipient:{id:"page"},timestamp:123,message:{mid:"mid-1",text:" Xin chao "}}]}]})).toEqual([{psid:"psid",pageId:"page",timestamp:123,messageId:"mid-1",text:"Xin chao"}]));
+test("extracts utility template status updates without retaining the full payload",()=>expect(extractUtilityTemplateStatuses({entry:[{id:"page-1",time:123,changes:[{field:"message_template_status_update",value:{message_template_id:"template-1",message_template_name:"edumatrix_payment",message_template_status:"APPROVED",message_template_language:"vi",reason:"ok"}}]}]})).toEqual([{pageId:"page-1",templateId:"template-1",templateName:"edumatrix_payment",status:"APPROVED",language:"vi",reason:"ok",timestamp:123000}]));
+test("ignores unrelated or incomplete template status changes",()=>expect(extractUtilityTemplateStatuses({entry:[{id:"page-1",changes:[{field:"feed",value:{name:"x"}},{field:"messenger_template_status_update",value:{status:"APPROVED"}}]}]})).toEqual([]));
 test("parses Messenger account name and secure avatar",()=>{expect(parseMessengerProfile({first_name:"Le",last_name:"Loi",profile_pic:"https://cdn.example/avatar.jpg"})).toEqual({name:"Le Loi",avatarUrl:"https://cdn.example/avatar.jpg"});expect(parseMessengerProfile({first_name:"Le",profile_pic:"http://unsafe.example/avatar.jpg"})).toEqual({name:"Le",avatarUrl:null})});
 test("ignores message echoes",()=>expect(extractInboundMessages({entry:[{messaging:[{sender:{id:"page"},recipient:{id:"psid"},message:{mid:"mid-2",text:"echo",is_echo:true}}]}]})).toEqual([]));
 test("builds response payload by default",()=>expect(buildMessengerPayload({recipientPsid:"psid",text:"Xin chao"})).toEqual({recipient:{id:"psid"},messaging_type:"RESPONSE",message:{text:"Xin chao"}}));
 test("builds tagged payload for outside-window sends",()=>expect(buildMessengerPayload({recipientPsid:"psid",text:"Cap nhat tai khoan",tag:"ACCOUNT_UPDATE"})).toEqual({recipient:{id:"psid"},messaging_type:"MESSAGE_TAG",tag:"ACCOUNT_UPDATE",message:{text:"Cap nhat tai khoan"}}));
+test("builds an allowlisted utility template payload",()=>{
+  const body={recipientPsid:"psid",deliveryMode:"utility" as const,templateKey:"tuition_payment_confirmation" as const,parameters:{centerName:"EduMatrix",billingPeriod:"Thang 8",studentName:"Nguyen Van A",amount:"2.000.000 dong",paymentDate:"05/08/2026",paymentReference:"HP-001"}};
+  expect(validUtilityParameters(body)).toBe(true);
+  expect(buildUtilityPayload(body)).toEqual({
+    recipient:{id:"psid"},
+    messaging_type:"UTILITY",
+    message:{template:{name:"edumatrix_tuition_payment_confirmation_vi",language:{code:"vi"},components:[{type:"body",parameters:[
+      {type:"text",text:"EduMatrix"},
+      {type:"text",text:"Thang 8"},
+      {type:"text",text:"Nguyen Van A"},
+      {type:"text",text:"2.000.000 dong"},
+      {type:"text",text:"05/08/2026"},
+      {type:"text",text:"HP-001"},
+    ]}]}}
+  });
+});
+test("rejects missing, extra, empty, and unknown utility parameters",()=>{
+  expect(validUtilityParameters({deliveryMode:"utility",templateKey:"tuition_payment_reminder",parameters:{}})).toBe(false);
+  expect(validUtilityParameters({deliveryMode:"utility",templateKey:"tuition_payment_reminder",parameters:{centerName:"EduMatrix",billingPeriod:"Thang 8",studentName:"A",amount:"2m",dueDate:"",extra:"x"}})).toBe(false);
+  expect(validUtilityParameters({deliveryMode:"utility",templateKey:"not_real" as never,parameters:{}})).toBe(false);
+});
 test("allows only supported Messenger tags",()=>{expect(isMessengerTagShape("ACCOUNT_UPDATE")).toBe(true);expect(isMessengerTagShape("CONFIRMED_EVENT_UPDATE")).toBe(true);expect(isMessengerTagShape("POST_PURCHASE_UPDATE")).toBe(true);expect(isMessengerTagShape("HUMAN_AGENT")).toBe(false);expect(isMessengerTagShape("ARBITRARY_VALID_SHAPE")).toBe(false);expect(isMessengerTagShape("bad tag")).toBe(false)});
 test("sends Messenger token in Authorization header, never the URL",async()=>{
   const fetchMock=vi.spyOn(globalThis,"fetch").mockResolvedValue(new Response(JSON.stringify({message_id:"mid"}),{status:200,headers:{"content-type":"application/json"}}));

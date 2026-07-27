@@ -29,6 +29,30 @@ describe("Messenger integration adapter", () => {
     );
   });
 
+  test("sends a utility template key and parameters without a free-form message", async () => {
+    vi.stubEnv("VITE_MESSENGER_WORKER_URL", "https://messenger.example.workers.dev");
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{"id":"out-utility","status":"sent"}', { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const input = {
+      deliveryMode: "utility" as const,
+      templateKey: "tuition_payment_confirmation" as const,
+      studentId: "student-1",
+      parameters: {
+        centerName: "EduMatrix",
+        billingPeriod: "Tháng 8",
+        studentName: "Nguyễn Văn A",
+        amount: "2.000.000 đồng",
+        paymentDate: "05/08/2026",
+        paymentReference: "HP-001",
+      },
+    };
+    await expect(sendMessenger(input)).resolves.toMatchObject({ sent: true, id: "out-utility" });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://messenger.example.workers.dev/api/messenger/send",
+      expect.objectContaining({ body: JSON.stringify(input) }),
+    );
+  });
+
   test("does not retry a failed mutation and keeps Worker error code", async () => {
     vi.stubEnv("VITE_MESSENGER_WORKER_URL", "https://messenger.example.workers.dev");
     const fetchMock = vi.fn().mockResolvedValue(new Response('{"error":"student_scope_denied"}', { status: 403 }));

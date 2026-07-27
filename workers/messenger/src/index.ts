@@ -9,6 +9,7 @@ export interface Env {
   META_WEBHOOK_VERIFY_TOKEN: string;
   META_GRAPH_VERSION: string;
   ALLOWED_ORIGIN: string;
+  UTILITY_MESSAGING_ENABLED?: string;
   CF_VERSION_METADATA?: { id: string; tag: string; timestamp: string };
 }
 
@@ -23,16 +24,92 @@ interface ThreadContext {
   className: string;
   assignedTeacherIds: string[];
 }
-export interface SendBody { recipientPsid?: string; text: string; type?: string; studentId?: string; tag?: string }
+export type UtilityTemplateKey =
+  | "tuition_payment_reminder"
+  | "tuition_payment_confirmation"
+  | "class_schedule_adjustment"
+  | "lesson_feedback_request"
+  | "enrollment_confirmation"
+  | "parent_account_link_confirmation";
+export interface SendBody {
+  recipientPsid?: string;
+  text?: string;
+  type?: string;
+  studentId?: string;
+  tag?: string;
+  deliveryMode?: "response" | "utility";
+  templateKey?: UtilityTemplateKey;
+  parameters?: Record<string, string>;
+}
 export interface LinkConversationBody { psid?: string; studentId?: string }
 export interface PostBody { message: string; link?: string; imageUrls?: string[] }
 export interface InboundMessage { psid: string; pageId: string; text: string; messageId: string; timestamp: number }
+export interface UtilityTemplateStatus {
+  pageId: string;
+  templateId: string | null;
+  templateName: string;
+  status: string;
+  language: string | null;
+  reason: string | null;
+  timestamp: number;
+}
 
 const ALLOWED_MESSENGER_TAGS = new Set([
   "ACCOUNT_UPDATE",
   "CONFIRMED_EVENT_UPDATE",
   "POST_PURCHASE_UPDATE",
 ]);
+interface UtilityTemplateDefinition {
+  metaName: string;
+  language: string;
+  parameterKeys: string[];
+  teacherAllowed: boolean;
+  label: string;
+}
+export const UTILITY_TEMPLATES: Record<UtilityTemplateKey, UtilityTemplateDefinition> = {
+  tuition_payment_reminder: {
+    metaName: "edumatrix_tuition_payment_reminder_vi",
+    language: "vi",
+    parameterKeys: ["centerName", "billingPeriod", "studentName", "amount", "dueDate"],
+    teacherAllowed: true,
+    label: "Nhắc học phí",
+  },
+  tuition_payment_confirmation: {
+    metaName: "edumatrix_tuition_payment_confirmation_vi",
+    language: "vi",
+    parameterKeys: ["centerName", "billingPeriod", "studentName", "amount", "paymentDate", "paymentReference"],
+    teacherAllowed: true,
+    label: "Thanh toán học phí thành công",
+  },
+  class_schedule_adjustment: {
+    metaName: "edumatrix_class_schedule_adjustment_vi",
+    language: "vi",
+    parameterKeys: ["adjustmentType", "className", "studentName", "lessonDate", "lessonTime", "reason", "makeupPlan"],
+    teacherAllowed: true,
+    label: "Điều chỉnh lịch học",
+  },
+  lesson_feedback_request: {
+    metaName: "edumatrix_lesson_feedback_request_vi",
+    language: "vi",
+    parameterKeys: ["studentName", "lessonDate", "feedbackUrl"],
+    teacherAllowed: true,
+    label: "Đánh giá buổi học",
+  },
+  enrollment_confirmation: {
+    metaName: "edumatrix_enrollment_confirmation_vi",
+    language: "vi",
+    parameterKeys: ["centerName", "studentName", "courseName", "className", "startDate", "schedule"],
+    teacherAllowed: true,
+    label: "Đăng ký học thành công",
+  },
+  parent_account_link_confirmation: {
+    metaName: "edumatrix_parent_account_link_confirmation_vi",
+    language: "vi",
+    parameterKeys: ["parentName", "studentName", "centerName", "parentEmail", "loginUrl"],
+    teacherAllowed: false,
+    label: "Liên kết tài khoản phụ huynh thành công",
+  },
+};
 const CACHE_REFRESH_MARGIN_MS = 5 * 60 * 1000;
 let firebaseCertCache: { certs: Record<string, string>; expiresAt: number } | null = null;
 let serviceTokenCache: { key: string; token: string; expiresAt: number } | null = null;
@@ -76,6 +153,10 @@ export function publicErrorCode(error: unknown): string {
     "firebase_keys_unavailable",
     "invalid_message",
     "invalid_message_tag",
+    "utility_disabled",
+    "utility_parameters_invalid",
+    "utility_template_not_allowed",
+    "utility_template_not_approved",
     "missing_bearer_token",
     "missing_recipient",
     "no_recipient",
@@ -104,7 +185,44 @@ function normalizeSecret(value: string, key: string): string {
   return normalized.trim();
 }
 
+export function utilityTemplate(body: SendBody): UtilityTemplateDefinition | null {
+  return body.templateKey ? UTILITY_TEMPLATES[body.templateKey] ?? null : null;
+}
+
+export function validUtilityParameters(body: SendBody): boolean {
+  const template = utilityTemplate(body);
+  if (!template || !body.parameters || typeof body.parameters !== "object" || Array.isArray(body.parameters)) return false;
+  const keys = Object.keys(body.parameters).sort();
+  const expected = [...template.parameterKeys].sort();
+  return keys.length === expected.length
+    && keys.every((key, index) => key === expected[index])
+    && template.parameterKeys.every((key) => {
+      const value = body.parameters?.[key];
+      return typeof value === "string" && value.trim().length > 0 && value.length <= 500;
+    });
+}
+
+export function buildUtilityPayload(body: SendBody): Record<string, unknown> {
+  const template = utilityTemplate(body);
+  if (!template || !validUtilityParameters(body)) throw new Error("utility_parameters_invalid");
+  return {
+    recipient: { id: body.recipientPsid },
+    messaging_type: "UTILITY",
+    message: {
+      template: {
+        name: template.metaName,
+        language: { code: template.language },
+        components: [{
+          type: "body",
+          parameters: template.parameterKeys.map((key) => ({ type: "text", text: body.parameters?.[key] })),
+        }],
+      },
+    },
+  };
+}
+
 export function buildMessengerPayload(body: SendBody): Record<string, unknown> {
+  if (body.deliveryMode === "utility") return buildUtilityPayload(body);
   const tag = body.tag?.trim();
   const payload: Record<string, unknown> = {
     recipient: { id: body.recipientPsid },
@@ -153,6 +271,37 @@ export function extractInboundMessages(payload: unknown): InboundMessage[] {
       if (!value.message?.is_echo && value.sender?.id && value.recipient?.id && value.message?.mid && value.message.text?.trim()) {
         result.push({ psid: value.sender.id, pageId: value.recipient.id, text: value.message.text.trim().slice(0, 2000), messageId: value.message.mid, timestamp: value.timestamp ?? Date.now() });
       }
+    }
+  }
+  return result;
+}
+
+export function extractUtilityTemplateStatuses(payload: unknown): UtilityTemplateStatus[] {
+  const result: UtilityTemplateStatus[] = [];
+  if (!payload || typeof payload !== "object") return result;
+  for (const entry of (payload as { entry?: unknown[] }).entry ?? []) {
+    if (!entry || typeof entry !== "object") continue;
+    const pageId = typeof (entry as { id?: unknown }).id === "string" ? (entry as { id: string }).id : "";
+    const timestamp = typeof (entry as { time?: unknown }).time === "number" ? (entry as { time: number }).time * 1000 : Date.now();
+    for (const change of (entry as { changes?: unknown[] }).changes ?? []) {
+      if (!change || typeof change !== "object") continue;
+      const field = (change as { field?: unknown }).field;
+      if (field !== "message_template_status_update" && field !== "messenger_template_status_update") continue;
+      const value = (change as { value?: unknown }).value;
+      if (!value || typeof value !== "object") continue;
+      const data = value as Record<string, unknown>;
+      const templateName = [data.message_template_name, data.name].find((item): item is string => typeof item === "string") ?? "";
+      const status = [data.event, data.message_template_status, data.status].find((item): item is string => typeof item === "string") ?? "";
+      if (!pageId || !templateName || !status) continue;
+      result.push({
+        pageId,
+        templateId: typeof data.message_template_id === "string" ? data.message_template_id : null,
+        templateName,
+        status,
+        language: typeof data.message_template_language === "string" ? data.message_template_language : typeof data.language === "string" ? data.language : null,
+        reason: typeof data.reason === "string" ? data.reason.slice(0, 240) : null,
+        timestamp,
+      });
     }
   }
   return result;
@@ -541,10 +690,22 @@ async function handleSend(request: Request, env: Env): Promise<Response> {
   const claims = await verifyFirebaseToken(idToken, env);
   const profile = await requireStaff(claims.sub, idToken, env);
   const body = await request.json<SendBody>();
-  if (!body.text?.trim() || body.text.length > 2000) return new Response(JSON.stringify({ error: "invalid_message" }), { status: 400, headers: corsHeaders(env, request) });
-  if (body.tag !== undefined && !isMessengerTagShape(body.tag)) return new Response(JSON.stringify({ error: "invalid_message_tag" }), { status: 400, headers: corsHeaders(env, request) });
+  const deliveryMode = body.deliveryMode ?? "response";
+  const template = deliveryMode === "utility" ? utilityTemplate(body) : null;
+  if (deliveryMode === "utility") {
+    if (env.UTILITY_MESSAGING_ENABLED !== "true") return new Response(JSON.stringify({ error: "utility_disabled" }), { status: 403, headers: corsHeaders(env, request) });
+    if (!template) return new Response(JSON.stringify({ error: "utility_template_not_approved" }), { status: 400, headers: corsHeaders(env, request) });
+    if (!validUtilityParameters(body)) return new Response(JSON.stringify({ error: "utility_parameters_invalid" }), { status: 400, headers: corsHeaders(env, request) });
+    if (body.tag !== undefined) return new Response(JSON.stringify({ error: "invalid_message_tag" }), { status: 400, headers: corsHeaders(env, request) });
+    if (profile.role === "teacher" && !template.teacherAllowed) return new Response(JSON.stringify({ error: "utility_template_not_allowed" }), { status: 403, headers: corsHeaders(env, request) });
+  } else {
+    if (!body.text?.trim() || body.text.length > 2000) return new Response(JSON.stringify({ error: "invalid_message" }), { status: 400, headers: corsHeaders(env, request) });
+    if (body.tag !== undefined && !isMessengerTagShape(body.tag)) return new Response(JSON.stringify({ error: "invalid_message_tag" }), { status: 400, headers: corsHeaders(env, request) });
+  }
+  const content = deliveryMode === "utility" ? `Thông báo tiện ích: ${template?.label ?? body.templateKey}` : body.text!.trim();
   const serviceToken = await serviceAccessToken(env);
   if (!body.studentId && body.recipientPsid) {
+    if (deliveryMode === "utility") return new Response(JSON.stringify({ error: "missing_recipient" }), { status: 400, headers: corsHeaders(env, request) });
     if (profile.role !== "admin") return new Response(JSON.stringify({ error: "admin_required" }), { status: 403, headers: corsHeaders(env, request) });
     const directThreadId = `messenger_unlinked_${body.recipientPsid}`.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 180);
     const directThread = await readDocument("chat_threads", directThreadId, serviceToken, env);
@@ -553,16 +714,16 @@ async function handleSend(request: Request, env: Env): Promise<Response> {
     }
     const id = crypto.randomUUID();
     try {
-      const result = await sendGraph(body, env);
+      const result = await sendGraph({ ...body, text: content }, env);
       const occurredAt = new Date();
-      await writeDocument("message_outbox", id, { type: body.type ?? "manual", studentId: null, recipientPsid: body.recipientPsid, content: body.text, status: "sent", messageTag: body.tag ?? null, metaMessageId: result.message_id ?? null, actorUid: claims.sub, createdAt: occurredAt }, serviceToken, env);
-      await writeDocument(`chat_threads/${directThreadId}/messages`, result.message_id ?? id, { direction: "outbound", text: body.text, actorUid: claims.sub, status: "sent", metaMessageId: result.message_id ?? null, errorCode: null, createdAt: occurredAt, updatedAt: occurredAt }, serviceToken, env);
-      await updateDocumentFields("chat_threads", directThreadId, { lastMessagePreview: body.text.slice(0, 160), lastMessageDirection: "outbound", lastMessageAt: occurredAt, unreadStaffCount: 0, updatedAt: occurredAt }, serviceToken, env);
+      await writeDocument("message_outbox", id, { type: body.type ?? "manual", studentId: null, recipientPsid: body.recipientPsid, content, status: "sent", deliveryMode, messageTag: body.tag ?? null, metaMessageId: result.message_id ?? null, actorUid: claims.sub, createdAt: occurredAt }, serviceToken, env);
+      await writeDocument(`chat_threads/${directThreadId}/messages`, result.message_id ?? id, { direction: "outbound", text: content, actorUid: claims.sub, status: "sent", metaMessageId: result.message_id ?? null, errorCode: null, createdAt: occurredAt, updatedAt: occurredAt }, serviceToken, env);
+      await updateDocumentFields("chat_threads", directThreadId, { lastMessagePreview: content.slice(0, 160), lastMessageDirection: "outbound", lastMessageAt: occurredAt, unreadStaffCount: 0, updatedAt: occurredAt }, serviceToken, env);
       return new Response(JSON.stringify({ id, status: "sent", sent: 1, total: 1 }), { headers: corsHeaders(env, request) });
     } catch (error) {
       const code = (error instanceof Error ? error.message : String(error)).slice(0, 240);
       const responseCode = publicErrorCode(error);
-      await writeDocument("message_outbox", id, { type: body.type ?? "manual", studentId: null, recipientPsid: body.recipientPsid, content: body.text, status: "failed", messageTag: body.tag ?? null, metaMessageId: null, error: code, actorUid: claims.sub, createdAt: new Date() }, serviceToken, env);
+      await writeDocument("message_outbox", id, { type: body.type ?? "manual", studentId: null, recipientPsid: body.recipientPsid, content, status: "failed", deliveryMode, messageTag: body.tag ?? null, metaMessageId: null, error: code, actorUid: claims.sub, createdAt: new Date() }, serviceToken, env);
       return new Response(JSON.stringify({ id, status: "failed", sent: 0, total: 1, error: responseCode }), { status: 502, headers: corsHeaders(env, request) });
     }
   }
@@ -575,14 +736,14 @@ async function handleSend(request: Request, env: Env): Promise<Response> {
   for (const recipient of recipients) {
     const id = crypto.randomUUID();
     try {
-      const result = await sendGraph({ ...body, recipientPsid: recipient.psid }, env);
-      await writeDocument("message_outbox", id, { type: body.type ?? "general", studentId: body.studentId, recipientPsid: recipient.psid, content: body.text, status: "sent", messageTag: body.tag ?? null, metaMessageId: result.message_id ?? null, actorUid: claims.sub, createdAt: new Date() }, serviceToken, env);
-      if (context) await writeChatEvent({ context, parentUid: recipient.parentUid, direction: "outbound", text: body.text, status: "sent", actorUid: claims.sub, metaMessageId: result.message_id ?? null, errorCode: null, occurredAt: new Date(), threadId: recipient.threadId }, serviceToken, env);
+      const result = await sendGraph({ ...body, text: content, recipientPsid: recipient.psid }, env);
+      await writeDocument("message_outbox", id, { type: body.type ?? "general", studentId: body.studentId, recipientPsid: recipient.psid, content, status: "sent", deliveryMode, templateKey: body.templateKey ?? null, templateName: template?.metaName ?? null, templateLanguage: template?.language ?? null, templateParameters: body.parameters ?? null, templateVersion: deliveryMode === "utility" ? 1 : null, messageTag: body.tag ?? null, metaMessageId: result.message_id ?? null, actorUid: claims.sub, createdAt: new Date() }, serviceToken, env);
+      if (context) await writeChatEvent({ context, parentUid: recipient.parentUid, direction: "outbound", text: content, status: "sent", actorUid: claims.sub, metaMessageId: result.message_id ?? null, errorCode: null, occurredAt: new Date(), threadId: recipient.threadId }, serviceToken, env);
       results.push({ id, status: "sent" });
     } catch (error) {
       const code = (error instanceof Error ? error.message : String(error)).slice(0, 240);
-      await writeDocument("message_outbox", id, { type: body.type ?? "general", studentId: body.studentId, recipientPsid: recipient.psid, content: body.text, status: "failed", messageTag: body.tag ?? null, metaMessageId: null, error: code, actorUid: claims.sub, createdAt: new Date() }, serviceToken, env);
-      if (context) await writeChatEvent({ context, parentUid: recipient.parentUid, direction: "outbound", text: body.text, status: "failed", actorUid: claims.sub, metaMessageId: null, errorCode: code, occurredAt: new Date(), threadId: recipient.threadId }, serviceToken, env);
+      await writeDocument("message_outbox", id, { type: body.type ?? "general", studentId: body.studentId, recipientPsid: recipient.psid, content, status: "failed", deliveryMode, templateKey: body.templateKey ?? null, templateName: template?.metaName ?? null, templateLanguage: template?.language ?? null, templateParameters: body.parameters ?? null, templateVersion: deliveryMode === "utility" ? 1 : null, messageTag: body.tag ?? null, metaMessageId: null, error: code, metaErrorCode: publicErrorCode(error), actorUid: claims.sub, createdAt: new Date() }, serviceToken, env);
+      if (context) await writeChatEvent({ context, parentUid: recipient.parentUid, direction: "outbound", text: content, status: "failed", actorUid: claims.sub, metaMessageId: null, errorCode: code, occurredAt: new Date(), threadId: recipient.threadId }, serviceToken, env);
       results.push({ id, status: "failed", error: publicErrorCode(error) });
     }
   }
@@ -734,6 +895,7 @@ async function handleWebhook(request: Request, env: Env): Promise<Response> {
   const serviceToken = await serviceAccessToken(env);
   const referralLinks = extractReferralLinks(payload);
   const inboundMessages = extractInboundMessages(payload);
+  const templateStatuses = extractUtilityTemplateStatuses(payload);
   const entries = payload && typeof payload === "object" ? (payload as { entry?: unknown[] }).entry ?? [] : [];
   logEvent("info", "webhook_received", {
     entries: entries.length,
@@ -744,7 +906,17 @@ async function handleWebhook(request: Request, env: Env): Promise<Response> {
     ), 0),
     referrals: referralLinks.length,
     inboundMessages: inboundMessages.length,
+    templateStatuses: templateStatuses.length,
   });
+  for (const status of templateStatuses) {
+    const id = (status.templateId ?? `${status.pageId}_${status.templateName}_${status.language ?? "unknown"}`)
+      .replace(/[^a-zA-Z0-9_-]/g, "_")
+      .slice(0, 180);
+    await writeDocument("messenger_template_status", id, {
+      ...status,
+      updatedAt: new Date(status.timestamp),
+    }, serviceToken, env);
+  }
   for (const link of referralLinks) {
     await claimReferralNonce(link.nonce, link.psid, link.pageId, serviceToken, env);
   }

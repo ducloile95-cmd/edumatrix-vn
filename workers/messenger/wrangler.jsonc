@@ -9,7 +9,8 @@
   "vars": {
     "FIREBASE_PROJECT_ID": "edumatrix-vn-576b1",
     "META_GRAPH_VERSION": "v22.0",
-    "ALLOWED_ORIGIN": "http://localhost:5173"
+    "ALLOWED_ORIGIN": "http://localhost:5173",
+    "UTILITY_MESSAGING_ENABLED": "false"
   },
   "secrets": {
     "required": ["META_PAGE_ACCESS_TOKEN", "META_APP_SECRET", "META_WEBHOOK_VERIFY_TOKEN", "FIREBASE_CLIENT_EMAIL", "FIREBASE_PRIVATE_KEY"]
@@ -22,7 +23,8 @@
       "vars": {
         "FIREBASE_PROJECT_ID": "edumatrix-vn-576b1",
         "META_GRAPH_VERSION": "v22.0",
-        "ALLOWED_ORIGIN": "https://edumatrix-vn-576b1.web.app,https://edumatrix.id.vn"
+        "ALLOWED_ORIGIN": "https://edumatrix-vn-576b1.web.app,https://edumatrix.id.vn",
+        "UTILITY_MESSAGING_ENABLED": "false"
       },
       "secrets": {
         "required": ["META_PAGE_ACCESS_TOKEN", "META_APP_SECRET", "META_WEBHOOK_VERIFY_TOKEN", "FIREBASE_CLIENT_EMAIL", "FIREBASE_PRIVATE_KEY"]
