@@ -12,6 +12,8 @@ import { useDelayedPending } from "@/hooks/useDelayedPending";
 
 // Lazy load tung page de tach bundle theo route (React.lazy + Suspense).
 const LoginPage = lazy(() => import("@/features/auth/pages/LoginPage"));
+const PrivacyPolicyPage = lazy(() => import("@/features/legal/pages/PrivacyPolicyPage"));
+const DataDeletionPage = lazy(() => import("@/features/legal/pages/DataDeletionPage"));
 const AccessDeniedPage = lazy(() => import("@/features/auth/pages/AccessDeniedPage"));
 const AccountDisabledPage = lazy(() => import("@/features/auth/pages/AccountDisabledPage"));
 const StaffDashboardPage = lazy(() => import("@/features/dashboard/pages/StaffDashboardPage"));
@@ -52,6 +54,8 @@ export function AppRouter() {
       <Suspense fallback={<RouteFallback />}>
         <Routes>
           <Route path={ROUTES.LOGIN} element={<LoginPage />} />
+          <Route path={ROUTES.PRIVACY_POLICY} element={<PrivacyPolicyPage />} />
+          <Route path={ROUTES.DATA_DELETION} element={<DataDeletionPage />} />
           <Route path={ROUTES.ACCESS_DENIED} element={<AccessDeniedPage />} />
           <Route path={ROUTES.ACCOUNT_DISABLED} element={<AccountDisabledPage />} />
 

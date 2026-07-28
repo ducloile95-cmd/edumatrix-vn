@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from "react";
-import { Navigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { Eye, EyeOff, GraduationCap, Users } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
+import { ROUTES } from "@/constants/routes";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { activateAccount, authErrorMessage, resetPassword, signInEmail, signInGoogle } from "@/services/firebase/auth";
 import bgUrl from "@/assets/login-bg.svg";
@@ -197,7 +198,14 @@ export default function LoginPage() {
 
           <div className="mt-6 flex items-center justify-between border-t border-neutral-100 pt-4 text-2xs text-neutral-500">
             <span>© 2026 EduMatrix VN</span>
-            <a href="#" className="hover:text-neutral-700">Chính sách bảo mật</a>
+            <span className="flex gap-3">
+              <Link to={ROUTES.PRIVACY_POLICY} className="hover:text-neutral-700">
+                Chính sách bảo mật
+              </Link>
+              <Link to={ROUTES.DATA_DELETION} className="hover:text-neutral-700">
+                Xóa dữ liệu
+              </Link>
+            </span>
           </div>
         </div>
 

@@ -1,6 +1,8 @@
 /** Duong dan route tap trung - tranh hardcode string rai rac. */
 export const ROUTES = {
   LOGIN: "/login",
+  PRIVACY_POLICY: "/privacy",
+  DATA_DELETION: "/data-deletion",
   ACCESS_DENIED: "/access-denied",
   ACCOUNT_DISABLED: "/account-disabled",
 
