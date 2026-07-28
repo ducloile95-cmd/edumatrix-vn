@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
-  ArrowLeft, CheckCheck, History, Copy, ExternalLink,
+  ArrowLeft, CalendarClock, CheckCheck, CreditCard, History, Copy, ExternalLink,
   AlertTriangle, Info, MessageCircle, MoreHorizontal, Plus, Search,
-  Send, WifiOff,
+  Send, ShieldCheck, Star, UserCheck, WifiOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ErrorState } from "@/components/feedback/ErrorState";
@@ -24,6 +24,7 @@ type Thread = ChatThreadDoc & { id: string };
 type Message = ChatMessageDoc & { id: string };
 type MessageTopic = "lesson_review" | "course_review" | "general_notice" | "tuition_reminder";
 type DeliveryMode = "response" | "account_update";
+type StaffRole = "admin" | "teacher";
 /** Dinh dang Meta Message Tag (vd ACCOUNT_UPDATE) - khop kiem tra phia Worker (isMessengerTagShape). */
 const TAG_PATTERN = /^[A-Z_]{3,64}$/;
 const MESSAGE_TOPICS: Array<{ value: MessageTopic; label: string }> = [
@@ -32,6 +33,14 @@ const MESSAGE_TOPICS: Array<{ value: MessageTopic; label: string }> = [
   { value: "general_notice", label: "Thông báo tổng" },
   { value: "tuition_reminder", label: "Nhắc học phí" },
 ];
+const UTILITY_TEMPLATES = [
+  { key: "tuition_payment_reminder", label: "Nhắc học phí", description: "Nhắc kỳ học phí, số tiền và hạn thanh toán.", icon: CreditCard, teacherAllowed: true },
+  { key: "tuition_payment_confirmation", label: "Thanh toán học phí thành công", description: "Xác nhận khoản học phí đã được ghi nhận.", icon: CheckCheck, teacherAllowed: true },
+  { key: "class_schedule_adjustment", label: "Điều chỉnh lịch học", description: "Áp dụng cho nghỉ học, học bù hoặc học bổ sung.", icon: CalendarClock, teacherAllowed: true },
+  { key: "lesson_feedback_request", label: "Đánh giá buổi học", description: "Mời phụ huynh gửi đánh giá sau buổi học.", icon: Star, teacherAllowed: true },
+  { key: "enrollment_confirmation", label: "Xác nhận đăng ký học", description: "Thông báo đăng ký khóa học và lớp học thành công.", icon: UserCheck, teacherAllowed: true },
+  { key: "parent_account_link_confirmation", label: "Liên kết tài khoản phụ huynh", description: "Mời phụ huynh đăng nhập bằng email đã đăng ký.", icon: ShieldCheck, teacherAllowed: false },
+] as const;
 
 function initials(name: string) {
   return name.split(" ").slice(-2).map((part) => part[0]).join("").toUpperCase();
@@ -61,7 +70,7 @@ function time(value: { toDate?: () => Date } | string | null | undefined) {
   return date && !Number.isNaN(date.getTime()) ? format(date, "dd/MM HH:mm") : "";
 }
 
-function ConnectionBar({ configured, onNewMessage }: { configured: boolean; onNewMessage: () => void }) {
+function ConnectionBar({ configured, onNewMessage, onOpenTemplates }: { configured: boolean; onNewMessage: () => void; onOpenTemplates: () => void }) {
   const pageUrl = messengerPageUrl();
   return (
     <div className={`flex flex-wrap items-center justify-between gap-2 border-b px-5 py-3 text-xs ${configured ? "border-neutral-100 bg-white text-neutral-600" : "border-warning-100 bg-warning-50 text-warning-800"}`}>
@@ -74,6 +83,9 @@ function ConnectionBar({ configured, onNewMessage }: { configured: boolean; onNe
         </span>
       </div>
       <div className="flex items-center gap-2">
+        <button type="button" onClick={onOpenTemplates} className="inline-flex min-h-8 items-center gap-1.5 rounded-input border border-primary-200 bg-primary-50 px-3 font-semibold text-primary-700 hover:bg-primary-100">
+          <Star size={13} />Mẫu tiện ích
+        </button>
         <button type="button" onClick={onNewMessage} className="motion-control inline-flex min-h-8 items-center gap-1.5 rounded-input bg-primary-600 px-3 text-xs font-semibold text-white hover:bg-primary-700 active:scale-[.97]">
           <Plus size={14} />Nhắn mới
         </button>
@@ -85,6 +97,50 @@ function ConnectionBar({ configured, onNewMessage }: { configured: boolean; onNe
         <StatusBadge tone={configured ? "success" : "warning"}>{configured ? "Đã kết nối" : "Chỉ đọc"}</StatusBadge>
       </div>
     </div>
+  );
+}
+
+function UtilityTemplatesModal({ open, onClose, role }: { open: boolean; onClose: () => void; role: StaffRole }) {
+  const templates = useMemo(
+    () => UTILITY_TEMPLATES.filter((template) => role === "admin" || template.teacherAllowed),
+    [role],
+  );
+  const [selectedKey, setSelectedKey] = useState<string>(templates[0]?.key ?? "");
+  const selected = templates.find((template) => template.key === selectedKey) ?? templates[0];
+
+  return (
+    <Modal open={open} onClose={onClose} title="Mẫu thông báo tiện ích" description="Danh mục gửi ngoài cửa sổ phản hồi 24 giờ, theo chính sách Meta." size="lg">
+      <div className="grid min-h-[430px] gap-4 md:grid-cols-[280px_minmax(0,1fr)]">
+        <aside className="space-y-1 rounded-card bg-neutral-50 p-2" aria-label="Danh sách mẫu tiện ích">
+          {templates.map(({ key, label, description, icon: Icon }) => (
+            <button key={key} type="button" onClick={() => setSelectedKey(key)} aria-pressed={selected?.key === key} className={`flex w-full gap-3 rounded-input px-3 py-3 text-left transition ${selected?.key === key ? "bg-white text-primary-700 shadow-sm ring-1 ring-primary-100" : "text-neutral-600 hover:bg-white"}`}>
+              <span className={`flex size-9 shrink-0 items-center justify-center rounded-input ${selected?.key === key ? "bg-primary-50" : "bg-neutral-100"}`}><Icon size={17} /></span>
+              <span className="min-w-0"><b className="block text-sm text-neutral-900">{label}</b><span className="mt-1 block text-xs leading-5">{description}</span></span>
+            </button>
+          ))}
+        </aside>
+        {selected && (
+          <section className="flex min-w-0 flex-col rounded-card border border-neutral-200 bg-white p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div><p className="text-xs font-semibold text-primary-700">UTILITY TEMPLATE</p><h3 className="mt-1 text-lg font-bold text-neutral-900">{selected.label}</h3><p className="mt-1 font-mono text-xs text-neutral-400">{selected.key}</p></div>
+              <StatusBadge tone="warning">Chờ Meta phê duyệt</StatusBadge>
+            </div>
+            <div className="mt-5 rounded-input border border-warning-200 bg-warning-50 p-4 text-sm leading-6 text-warning-900">
+              <b>Chưa thể gửi trên production.</b>
+              <p className="mt-1">Mẫu sẽ được mở sau khi Meta phê duyệt và Admin bật tính năng Utility Messaging.</p>
+            </div>
+            <dl className="mt-5 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-input bg-neutral-50 p-3"><dt className="text-xs text-neutral-400">Đối tượng sử dụng</dt><dd className="mt-1 text-sm font-semibold text-neutral-800">{selected.teacherAllowed ? "Admin và Giáo viên" : "Chỉ Admin / Hệ thống"}</dd></div>
+              <div className="rounded-input bg-neutral-50 p-3"><dt className="text-xs text-neutral-400">Ngôn ngữ</dt><dd className="mt-1 text-sm font-semibold text-neutral-800">Tiếng Việt</dd></div>
+            </dl>
+            <div className="mt-auto flex items-center justify-between gap-3 border-t border-neutral-200 pt-5">
+              <p className="text-xs leading-5 text-neutral-500">Reviewer có thể xem danh mục và trạng thái an toàn trước khi Meta cấp quyền.</p>
+              <Button type="button" variant="primary" disabled icon={<Send size={15} />}>Gửi mẫu</Button>
+            </div>
+          </section>
+        )}
+      </div>
+    </Modal>
   );
 }
 
@@ -573,6 +629,7 @@ export default function ChatPage() {
   const initialPickerOpen = new URLSearchParams(window.location.search).get("create") === "message";
   const [section, setSection] = useState<Section>("conversations");
   const [newMessageSignal, setNewMessageSignal] = useState(0);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   const threads = useQuery({ queryKey: ["chat-threads", role, uid], queryFn: () => listChatThreads(role, uid), enabled: Boolean(uid) });
   const tabs = [
     { value: "conversations" as const, label: "Hội thoại", icon: MessageCircle },
@@ -582,13 +639,14 @@ export default function ChatPage() {
   return (
     <>
       <div className="flex h-[calc(100dvh-112px)] min-h-[620px] flex-col overflow-hidden rounded-[18px] border border-neutral-200/80 bg-white shadow-[0_18px_60px_-42px_rgba(15,23,42,.45)]">
-        <ConnectionBar configured={configured} onNewMessage={() => { setSection("conversations"); setNewMessageSignal((signal) => signal + 1); }} />
+        <ConnectionBar configured={configured} onOpenTemplates={() => setTemplatesOpen(true)} onNewMessage={() => { setSection("conversations"); setNewMessageSignal((signal) => signal + 1); }} />
         <Tabs label="Nhánh Chat" className="shrink-0 px-3">
           {tabs.map(({ value, label, icon: Icon }) => <Tab key={value} active={section === value} onClick={() => setSection(value)} className="min-h-[50px]"><Icon size={16} />{label}</Tab>)}
         </Tabs>
         {section === "conversations" && (threads.isLoading ? <div className="p-5"><LoadingSkeleton rows={7} /></div> : threads.isError ? <div className="p-5"><ErrorState message="Không tải được hội thoại." onRetry={() => threads.refetch()} /></div> : <Conversations threads={threads.data ?? []} configured={configured} initialPickerOpen={initialPickerOpen} newMessageSignal={newMessageSignal} />)}
         {section === "outbox" && <Outbox role={role} uid={uid} />}
       </div>
+      <UtilityTemplatesModal open={templatesOpen} onClose={() => setTemplatesOpen(false)} role={role} />
     </>
   );
 }
