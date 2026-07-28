@@ -348,9 +348,6 @@ export function StudentInfoDialog({ canManageLinks, onClose, open, student }: St
                     placeholder="Nhập ghi chú của giáo viên hoặc Admin về tình hình học tập, trao đổi phụ huynh, lưu ý trong lớp..."
                     className="min-h-[148px] resize-none rounded-input border border-neutral-300 px-3 py-2 text-sm leading-6 text-neutral-900 outline-none transition placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
                   />
-                  <p className="text-xs leading-5 text-neutral-500">
-                    Ghi chú này dành cho vận hành nội bộ của Giáo viên/Admin, không phải ghi chú hệ thống.
-                  </p>
                 </div>
               </Panel>
 
@@ -392,7 +389,6 @@ export function StudentInfoDialog({ canManageLinks, onClose, open, student }: St
             </button>
             <div>
               <p className="text-sm font-semibold text-neutral-900">{isActive ? "Đang học" : "Đã nghỉ"}</p>
-              <p className="text-xs text-neutral-500">Gạt để áp dụng trạng thái ngay.</p>
             </div>
           </div>
           <div className="flex justify-end gap-2">

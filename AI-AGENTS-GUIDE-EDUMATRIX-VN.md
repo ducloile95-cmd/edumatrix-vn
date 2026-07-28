@@ -29,6 +29,13 @@ AI Agent phải đọc toàn bộ tài liệu này trước khi:
 
 Có thể dùng nguyên file này làm project instructions cho AI Coding Agent.
 
+Các bộ sưu tập skill và công cụ tham khảo không được sao chép vào repository sản phẩm.
+Khi cần, truy cập trực tiếp các nguồn ngoài:
+
+- https://github.com/VoltAgent/awesome-agent-skills
+- https://github.com/VoltAgent/awesome-design-md
+- https://github.com/safishamsi/graphify
+
 ### Thứ tự ưu tiên khi có xung đột
 
 1. Yêu cầu mới nhất được người dùng xác nhận trực tiếp.

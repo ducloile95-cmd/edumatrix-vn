@@ -138,7 +138,7 @@ export function Composer({ configured, actorUid, actorName }: ComposerProps) {
                   </label>
                 </div>
                 <p className="mt-2 rounded-input border border-dashed border-warning-300 bg-warning-50 px-3 py-2 text-xs leading-5 text-warning-700">
-                  <b>Lưu ý:</b> gói Firebase Spark hiện dùng không chạy tác vụ nền theo giờ hẹn. Bài sẽ nằm trong &quot;Hàng chờ&quot; — cần mở trang này và bấm &quot;Đăng ngay&quot; khi tới giờ để bài thực sự lên Fanpage.
+                  Gói Spark không tự đăng theo lịch. Đến giờ, mở Hàng chờ và chọn &quot;Đăng ngay&quot;.
                 </p>
               </>
             )}
@@ -169,7 +169,6 @@ export function Composer({ configured, actorUid, actorName }: ComposerProps) {
       <section className="rounded-card border border-neutral-200 bg-white lg:sticky lg:top-5">
         <header className="border-b border-neutral-200 px-5 py-4">
           <h2 className="text-sm font-bold">Bản xem trước</h2>
-          <p className="mt-1 text-xs text-neutral-500">Hiển thị gần đúng như bài viết sẽ xuất hiện trên Facebook.</p>
         </header>
         <div className="p-5">
           <PostPreviewCard message={message} link={link} imageUrls={imageUrls} />

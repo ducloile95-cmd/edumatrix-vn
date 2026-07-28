@@ -120,7 +120,7 @@ export default function ViewerAssignmentsPage() {
           <header className="flex items-end justify-between gap-5">
             <div>
               <h2 className="text-2xl font-extrabold tracking-tight text-neutral-900">Danh sách bài tập</h2>
-              <p className="mt-1.5 max-w-3xl text-sm leading-5 text-neutral-500">Theo dõi tình trạng hoàn thành, điểm và phản hồi của giáo viên. Bài làm được thực hiện theo hướng dẫn ngoài hệ thống.</p>
+              <p className="mt-1.5 text-sm text-neutral-500">Theo dõi bài tập, điểm và phản hồi.</p>
             </div>
             <span className="hidden shrink-0 rounded-input border border-primary-200 bg-primary-50 px-3 py-2 text-xs font-bold text-primary-700 sm:inline-block">Chỉ theo dõi</span>
           </header>

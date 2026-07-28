@@ -1,29 +1,26 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { addDays, differenceInCalendarDays, endOfDay, format, startOfDay, subDays } from "date-fns";
+import { addDays, differenceInCalendarDays, format, subDays } from "date-fns";
 import { vi } from "date-fns/locale";
-import { BarChart3, BookOpen, BookOpenCheck, CalendarDays, Check, ClipboardCheck, Clock3, Eye, GraduationCap, MapPin, MessageSquareText, Save, Send, Undo2, Users } from "lucide-react";
+import { BarChart3, Clock3, GraduationCap, MapPin, Send, Users } from "lucide-react";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
-import { SearchInput } from "@/components/ui/SearchInput";
-import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Tab, Tabs } from "@/components/ui/Tabs";
-import { USER_ROLES } from "@/constants/roles";
-import { classDetailPath, classroomSessionPath, ROUTES } from "@/constants/routes";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { isActionableTodaySession } from "@/features/classroom/utils/sessionTiming";
+import { ClassroomSessionPicker as SessionPicker } from "@/features/classroom/components/ClassroomSessionPicker";
+import { ClassroomStudentsView } from "@/features/classroom/components/ClassroomStudentsView";
+import { ClassroomSummaryView } from "@/features/classroom/components/ClassroomSummaryView";
+import { ClassroomParentView } from "@/features/classroom/components/ClassroomParentView";
+import { Metric } from "@/features/classroom/components/ClassroomInteractionUi";
 import { LessonPlanDetail } from "@/features/lesson-plans/components/LessonPlanDetail";
-import { getClass, listClasses } from "@/services/firestore/classes";
-import { getCourse, listCourses } from "@/services/firestore/courses";
+import { getClass } from "@/services/firestore/classes";
+import { getCourse } from "@/services/firestore/courses";
 import {
-  CLASSROOM_ATTENDANCE_LABEL,
-  CLASSROOM_HOMEWORK_LABEL,
   classroomPublishBlockers,
-  formatSessionSummaryMessage,
   getSessionAttendanceEntries,
   getSessionInteraction,
   getSessionStudentReviews,
@@ -34,233 +31,14 @@ import {
   type PublishStudentResult,
 } from "@/services/firestore/classroomInteractions";
 import { sendMessenger } from "@/services/integrations/messenger";
-import { getSession, listSessions, listSessionsByClass } from "@/services/firestore/sessions";
+import { getSession, listSessionsByClass } from "@/services/firestore/sessions";
 import { getLessonPlanBySession } from "@/services/firestore/lessonPlans";
 import { listStudents } from "@/services/firestore/students";
-import { listUsersByRole } from "@/services/firestore/users";
-import type { AttendanceStatus, ClassStatus, PreviousHomeworkStatus } from "@/types/academic";
-
-const ATTENDANCE_OPTIONS: Array<{ value: AttendanceStatus; label: string }> = [
-  { value: "present", label: CLASSROOM_ATTENDANCE_LABEL.present },
-  { value: "late", label: CLASSROOM_ATTENDANCE_LABEL.late },
-  { value: "absent", label: CLASSROOM_ATTENDANCE_LABEL.absent },
-  { value: "excused", label: CLASSROOM_ATTENDANCE_LABEL.excused },
-];
-
-const HOMEWORK_OPTIONS: Array<{ value: PreviousHomeworkStatus; label: string }> = [
-  { value: "done", label: CLASSROOM_HOMEWORK_LABEL.done },
-  { value: "partial", label: CLASSROOM_HOMEWORK_LABEL.partial },
-  { value: "not_done", label: CLASSROOM_HOMEWORK_LABEL.not_done },
-  { value: "not_assigned", label: CLASSROOM_HOMEWORK_LABEL.not_assigned },
-];
-
+import type { AttendanceStatus } from "@/types/academic";
 export default function ClassroomInteractionPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   return sessionId ? <ClassroomWorkspace sessionId={sessionId} /> : <SessionPicker />;
 }
-
-function SessionPicker() {
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<ClassStatus | "all">("all");
-  const today = useMemo(() => new Date(), []);
-  const sessions = useQuery({
-    queryKey: ["classroom", "sessions", format(today, "yyyy-MM-dd")],
-    queryFn: () => listSessions(startOfDay(today), endOfDay(today)),
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false,
-  });
-  const classes = useQuery({
-    queryKey: ["classes"],
-    queryFn: listClasses,
-    staleTime: 5 * 60 * 1000,
-  });
-  const courses = useQuery({
-    queryKey: ["courses"],
-    queryFn: listCourses,
-    staleTime: 5 * 60 * 1000,
-  });
-  const teachers = useQuery({
-    queryKey: ["users", "teacher"],
-    queryFn: () => listUsersByRole(USER_ROLES.TEACHER),
-    staleTime: 5 * 60 * 1000,
-  });
-  const courseById = useMemo(
-    () => new Map((courses.data ?? []).map((course) => [course.id, course.name])),
-    [courses.data],
-  );
-  const teacherById = useMemo(
-    () => new Map((teachers.data ?? []).map((teacher) => [teacher.uid, teacher.displayName])),
-    [teachers.data],
-  );
-  const classById = useMemo(
-    () => new Map((classes.data ?? []).map((klass) => [klass.id, klass])),
-    [classes.data],
-  );
-  const actionableSessions = useMemo(
-    () => (sessions.data ?? []).filter((session) => isActionableTodaySession({
-      startAt: session.startAt.toDate(),
-      endAt: session.endAt.toDate(),
-      status: session.status,
-    }, today)),
-    [sessions.data, today],
-  );
-  const filteredClasses = useMemo(() => {
-    const keyword = search.trim().toLocaleLowerCase("vi");
-    return (classes.data ?? []).filter((klass) => {
-      const teacherNames = klass.teacherIds.map((id) => teacherById.get(id) ?? "").join(" ");
-      const searchable = `${klass.name} ${courseById.get(klass.courseId) ?? ""} ${teacherNames}`.toLocaleLowerCase("vi");
-      return (statusFilter === "all" || klass.status === statusFilter) && (!keyword || searchable.includes(keyword));
-    });
-  }, [classes.data, courseById, search, statusFilter, teacherById]);
-
-  return (
-    <div className="space-y-5">
-      <section className="overflow-hidden rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)]">
-        <div className="flex flex-col gap-3 border-b border-neutral-100 p-5 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-primary-700">Ưu tiên hôm nay</p>
-            <h2 className="mt-1 text-xl font-bold text-neutral-900">Lớp học hôm nay</h2>
-            <p className="mt-1 text-sm text-neutral-500">Chỉ hiển thị buổi đang diễn ra và buổi sắp bắt đầu.</p>
-          </div>
-          <span className="inline-flex min-h-10 items-center gap-2 self-start rounded-input border border-neutral-200 bg-neutral-50 px-3 text-sm font-semibold text-neutral-700 sm:self-auto">
-            <CalendarDays size={16} aria-hidden="true" />
-            {format(today, "EEEE, dd/MM/yyyy", { locale: vi })}
-          </span>
-        </div>
-
-        {sessions.isLoading ? (
-          <div className="p-5"><LoadingSkeleton rows={2} /></div>
-        ) : sessions.isError ? (
-          <div className="p-5"><ErrorState message="Không tải được lớp học hôm nay." onRetry={() => sessions.refetch()} /></div>
-        ) : actionableSessions.length ? (
-          <ul className="grid gap-3 p-4 lg:grid-cols-2">
-            {actionableSessions.map((session) => {
-              const klass = classById.get(session.classId);
-              const isLive = session.startAt.toDate() <= today;
-              return (
-                <li key={session.id} className="rounded-card border border-neutral-200 p-4 transition hover:border-primary-200 hover:bg-primary-50/30">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <StatusBadge tone={isLive ? "success" : "warning"}>{isLive ? "Đang diễn ra" : "Sắp diễn ra"}</StatusBadge>
-                    <strong className="text-lg font-black tabular-nums text-primary-700">
-                      {format(session.startAt.toDate(), "HH:mm")} - {format(session.endAt.toDate(), "HH:mm")}
-                    </strong>
-                  </div>
-                  <h3 className="mt-4 text-base font-bold text-neutral-950">{klass?.name ?? session.title}</h3>
-                  {klass?.name && <p className="mt-1 text-sm text-neutral-600">{session.title}</p>}
-                  <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-neutral-500">
-                    <span className="inline-flex items-center gap-1.5"><MapPin size={14} aria-hidden="true" />{session.location || "Chưa có địa điểm"}</span>
-                    <span className="inline-flex items-center gap-1.5"><Users size={14} aria-hidden="true" />{klass?.studentIds.length ?? 0} học sinh</span>
-                  </div>
-                  <Link to={classroomSessionPath(session.id)} className="mt-4 inline-flex min-h-touch w-full items-center justify-center rounded-input bg-primary-600 px-4 text-sm font-bold text-white hover:bg-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300">
-                    Mở tương tác
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <div className="p-6"><EmptyState title="Không còn buổi học cần thao tác hôm nay" description="Buổi đã kết thúc hoặc bị hủy sẽ không hiển thị tại khu vực ưu tiên." /></div>
-        )}
-      </section>
-
-      <section className="overflow-hidden rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)]">
-        <div className="border-b border-neutral-100 p-5">
-          <h2 className="text-xl font-bold text-neutral-900">Danh sách lớp học</h2>
-          <p className="mt-1 text-sm text-neutral-500">Toàn bộ lớp học bạn được phép truy cập.</p>
-          <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(220px,1fr)_190px]">
-            <div>
-              <label htmlFor="classroom-class-search" className="mb-1 block text-xs font-semibold text-neutral-600">Tìm kiếm</label>
-              <SearchInput id="classroom-class-search" value={search} onChange={setSearch} placeholder="Tên lớp, khóa học hoặc giáo viên" />
-            </div>
-            <label className="block">
-              <span className="mb-1 block text-xs font-semibold text-neutral-600">Trạng thái</span>
-              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as ClassStatus | "all")} className="min-h-touch w-full rounded-input border border-neutral-300 bg-white px-3 text-sm focus:border-primary-500">
-                <option value="all">Tất cả</option>
-                <option value="active">Đang hoạt động</option>
-                <option value="completed">Đã kết thúc</option>
-                <option value="cancelled">Đã hủy</option>
-              </select>
-            </label>
-          </div>
-        </div>
-
-        {classes.isLoading ? (
-          <div className="p-5"><LoadingSkeleton rows={5} /></div>
-        ) : classes.isError ? (
-          <div className="p-5"><ErrorState message="Không tải được danh sách lớp học." onRetry={() => classes.refetch()} /></div>
-        ) : filteredClasses.length ? (
-          <>
-            <div className="grid gap-3 bg-neutral-50 p-3 md:block md:bg-white md:p-0" role="region" aria-label="Danh sách lớp học">
-              <table className="block w-full border-collapse text-sm md:table">
-                <thead className="hidden bg-neutral-50 md:table-header-group">
-                  <tr className="border-b border-neutral-200 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                    <th scope="col" className="px-4 py-3">Lớp học</th>
-                    <th scope="col" className="px-4 py-3">Giáo viên</th>
-                    <th scope="col" className="px-4 py-3">Lịch và địa điểm</th>
-                    <th scope="col" className="px-4 py-3 text-center">Sĩ số</th>
-                    <th scope="col" className="px-4 py-3">Trạng thái</th>
-                    <th scope="col" className="px-4 py-3 text-right">Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody className="block space-y-3 md:table-row-group md:space-y-0 md:divide-y md:divide-neutral-100">
-                  {filteredClasses.map((klass) => {
-                    const teacherNames = klass.teacherIds.map((id) => teacherById.get(id)).filter((name): name is string => !!name);
-                    const status = CLASS_STATUS_META[klass.status];
-                    return (
-                      <tr key={klass.id} className="block rounded-card border border-neutral-200 bg-white p-3 md:table-row md:border-0 md:p-0 md:hover:bg-neutral-50">
-                        <td className="flex items-start justify-between gap-4 py-2 md:table-cell md:px-4 md:py-3">
-                          <span className="text-xs font-semibold text-neutral-500 md:hidden">Lớp học</span>
-                          <div className="text-right md:text-left">
-                            <Link to={classDetailPath(klass.id)} className="font-bold text-primary-700 hover:underline">{klass.name}</Link>
-                            <p className="mt-0.5 text-xs text-neutral-500">
-                              {courseById.get(klass.courseId) ?? (courses.isLoading ? "Đang tải khóa học..." : "Không tải được tên khóa học")}
-                            </p>
-                          </div>
-                        </td>
-                        <td className="flex justify-between gap-4 border-t border-neutral-100 py-2 md:table-cell md:border-0 md:px-4 md:py-3">
-                          <span className="text-xs font-semibold text-neutral-500 md:hidden">Giáo viên</span>
-                          <span className="text-right text-neutral-700 md:text-left">
-                            {teacherNames.join(", ") || (klass.teacherIds.length ? (teachers.isLoading ? "Đang tải giáo viên..." : "Không tải được tên giáo viên") : "Chưa phân công")}
-                          </span>
-                        </td>
-                        <td className="flex justify-between gap-4 border-t border-neutral-100 py-2 md:table-cell md:border-0 md:px-4 md:py-3">
-                          <span className="text-xs font-semibold text-neutral-500 md:hidden">Lịch học</span>
-                          <span className="text-right text-neutral-700 md:text-left">{klass.scheduleText || "Chưa có lịch"}{klass.location && <small className="block text-neutral-500">{klass.location}</small>}</span>
-                        </td>
-                        <td className="flex justify-between gap-4 border-t border-neutral-100 py-2 md:table-cell md:border-0 md:px-4 md:py-3 md:text-center">
-                          <span className="text-xs font-semibold text-neutral-500 md:hidden">Sĩ số</span>
-                          <span className="font-semibold tabular-nums text-neutral-800">{klass.studentIds.length}</span>
-                        </td>
-                        <td className="flex items-center justify-between gap-4 border-t border-neutral-100 py-2 md:table-cell md:border-0 md:px-4 md:py-3">
-                          <span className="text-xs font-semibold text-neutral-500 md:hidden">Trạng thái</span>
-                          <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
-                        </td>
-                        <td className="border-t border-neutral-100 pt-3 md:table-cell md:border-0 md:px-4 md:py-3 md:text-right">
-                          <Link to={classDetailPath(klass.id)} className="inline-flex min-h-touch w-full items-center justify-center rounded-input border border-neutral-300 px-3 text-xs font-bold text-neutral-700 hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-200 md:w-auto">
-                            Xem lớp
-                          </Link>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            <p className="border-t border-neutral-100 px-5 py-3 text-xs text-neutral-500">{filteredClasses.length} lớp phù hợp bộ lọc.</p>
-          </>
-        ) : (
-          <div className="p-6"><EmptyState title="Không tìm thấy lớp học phù hợp" /></div>
-        )}
-      </section>
-    </div>
-  );
-}
-
-const CLASS_STATUS_META: Record<ClassStatus, { label: string; tone: "success" | "neutral" | "danger" }> = {
-  active: { label: "Đang hoạt động", tone: "success" },
-  completed: { label: "Đã kết thúc", tone: "neutral" },
-  cancelled: { label: "Đã hủy", tone: "danger" },
-};
 
 function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
   const { firebaseUser } = useAuth();
@@ -491,170 +269,63 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
         <Tab active={activeView === "parent"} onClick={() => setActiveView("parent")}><Send size={15} /> Gửi thông báo</Tab>
       </Tabs>
 
-      {activeView === "students" && <div className="grid gap-4 xl:grid-cols-[minmax(620px,1.4fr)_minmax(340px,.6fr)]">
-        <section className="overflow-hidden rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)]">
-          <div className="flex flex-col gap-4 border-b border-neutral-200 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
-            <div><h2 className="text-lg font-bold">Ghi nhận học sinh</h2><p className="mt-1 text-xs text-neutral-500">Mỗi học sinh có hai nhóm đánh giá độc lập. Trạng thái được tô màu theo mức độ cần chú ý.</p></div>
-            <div className="grid grid-cols-2 gap-2">
-              <Button size="sm" className="border-primary-200 bg-primary-50 text-primary-700" disabled={isPublished} onClick={() => setAll({ attendanceStatus: "present" })} icon={<ClipboardCheck size={15} />}>Tất cả có mặt</Button>
-              <Button size="sm" className="border-accent-100 bg-accent-50 text-accent-700" disabled={isPublished} onClick={() => setAll({ previousHomeworkStatus: "done" })} icon={<BookOpenCheck size={15} />}>Tất cả đã làm</Button>
-            </div>
-          </div>
-          {classStudents.length ? <ul className="space-y-3 bg-neutral-50/80 p-3 sm:p-4">{classStudents.map((student, index) => {
-            const entry = entries[student.id];
-            return <li key={student.id} className="overflow-hidden rounded-card border border-neutral-200 bg-white shadow-[0_1px_2px_rgba(28,51,137,.04)]">
-              <div className="flex items-center gap-3 border-b border-neutral-100 px-4 py-3">
-                <span className="grid size-9 shrink-0 place-items-center rounded-input bg-neutral-100 text-xs font-black tabular-nums text-neutral-500">{String(index + 1).padStart(2, "0")}</span>
-                <div className="min-w-0 flex-1"><p className="truncate font-bold text-neutral-950">{student.fullName}</p><p className="mt-0.5 text-xs text-neutral-500">{student.studentCode}</p></div>
-                <div className="hidden items-center gap-2 text-2xs font-semibold text-neutral-500 sm:flex"><span>{ATTENDANCE_OPTIONS.find((item) => item.value === (entry?.attendanceStatus ?? "present"))?.label}</span><span className="text-neutral-300">•</span><span>{HOMEWORK_OPTIONS.find((item) => item.value === (entry?.previousHomeworkStatus ?? "not_assigned"))?.label}</span></div>
-              </div>
-              <div className="grid gap-3 p-3 md:grid-cols-2 sm:p-4">
-                <OptionGroup kind="attendance" icon={<ClipboardCheck size={16} />} label="Chuyên cần" helper="Tình trạng tham gia buổi học" options={ATTENDANCE_OPTIONS} value={entry?.attendanceStatus ?? "present"} disabled={isPublished} onChange={(value) => updateEntry(student.id, { attendanceStatus: value as AttendanceStatus })} />
-                <OptionGroup kind="homework" icon={<BookOpenCheck size={16} />} label="Bài tập buổi trước" helper="Mức độ hoàn thành bài đã giao" options={HOMEWORK_OPTIONS} value={entry?.previousHomeworkStatus ?? "not_assigned"} disabled={isPublished} onChange={(value) => updateEntry(student.id, { previousHomeworkStatus: value as PreviousHomeworkStatus })} />
-                <label className="md:col-span-2">
-                  <span className="mb-1.5 flex items-center gap-1.5 text-xs font-bold text-neutral-600"><MessageSquareText size={14} /> Nhận xét cá nhân <span className="font-normal text-neutral-400">(không bắt buộc)</span></span>
-                  <input aria-label={`Nhận xét ${student.fullName}`} value={entry?.individualComment ?? ""} disabled={isPublished} onChange={(event) => updateEntry(student.id, { individualComment: event.target.value })} placeholder="Chỉ nhập khi học sinh cần chú ý, ví dụ: nghỉ không phép hoặc chưa hoàn thành bài" className="min-h-10 w-full rounded-input border border-neutral-300 bg-neutral-50/60 px-3 text-sm outline-none transition focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-100 disabled:cursor-not-allowed disabled:opacity-60" />
-                </label>
-              </div>
-            </li>;
-          })}</ul> : <div className="p-6"><EmptyState title="Lớp chưa có học sinh" /></div>}
-        </section>
+      <ClassroomStudentsView
+        active={activeView === "students"}
+        classStudents={classStudents}
+        entries={entries}
+        homeworkText={homeworkText}
+        isPublished={isPublished}
+        lastSavedAt={lastSavedAt}
+        lessonPlan={lessonPlan}
+        mutation={mutation}
+        quickSummary={quickSummary}
+        setAll={setAll}
+        setHomeworkText={setHomeworkText}
+        setLessonPlanOpen={setLessonPlanOpen}
+        setQuickSummary={setQuickSummary}
+        setTaughtContent={setTaughtContent}
+        taughtContent={taughtContent}
+        updateEntry={updateEntry}
+      />
 
-        <aside className="h-fit overflow-hidden rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)]">
-          <div className="border-b border-neutral-100 p-4"><h2 className="text-lg font-bold">Nhật ký buổi học</h2><p className="mt-1 text-xs text-neutral-500">Bản nháp chưa được gửi cho phụ huynh.</p></div>
-          <div className="space-y-4 p-4">
-            <section aria-labelledby="linked-lesson-plan-title" className="overflow-hidden rounded-card border border-primary-200 bg-primary-50/50">
-              <div className="flex items-start gap-3 p-3.5">
-                <span className="grid size-9 shrink-0 place-items-center rounded-input bg-primary-100 text-primary-700"><BookOpen size={17} /></span>
-                <div className="min-w-0 flex-1">
-                  <p id="linked-lesson-plan-title" className="text-2xs font-black uppercase tracking-wide text-primary-700">Giáo án buổi học</p>
-                  {lessonPlan.isLoading ? (
-                    <p className="mt-1 text-sm text-neutral-500">Đang tải giáo án...</p>
-                  ) : lessonPlan.isError ? (
-                    <p className="mt-1 text-sm text-danger-700">Không tải được giáo án đã gắn.</p>
-                  ) : lessonPlan.data ? (
-                    <>
-                      <p className="mt-1 truncate text-sm font-bold text-neutral-950">{lessonPlan.data.title}</p>
-                      <p className="mt-1 text-xs text-neutral-500">{lessonPlan.data.activities.length} hoạt động · {lessonPlan.data.activities.reduce((total, activity) => total + activity.durationMinutes, 0)} phút</p>
-                    </>
-                  ) : (
-                    <><p className="mt-1 text-sm font-bold text-neutral-800">Chưa gắn giáo án</p><p className="mt-0.5 text-xs text-neutral-500">Buổi học này chưa có giáo án liên kết.</p></>
-                  )}
-                </div>
-              </div>
-              <div className="border-t border-primary-100 bg-white/70 p-2.5">
-                {lessonPlan.data ? (
-                  <Button size="sm" className="w-full" onClick={() => setLessonPlanOpen(true)} icon={<Eye size={15} />}>Xem giáo án</Button>
-                ) : (
-                  <Link to={ROUTES.STAFF_LESSON_PLANS} className="flex min-h-9 items-center justify-center rounded-input text-xs font-bold text-primary-700 hover:bg-primary-50">Mở Module Giáo án</Link>
-                )}
-              </div>
-            </section>
-            <TextArea label="Nội dung đã dạy" value={taughtContent} onChange={setTaughtContent} placeholder="Các nội dung đã hoàn thành trong buổi học" disabled={isPublished} />
-            <TextArea label="Tổng kết nhanh" value={quickSummary} onChange={setQuickSummary} placeholder="Mức độ tiếp thu và nội dung cần ôn lại" disabled={isPublished} />
-            <TextArea label="Bài tập về nhà" value={homeworkText} onChange={setHomeworkText} placeholder="Nhập bài tập hoặc ghi rõ không có bài tập" disabled={isPublished} />
-          </div>
-          <div className="border-t border-neutral-100 bg-neutral-50 p-4">
-            {isPublished ? (
-              <p className="text-center text-xs font-semibold text-success-700">Buổi học đã phát hành — nội dung đã khóa.</p>
-            ) : (
-              <>
-                <Button variant="primary" className="w-full" disabled={mutation.isPending || classStudents.length === 0} onClick={() => mutation.mutate()} icon={<Save size={16} />}>{mutation.isPending ? "Đang lưu..." : "Lưu bản nháp"}</Button>
-                {mutation.isPending ? (
-                  <p className="mt-3 text-center text-xs font-semibold text-neutral-500">Đang lưu tự động...</p>
-                ) : lastSavedAt ? (
-                  <p className="mt-3 text-center text-xs font-semibold text-success-700">Đã lưu lúc {format(lastSavedAt, "HH:mm:ss")}</p>
-                ) : null}
-              </>
-            )}
-            {mutation.isError && <p role="alert" className="mt-3 text-center text-xs font-semibold text-danger-700">Không lưu được dữ liệu. Vui lòng kiểm tra kết nối và thử lại.</p>}
-          </div>
-        </aside>
-      </div>}
+      <ClassroomSummaryView
+        active={activeView === "summary"}
+        attendanceLate={attendanceCount("late")}
+        attendancePresent={attendanceCount("present")}
+        attentionStudents={attentionStudents}
+        classStudents={classStudents}
+        entries={entries}
+        homeworkDone={homeworkDone}
+        homeworkText={homeworkText}
+        quickSummary={quickSummary}
+        taughtContent={taughtContent}
+      />
 
-      {activeView === "summary" && (
-        <div className="grid gap-4 xl:grid-cols-[1.2fr_.8fr]">
-          <section className="rounded-card border border-neutral-200 bg-white p-5 shadow-[var(--shadow-1)]">
-            <div><h2 className="text-lg font-bold text-neutral-950">Tổng kết buổi học</h2><p className="mt-1 text-xs text-neutral-500">Dữ liệu được tổng hợp trực tiếp từ bản nháp trước khi phát hành.</p></div>
-            <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-              <Metric value={`${attendanceCount("present")}/${classStudents.length}`} label="Có mặt" />
-              <Metric value={attendanceCount("late")} label="Đi muộn" />
-              <Metric value={`${homeworkDone}/${classStudents.length}`} label="Hoàn thành bài" />
-              <Metric value={attentionStudents.length} label="Cần lưu ý" />
-            </div>
-            <div className="mt-5 space-y-4 text-sm text-neutral-700">
-              <SummaryBlock title="Nội dung đã dạy" value={taughtContent} empty="Chưa nhập nội dung đã dạy." />
-              <SummaryBlock title="Đánh giá chung" value={quickSummary} empty="Chưa nhập tổng kết nhanh." />
-              <SummaryBlock title="Bài tập về nhà" value={homeworkText} empty="Chưa nhập bài tập về nhà." />
-            </div>
-          </section>
-          <section className="rounded-card border border-neutral-200 bg-white p-5 shadow-[var(--shadow-1)]">
-            <h2 className="text-lg font-bold text-neutral-950">Học sinh cần chú ý</h2><p className="mt-1 text-xs text-neutral-500">Các trường hợp ngoại lệ được tách riêng để giáo viên kiểm tra.</p>
-            {attentionStudents.length ? <ul className="mt-4 space-y-2">{attentionStudents.map((student) => { const entry = entries[student.id]; return <li key={student.id} className="rounded-input border border-warning-100 bg-warning-50 p-3"><p className="text-sm font-bold text-neutral-900">{student.fullName}</p><p className="mt-1 text-xs text-warning-800">{ATTENDANCE_OPTIONS.find((item) => item.value === entry.attendanceStatus)?.label} · {HOMEWORK_OPTIONS.find((item) => item.value === entry.previousHomeworkStatus)?.label}</p><p className="mt-2 text-sm text-neutral-700">{entry.individualComment || "Chưa có nhận xét riêng."}</p></li>; })}</ul> : <div className="mt-4"><EmptyState title="Không có học sinh cần chú ý" /></div>}
-          </section>
-        </div>
-      )}
-
-      {activeView === "parent" && (
-        <div className="grid gap-4 xl:grid-cols-[1.2fr_.8fr]">
-          <section className="rounded-card border border-neutral-200 bg-white p-5 shadow-[var(--shadow-1)]">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><h2 className="text-lg font-bold text-neutral-950">Xem trước thông báo</h2><p className="mt-1 text-xs text-neutral-500">Nội dung riêng theo từng học sinh, không hiển thị dữ liệu của cả lớp.</p></div><select aria-label="Chọn học sinh xem trước" value={previewStudent?.id ?? ""} onChange={(event) => setPreviewStudentId(event.target.value)} className="min-h-10 rounded-input border border-neutral-300 bg-white px-3 text-sm font-semibold">{classStudents.map((student) => <option key={student.id} value={student.id}>{student.fullName}</option>)}</select></div>
-            {previewStudent ? <pre className="mt-5 whitespace-pre-wrap rounded-card border border-primary-100 bg-primary-50 p-4 font-sans text-sm leading-6 text-neutral-800">{formatSessionSummaryMessage({
-              studentName: previewStudent.fullName,
-              className: klass.data.name,
-              sessionStartAt: session.data.startAt.toDate(),
-              entry: entries[previewStudent.id],
-              taughtContent,
-              quickSummary,
-              homeworkText,
-              isRepublish: isAmended,
-            })}</pre> : <div className="mt-4"><EmptyState title="Chưa có học sinh để xem trước" /></div>}
-          </section>
-          <section className="rounded-card border border-neutral-200 bg-white p-5 shadow-[var(--shadow-1)]">
-            <h2 className="text-lg font-bold text-neutral-950">Kênh phát hành</h2>
-            <p className="mt-1 text-xs text-neutral-500">Thông báo Edumatrix là nguồn chính; Messenger là kênh bổ sung.</p>
-            {isPublished ? (
-              <div className="mt-4 space-y-3">
-                <p className="rounded-input border border-success-100 bg-success-50 p-3 text-sm font-semibold text-success-700">Đã phát hành cho phụ huynh lúc {format(interaction.data!.updatedAt.toDate(), "HH:mm dd/MM/yyyy")}.</p>
-                {publishResults.length > 0 ? (
-                  <ul className="space-y-2">
-                    {publishResults.map((item) => (
-                      <li key={item.studentId} className="flex items-center justify-between gap-3 rounded-input border border-neutral-200 p-3">
-                        <div className="min-w-0"><p className="truncate text-sm font-bold text-neutral-900">{item.studentName}</p>{item.detail && <p className="mt-0.5 text-xs text-neutral-500">{item.detail}</p>}</div>
-                        <span className={`shrink-0 text-xs font-bold ${item.messenger === "sent" ? "text-success-700" : item.messenger === "skipped" ? "text-neutral-500" : "text-danger-700"}`}>{item.messenger === "sent" ? "Đã gửi Messenger" : item.messenger === "skipped" ? "Chưa cấu hình" : "Gửi thất bại"}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-xs text-neutral-500">Kết quả gửi Messenger của lần phát hành trước không còn trong phiên này. Nếu cần gửi bù, dùng màn hình Chat.</p>
-                )}
-                {publishResults.some((item) => item.messenger !== "sent") && (
-                  <Button className="w-full" disabled={resend.isPending} onClick={() => resend.mutate()}>{resend.isPending ? "Đang gửi lại..." : "Gửi lại cho học sinh còn thiếu"}</Button>
-                )}
-                <Button variant="secondary" className="w-full" icon={<Undo2 size={15} />} disabled={reopen.isPending} onClick={() => reopen.mutate()}>{reopen.isPending ? "Đang mở lại..." : "Mở lại để đính chính"}</Button>
-                <p className="text-center text-xs text-neutral-500">Mở lại cho phép sửa nội dung; khi phát hành lại, phụ huynh nhận bản cập nhật.</p>
-                {reopen.isError && <p role="alert" className="text-center text-xs font-semibold text-danger-700">Không mở lại được. Vui lòng thử lại.</p>}
-              </div>
-            ) : (
-              <div className="mt-4 space-y-3">
-                <DeliveryRow label="Thông báo Edumatrix" detail={`${classStudents.length} phụ huynh theo hồ sơ học sinh`} status={blockers.length ? "Chưa đủ" : "Sẵn sàng"} />
-                <DeliveryRow label="Messenger" detail="Gửi cho phụ huynh đã liên kết sau khi phát hành" status={blockers.length ? "Chưa đủ" : "Sẵn sàng"} />
-                {blockers.length > 0 && (
-                  <ul className="space-y-1 rounded-input border border-warning-100 bg-warning-50 p-3 text-xs text-warning-800">
-                    {blockers.map((blocker) => <li key={blocker}>• {blocker}</li>)}
-                  </ul>
-                )}
-                <Button className="mt-2 w-full" variant="primary" disabled={blockers.length > 0 || publish.isPending} icon={<Send size={15} />} onClick={() => setPublishConfirmOpen(true)}>{publish.isPending ? "Đang phát hành..." : isAmended ? "Phát hành bản cập nhật" : "Hoàn tất và phát hành"}</Button>
-                {publish.isError && <p role="alert" className="text-center text-xs font-semibold text-danger-700">Không phát hành được. Vui lòng kiểm tra kết nối và thử lại.</p>}
-              </div>
-            )}
-          </section>
-        </div>
-      )}
+      <ClassroomParentView
+        active={activeView === "parent"}
+        blockers={blockers}
+        className={klass.data.name}
+        classStudents={classStudents}
+        entries={entries}
+        homeworkText={homeworkText}
+        isAmended={isAmended}
+        isPublished={isPublished}
+        previewStudent={previewStudent}
+        publish={publish}
+        publishedAt={isPublished ? interaction.data!.updatedAt.toDate() : new Date()}
+        publishResults={publishResults}
+        quickSummary={quickSummary}
+        reopen={reopen}
+        resend={resend}
+        sessionStartAt={session.data.startAt.toDate()}
+        setPreviewStudentId={setPreviewStudentId}
+        setPublishConfirmOpen={setPublishConfirmOpen}
+        taughtContent={taughtContent}
+      />
 
       {showCourseSummary && <section className="flex flex-col gap-4 rounded-card border border-primary-200 bg-primary-50 p-5 sm:flex-row sm:items-center sm:justify-between"><div className="flex gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-input bg-white text-primary-700"><GraduationCap size={20} /></span><div><h2 className="font-bold text-neutral-950">Khóa học sắp kết thúc · Còn {remainingSessions} buổi</h2><p className="mt-1 text-sm text-neutral-600">Đã hoàn thành {completedSessions}/{totalSessions} buổi ({courseProgress}%). Có thể chuẩn bị bản nháp tổng kết khóa.</p></div></div><Button onClick={() => setCourseSummaryOpen(true)}>Xem bản nháp tổng kết khóa</Button></section>}
 
-      <Modal open={publishConfirmOpen} onClose={() => setPublishConfirmOpen(false)} title={isAmended ? "Xác nhận phát hành bản cập nhật" : "Xác nhận phát hành"} description="Thông báo tổng kết sẽ được gửi tới phụ huynh của từng học sinh qua Edumatrix và Messenger (nếu đã liên kết). Sau khi phát hành, buổi học sẽ bị khóa — có thể mở lại để đính chính khi cần.">
+      <Modal open={publishConfirmOpen} onClose={() => setPublishConfirmOpen(false)} title={isAmended ? "Xác nhận phát hành bản cập nhật" : "Xác nhận phát hành"} description="Gửi tổng kết cho phụ huynh và khóa buổi học. Bạn vẫn có thể mở lại để đính chính.">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Metric value={`${attendanceCount("present")}/${classStudents.length}`} label="Có mặt" />
           <Metric value={attendanceCount("late")} label="Đi muộn" />
@@ -676,37 +347,4 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
       </Modal>
     </div>
   );
-}
-
-const SELECTED_OPTION_CLASS: Record<string, string> = {
-  present: "border-success-300 bg-success-50 text-success-700 ring-1 ring-success-100",
-  done: "border-success-300 bg-success-50 text-success-700 ring-1 ring-success-100",
-  late: "border-warning-300 bg-warning-50 text-warning-700 ring-1 ring-warning-100",
-  partial: "border-warning-300 bg-warning-50 text-warning-700 ring-1 ring-warning-100",
-  absent: "border-danger-300 bg-danger-50 text-danger-700 ring-1 ring-danger-100",
-  not_done: "border-danger-300 bg-danger-50 text-danger-700 ring-1 ring-danger-100",
-  excused: "border-primary-300 bg-primary-50 text-primary-700 ring-1 ring-primary-100",
-  not_assigned: "border-neutral-300 bg-white text-neutral-700 ring-1 ring-neutral-200",
-};
-
-function OptionGroup({ kind, icon, label, helper, options, value, disabled, onChange }: { kind: "attendance" | "homework"; icon: ReactNode; label: string; helper: string; options: Array<{ value: string; label: string }>; value: string; disabled?: boolean; onChange: (value: string) => void }) {
-  const tone = kind === "attendance" ? "border-primary-100 bg-primary-50/55" : "border-accent-100 bg-accent-50/55";
-  const iconTone = kind === "attendance" ? "bg-primary-100 text-primary-700" : "bg-accent-100 text-accent-700";
-  return <fieldset className={`rounded-card border p-3 ${tone}`}><legend className="sr-only">{label}</legend><div className="mb-3 flex items-center gap-2"><span className={`grid size-8 place-items-center rounded-input ${iconTone}`}>{icon}</span><div><p className="text-xs font-black text-neutral-800">{label}</p><p className="text-2xs text-neutral-500">{helper}</p></div></div><div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">{options.map((option) => { const selected = value === option.value; return <button key={option.value} type="button" aria-pressed={selected} disabled={disabled} onClick={() => onChange(option.value)} className={`relative min-h-10 rounded-input border px-2 text-xs font-bold transition active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 ${selected ? SELECTED_OPTION_CLASS[option.value] : "border-neutral-200 bg-white/80 text-neutral-500 hover:border-neutral-300 hover:bg-white"}`}>{selected && <Check size={12} className="absolute right-1.5 top-1.5" aria-hidden />}{option.label}</button>; })}</div></fieldset>;
-}
-
-function TextArea({ label, value, onChange, placeholder, disabled }: { label: string; value: string; onChange: (value: string) => void; placeholder: string; disabled?: boolean }) {
-  return <label className="block"><span className="mb-1.5 block text-xs font-bold text-neutral-700">{label}</span><textarea value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} maxLength={2000} className="min-h-24 w-full resize-y rounded-input border border-neutral-300 p-3 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:cursor-not-allowed disabled:bg-neutral-50 disabled:opacity-70" /></label>;
-}
-
-function Metric({ value, label }: { value: ReactNode; label: string }) {
-  return <div className="rounded-input border border-neutral-200 bg-neutral-50 p-3"><strong className="block text-xl font-black tabular-nums text-primary-700">{value}</strong><span className="mt-1 block text-xs font-semibold text-neutral-500">{label}</span></div>;
-}
-
-function SummaryBlock({ title, value, empty }: { title: string; value: string; empty: string }) {
-  return <section><h3 className="text-xs font-black uppercase tracking-wide text-neutral-500">{title}</h3><p className={`mt-1 rounded-input border p-3 ${value ? "border-neutral-200 bg-neutral-50 text-neutral-800" : "border-dashed border-neutral-300 text-neutral-400"}`}>{value || empty}</p></section>;
-}
-
-function DeliveryRow({ label, detail, status }: { label: string; detail: string; status: string }) {
-  return <div className="flex items-center justify-between gap-3 rounded-input border border-neutral-200 p-3"><div><p className="text-sm font-bold text-neutral-900">{label}</p><p className="mt-0.5 text-xs text-neutral-500">{detail}</p></div><span className="shrink-0 text-xs font-bold text-primary-700">{status}</span></div>;
 }

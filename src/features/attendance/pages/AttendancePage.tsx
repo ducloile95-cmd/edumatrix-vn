@@ -55,7 +55,7 @@ export default function AttendancePage() {
         open={leaveModalOpen}
         onClose={() => setLeaveModalOpen(false)}
         title="Đăng ký nghỉ học"
-        description="Ghi nhận trước cho 1 học sinh — không ảnh hưởng các bạn cùng lớp, tự hiện đúng khi điểm danh buổi đó."
+        description="Ghi nhận nghỉ học trước cho một học sinh."
       >
         <RegisterLeaveForm onDone={() => setLeaveModalOpen(false)} />
       </Modal>

@@ -15,7 +15,6 @@ export const CHART_PRIMARY_SOFTER = "#BFD3FE"; // primary-200
 export const CHART_SUCCESS = "#16A34A"; // success-500
 export const CHART_WARNING = "#F59E0B"; // warning-500
 export const CHART_DANGER = "#E4453A"; // danger-500
-export const CHART_INFO = "#0EA5E9"; // info-500
 export const CHART_NEUTRAL = "#A6A29C"; // neutral-400
 
 export type ChartTone = "primary" | "success" | "warning" | "danger" | "neutral";

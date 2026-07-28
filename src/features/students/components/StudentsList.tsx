@@ -14,31 +14,24 @@ import { EmptyState } from "@/components/feedback/EmptyState";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { Pagination } from "@/components/ui/Pagination";
 import { DataListPanel, DATA_LIST_FOOTER, DATA_LIST_SCROLL } from "@/components/ui/dataListLayout";
-import { CHART_TONE_ACCENT, CHART_TONE_BG } from "@/components/charts/chartTheme";
 import { usePagination } from "@/hooks/usePagination";
 import { StudentInfoDialog } from "@/features/students/components/StudentInfoDialog";
 import { TimeRangeFilter, type DateRange } from "@/features/students/components/TimeRangeFilter";
-import type { AttendanceDoc, StudentDoc, SubmissionDoc } from "@/types/academic";
+import {
+  buildAttendanceMetrics,
+  buildHomeworkMetrics,
+  getAssessmentPercent,
+  getGradeLetter,
+  getLearningProgress,
+} from "@/features/students/components/studentListMetrics";
+import {
+  ProgressCell,
+  ScoreRing,
+} from "@/features/students/components/StudentListMetricCells";
+import type { StudentDoc } from "@/types/academic";
 
 type StatusFilter = "all" | "active" | "inactive";
-type GradeLetter = "S" | "A" | "B" | "D";
-type MetricValue = number | null;
-
-interface StudentScoreSummary {
-  id: string;
-  scoreCount: number;
-  averagePercent: number;
-  latestScore: number;
-  latestMaxScore: number;
-}
-
-interface CountMetric {
-  percent: MetricValue;
-  total: number;
-}
-
 const PAGE_SIZE_OPTIONS = [15, 20, 30, 50, 100];
-const TOTAL_SESSIONS_FALLBACK = 24;
 const STUDENT_TABLE_COLUMNS = "180px 96px 170px 170px 280px minmax(360px, 1fr) 88px";
 const STUDENT_TABLE_MIN_WIDTH = 1440;
 
@@ -204,9 +197,6 @@ export function StudentsList() {
       <DataListPanel className="rounded-card border border-neutral-200 bg-white">
         <div className="shrink-0 border-b border-neutral-200 px-4 py-4 sm:px-5">
           <h2 className="text-xl font-semibold text-neutral-900">Danh sách học sinh</h2>
-          <p className="mt-1 text-sm text-neutral-500">
-            Theo dõi lớp học, tiến độ, điểm danh, bài tập và đánh giá trong một bảng.
-          </p>
         </div>
 
         {filtered.length === 0 ? (
@@ -318,143 +308,4 @@ export function StudentsList() {
       />
     </div>
   );
-}
-
-function buildAttendanceMetrics(items: (AttendanceDoc & { id: string })[]): Map<string, CountMetric> {
-  const map = new Map<string, { counted: number; total: number }>();
-  items.forEach((item) => {
-    const current = map.get(item.studentId) ?? { counted: 0, total: 0 };
-    const counted = item.status === "present" || item.status === "late" || item.status === "excused";
-    map.set(item.studentId, { counted: current.counted + Number(counted), total: current.total + 1 });
-  });
-  return toPercentMap(map);
-}
-
-function buildHomeworkMetrics(items: (SubmissionDoc & { id: string })[]): Map<string, CountMetric> {
-  const map = new Map<string, { counted: number; total: number }>();
-  items.forEach((item) => {
-    const current = map.get(item.studentId) ?? { counted: 0, total: 0 };
-    const counted = item.status === "submitted" || item.status === "reviewing" || item.status === "graded";
-    map.set(item.studentId, { counted: current.counted + Number(counted), total: current.total + 1 });
-  });
-  return toPercentMap(map);
-}
-
-function toPercentMap(source: Map<string, { counted: number; total: number }>): Map<string, CountMetric> {
-  return new Map(
-    [...source.entries()].map(([studentId, value]) => [
-      studentId,
-      { percent: value.total ? Math.round((value.counted / value.total) * 100) : null, total: value.total },
-    ]),
-  );
-}
-
-function getAssessmentPercent(summary?: StudentScoreSummary): MetricValue {
-  if (!summary || summary.scoreCount === 0) return null;
-  return Math.round(summary.averagePercent);
-}
-
-function getGradeLetter(percent: number): GradeLetter {
-  if (percent >= 95) return "S";
-  if (percent >= 85) return "A";
-  if (percent >= 70) return "B";
-  return "D";
-}
-
-function getLearningProgress(student: StudentDoc, attendance: CountMetric, totalSessions = TOTAL_SESSIONS_FALLBACK) {
-  const plannedSessions = Math.max(1, totalSessions);
-  const completed = attendance.total;
-  const remaining = Math.max(0, plannedSessions - completed);
-  const percent = Math.min(100, Math.round((completed / plannedSessions) * 100));
-  return {
-    completed,
-    percent,
-    remaining,
-    startDate: formatDateOnly(student.createdAt),
-    tone: percent >= 70 ? "success" : percent >= 40 ? "warning" : "danger",
-  };
-}
-
-function ProgressCell({ progress }: { progress: ReturnType<typeof getLearningProgress> }) {
-  const fillClass =
-    progress.tone === "success" ? "bg-success-500" : progress.tone === "warning" ? "bg-warning-500" : "bg-danger-500";
-  const textClass =
-    progress.tone === "success" ? "text-success-700" : progress.tone === "warning" ? "text-warning-700" : "text-danger-700";
-
-  return (
-    <div>
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <span className="text-2xs font-semibold text-neutral-500">Ngày bắt đầu</span>
-        <span className="text-2xs font-semibold text-neutral-900">{progress.startDate}</span>
-      </div>
-      <div className="h-2.5 overflow-hidden rounded-full bg-neutral-100">
-        <div className={`h-full rounded-full transition-all duration-500 ${fillClass}`} style={{ width: `${progress.percent}%` }} />
-      </div>
-      <div className="mt-2 flex items-center justify-between gap-2">
-        <span className={`text-2xs font-semibold ${textClass}`}>{progress.percent}%</span>
-        <span className="text-2xs text-neutral-500">{progress.remaining} buổi còn lại</span>
-      </div>
-    </div>
-  );
-}
-
-function ScoreRing({
-  grade,
-  label,
-  total,
-  value,
-}: {
-  grade?: GradeLetter | null;
-  label: string;
-  total: number;
-  value: MetricValue;
-}) {
-  const tone = getMetricTone(value, grade);
-  const textClassByTone = {
-    success: "text-success-700",
-    primary: "text-primary-700",
-    warning: "text-warning-700",
-    danger: "text-danger-700",
-    neutral: "text-neutral-500",
-  } as const;
-  const palette = {
-    accent: CHART_TONE_ACCENT[tone],
-    bg: CHART_TONE_BG[tone],
-    text: textClassByTone[tone],
-  };
-
-  return (
-    <div className="flex min-w-0 items-center gap-2 rounded-input border border-neutral-200 bg-white px-2 py-1.5">
-      <div
-        className="grid size-9 shrink-0 place-items-center rounded-full transition"
-        style={{
-          background: `conic-gradient(${palette.accent} ${value ?? 0}%, ${palette.bg} 0)`,
-        }}
-      >
-        <div className="grid size-6 place-items-center rounded-full bg-white">
-          <span className={`text-2xs font-bold ${palette.text}`}>{grade ?? (value === null ? "--" : value)}</span>
-        </div>
-      </div>
-      <div className="min-w-0">
-        <p className="truncate text-2xs font-semibold leading-4 text-neutral-700">{label}</p>
-        <p className="truncate text-2xs leading-3 text-neutral-500">{total ? `${total} lần` : "Chưa có"}</p>
-      </div>
-    </div>
-  );
-}
-
-function getMetricTone(value: MetricValue, grade?: GradeLetter | null): "success" | "primary" | "warning" | "danger" | "neutral" {
-  if (grade === "S") return "success";
-  if (grade === "A") return "primary";
-  if (grade === "B") return "warning";
-  if (grade === "D") return "danger";
-  if (value === null) return "neutral";
-  if (value >= 85) return "success";
-  if (value >= 70) return "primary";
-  if (value >= 50) return "warning";
-  return "danger";
-}
-
-function formatDateOnly(value: StudentDoc["createdAt"]): string {
-  return value?.toDate ? value.toDate().toLocaleDateString("vi-VN") : "--";
 }

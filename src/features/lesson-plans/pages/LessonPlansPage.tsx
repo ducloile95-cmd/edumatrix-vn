@@ -31,7 +31,6 @@ export default function LessonPlansPage() {
         size="2xl"
         bodyClassName="flex flex-col overflow-hidden"
         title={editingPlan ? "Sửa giáo án" : "Soạn giáo án mới"}
-        description="Điền thông tin bên trái, soạn tiến trình buổi học bên phải — tất cả trong 1 popup, không chuyển trang."
       >
         <LessonPlanForm editingPlan={editingPlan} onDone={handleDone} />
       </Modal>

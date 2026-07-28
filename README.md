@@ -95,7 +95,7 @@ src/
 ├── services/
 │   ├── firebase/
 │   └── firestore/  # invites.ts, users.ts, auditLog.ts
-├── schemas/        # Zod (invite.ts...)
+├── schemas/        # Zod schemas
 ├── constants/       # roles, collections, routes
 └── types/
 firebase/

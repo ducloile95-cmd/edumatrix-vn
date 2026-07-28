@@ -1,17 +1,13 @@
 import {
   arrayRemove,
   arrayUnion,
-  collection,
   doc,
-  getDocs,
-  query,
   runTransaction,
   serverTimestamp,
-  where,
 } from "firebase/firestore";
 import { db } from "@/services/firebase/firestoreClient";
 import { COLLECTIONS } from "@/constants/collections";
-import type { ClassDoc, EnrollmentDoc, StudentDoc } from "@/types/academic";
+import type { ClassDoc, StudentDoc } from "@/types/academic";
 
 /** ID = {classId}_{studentId} chong ghi trung (A13). */
 function enrollmentId(classId: string, studentId: string): string {
@@ -86,20 +82,4 @@ export async function unenrollStudent(classId: string, studentId: string): Promi
       updatedAt: serverTimestamp(),
     });
   });
-}
-
-/**
- * Ghi danh dang active cua 1 lop. Khong dung orderBy tren field khac de
- * tranh phai tao composite index (A14) - sap xep o client vi so luong nho.
- */
-export async function listActiveEnrollmentsByClass(classId: string): Promise<EnrollmentDoc[]> {
-  const q = query(
-    collection(db, COLLECTIONS.ENROLLMENTS),
-    where("classId", "==", classId),
-    where("status", "==", "active"),
-  );
-  const snap = await getDocs(q);
-  return snap.docs
-    .map((d) => d.data() as EnrollmentDoc)
-    .sort((a, b) => b.joinedAt.toMillis() - a.joinedAt.toMillis());
 }

@@ -2,7 +2,6 @@ import { initializeApp, type FirebaseApp } from "firebase/app";
 import {
   initializeAppCheck,
   ReCaptchaV3Provider,
-  type AppCheck,
 } from "firebase/app-check";
 
 /**
@@ -27,12 +26,11 @@ if (import.meta.env.DEV && import.meta.env.VITE_APPCHECK_DEBUG_TOKEN) {
     import.meta.env.VITE_APPCHECK_DEBUG_TOKEN;
 }
 
-export const appCheck: AppCheck | undefined = import.meta.env
-  .VITE_APPCHECK_SITE_KEY
-  ? initializeAppCheck(firebaseApp, {
+if (import.meta.env.VITE_APPCHECK_SITE_KEY) {
+  initializeAppCheck(firebaseApp, {
       provider: new ReCaptchaV3Provider(
         import.meta.env.VITE_APPCHECK_SITE_KEY,
       ),
       isTokenAutoRefreshEnabled: true,
-    })
-  : undefined;
+    });
+}

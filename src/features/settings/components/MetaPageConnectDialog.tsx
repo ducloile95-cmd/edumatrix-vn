@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Check, ChevronRight, Facebook, LoaderCircle, RefreshCw, ShieldCheck } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
@@ -36,8 +36,7 @@ export function MetaPageConnectDialog({ open, onClose, onConnected }: MetaPageCo
 
   const selectedPage = useMemo(() => pages.find((page) => page.id === selectedId) ?? null, [pages, selectedId]);
 
-  async function refreshStatus(currentSession = session) {
-    if (!currentSession) return;
+  const refreshStatus = useCallback(async (currentSession: MetaConnectSession) => {
     try {
       const result = await getMetaPageConnectionStatus(currentSession.state);
       if (result.status === "failed") throw new Error(result.error || "Facebook chưa cấp quyền.");
@@ -49,7 +48,7 @@ export function MetaPageConnectDialog({ open, onClose, onConnected }: MetaPageCo
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Không kiểm tra được trạng thái kết nối.");
     }
-  }
+  }, []);
 
   useEffect(() => {
     if (!open || step !== "waiting" || !session) return;
@@ -63,7 +62,7 @@ export function MetaPageConnectDialog({ open, onClose, onConnected }: MetaPageCo
       window.removeEventListener("message", onMessage);
       window.clearInterval(timer);
     };
-  }, [open, session, step]);
+  }, [open, refreshStatus, session, step]);
 
   async function begin() {
     setError("");
@@ -133,7 +132,7 @@ export function MetaPageConnectDialog({ open, onClose, onConnected }: MetaPageCo
               <LoaderCircle className="animate-spin text-primary-700" size={30} />
               <h3 className="mt-4 text-sm font-bold text-neutral-900">Đang chờ Facebook xác nhận</h3>
               <p className="mt-2 max-w-sm text-sm leading-6 text-neutral-500">Hoàn tất hộp thoại Facebook vừa mở. Sau đó danh sách Fanpage sẽ tự xuất hiện tại đây.</p>
-              <Button className="mt-4" size="sm" variant="secondary" icon={<RefreshCw size={14} />} onClick={() => void refreshStatus()}>Kiểm tra lại</Button>
+              <Button className="mt-4" size="sm" variant="secondary" icon={<RefreshCw size={14} />} onClick={() => session && void refreshStatus(session)}>Kiểm tra lại</Button>
             </div>
           )}
 

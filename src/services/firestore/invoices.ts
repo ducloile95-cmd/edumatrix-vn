@@ -1,16 +1,12 @@
 import {
-  QueryDocumentSnapshot,
   Timestamp,
   collection,
-  getCountFromServer,
   doc,
   getDocs,
   limit,
-  orderBy,
   query,
   serverTimestamp,
   setDoc,
-  startAfter,
   where,
   writeBatch,
 } from "firebase/firestore";
@@ -32,11 +28,6 @@ export interface CreateInvoiceInput {
   accountNumber: string;
   accountName: string;
   actorUid: string;
-}
-
-export interface InvoicePage {
-  items: (InvoiceDoc & { id: string })[];
-  nextCursor: QueryDocumentSnapshot | undefined;
 }
 
 export async function createInvoice(input: CreateInvoiceInput): Promise<void> {
@@ -64,31 +55,6 @@ export async function listInvoices(): Promise<(InvoiceDoc & { id: string })[]> {
   if (!isAdminUser(currentUser)) return [];
   const snap = await getDocs(query(collection(db, COLLECTIONS.INVOICES), limit(300)));
   return snap.docs.map((item) => ({ id: item.id, ...(item.data() as InvoiceDoc) }));
-}
-
-export async function countPendingInvoices(): Promise<number> {
-  const currentUser = await getCurrentUserDoc();
-  if (isTeacherUser(currentUser)) {
-    const invoices = await listInvoices();
-    return invoices.filter((invoice) => invoice.status === "pending").length;
-  }
-  if (!isAdminUser(currentUser)) return 0;
-  const snapshot = await getCountFromServer(
-    query(collection(db, COLLECTIONS.INVOICES), where("status", "==", "pending")),
-  );
-  return snapshot.data().count;
-}
-
-export async function listInvoicesPage(pageSize = 50, cursor?: QueryDocumentSnapshot): Promise<InvoicePage> {
-  const constraints = cursor
-    ? [orderBy("createdAt", "desc"), startAfter(cursor), limit(pageSize)]
-    : [orderBy("createdAt", "desc"), limit(pageSize)];
-  const snap = await getDocs(query(collection(db, COLLECTIONS.INVOICES), ...constraints));
-
-  return {
-    items: snap.docs.map((item) => ({ id: item.id, ...(item.data() as InvoiceDoc) })),
-    nextCursor: snap.docs.length ? snap.docs[snap.docs.length - 1] : undefined,
-  };
 }
 
 export async function listInvoicesByStudents(ids: string[], pageSize = 100): Promise<(InvoiceDoc & { id: string })[]> {

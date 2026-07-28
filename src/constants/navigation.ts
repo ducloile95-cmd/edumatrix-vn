@@ -78,35 +78,12 @@ const PAGE_TITLES: Record<string, string> = {
       .filter((leaf) => !leaf.disabled && leaf.to !== "#")
       .map((leaf) => [leaf.to, leaf.label]),
   ),
-  [ROUTES.STAFF_SETTINGS_DEMO]: "Demo Cài đặt Admin",
-  [ROUTES.STAFF_CHAT_DEMO]: "Demo Chat",
-};
-
-const PAGE_DESCRIPTIONS: Record<string, string> = {
-  [ROUTES.STAFF_DASHBOARD]: "Những việc cần chú ý hôm nay, lịch lớp sắp tới và tiến độ học tập.",
-  [ROUTES.STAFF_STUDENTS]: "Theo dõi hồ sơ học sinh, lớp đang học, tiến độ, điểm danh, bài tập và đánh giá.",
-  [ROUTES.STAFF_CLASSES]: "Tạo lớp, gắn khóa học, môn học, giáo viên và quản lý danh sách học sinh.",
-  [ROUTES.STAFF_CATALOG]: "Quản lý môn học và khóa học dùng để tạo lớp, học phí và lộ trình học.",
-  [ROUTES.STAFF_SESSIONS]: "Xem lịch dạy theo Ngày, Tuần, Tháng và cập nhật lịch học.",
-  [ROUTES.STAFF_LESSON_PLANS]: "Soạn giáo án theo phần, lưu nháp, gắn lớp và xuất bản tóm tắt công khai.",
-  [ROUTES.STAFF_CLASSROOM]: "Ghi nhận chuyên cần, bài tập và tổng kết theo từng buổi học.",
-  [ROUTES.STAFF_ATTENDANCE]: "Tải danh sách lớp, điểm danh nhanh và lưu cả lớp trong một lần.",
-  [ROUTES.STAFF_LEARNING]: "Giao bài, chấm và theo dõi kết quả học tập trong cùng một luồng.",
-  [ROUTES.STAFF_ASSIGNMENTS]: "Giao bài, theo dõi bài nộp và phản hồi kết quả cho học sinh.",
-  [ROUTES.STAFF_SCORES]: "Nhập điểm theo lớp, lưu nhận xét và theo dõi tiến bộ học tập.",
-  [ROUTES.STAFF_INVOICES]: "Tạo hóa đơn, theo dõi công nợ và đối soát thanh toán.",
-  [ROUTES.STAFF_MARKETING]: "Soạn bài, lên lịch và theo dõi hàng chờ đăng Fanpage.",
-  [ROUTES.STAFF_USERS]: "Mời tài khoản mới, theo dõi lời mời và khóa hoặc mở tài khoản.",
-  [ROUTES.STAFF_ANNOUNCEMENTS]: "Đăng thông báo lên Fanpage và nhắn phụ huynh qua Messenger.",
-  [ROUTES.STAFF_CHAT]: "Hội thoại Messenger với phụ huynh, nhật ký gửi và quản lý kết nối.",
-  [ROUTES.STAFF_CHAT_DEMO]: "Bản duyệt giao diện Chat hai chiều, nhật ký gửi và đăng Fanpage.",
-  [ROUTES.STAFF_SETTINGS]: "Theo dõi Firebase Spark, cấu hình trường học, tích hợp, VietQR và giao diện.",
-  [ROUTES.STAFF_SETTINGS_DEMO]: "Bản duyệt cấu trúc Cài đặt, theo dõi Spark, tích hợp và thanh toán QR.",
-  [ROUTES.VIEWER_DASHBOARD]: "Lịch học, bài tập, điểm số và học phí cần theo dõi.",
-  [ROUTES.VIEWER_SCHEDULE]: "Các buổi học sắp tới của học sinh.",
-  [ROUTES.VIEWER_ASSIGNMENTS]: "Theo dõi bài cần nộp và gửi bài làm cho giáo viên.",
-  [ROUTES.VIEWER_TUITION]: "Theo dõi khoản cần thanh toán và xác nhận chuyển khoản.",
-  [ROUTES.VIEWER_ANNOUNCEMENTS]: "Thông tin mới nhất từ giáo viên và nhà trường.",
+  ...(import.meta.env.DEV
+    ? {
+        [ROUTES.STAFF_SETTINGS_DEMO]: "Demo Cài đặt Admin",
+        [ROUTES.STAFF_CHAT_DEMO]: "Demo Chat",
+      }
+    : {}),
 };
 
 /** Tiêu đề chức năng hiện tại theo pathname (để hiển thị trên Topbar). */
@@ -115,11 +92,4 @@ export function findPageTitle(pathname: string): string {
   if (pathname.startsWith("/app/classes/")) return "Chi tiết lớp học";
   if (pathname.startsWith(`${ROUTES.STAFF_CLASSROOM}/`)) return "Tương tác lớp học";
   return "Edumatrix-vn";
-}
-
-export function findPageDescription(pathname: string): string {
-  if (PAGE_DESCRIPTIONS[pathname]) return PAGE_DESCRIPTIONS[pathname];
-  if (pathname.startsWith("/app/classes/")) return "Quản lý học sinh, ghi danh và dữ liệu học tập của lớp.";
-  if (pathname.startsWith(`${ROUTES.STAFF_CLASSROOM}/`)) return "Workspace nhập liệu và tổng kết cho buổi học được phân công.";
-  return "Edumatrix-vn · Quản lý lớp học thông minh";
 }

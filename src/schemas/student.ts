@@ -34,13 +34,3 @@ export const studentFormSchema = z.object({
 });
 
 export type StudentFormValues = z.infer<typeof studentFormSchema>;
-
-export const linkParentFormSchema = z.object({
-  parentEmail: z
-    .string()
-    .trim()
-    .min(1, "Vui lòng nhập email phụ huynh")
-    .email("Email không hợp lệ"),
-});
-
-export type LinkParentFormValues = z.infer<typeof linkParentFormSchema>;

@@ -7,7 +7,7 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
 import { listAnnouncementsByStudents } from "@/services/firestore/announcements";
 import { subscribeChatThreads } from "@/services/firestore/chat";
 import { ROUTES } from "@/constants/routes";
-import { findPageDescription, findPageTitle } from "@/constants/navigation";
+import { findPageTitle } from "@/constants/navigation";
 import { playNotificationSound, unlockNotificationSound } from "@/utils/notificationSound";
 
 type Notification = { id: string; title: string; time: string };
@@ -168,14 +168,13 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const { isStaff } = useAuth();
   const { pathname } = useLocation();
   const title = findPageTitle(pathname);
-  const description = findPageDescription(pathname);
   const seeAllHref = isStaff ? ROUTES.STAFF_ANNOUNCEMENTS : ROUTES.VIEWER_ANNOUNCEMENTS;
 
   return <header className="glass-panel sticky top-0 z-20 flex h-16 items-center justify-between border-b border-white/70 px-4 sm:px-6">
     <NotificationSoundMonitor />
     <div className="flex min-w-0 items-center gap-3">
       {onMenuClick && <button type="button" onClick={onMenuClick} aria-label="Mở menu điều hướng" className="icon-button lg:hidden"><Menu size={20} /></button>}
-      <div className="min-w-0"><h1 className="truncate text-lg font-semibold text-neutral-900">{title}</h1><p className="hidden max-w-[78ch] truncate text-xs text-neutral-500 sm:block">{description}</p></div>
+      <h1 className="truncate text-lg font-semibold text-neutral-900">{title}</h1>
     </div>
     {/* Cụm hành động (Tải lại / Thêm) tách khỏi cụm liên lạc (Chat / Thông báo) bằng dải phân cách - rõ nhóm chức năng, tối ưu quét mắt. */}
     <div className="flex items-center gap-2 sm:gap-3">

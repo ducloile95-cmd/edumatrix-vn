@@ -8,7 +8,6 @@ import {
   query,
   runTransaction,
   serverTimestamp,
-  setDoc,
   where,
   writeBatch,
 } from "firebase/firestore";
@@ -89,30 +88,6 @@ export async function listAssignmentsByClass(classId: string, pageSize = 100): P
     ),
   );
   return snap.docs.map((item) => ({ id: item.id, ...(item.data() as AssignmentDoc) }));
-}
-
-export async function submitAssignment(
-  assignment: AssignmentDoc & { id: string },
-  studentId: string,
-  input: { submissionUrl: string; submissionText: string; studentNote: string },
-): Promise<void> {
-  await setDoc(
-    doc(db, COLLECTIONS.SUBMISSIONS, `${assignment.id}_${studentId}`),
-    {
-      assignmentId: assignment.id,
-      studentId,
-      classId: assignment.classId,
-      ...input,
-      status: "submitted",
-      score: null,
-      teacherComment: "",
-      checkedBy: null,
-      submittedAt: serverTimestamp(),
-      checkedAt: null,
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true },
-  );
 }
 
 export async function listSubmissions(assignmentId: string, classId: string): Promise<(SubmissionDoc & { id: string })[]> {

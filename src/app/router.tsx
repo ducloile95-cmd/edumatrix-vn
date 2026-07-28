@@ -32,7 +32,9 @@ const ViewerAssignmentsPage = lazy(() => import("@/features/assignments/pages/Vi
 const InvoicesPage = lazy(() => import("@/features/invoices/pages/InvoicesPage"));
 const MarketingPage = lazy(() => import("@/features/marketing/pages/MarketingPage"));
 const ChatPage = lazy(() => import("@/features/announcements/pages/ChatPage"));
-const ChatDemoPage = lazy(() => import("@/features/announcements/pages/ChatDemoPage"));
+const ChatDemoPage = import.meta.env.DEV
+  ? lazy(() => import("@/features/announcements/pages/ChatDemoPage"))
+  : null;
 const SettingsPage = lazy(() => import("@/features/settings/pages/SettingsPage"));
 const ViewerTuitionPage = lazy(() => import("@/features/invoices/pages/ViewerTuitionPage"));
 const ViewerSchedulePage = lazy(() => import("@/features/dashboard/pages/ViewerSchedulePage"));
@@ -86,7 +88,9 @@ export function AppRouter() {
             <Route path={ROUTES.STAFF_LEARNING} element={<LearningPage />} />
             <Route path={ROUTES.STAFF_INVOICES} element={<InvoicesPage />} />
             <Route path={ROUTES.STAFF_CHAT} element={<ChatPage />} />
-            <Route path={ROUTES.STAFF_CHAT_DEMO} element={<ChatDemoPage />} />
+            {ChatDemoPage && (
+              <Route path={ROUTES.STAFF_CHAT_DEMO} element={<ChatDemoPage />} />
+            )}
             <Route path={ROUTES.STAFF_SETTINGS} element={<SettingsPage />} />
 
             {/* Rieng module Nguoi dung va Marketing chi danh cho Admin - guard long them ben trong shell. */}
@@ -140,10 +144,12 @@ export function AppRouter() {
             element={<Navigate to={ROUTES.STAFF_CHAT} replace />}
           />
 
-          <Route
-            path={ROUTES.STAFF_SETTINGS_DEMO}
-            element={<Navigate to={ROUTES.STAFF_SETTINGS} replace />}
-          />
+          {import.meta.env.DEV && (
+            <Route
+              path={ROUTES.STAFF_SETTINGS_DEMO}
+              element={<Navigate to={ROUTES.STAFF_SETTINGS} replace />}
+            />
+          )}
 
           <Route
             path="/"

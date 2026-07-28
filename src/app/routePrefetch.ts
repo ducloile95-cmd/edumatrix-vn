@@ -20,7 +20,12 @@ export const ROUTE_PREFETCH: Record<string, () => void> = {
   [ROUTES.STAFF_LEARNING]: () => void import("@/features/learning/pages/LearningPage"),
   [ROUTES.STAFF_INVOICES]: () => void import("@/features/invoices/pages/InvoicesPage"),
   [ROUTES.STAFF_CHAT]: () => void import("@/features/announcements/pages/ChatPage"),
-  [ROUTES.STAFF_CHAT_DEMO]: () => void import("@/features/announcements/pages/ChatDemoPage"),
+  ...(import.meta.env.DEV
+    ? {
+        [ROUTES.STAFF_CHAT_DEMO]: () =>
+          void import("@/features/announcements/pages/ChatDemoPage"),
+      }
+    : {}),
   [ROUTES.STAFF_SETTINGS]: () => void import("@/features/settings/pages/SettingsPage"),
   [ROUTES.STAFF_USERS]: () => void import("@/features/users/pages/UsersAdminPage"),
   [ROUTES.VIEWER_DASHBOARD]: () => void import("@/features/dashboard/pages/ViewerDashboardPage"),

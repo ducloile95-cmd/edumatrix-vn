@@ -8,7 +8,7 @@ export default defineConfig({
     },
   },
   test: {
-    include: ["src/**/*.test.ts", "firebase/tests/**/*.test.ts"],
+    include: ["src/**/*.test.{ts,tsx}", "firebase/tests/**/*.test.ts"],
     exclude: ["node_modules/**", "dist/**", "Agents Instuctions/**"],
   },
 });

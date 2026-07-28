@@ -24,3 +24,4 @@ coverage/
 *service-account*.json
 .tsc-out/
 *.tsbuildinfo
+Agents Instuctions/

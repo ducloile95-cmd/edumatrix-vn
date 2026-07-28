@@ -27,8 +27,3 @@ export function buildVietQrImageUrl(input: VietQrImageInput): string {
   if (input.accountName.trim()) params.set("accountName", input.accountName.trim().slice(0, 50));
   return `https://img.vietqr.io/image/${bank}-${account}-${template}.png?${params.toString()}`;
 }
-
-/** @deprecated Dung buildVietQrImageUrl de tao QR VietQR that. */
-export function buildPaymentQrPayload(input: VietQrImageInput): string {
-  return buildVietQrImageUrl(input);
-}

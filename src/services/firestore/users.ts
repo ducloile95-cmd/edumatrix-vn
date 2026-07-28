@@ -125,13 +125,6 @@ export async function updateParentProfile(uid: string, input: ParentProfileInput
   await updateDoc(doc(db, COLLECTIONS.USERS, uid), payload);
 }
 
-/** Chi Admin duoc goi (Rules enforce). Khoa/mo tai khoan (A11, A26). */
-export async function setUserStatus(actor: User, uid: string, status: UserStatus): Promise<void> {
-  const ref = doc(db, COLLECTIONS.USERS, uid);
-  await updateDoc(ref, { status, updatedAt: serverTimestamp() });
-  await writeAuditLog(actor, "user_status_changed", "user", uid, { status });
-}
-
 export function subscribeUsers(
   onData: (users: (UserDoc & { uid: string })[]) => void,
   onError?: (error: Error) => void,

@@ -83,18 +83,6 @@ export interface StudentDoc {
   updatedAt: Timestamp;
 }
 
-/** enrollments/{classId_studentId} - ID xac dinh chong ghi trung (A13, Section 10.5). */
-export type EnrollmentStatus = "active" | "ended";
-
-export interface EnrollmentDoc {
-  classId: string;
-  courseId: string;
-  studentId: string;
-  status: EnrollmentStatus;
-  joinedAt: Timestamp;
-  endedAt: Timestamp | null;
-}
-
 export type SessionStatus = "scheduled" | "rescheduled" | "cancelled" | "completed";
 
 export interface SessionDoc {
@@ -218,7 +206,6 @@ export interface AssignmentSummaryDoc { assignmentId: string; totalStudents: num
 export type AssessmentType = "quiz" | "midterm" | "final" | "assignment";
 export type ScoreSource = "manual" | "assignment";
 export interface ScoreDoc { studentId: string; classId: string; subjectId: string; assessmentName: string; assessmentType: AssessmentType; score: number; maxScore: number; teacherComment: string; source?: ScoreSource; assignmentId?: string | null; submissionId?: string | null; published?: boolean; createdBy: string; createdAt: Timestamp; updatedAt: Timestamp; }
-export interface StudentSummaryDoc { studentId: string; scoreCount: number; averagePercent: number; latestScore: number; latestMaxScore: number; updatedAt: Timestamp; }
 export type InvoiceStatus = "unpaid" | "pending" | "paid" | "overdue" | "rejected";
 export interface InvoiceDoc { invoiceCode:string;studentId:string;courseId:string|null;title:string;amount:number;dueAt:Timestamp;paymentContent:string;bankBin:string;accountNumber:string;accountName:string;status:InvoiceStatus;createdBy:string;createdAt:Timestamp;updatedAt:Timestamp; }
 export type PaymentStatus = "reported" | "verified" | "rejected";
