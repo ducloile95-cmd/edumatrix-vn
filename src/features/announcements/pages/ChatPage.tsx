@@ -77,9 +77,9 @@ function ConnectionBar({ configured, onNewMessage }: { configured: boolean; onNe
         <button type="button" onClick={onNewMessage} className="motion-control inline-flex min-h-8 items-center gap-1.5 rounded-input bg-primary-600 px-3 text-xs font-semibold text-white hover:bg-primary-700 active:scale-[.97]">
           <Plus size={14} />Nhắn mới
         </button>
-        {!configured && pageUrl && (
-          <a href={pageUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-input border border-warning-300 bg-white px-2.5 py-1 font-semibold text-warning-800 hover:bg-warning-100">
-            <ExternalLink size={12} />Mở Trang Facebook để nhắn thủ công
+        {pageUrl && (
+          <a href={pageUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-8 items-center gap-1.5 rounded-input border border-neutral-200 bg-white px-3 font-semibold text-neutral-700 hover:bg-neutral-50">
+            <ExternalLink size={13} />Mở Fanpage để gửi tin thử
           </a>
         )}
         <StatusBadge tone={configured ? "success" : "warning"}>{configured ? "Đã kết nối" : "Chỉ đọc"}</StatusBadge>
