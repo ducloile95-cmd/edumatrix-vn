@@ -7,7 +7,7 @@ import type { AcademicSettingsDoc, IntegrationSettingsDoc, PaymentSettingsDoc, S
 import { DEFAULT_RANK_THRESHOLDS, isValidRankThresholds } from "@/utils/ranking";
 
 export type SchoolSettingsInput = Omit<SchoolSettingsDoc, "updatedAt">;
-export type IntegrationSettingsInput = Omit<IntegrationSettingsDoc, "updatedAt">;
+export type IntegrationSettingsInput = Pick<IntegrationSettingsDoc, "facebookPageId" | "driveFolderId" | "webhookUrl">;
 export type PaymentSettingsInput = Omit<PaymentSettingsDoc, "updatedAt">;
 export type AcademicSettingsInput = Omit<AcademicSettingsDoc, "updatedAt">;
 

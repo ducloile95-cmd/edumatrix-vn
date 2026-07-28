@@ -1106,6 +1106,15 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // OAuth state và Page token đã mã hóa chỉ Worker service account được truy cập.
+    match /messenger_oauth_states/{stateId} {
+      allow read, write: if false;
+    }
+
+    match /messenger_private_config/{configId} {
+      allow read, write: if false;
+    }
+
     // fanpage_posts: lich su + hang cho dang bai Fanpage - client ghi truc tiep (Admin-only,
     // Worker khong co endpoint ghi log). imageUrls chi la chuoi URL cong khai, khong co file.
     match /fanpage_posts/{postId} {

@@ -4,6 +4,7 @@ export interface Env {
   FIREBASE_PROJECT_ID: string;
   FIREBASE_CLIENT_EMAIL: string;
   FIREBASE_PRIVATE_KEY: string;
+  META_APP_ID: string;
   META_PAGE_ACCESS_TOKEN: string;
   META_APP_SECRET: string;
   META_WEBHOOK_VERIFY_TOKEN: string;
@@ -16,6 +17,8 @@ export interface Env {
 interface FirebaseClaims { sub: string; user_id?: string; email?: string }
 interface StaffProfile { role: "admin" | "teacher" }
 interface MessengerProfile { name: string | null; avatarUrl: string | null }
+interface MetaManagedPage { id: string; name: string; access_token: string; picture?: { data?: { url?: string } } }
+interface MetaConnectBody { state?: string; pageId?: string }
 interface Recipient { psid: string; parentUid: string; threadId?: string }
 interface ThreadContext {
   studentId: string;
@@ -113,6 +116,7 @@ export const UTILITY_TEMPLATES: Record<UtilityTemplateKey, UtilityTemplateDefini
 const CACHE_REFRESH_MARGIN_MS = 5 * 60 * 1000;
 let firebaseCertCache: { certs: Record<string, string>; expiresAt: number } | null = null;
 let serviceTokenCache: { key: string; token: string; expiresAt: number } | null = null;
+let dynamicPageTokenCache: { token: string; pageId: string; expiresAt: number } | null = null;
 
 function allowedOrigin(request: Request, env: Env): string {
   if (env.ALLOWED_ORIGIN.trim() === "*") return "*";
@@ -388,6 +392,7 @@ export async function serviceAccessToken(env: Env): Promise<string> {
 export function resetFirebaseCachesForTest(): void {
   firebaseCertCache = null;
   serviceTokenCache = null;
+  dynamicPageTokenCache = null;
 }
 
 async function readDocument(collectionId: string, id: string, token: string, env: Env): Promise<unknown | null> {
@@ -569,6 +574,60 @@ async function parentName(parentUid: string, serviceToken: string, env: Env): Pr
   return fieldString(await readDocument("users", parentUid, serviceToken, env), "displayName") ?? "Phụ huynh";
 }
 
+function base64Url(bytes: Uint8Array): string {
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function fromBase64Url(value: string): ArrayBuffer {
+  const padded = value.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
+  return Uint8Array.from(atob(padded), (character) => character.charCodeAt(0)).buffer as ArrayBuffer;
+}
+
+async function tokenEncryptionKey(env: Env): Promise<CryptoKey> {
+  const secret = normalizeSecret(env.META_APP_SECRET, "META_APP_SECRET");
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`edumatrix-meta-page-token:${secret}`));
+  return crypto.subtle.importKey("raw", digest, "AES-GCM", false, ["encrypt", "decrypt"]);
+}
+
+async function encryptPrivateValue(value: string, env: Env): Promise<string> {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, await tokenEncryptionKey(env), new TextEncoder().encode(value));
+  return `${base64Url(iv)}.${base64Url(new Uint8Array(encrypted))}`;
+}
+
+async function decryptPrivateValue(value: string, env: Env): Promise<string> {
+  const [iv, encrypted] = value.split(".");
+  if (!iv || !encrypted) throw new Error("meta_private_config_invalid");
+  const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv: fromBase64Url(iv) }, await tokenEncryptionKey(env), fromBase64Url(encrypted));
+  return new TextDecoder().decode(decrypted);
+}
+
+function safeConnectOrigin(value: string | undefined, env: Env): string {
+  const configured = env.ALLOWED_ORIGIN.split(",").map((origin) => origin.trim()).filter(Boolean);
+  return value && configured.includes(value) ? value : configured[0] ?? "";
+}
+
+async function configuredPageAccess(env: Env): Promise<{ token: string; pageId: string }> {
+  if (dynamicPageTokenCache && dynamicPageTokenCache.expiresAt > Date.now()) return dynamicPageTokenCache;
+  try {
+    const serviceToken = await serviceAccessToken(env);
+    const privateConfig = await readDocument("messenger_private_config", "page", serviceToken, env);
+    const encryptedToken = fieldString(privateConfig, "encryptedPageAccessToken");
+    const pageId = fieldString(privateConfig, "pageId") ?? "";
+    if (encryptedToken && pageId) {
+      const token = await decryptPrivateValue(encryptedToken, env);
+      dynamicPageTokenCache = { token, pageId, expiresAt: Date.now() + 5 * 60 * 1000 };
+      return dynamicPageTokenCache;
+    }
+  } catch (error) {
+    logEvent("warn", "dynamic_page_config_unavailable", { errorCode: publicErrorCode(error) });
+  }
+  return {
+    token: normalizeSecret(env.META_PAGE_ACCESS_TOKEN, "META_PAGE_ACCESS_TOKEN"),
+    pageId: "",
+  };
+}
+
 export function parseMessengerProfile(data: Record<string, unknown>): MessengerProfile {
   const firstName = typeof data.first_name === "string" ? data.first_name.trim() : "";
   const lastName = typeof data.last_name === "string" ? data.last_name.trim() : "";
@@ -580,7 +639,7 @@ export function parseMessengerProfile(data: Record<string, unknown>): MessengerP
 }
 
 async function fetchMessengerProfile(psid: string, env: Env): Promise<MessengerProfile> {
-  const pageAccessToken = normalizeSecret(env.META_PAGE_ACCESS_TOKEN, "META_PAGE_ACCESS_TOKEN");
+  const pageAccessToken = (await configuredPageAccess(env)).token;
   const url = new URL(`https://graph.facebook.com/${env.META_GRAPH_VERSION}/${encodeURIComponent(psid)}`);
   url.searchParams.set("fields", "first_name,last_name,profile_pic");
   const response = await fetch(url, { headers: { authorization: `Bearer ${pageAccessToken}` } });
@@ -661,7 +720,7 @@ export function metaErrorCode(data: Record<string, unknown>, status: number): st
 }
 
 export async function sendGraph(body: SendBody, env: Env): Promise<{ message_id?: string; recipient_id?: string }> {
-  const pageAccessToken = normalizeSecret(env.META_PAGE_ACCESS_TOKEN, "META_PAGE_ACCESS_TOKEN");
+  const pageAccessToken = (await configuredPageAccess(env)).token;
   const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/me/messages`;
   const request = () => fetch(url, { method: "POST", headers: { authorization: `Bearer ${pageAccessToken}`, "content-type": "application/json" }, body: JSON.stringify(buildMessengerPayload(body)) });
   let response = await request();
@@ -802,7 +861,7 @@ export function buildFeedPayload(body: PostBody, photoIds: string[]): Record<str
 }
 
 async function uploadPhoto(imageUrl: string, env: Env): Promise<string> {
-  const pageAccessToken = normalizeSecret(env.META_PAGE_ACCESS_TOKEN, "META_PAGE_ACCESS_TOKEN");
+  const pageAccessToken = (await configuredPageAccess(env)).token;
   const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/me/photos`;
   const response = await fetch(url, { method: "POST", headers: { authorization: `Bearer ${pageAccessToken}`, "content-type": "application/json" }, body: JSON.stringify({ url: imageUrl, published: false }) });
   const data = await response.json<Record<string, unknown>>();
@@ -812,7 +871,7 @@ async function uploadPhoto(imageUrl: string, env: Env): Promise<string> {
 
 export async function postGraph(body: PostBody, env: Env): Promise<{ id?: string }> {
   const photoIds = await Promise.all((body.imageUrls ?? []).map((imageUrl) => uploadPhoto(imageUrl, env)));
-  const pageAccessToken = normalizeSecret(env.META_PAGE_ACCESS_TOKEN, "META_PAGE_ACCESS_TOKEN");
+  const pageAccessToken = (await configuredPageAccess(env)).token;
   const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/me/feed`;
   const response = await fetch(url, { method: "POST", headers: { authorization: `Bearer ${pageAccessToken}`, "content-type": "application/json" }, body: JSON.stringify(buildFeedPayload(body, photoIds)) });
   const data = await response.json<Record<string, unknown>>();
@@ -866,6 +925,134 @@ async function handleCreateReferral(request: Request, env: Env): Promise<Respons
   return new Response(JSON.stringify({ nonce, expiresAt: expiresAt.toISOString() }), { headers: corsHeaders(env) });
 }
 
+async function requireAdminRequest(request: Request, env: Env): Promise<FirebaseClaims> {
+  const idToken = extractBearer(request.headers.get("authorization"));
+  if (!idToken) throw new Error("missing_bearer_token");
+  const claims = await verifyFirebaseToken(idToken, env);
+  const profile = await requireStaff(claims.sub, idToken, env);
+  if (profile.role !== "admin") throw new Error("admin_required");
+  return claims;
+}
+
+async function handleMetaConnectStart(request: Request, env: Env): Promise<Response> {
+  const claims = await requireAdminRequest(request, env);
+  const origin = safeConnectOrigin(request.headers.get("origin") ?? undefined, env);
+  const state = randomNonce();
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+  const serviceToken = await serviceAccessToken(env);
+  await writeDocument("messenger_oauth_states", state, {
+    uid: claims.sub,
+    origin,
+    status: "pending",
+    createdAt: new Date(),
+    expiresAt,
+  }, serviceToken, env);
+  const callbackUrl = `${new URL(request.url).origin}/api/meta/connect/callback`;
+  const authorizationUrl = new URL(`https://www.facebook.com/${env.META_GRAPH_VERSION}/dialog/oauth`);
+  authorizationUrl.searchParams.set("client_id", env.META_APP_ID);
+  authorizationUrl.searchParams.set("redirect_uri", callbackUrl);
+  authorizationUrl.searchParams.set("state", state);
+  authorizationUrl.searchParams.set("response_type", "code");
+  authorizationUrl.searchParams.set("scope", "pages_show_list,pages_manage_metadata,pages_messaging,pages_read_engagement");
+  return new Response(JSON.stringify({ state, authorizationUrl: authorizationUrl.toString(), expiresAt: expiresAt.toISOString() }), { headers: corsHeaders(env, request) });
+}
+
+function oauthResultPage(origin: string, state: string, ok: boolean, message: string): Response {
+  const payload = JSON.stringify({ type: "edumatrix-meta-connect", state, ok, message }).replace(/</g, "\\u003c");
+  const targetOrigin = JSON.stringify(origin);
+  const html = `<!doctype html><html lang="vi"><meta charset="utf-8"><title>Kết nối Facebook</title><body style="font-family:system-ui;padding:32px;color:#172033"><h2>${ok ? "Đã xác nhận Facebook" : "Không thể kết nối"}</h2><p>${message}</p><script>window.opener?.postMessage(${payload},${targetOrigin});window.close();</script></body></html>`;
+  return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
+}
+
+async function handleMetaConnectCallback(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const state = url.searchParams.get("state") ?? "";
+  const code = url.searchParams.get("code") ?? "";
+  const serviceToken = await serviceAccessToken(env);
+  const stateDocument = state ? await readDocument("messenger_oauth_states", state, serviceToken, env) : null;
+  const origin = safeConnectOrigin(fieldString(stateDocument, "origin"), env);
+  const expiresAt = fieldTimestamp(stateDocument, "expiresAt");
+  if (!stateDocument || fieldString(stateDocument, "status") !== "pending" || !expiresAt || expiresAt.getTime() <= Date.now()) {
+    return oauthResultPage(origin, state, false, "Phiên kết nối đã hết hạn. Vui lòng mở lại từ EduMatrix.");
+  }
+  if (!code || url.searchParams.get("error")) {
+    await updateDocumentFields("messenger_oauth_states", state, { status: "failed", error: "facebook_authorization_cancelled" }, serviceToken, env);
+    return oauthResultPage(origin, state, false, "Facebook chưa cấp quyền cho ứng dụng.");
+  }
+  const callbackUrl = `${url.origin}/api/meta/connect/callback`;
+  const tokenUrl = new URL(`https://graph.facebook.com/${env.META_GRAPH_VERSION}/oauth/access_token`);
+  tokenUrl.searchParams.set("client_id", env.META_APP_ID);
+  tokenUrl.searchParams.set("client_secret", normalizeSecret(env.META_APP_SECRET, "META_APP_SECRET"));
+  tokenUrl.searchParams.set("redirect_uri", callbackUrl);
+  tokenUrl.searchParams.set("code", code);
+  const tokenResponse = await fetch(tokenUrl);
+  const tokenData = await tokenResponse.json<{ access_token?: string; error?: unknown }>();
+  if (!tokenResponse.ok || !tokenData.access_token) throw new Error("meta_oauth_exchange_failed");
+  const pagesUrl = new URL(`https://graph.facebook.com/${env.META_GRAPH_VERSION}/me/accounts`);
+  pagesUrl.searchParams.set("fields", "id,name,access_token,picture");
+  pagesUrl.searchParams.set("limit", "100");
+  const pagesResponse = await fetch(pagesUrl, { headers: { authorization: `Bearer ${tokenData.access_token}` } });
+  const pagesData = await pagesResponse.json<{ data?: MetaManagedPage[] }>();
+  const pages = (pagesData.data ?? []).filter((page) => page.id && page.name && page.access_token);
+  if (!pagesResponse.ok || !pages.length) throw new Error("meta_no_managed_pages");
+  await updateDocumentFields("messenger_oauth_states", state, {
+    status: "ready",
+    encryptedPages: await encryptPrivateValue(JSON.stringify(pages), env),
+    pageSummaries: JSON.stringify(pages.map((page) => ({ id: page.id, name: page.name, pictureUrl: page.picture?.data?.url ?? null }))),
+    completedAt: new Date(),
+  }, serviceToken, env);
+  return oauthResultPage(origin, state, true, "Quay lại EduMatrix để chọn Fanpage.");
+}
+
+async function metaConnectState(request: Request, env: Env): Promise<{ body: MetaConnectBody; claims: FirebaseClaims; document: unknown; serviceToken: string }> {
+  const claims = await requireAdminRequest(request, env);
+  const body = await request.json<MetaConnectBody>();
+  if (!body.state || !/^[A-Za-z0-9_-]{22,64}$/.test(body.state)) throw new Error("meta_oauth_state_invalid");
+  const serviceToken = await serviceAccessToken(env);
+  const document = await readDocument("messenger_oauth_states", body.state, serviceToken, env);
+  if (!document || fieldString(document, "uid") !== claims.sub) throw new Error("meta_oauth_state_invalid");
+  return { body, claims, document, serviceToken };
+}
+
+async function handleMetaConnectStatus(request: Request, env: Env): Promise<Response> {
+  const { document } = await metaConnectState(request, env);
+  const summaries = fieldString(document, "pageSummaries");
+  return new Response(JSON.stringify({
+    status: fieldString(document, "status") ?? "pending",
+    pages: summaries ? JSON.parse(summaries) : [],
+    error: fieldString(document, "error") ?? null,
+  }), { headers: corsHeaders(env, request) });
+}
+
+async function handleMetaConnectSelect(request: Request, env: Env): Promise<Response> {
+  const { body, document, serviceToken } = await metaConnectState(request, env);
+  if (fieldString(document, "status") !== "ready" || !body.pageId) throw new Error("meta_oauth_not_ready");
+  const encryptedPages = fieldString(document, "encryptedPages");
+  if (!encryptedPages) throw new Error("meta_oauth_not_ready");
+  const pages = JSON.parse(await decryptPrivateValue(encryptedPages, env)) as MetaManagedPage[];
+  const page = pages.find((item) => item.id === body.pageId);
+  if (!page) throw new Error("meta_page_not_available");
+  const now = new Date();
+  await writeDocument("messenger_private_config", "page", {
+    pageId: page.id,
+    pageName: page.name,
+    pagePictureUrl: page.picture?.data?.url ?? null,
+    encryptedPageAccessToken: await encryptPrivateValue(page.access_token, env),
+    connectedAt: now,
+  }, serviceToken, env);
+  await writeDocument("settings", "integrations", {
+    facebookPageId: page.id,
+    facebookPageName: page.name,
+    facebookPagePictureUrl: page.picture?.data?.url ?? null,
+    facebookConnectionStatus: "connected",
+    facebookConnectedAt: now,
+    updatedAt: now,
+  }, serviceToken, env);
+  await updateDocumentFields("messenger_oauth_states", body.state!, { status: "used", selectedPageId: page.id, usedAt: now, encryptedPages: null }, serviceToken, env);
+  dynamicPageTokenCache = { token: page.access_token, pageId: page.id, expiresAt: Date.now() + 5 * 60 * 1000 };
+  return new Response(JSON.stringify({ page: { id: page.id, name: page.name, pictureUrl: page.picture?.data?.url ?? null } }), { headers: corsHeaders(env, request) });
+}
+
 async function handleWebhook(request: Request, env: Env): Promise<Response> {
   if (request.method === "GET") {
     const url = new URL(request.url);
@@ -899,7 +1086,7 @@ async function handleWebhook(request: Request, env: Env): Promise<Response> {
   const entries = payload && typeof payload === "object" ? (payload as { entry?: unknown[] }).entry ?? [] : [];
   logEvent("info", "webhook_received", {
     entries: entries.length,
-    messagingEvents: entries.reduce((count, entry) => count + (
+    messagingEvents: entries.reduce<number>((count, entry) => count + (
       entry && typeof entry === "object" && Array.isArray((entry as { messaging?: unknown[] }).messaging)
         ? ((entry as { messaging: unknown[] }).messaging.length)
         : 0
@@ -961,6 +1148,10 @@ export default {
       else if (path === "/api/messenger/post" && request.method === "POST") response = await handlePost(request, env);
       else if (path === "/api/messenger/referral" && request.method === "POST") response = await handleCreateReferral(request, env);
       else if (path === "/api/messenger/link" && request.method === "POST") response = await handleLinkConversation(request, env);
+      else if (path === "/api/meta/connect/start" && request.method === "POST") response = await handleMetaConnectStart(request, env);
+      else if (path === "/api/meta/connect/callback" && request.method === "GET") response = await handleMetaConnectCallback(request, env);
+      else if (path === "/api/meta/connect/status" && request.method === "POST") response = await handleMetaConnectStatus(request, env);
+      else if (path === "/api/meta/connect/select" && request.method === "POST") response = await handleMetaConnectSelect(request, env);
       else if (path === "/webhook") response = await handleWebhook(request, env);
       else response = new Response("Not found", { status: 404 });
       response.headers.set("x-request-id", requestId);

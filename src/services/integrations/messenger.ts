@@ -118,6 +118,36 @@ function failure(error: unknown): { reason: MessengerFailureReason; code: string
   return { reason: "error", code, message: code };
 }
 
+export interface MetaManagedPageSummary {
+  id: string;
+  name: string;
+  pictureUrl: string | null;
+}
+
+export interface MetaConnectSession {
+  state: string;
+  authorizationUrl: string;
+  expiresAt: string;
+}
+
+export interface MetaConnectStatus {
+  status: "pending" | "ready" | "failed" | "used";
+  pages: MetaManagedPageSummary[];
+  error: string | null;
+}
+
+export function startMetaPageConnection(): Promise<MetaConnectSession> {
+  return workerRequest("/api/meta/connect/start", {});
+}
+
+export function getMetaPageConnectionStatus(state: string): Promise<MetaConnectStatus> {
+  return workerRequest("/api/meta/connect/status", { state });
+}
+
+export function selectMetaPage(state: string, pageId: string): Promise<{ page: MetaManagedPageSummary }> {
+  return workerRequest("/api/meta/connect/select", { state, pageId });
+}
+
 export async function linkMessengerConversation(psid: string, studentId: string): Promise<void> {
   await workerRequest("/api/messenger/link", { psid, studentId });
 }

@@ -20,6 +20,10 @@ export interface SchoolSettingsDoc {
 /** settings/integrations - chi chua dinh danh cong khai, tuyet doi khong chua token/secret. */
 export interface IntegrationSettingsDoc {
   facebookPageId: string;
+  facebookPageName?: string;
+  facebookPagePictureUrl?: string | null;
+  facebookConnectionStatus?: "connected" | "disconnected";
+  facebookConnectedAt?: Timestamp | null;
   driveFolderId: string;
   webhookUrl: string;
   updatedAt: Timestamp;

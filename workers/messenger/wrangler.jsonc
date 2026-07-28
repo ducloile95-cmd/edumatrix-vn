@@ -8,6 +8,7 @@
   },
   "vars": {
     "FIREBASE_PROJECT_ID": "edumatrix-vn-576b1",
+    "META_APP_ID": "1028280243271801",
     "META_GRAPH_VERSION": "v22.0",
     "ALLOWED_ORIGIN": "http://localhost:5173",
     "UTILITY_MESSAGING_ENABLED": "false"
@@ -22,6 +23,7 @@
       },
       "vars": {
         "FIREBASE_PROJECT_ID": "edumatrix-vn-576b1",
+        "META_APP_ID": "1028280243271801",
         "META_GRAPH_VERSION": "v22.0",
         "ALLOWED_ORIGIN": "https://edumatrix-vn-576b1.web.app,https://edumatrix.id.vn",
         "UTILITY_MESSAGING_ENABLED": "false"
