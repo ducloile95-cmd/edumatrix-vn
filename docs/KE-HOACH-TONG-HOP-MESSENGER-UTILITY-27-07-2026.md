@@ -420,12 +420,27 @@ Trước khi commit phải chia thành commit riêng theo mục đích. Không s
 
 ### 4.2. Phía Worker
 
-- Worker hiện hỗ trợ `RESPONSE` và Message Tag cũ, chưa có nhánh Utility độc lập.
-- Chưa có allowlist Utility Template phía server.
-- Chưa validate bộ tham số riêng của từng Utility Template.
-- Chưa có feature flag `UTILITY_MESSAGING_ENABLED`.
-- Chưa lưu đầy đủ `templateKey`, phiên bản, ngôn ngữ và trạng thái Meta vào outbox.
-- Chưa nhận và lưu trạng thái phê duyệt/thu hồi template.
+> **Đã hoàn thành ở Lần 3 (27/07/2026). Mục này giữ lại để đối chiếu lịch sử.**
+
+| Khoảng trống ban đầu | Trạng thái | Vị trí trong code |
+|---|---|---|
+| Chưa có nhánh Utility độc lập | Xong | `buildUtilityPayload`, `messaging_type: "UTILITY"` |
+| Chưa có allowlist Utility Template phía server | Xong | `UTILITY_TEMPLATES` (6 mẫu) |
+| Chưa validate tham số từng template | Xong | `validUtilityParameters` — đủ key, không thừa, không rỗng, ≤ 500 ký tự |
+| Chưa có feature flag `UTILITY_MESSAGING_ENABLED` | Xong | `wrangler.jsonc`, mặc định `false` cả dev và production |
+| Chưa lưu `templateKey`, phiên bản, ngôn ngữ vào outbox | Xong một phần | `handleSend` nhánh có `studentId` |
+| Chưa nhận/lưu trạng thái duyệt–thu hồi template | Xong | webhook `message_template_status_update` và `messenger_template_status_update` |
+
+Còn lại sau Lần 3:
+
+- Nhánh gửi cho hội thoại chưa liên kết (`recipientPsid` không kèm `studentId`) không ghi
+  các trường template và `metaErrorCode` vào outbox. Chấp nhận được vì nhánh này chỉ chạy
+  `deliveryMode: "response"`, nhưng đừng dùng nó làm mẫu khi mở rộng Utility.
+- `templateVersion` đang gán cứng `1`; registry chưa có trường phiên bản riêng. Phải thay
+  bằng version thật trước khi có mẫu thứ hai của cùng một `templateKey`.
+- Dialog OAuth kết nối Page đã bổ sung `pages_utility_messaging` (28/07/2026). Admin
+  phải kết nối lại Fanpage thì token mới có quyền; xem
+  `KE-HOACH-NANG-CAP-FACEBOOK-MESSENGER-WORKER.md` mục 4.1.
 
 ### 4.3. Phía frontend
 

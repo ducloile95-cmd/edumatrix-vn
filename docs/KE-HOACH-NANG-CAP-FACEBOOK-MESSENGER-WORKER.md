@@ -5,7 +5,7 @@
 - Hệ thống: EduMatrix VN
 - Phạm vi: Facebook Messenger, Cloudflare Worker và kết nối Firestore
 - Firebase: Giữ nguyên Spark Plan
-- Ngày cập nhật: 27/07/2026
+- Ngày cập nhật: 28/07/2026
 - Trạng thái: Giai đoạn 1 và một phần Giai đoạn 2 đã hoàn thành
 - Nguyên tắc: Chẩn đoán đúng nguyên nhân trước khi sửa, không viết lại Worker khi chưa cần thiết
 
@@ -107,7 +107,66 @@ POST /api/messenger/send
 POST /api/messenger/referral
 POST /api/messenger/link
 POST /api/messenger/post
+POST /api/meta/connect/start
+GET  /api/meta/connect/callback
+POST /api/meta/connect/status
+POST /api/meta/connect/select
 ```
+
+### 4.1. Luồng kết nối Page bằng OAuth (bổ sung 28/07/2026)
+
+Bốn endpoint `/api/meta/connect/*` cho phép Admin tự kết nối Fanpage trong giao diện
+EduMatrix, thay cho việc dán tay Page Access Token vào Cloudflare secret.
+
+Cả bốn endpoint đều yêu cầu Firebase ID Token và role `admin`
+(`requireAdminRequest`). Giáo viên không truy cập được.
+
+Trình tự:
+
+1. `POST /api/meta/connect/start` — tạo `state` ngẫu nhiên, lưu vào
+   `messenger_oauth_states/{state}` với hạn 10 phút, trả về `authorizationUrl`.
+2. Trình duyệt mở popup tới `https://www.facebook.com/{version}/dialog/oauth`.
+3. `GET /api/meta/connect/callback` — đổi `code` lấy user access token, gọi
+   `/me/accounts` để lấy danh sách Page mà tài khoản quản trị, mã hóa và lưu tạm.
+4. `POST /api/meta/connect/status` — frontend hỏi trạng thái và danh sách Page.
+5. `POST /api/meta/connect/select` — Admin chọn Page. Worker lưu Page Access Token
+   đã mã hóa vào `messenger_private_config/page` và cập nhật
+   `settings/integrations`.
+
+Quyền yêu cầu trong dialog OAuth hiện tại:
+
+```text
+pages_show_list, pages_manage_metadata, pages_messaging, pages_read_engagement,
+pages_utility_messaging
+```
+
+Năm quyền này khớp đúng hồ sơ App Review đang chuẩn bị.
+
+Cấu hình phải khai trong Meta App Dashboard:
+
+```text
+Valid OAuth Redirect URIs:
+https://edumatrix-messenger-production.edumatrix-vn.workers.dev/api/meta/connect/callback
+```
+
+Collection Firestore phát sinh từ luồng này:
+
+- `messenger_oauth_states` — state tạm, hạn 10 phút, xóa dữ liệu Page sau khi dùng.
+- `messenger_private_config/page` — Page Access Token mã hóa AES-GCM bằng khóa dẫn
+  xuất từ `META_APP_SECRET`. Token không bao giờ trả về frontend.
+
+**Việc bắt buộc sau khi bổ sung `pages_utility_messaging` vào `scope` (28/07/2026):**
+
+Page Access Token đã lưu trước đó không tự có thêm quyền. Admin phải **kết nối lại
+Fanpage** trong Cài đặt → Tích hợp thì token mới mang quyền Utility.
+
+`pages_utility_messaging` hiện chưa được Meta duyệt cho môi trường live. Facebook chỉ
+cấp quyền này cho tài khoản là Admin hoặc Tester của App và bỏ qua âm thầm với tài
+khoản khác — bốn quyền còn lại vẫn được cấp bình thường, luồng kết nối không hỏng.
+
+Kiểm tra sau khi kết nối lại: mở Meta App Dashboard → mục quyền của Page, xác nhận
+`pages_utility_messaging` xuất hiện trong danh sách đã cấp. Chỉ khi đó mới quay video
+kiểm thử Utility và đặt `UTILITY_MESSAGING_ENABLED=true`.
 
 Frontend đang gọi Worker qua:
 
@@ -155,6 +214,15 @@ ALLOWED_ORIGIN = "https://edumatrix-vn-576b1.web.app"
 
 Điều này chứng minh Worker production đã bị lệch so với cấu hình đang quản lý trong codebase.
 
+**Cập nhật 28/07/2026:** cấu hình production hiện tại đã có hai origin, không còn một:
+
+```text
+ALLOWED_ORIGIN = "https://edumatrix-vn-576b1.web.app,https://edumatrix.id.vn"
+```
+
+Worker tách chuỗi theo dấu phẩy và chỉ trả về origin khớp với header `Origin` của
+request (`allowedOrigin`). Domain ngoài danh sách nhận origin đầu tiên, tức bị CORS chặn.
+
 ## 6. Kết quả Giai đoạn 2 đã thực hiện
 
 Đã deploy lại Worker bằng đúng cấu hình production trong repository.
@@ -187,7 +255,21 @@ Version ID: 57b9eea8-41b2-4eef-809c-9034eb134c2f
 
 ## 7. Phân tích lỗi Road Teacher
 
-Worker sử dụng chung một `META_PAGE_ACCESS_TOKEN` để gửi tin cho mọi nhân viên EduMatrix.
+> **Cập nhật 28/07/2026 — cách lấy Page Access Token đã thay đổi.**
+>
+> Worker không còn đọc thẳng `META_PAGE_ACCESS_TOKEN`. Hàm `configuredPageAccess`
+> lấy token theo thứ tự:
+>
+> 1. cache trong bộ nhớ Worker, hạn 5 phút;
+> 2. `messenger_private_config/page` — token do Admin kết nối qua OAuth, đã mã hóa;
+> 3. secret `META_PAGE_ACCESS_TOKEN` — chỉ dùng khi hai bước trên không có dữ liệu.
+>
+> Hệ quả khi chẩn đoán lỗi `190`: phải xác định token đang dùng đến từ nguồn nào.
+> Nếu Admin đã kết nối Page bằng OAuth thì cập nhật secret Cloudflare **không có tác
+> dụng** — phải kết nối lại Page trong giao diện EduMatrix. Log
+> `dynamic_page_config_unavailable` cho biết Worker đã rơi về secret.
+
+Worker sử dụng chung một Page Access Token để gửi tin cho mọi nhân viên EduMatrix.
 
 Vì vậy, quyền quản trị Facebook Page của Road Teacher không quyết định trực tiếp việc gửi tin từ EduMatrix.
 

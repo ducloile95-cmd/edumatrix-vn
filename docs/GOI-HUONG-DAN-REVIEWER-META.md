@@ -67,11 +67,44 @@ recruitment, discounts, or unsolicited bulk messaging.
 
 ## 4. Câu trả lời Facebook Login
 
-Chọn `No` nếu Reviewer đăng nhập EduMatrix bằng Email/Password và EduMatrix
-không dùng Facebook Login làm cơ chế đăng nhập website.
+Chọn `No`: Reviewer đăng nhập EduMatrix bằng Email/Password. EduMatrix không dùng
+Facebook Login làm cơ chế đăng nhập website.
 
-Việc kết nối Messenger Page là tích hợp quản trị Page, không đồng nghĩa với
-Facebook Login của website.
+**Bổ sung 28/07/2026 — phải khai rõ, không được bỏ qua.**
+
+EduMatrix *có* sử dụng hộp thoại OAuth của Facebook, nhưng chỉ ở một chỗ duy nhất:
+màn hình Cài đặt → Tích hợp, để Admin chọn Fanpage mà chính họ quản trị. Đây là
+kết nối Page cấp quản trị, không phải cơ chế đăng nhập của người dùng cuối.
+
+Nếu không khai điểm này, Reviewer sẽ thấy ứng dụng gọi `dialog/oauth` và
+`/me/accounts` trong khi hồ sơ trả lời "không dùng Facebook Login" — đủ để bị từ chối
+vì mô tả không khớp hành vi.
+
+Cần khai trong Meta App Dashboard trước khi gửi:
+
+```text
+Valid OAuth Redirect URIs:
+https://edumatrix-messenger-production.edumatrix-vn.workers.dev/api/meta/connect/callback
+```
+
+Quyền mà hộp thoại OAuth đang yêu cầu (khớp đúng năm quyền trong hồ sơ):
+
+```text
+pages_show_list, pages_manage_metadata, pages_messaging, pages_read_engagement,
+pages_utility_messaging
+```
+
+Admin phải **kết nối lại Fanpage** sau thay đổi này thì Page Access Token mới mang
+quyền Utility. Token đã lưu trước đó không tự nâng quyền.
+
+Câu mô tả đề xuất cho trường hướng dẫn Reviewer:
+
+```text
+EduMatrix does not use Facebook Login for end-user authentication. Users sign in
+with an email and password. The Facebook OAuth dialog is used only by a center
+administrator, once, to select which Facebook Page they manage and to connect it
+to EduMatrix. No end user ever sees the Facebook Login dialog.
+```
 
 ## 5. Thông tin đăng nhập thử nghiệm
 

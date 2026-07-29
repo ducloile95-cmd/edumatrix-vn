@@ -953,7 +953,10 @@ async function handleMetaConnectStart(request: Request, env: Env): Promise<Respo
   authorizationUrl.searchParams.set("redirect_uri", callbackUrl);
   authorizationUrl.searchParams.set("state", state);
   authorizationUrl.searchParams.set("response_type", "code");
-  authorizationUrl.searchParams.set("scope", "pages_show_list,pages_manage_metadata,pages_messaging,pages_read_engagement");
+  // Năm quyền phải khớp hồ sơ App Review (docs/HO-SO-XET-DUYET-META-MESSENGER-UTILITY.md).
+  // pages_utility_messaging chưa được duyệt cho live: Facebook chỉ cấp cho Admin/Tester
+  // của App và bỏ qua âm thầm với tài khoản khác, không làm hỏng các quyền còn lại.
+  authorizationUrl.searchParams.set("scope", "pages_show_list,pages_manage_metadata,pages_messaging,pages_read_engagement,pages_utility_messaging");
   return new Response(JSON.stringify({ state, authorizationUrl: authorizationUrl.toString(), expiresAt: expiresAt.toISOString() }), { headers: corsHeaders(env, request) });
 }
 
