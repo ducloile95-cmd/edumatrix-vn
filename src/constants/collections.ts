@@ -5,6 +5,7 @@
 export const COLLECTIONS = {
   USERS: "users",
   INVITES: "invites",
+  LINK_REQUESTS: "link_requests",
   STUDENTS: "students",
   SUBJECTS: "subjects",
   COURSES: "courses",

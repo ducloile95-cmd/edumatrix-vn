@@ -71,44 +71,44 @@ interface UtilityTemplateDefinition {
 }
 export const UTILITY_TEMPLATES: Record<UtilityTemplateKey, UtilityTemplateDefinition> = {
   tuition_payment_reminder: {
-    metaName: "edumatrix_tuition_payment_reminder_vi",
+    metaName: "edumatrix_tuition_payment_reminder_v2_vi",
     language: "vi",
-    parameterKeys: ["centerName", "billingPeriod", "studentName", "amount", "dueDate"],
+    parameterKeys: ["studentName", "billingPeriod", "amount", "dueDate"],
     teacherAllowed: true,
     label: "Nhắc học phí",
   },
   tuition_payment_confirmation: {
-    metaName: "edumatrix_tuition_payment_confirmation_vi",
+    metaName: "edumatrix_tuition_payment_confirmation_v2_vi",
     language: "vi",
-    parameterKeys: ["centerName", "billingPeriod", "studentName", "amount", "paymentDate", "paymentReference"],
+    parameterKeys: ["studentName", "billingPeriod", "amount", "paymentDate", "paymentReference"],
     teacherAllowed: true,
     label: "Thanh toán học phí thành công",
   },
   class_schedule_adjustment: {
-    metaName: "edumatrix_class_schedule_adjustment_vi",
+    metaName: "edumatrix_class_schedule_adjustment_v2_vi",
     language: "vi",
-    parameterKeys: ["adjustmentType", "className", "studentName", "lessonDate", "lessonTime", "reason", "makeupPlan"],
+    parameterKeys: ["className", "studentName", "lessonDate", "lessonTime", "adjustmentNote"],
     teacherAllowed: true,
     label: "Điều chỉnh lịch học",
   },
   lesson_feedback_request: {
-    metaName: "edumatrix_lesson_feedback_request_vi",
+    metaName: "edumatrix_lesson_feedback_notice_v2_vi",
     language: "vi",
-    parameterKeys: ["studentName", "lessonDate", "feedbackUrl"],
+    parameterKeys: ["className", "studentName", "teacherName"],
     teacherAllowed: true,
     label: "Đánh giá buổi học",
   },
   enrollment_confirmation: {
-    metaName: "edumatrix_enrollment_confirmation_vi",
+    metaName: "edumatrix_enrollment_confirmation_v2_vi",
     language: "vi",
-    parameterKeys: ["centerName", "studentName", "courseName", "className", "startDate", "schedule"],
+    parameterKeys: ["studentName", "courseName", "centerName"],
     teacherAllowed: true,
     label: "Đăng ký học thành công",
   },
   parent_account_link_confirmation: {
-    metaName: "edumatrix_parent_account_link_confirmation_vi",
+    metaName: "edumatrix_parent_account_link_confirmation_v2_vi",
     language: "vi",
-    parameterKeys: ["parentName", "studentName", "centerName", "parentEmail", "loginUrl"],
+    parameterKeys: ["parentEmail", "studentName"],
     teacherAllowed: false,
     label: "Liên kết tài khoản phụ huynh thành công",
   },
@@ -118,13 +118,20 @@ let firebaseCertCache: { certs: Record<string, string>; expiresAt: number } | nu
 let serviceTokenCache: { key: string; token: string; expiresAt: number } | null = null;
 let dynamicPageTokenCache: { token: string; pageId: string; expiresAt: number } | null = null;
 
-function allowedOrigin(request: Request, env: Env): string {
-  if (env.ALLOWED_ORIGIN.trim() === "*") return "*";
-  const requestOrigin = request.headers.get("origin");
-  const configuredOrigins = env.ALLOWED_ORIGIN
+// "*" bị loại ngay từ khâu phân tích: một origin ký tự đại diện cho phép mọi
+// trang web gọi Worker kèm credential của người dùng (sự cố P1, báo cáo 24/07).
+// Nếu ALLOWED_ORIGIN bị đặt sai thành "*", danh sách rỗng và CORS đóng lại -
+// hỏng an toàn thay vì mở toang.
+function parseAllowedOrigins(env: Env): string[] {
+  return env.ALLOWED_ORIGIN
     .split(",")
     .map((origin) => origin.trim())
-    .filter(Boolean);
+    .filter((origin) => origin !== "" && origin !== "*");
+}
+
+function allowedOrigin(request: Request, env: Env): string {
+  const requestOrigin = request.headers.get("origin");
+  const configuredOrigins = parseAllowedOrigins(env);
   return requestOrigin && configuredOrigins.includes(requestOrigin)
     ? requestOrigin
     : configuredOrigins[0] ?? "";
@@ -132,7 +139,7 @@ function allowedOrigin(request: Request, env: Env): string {
 
 export function corsHeaders(env: Env, request?: Request) {
   return {
-    "access-control-allow-origin": request ? allowedOrigin(request, env) : env.ALLOWED_ORIGIN.trim() === "*" ? "*" : env.ALLOWED_ORIGIN.split(",")[0].trim(),
+    "access-control-allow-origin": request ? allowedOrigin(request, env) : parseAllowedOrigins(env)[0] ?? "",
     "access-control-allow-headers": "authorization, content-type",
     "access-control-allow-methods": "GET,POST,OPTIONS",
     "vary": "Origin",
@@ -796,12 +803,12 @@ async function handleSend(request: Request, env: Env): Promise<Response> {
     const id = crypto.randomUUID();
     try {
       const result = await sendGraph({ ...body, text: content, recipientPsid: recipient.psid }, env);
-      await writeDocument("message_outbox", id, { type: body.type ?? "general", studentId: body.studentId, recipientPsid: recipient.psid, content, status: "sent", deliveryMode, templateKey: body.templateKey ?? null, templateName: template?.metaName ?? null, templateLanguage: template?.language ?? null, templateParameters: body.parameters ?? null, templateVersion: deliveryMode === "utility" ? 1 : null, messageTag: body.tag ?? null, metaMessageId: result.message_id ?? null, actorUid: claims.sub, createdAt: new Date() }, serviceToken, env);
+      await writeDocument("message_outbox", id, { type: body.type ?? "general", studentId: body.studentId, recipientPsid: recipient.psid, content, status: "sent", deliveryMode, templateKey: body.templateKey ?? null, templateName: template?.metaName ?? null, templateLanguage: template?.language ?? null, templateParameters: body.parameters ?? null, templateVersion: deliveryMode === "utility" ? 2 : null, messageTag: body.tag ?? null, metaMessageId: result.message_id ?? null, actorUid: claims.sub, createdAt: new Date() }, serviceToken, env);
       if (context) await writeChatEvent({ context, parentUid: recipient.parentUid, direction: "outbound", text: content, status: "sent", actorUid: claims.sub, metaMessageId: result.message_id ?? null, errorCode: null, occurredAt: new Date(), threadId: recipient.threadId }, serviceToken, env);
       results.push({ id, status: "sent" });
     } catch (error) {
       const code = (error instanceof Error ? error.message : String(error)).slice(0, 240);
-      await writeDocument("message_outbox", id, { type: body.type ?? "general", studentId: body.studentId, recipientPsid: recipient.psid, content, status: "failed", deliveryMode, templateKey: body.templateKey ?? null, templateName: template?.metaName ?? null, templateLanguage: template?.language ?? null, templateParameters: body.parameters ?? null, templateVersion: deliveryMode === "utility" ? 1 : null, messageTag: body.tag ?? null, metaMessageId: null, error: code, metaErrorCode: publicErrorCode(error), actorUid: claims.sub, createdAt: new Date() }, serviceToken, env);
+      await writeDocument("message_outbox", id, { type: body.type ?? "general", studentId: body.studentId, recipientPsid: recipient.psid, content, status: "failed", deliveryMode, templateKey: body.templateKey ?? null, templateName: template?.metaName ?? null, templateLanguage: template?.language ?? null, templateParameters: body.parameters ?? null, templateVersion: deliveryMode === "utility" ? 2 : null, messageTag: body.tag ?? null, metaMessageId: null, error: code, metaErrorCode: publicErrorCode(error), actorUid: claims.sub, createdAt: new Date() }, serviceToken, env);
       if (context) await writeChatEvent({ context, parentUid: recipient.parentUid, direction: "outbound", text: content, status: "failed", actorUid: claims.sub, metaMessageId: null, errorCode: code, occurredAt: new Date(), threadId: recipient.threadId }, serviceToken, env);
       results.push({ id, status: "failed", error: publicErrorCode(error) });
     }

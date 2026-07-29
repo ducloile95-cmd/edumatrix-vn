@@ -39,6 +39,7 @@ export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
       classId: "",
       dateOfBirth: "",
       fullName: "",
+      nickname: "",
       parentAddress: "",
       parentEmail: "",
       parentFacebookUrl: "",
@@ -55,6 +56,7 @@ export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
         classId: "",
         dateOfBirth: editingStudent.dateOfBirth,
         fullName: editingStudent.fullName,
+        nickname: editingStudent.nickname ?? "",
         parentAddress: "",
         parentEmail: "",
         parentFacebookUrl: "",
@@ -68,6 +70,7 @@ export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
         classId: "",
         dateOfBirth: "",
         fullName: "",
+        nickname: "",
         parentAddress: "",
         parentEmail: "",
         parentFacebookUrl: "",
@@ -80,29 +83,41 @@ export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
   }, [editingStudent, reset]);
 
   const mutation = useMutation({
-    mutationFn: async (values: StudentFormValues) => {
+    mutationFn: async (values: StudentFormValues): Promise<string[]> => {
       if (editingStudent) {
         await updateStudent(editingStudent.id, {
           dateOfBirth: values.dateOfBirth,
           fullName: values.fullName,
+          nickname: values.nickname ?? "",
           staffNote: values.staffNote ?? "",
         });
-        return;
+        return [];
       }
 
+      // Buoc bat buoc. That bai o day thi chua co gi duoc ghi, nem loi nhu cu.
       await createStudent({
         dateOfBirth: values.dateOfBirth,
         fullName: values.fullName,
+        nickname: values.nickname ?? "",
         studentCode: values.studentCode,
       });
 
+      // Ba buoc ben duoi chay SAU khi ho so da nam trong Firestore. Nem loi o day
+      // se de lai hoc sinh mo coi va lan submit sau dinh student_code_exists (C1),
+      // nen chung chi duoc bao cao mem qua danh sach warnings.
       const studentId = values.studentCode.trim().toUpperCase();
+      const warnings: string[] = [];
+
       if (values.staffNote) {
-        await updateStudent(studentId, {
-          dateOfBirth: values.dateOfBirth,
-          fullName: values.fullName,
-          staffNote: values.staffNote,
-        });
+        try {
+          await updateStudent(studentId, {
+            dateOfBirth: values.dateOfBirth,
+            fullName: values.fullName,
+            staffNote: values.staffNote,
+          });
+        } catch {
+          warnings.push("staff_note_failed");
+        }
       }
 
       if (isAdmin && values.parentEmail) {
@@ -112,21 +127,33 @@ export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
           facebookUrl: values.parentFacebookUrl ?? "",
           phone: values.parentPhone ?? "",
         });
-        if (!result.linked) throw new Error(result.reason);
+        if (!result.linked) warnings.push(`parent_${result.reason}`);
       }
 
       if (values.classId) {
         const selectedClass = classes.data?.find((item) => item.id === values.classId);
-        if (!selectedClass) throw new Error("class_not_found");
-        await enrollStudent(values.classId, selectedClass.courseId, studentId);
+        if (!selectedClass) {
+          warnings.push("class_not_found");
+        } else {
+          try {
+            await enrollStudent(values.classId, selectedClass.courseId, studentId);
+          } catch {
+            warnings.push("enroll_failed");
+          }
+        }
       }
+
+      return warnings;
     },
-    onSuccess: () => {
+    onSuccess: (warnings) => {
       queryClient.invalidateQueries({ queryKey: ["students"] });
       queryClient.invalidateQueries({ queryKey: ["classes"] });
-      onDone?.();
+      // Con canh bao thi giu form mo de Admin doc duoc, khong dong ngay.
+      if (!warnings.length) onDone?.();
     },
   });
+
+  const partialWarnings = mutation.data ?? [];
 
   return (
     <form onSubmit={handleSubmit((values) => mutation.mutate(values))} className="grid gap-4">
@@ -144,6 +171,9 @@ export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
           </Field>
           <Field error={errors.fullName?.message} label="Tên học sinh">
             <input type="text" placeholder="Nguyễn Minh Anh" className={inputClass} {...register("fullName")} />
+          </Field>
+          <Field error={errors.nickname?.message} label="Biệt danh / tên gọi khác">
+            <input type="text" placeholder="Bi (bỏ trống nếu không cần)" className={inputClass} {...register("nickname")} />
           </Field>
           <Field error={errors.dateOfBirth?.message} label="Ngày sinh">
             <input type="date" className={inputClass} {...register("dateOfBirth")} />
@@ -213,20 +243,32 @@ export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
         </p>
       )}
 
+      {partialWarnings.length > 0 && (
+        <div role="alert" className="rounded-input border border-warning-300 bg-warning-50 px-3 py-2 text-sm leading-6 text-warning-900">
+          <p className="font-semibold">Đã tạo hồ sơ học sinh, nhưng các bước sau chưa hoàn tất:</p>
+          <ul className="mt-1 list-disc pl-5">
+            {partialWarnings.map((warning) => (
+              <li key={warning}>{getWarningMessage(warning)}</li>
+            ))}
+          </ul>
+          <p className="mt-1">Hồ sơ đã lưu — dùng chức năng Sửa để bổ sung, đừng thêm lại từ đầu.</p>
+        </div>
+      )}
+
       <div className="flex justify-end gap-2 border-t border-neutral-200 pt-4">
         <button
           type="button"
           onClick={() => onDone?.()}
           className="min-h-touch rounded-input border border-neutral-300 px-5 text-sm font-medium text-neutral-600 transition hover:bg-neutral-50"
         >
-          Hủy
+          {partialWarnings.length > 0 ? "Đóng" : "Hủy"}
         </button>
         <button
           type="submit"
-          disabled={mutation.isPending}
+          disabled={mutation.isPending || partialWarnings.length > 0}
           className="min-h-touch rounded-input bg-primary-500 px-5 text-sm font-medium text-white transition hover:bg-primary-600 disabled:opacity-60"
         >
-          {mutation.isPending ? "Đang lưu..." : isEditing ? "Lưu thay đổi" : "Thêm học sinh"}
+          {mutation.isPending ? "Đang lưu..." : partialWarnings.length > 0 ? "Đã tạo học sinh" : isEditing ? "Lưu thay đổi" : "Thêm học sinh"}
         </button>
       </div>
     </form>
@@ -262,4 +304,15 @@ function getMutationErrorMessage(error: unknown): string {
   if (message === "not_viewer") return "Email này không thuộc tài khoản phụ huynh/học sinh.";
   if (message === "class_not_found") return "Không tìm thấy lớp học đã chọn.";
   return "Không thể lưu học sinh. Kiểm tra mã học sinh, thông tin liên kết hoặc quyền truy cập.";
+}
+
+/** Cac buoc bo sung that bai SAU khi ho so da duoc tao - hoc sinh van ton tai (C1). */
+function getWarningMessage(warning: string): string {
+  if (warning === "staff_note_failed") return "Chưa lưu được ghi chú giáo viên/Admin.";
+  if (warning === "parent_not_found") return "Chưa liên kết phụ huynh: không tìm thấy tài khoản theo email đã nhập.";
+  if (warning === "parent_not_viewer") return "Chưa liên kết phụ huynh: email này không thuộc tài khoản phụ huynh/học sinh.";
+  if (warning === "parent_error") return "Chưa liên kết phụ huynh: lỗi khi ghi dữ liệu, thử lại ở màn hình Sửa.";
+  if (warning === "class_not_found") return "Chưa đăng ký lớp: không tìm thấy lớp học đã chọn.";
+  if (warning === "enroll_failed") return "Chưa đăng ký lớp: ghi danh thất bại, thử lại ở màn hình Sửa.";
+  return "Một bước bổ sung chưa hoàn tất.";
 }

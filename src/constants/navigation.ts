@@ -70,6 +70,26 @@ export const NAVIGATION_BY_ROLE: Record<UserRole, NavNode[]> = {
 };
 
 // Bảng tra tiêu đề theo route (dồn từ mọi role) — dùng cho tiêu đề động trên Topbar.
+/**
+ * Điều hướng ưu tiên cho màn hình mobile. Staff giữ bốn tác vụ chính;
+ * mục thứ năm là nút "Khác" mở Sidebar với đầy đủ chức năng.
+ */
+export const MOBILE_NAVIGATION_BY_ROLE: Record<UserRole, NavLeaf[]> = {
+  [USER_ROLES.ADMIN]: [
+    TONG_QUAN,
+    groupLopHoc.children[0],
+    groupLopHoc.children[1],
+    TAI_CHINH,
+  ],
+  [USER_ROLES.TEACHER]: [
+    TONG_QUAN,
+    { ...groupLopHoc.children[2], label: "Lịch dạy" },
+    groupChucNang.children[2],
+    groupLopHoc.children[1],
+  ],
+  [USER_ROLES.VIEWER]: NAVIGATION_BY_ROLE[USER_ROLES.VIEWER] as NavLeaf[],
+};
+
 const PAGE_TITLES: Record<string, string> = {
   ...Object.fromEntries(
     Object.values(NAVIGATION_BY_ROLE)

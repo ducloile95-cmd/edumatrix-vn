@@ -1,0 +1,82 @@
+// @vitest-environment jsdom
+
+import { useState } from "react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, test, vi } from "vitest";
+import { Modal } from "@/components/ui/Modal";
+
+function ModalHarness() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)}>Mở hộp thoại</button>
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Tạo học sinh"
+        description="Nhập thông tin cơ bản."
+      >
+        <label htmlFor="student-name">Tên học sinh</label>
+        <input id="student-name" />
+        <button type="button">Lưu</button>
+      </Modal>
+    </>
+  );
+}
+
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
+
+describe("Modal", () => {
+  test("keeps dialog semantics and mobile bottom-sheet layout", () => {
+    render(
+      <Modal open onClose={() => undefined} title="Chi tiết">
+        Nội dung
+      </Modal>,
+    );
+
+    const dialog = screen.getByRole("dialog", { name: "Chi tiết" });
+    expect(dialog.getAttribute("aria-modal")).toBe("true");
+    expect(dialog.className).toContain("rounded-t-modal");
+    expect(dialog.className).toContain("sm:rounded-modal");
+    expect(dialog.parentElement?.className).toContain("items-end");
+  });
+
+  test("closes with Escape and returns focus to the trigger", async () => {
+    render(<ModalHarness />);
+    const trigger = screen.getByRole("button", { name: "Mở hộp thoại" });
+    trigger.focus();
+    fireEvent.click(trigger);
+
+    const dialog = screen.getByRole("dialog", { name: "Tạo học sinh" });
+    await waitFor(() => {
+      expect(dialog.contains(document.activeElement)).toBe(true);
+    });
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    await waitFor(() => {
+      expect(trigger).toBe(document.activeElement);
+    });
+  });
+
+  test("traps keyboard focus inside the dialog", async () => {
+    render(<ModalHarness />);
+    fireEvent.click(screen.getByRole("button", { name: "Mở hộp thoại" }));
+
+    const closeButton = screen.getByRole("button", { name: "Đóng hộp thoại" });
+    const saveButton = screen.getByRole("button", { name: "Lưu" });
+    await waitFor(() => {
+      expect(closeButton).toBe(document.activeElement);
+    });
+
+    saveButton.focus();
+    fireEvent.keyDown(document, { key: "Tab" });
+    expect(closeButton).toBe(document.activeElement);
+
+    closeButton.focus();
+    fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
+    expect(saveButton).toBe(document.activeElement);
+  });
+});

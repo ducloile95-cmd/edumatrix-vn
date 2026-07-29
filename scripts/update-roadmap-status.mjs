@@ -5,7 +5,9 @@ import { fileURLToPath } from "node:url";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const statePath = path.join(rootDir, "docs", "upgrade-roadmap-state.json");
-const htmlPath = path.join(rootDir, "docs", "upgrade-roadmap.html");
+// File HTML da chuyen vao docs/Infographic/ trong dot don thu muc 20/07.
+// Duong dan cu khien syncHtmlState thoat lang le suot 15 ngay (xem ben duoi).
+const htmlPath = path.join(rootDir, "docs", "Infographic", "upgrade-roadmap.html");
 const validStatuses = new Set(["todo", "active", "review", "done", "blocked"]);
 
 function printHelp() {
@@ -67,14 +69,19 @@ function recalculatePhaseStatus(phase) {
 }
 
 function syncHtmlState(state) {
-  if (!fs.existsSync(htmlPath)) return;
+  // Truoc day cho "return" o day: file bi di chuyen thi script van bao thanh cong
+  // trong khi HTML khong duoc cap nhat. Thieu file dich luon la loi cau hinh,
+  // khong phai trang thai hop le - nem loi giong nhu khi thieu the script.
+  if (!fs.existsSync(htmlPath)) {
+    throw new Error(`Khong tim thay ${path.relative(rootDir, htmlPath)}. Neu file da doi cho, cap nhat htmlPath trong scripts/update-roadmap-status.mjs.`);
+  }
 
   const html = fs.readFileSync(htmlPath, "utf8");
   const nextJson = JSON.stringify(state, null, 2).replaceAll("</script", "<\\/script");
   const marker = /<script id="roadmap-state" type="application\/json">[\s\S]*?<\/script>/;
 
   if (!marker.test(html)) {
-    throw new Error("Cannot find roadmap-state script tag in docs/upgrade-roadmap.html");
+    throw new Error(`Cannot find roadmap-state script tag in ${path.relative(rootDir, htmlPath)}`);
   }
 
   const nextHtml = html.replace(

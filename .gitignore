@@ -25,3 +25,12 @@ coverage/
 .tsc-out/
 *.tsbuildinfo
 Agents Instuctions/
+
+# Ban xuat Firestore chua du lieu ca nhan cua tre em - khong bao gio vao repo.
+backups/
+
+# Thư mục tạm của agent. Giữ lại các script build đã commit có chủ đích.
+# Dùng .codex-tmp/* thay vì .codex-tmp/node_modules/ vì node_modules ở đây
+# là symlink, mà pattern có dấu "/" ở cuối chỉ khớp thư mục thật.
+.codex-tmp/*
+!.codex-tmp/*.mjs

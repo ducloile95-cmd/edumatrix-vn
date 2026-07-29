@@ -1,0 +1,10 @@
+# Chuẩn hoá kết thúc dòng: mọi file text lưu LF trong repo và trên đĩa,
+# bất kể máy đang dùng Windows hay Linux. Không có dòng này, worktree bị
+# lật sang CRLF sẽ tạo diff giả hàng chục nghìn dòng (sự cố 29/07/2026).
+* text=auto eol=lf
+
+# File nhị phân: Git không được đụng vào nội dung.
+*.png    binary
+*.webp   binary
+*.xlsx   binary
+*.sqlite binary

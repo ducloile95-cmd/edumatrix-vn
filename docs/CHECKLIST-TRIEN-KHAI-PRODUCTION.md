@@ -2,6 +2,8 @@
 
 Ngày lập: 19/07/2026. Chỉ đánh dấu hoàn tất khi có bằng chứng từ Console hoặc smoke test production; “code-ready” không đồng nghĩa “đã triển khai”.
 
+> Cập nhật 29/07/2026: các mục đã tick bên dưới lấy bằng chứng từ `docs/KE-HOACH-TONG-HOP-MESSENGER-UTILITY-27-07-2026.md` (nhật ký triển khai 27/07), **chưa được đối chiếu lại với Firebase/Meta/Cloud Console**. Ai làm smoke test production nên xác nhận lại 5 mục này trước khi phát hành.
+
 ## 1. Firebase App Check
 
 - [ ] Xác nhận domain production và preview hợp lệ trong reCAPTCHA v3.
@@ -23,8 +25,8 @@ Ngày lập: 19/07/2026. Chỉ đánh dấu hoàn tất khi có bằng chứng t
 
 ## 3. Google Drive cho giáo án
 
-- [ ] Bật Google Drive API và Google Picker API trong đúng Google Cloud project.
-- [ ] Cấu hình OAuth consent screen, authorized JavaScript origins cho localhost, preview và production.
+- [x] Bật Google Drive API và Google Picker API trong đúng Google Cloud project. *(nguồn: nhật ký 27/07)*
+- [x] Cấu hình OAuth consent screen, authorized JavaScript origins cho localhost, preview và production. *(nguồn: nhật ký 27/07)*
 - [ ] Giới hạn Picker API key theo origins và chỉ các API cần thiết.
 - [ ] Điền `VITE_GOOGLE_CLIENT_ID`, `VITE_GOOGLE_PICKER_API_KEY`, `VITE_GOOGLE_PICKER_APP_ID`; không thêm client secret/refresh token.
 - [ ] Admin lưu `driveFolderId` trong Settings > Tích hợp và xác nhận quyền thư mục của nhân sự.
@@ -33,10 +35,10 @@ Ngày lập: 19/07/2026. Chỉ đánh dấu hoàn tất khi có bằng chứng t
 
 ## 4. Messenger Worker và Meta
 
-- [ ] Deploy Worker production với secrets bằng `wrangler secret`; không đặt secret trong frontend/repository.
+- [x] Deploy Worker production với secrets bằng `wrangler secret`; không đặt secret trong frontend/repository. *(nguồn: nhật ký 27/07)*
 - [ ] Điền `VITE_MESSENGER_WORKER_URL` và `VITE_MESSENGER_PAGE_USERNAME` production.
-- [ ] Xác minh CORS chỉ cho origin production dự kiến.
-- [ ] Webhook production verified; subscription gồm messages, messaging_postbacks, messaging_referrals.
+- [x] Xác minh CORS chỉ cho origin production dự kiến. *(nguồn: nhật ký 27/07 — 2 origin HTTPS trong `wrangler.jsonc:28`, chặn bởi `check:prod-config`; nhánh `"*"` đã bị xoá khỏi code ngày 29/07)*
+- [x] Webhook production verified; subscription gồm messages, messaging_postbacks, messaging_referrals. *(nguồn: nhật ký 27/07 — verified với 6 field, bao trùm 3 field yêu cầu ở đây)*
 - [ ] Tạo link từ UI; URL chỉ chứa nonce, không chứa Firebase UID; giáo viên chỉ tạo được cho phụ huynh của học sinh được phân công.
 - [ ] Xác nhận nonce dùng lại/hết hạn bị từ chối và PSID không thể chiếm tài khoản khác.
 - [ ] Gửi/nhận một tin thật và đối chiếu `message_outbox`, `chat_threads`, `messenger_connections`.
@@ -44,7 +46,7 @@ Ngày lập: 19/07/2026. Chỉ đánh dấu hoàn tất khi có bằng chứng t
 ## 5. QA giao diện Admin
 
 - [ ] Kiểm tra Overview, Settings > Tích hợp và Giáo án ở 360, 768, 1024 và 1440 px.
-- [ ] Kiểm tra light/dark mode và `prefers-reduced-motion`.
+- [ ] Kiểm tra `prefers-reduced-motion`. (Giao diện tối đã bị vô hiệu hoá ở Đợt 6.8 ngày 20/07 — `AppearanceTab.tsx` khoá nút và gắn nhãn "Sắp ra mắt", `tailwind.config.ts` không cấu hình `darkMode` — nên không còn gì để kiểm tra.)
 - [ ] Chỉ dùng bàn phím để mở `?section=integrations`, nhập cấu hình, kết nối/ngắt Drive và retry.
 - [ ] Xác nhận loading, empty, success, expired, denied, timeout và retry có thông báo, không mất dữ liệu form.
 - [ ] Không tràn ngang, bị che nội dung, mất focus hoặc có vùng bấm nhỏ hơn chuẩn hiện có.

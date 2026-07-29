@@ -229,3 +229,34 @@ describe("immutable Firestore fields", () => {
     await assertSucceeds(updateDoc(doc(asAdmin(), "payments", "payment-1"), { status: "verified", verifiedBy: admin }));
   });
 });
+
+// `validStudentData` dung hasOnly(), nen them mot field moi vao StudentDoc ma quen
+// noi whitelist se lam MOI lenh ghi students that bai (R4 trong ke hoach lien ket
+// phu huynh). Bon ca duoi day khoa ca hai chieu: nickname duoc chap nhan, va doc cu
+// khong co nickname van ghi duoc.
+describe("student nickname (R4/R5)", () => {
+  const newStudent = (extra: Record<string, unknown> = {}) => ({
+    studentCode: "student-2",
+    fullName: "Student Two",
+    dateOfBirth: "2015-02-02",
+    parentUids: [],
+    currentClassIds: [],
+    teacherIds: [],
+    status: "active",
+    createdAt: Timestamp.now(),
+    updatedAt: Timestamp.now(),
+    ...extra,
+  });
+
+  test("admin creates a student with a nickname", async () =>
+    assertSucceeds(setDoc(doc(asAdmin(), "students", "student-2"), newStudent({ nickname: "Bi" }))));
+
+  test("a student document without nickname is still valid", async () =>
+    assertSucceeds(setDoc(doc(asAdmin(), "students", "student-2"), newStudent())));
+
+  test("a non-string nickname is rejected", async () =>
+    assertFails(setDoc(doc(asAdmin(), "students", "student-2"), newStudent({ nickname: 123 }))));
+
+  test("teacher can edit the nickname of a student they are assigned to", async () =>
+    assertSucceeds(updateDoc(doc(asTeacher(), "students", "student-1"), { nickname: "Bi", updatedAt: Timestamp.now() })));
+});

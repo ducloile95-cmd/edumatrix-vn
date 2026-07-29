@@ -8,7 +8,7 @@ import { listScoresByStudent } from "@/services/firestore/scores";
 import { listSessionsByClass } from "@/services/firestore/sessions";
 import { getStudent } from "@/services/firestore/students";
 import { getClass } from "@/services/firestore/classes";
-import { listCourses } from "@/services/firestore/courses";
+import { getCourse } from "@/services/firestore/courses";
 import type {
   AnnouncementDoc,
   AssignmentDoc,
@@ -57,11 +57,16 @@ export async function buildViewerDashboard(studentIds: string[]): Promise<Viewer
   const students = studentResults.filter((student): student is NonNullable<typeof student> => !!student);
   const classIds = [...new Set(students.flatMap((student) => student.currentClassIds ?? []))];
 
-  const [classResults, courses] = await Promise.all([
-    Promise.all(classIds.map(getClass)),
-    listCourses(),
-  ]);
+  const classResults = await Promise.all(classIds.map(getClass));
   const classes = classResults.filter((klass): klass is NonNullable<typeof klass> => !!klass);
+
+  // Chỉ đọc đúng những khóa học mà lớp của học sinh tham chiếu tới. Trước đây
+  // đây là listCourses() đọc toàn bộ collection, trong khi nơi tiêu thụ duy nhất
+  // (ViewerDashboardPage) vốn đã lọc lại theo courseId của lớp - đọc thừa toàn bộ
+  // phần còn lại. Đổi lại một round-trip: phải có classes rồi mới biết courseIds.
+  const courseIds = [...new Set(classes.map((klass) => klass.courseId).filter(Boolean))];
+  const courseResults = await Promise.all(courseIds.map(getCourse));
+  const courses = courseResults.filter((course): course is NonNullable<typeof course> => !!course);
 
   const [
     sessionGroups,

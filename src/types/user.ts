@@ -34,3 +34,34 @@ export interface InviteDoc {
   createdAt: Timestamp;
   claimedAt?: Timestamp;
 }
+
+export type LinkRequestStatus = "pending" | "approved" | "rejected";
+
+/** Mot con do phu huynh tu khai - chua phai ho so hoc sinh that. */
+export interface DeclaredChildInput {
+  fullName: string;
+  nickname?: string;
+  /** "YYYY-MM-DD". */
+  dateOfBirth: string;
+  /** Vi du "dang hoc lop co Lan" - giup Admin doi chieu khi trung ten. */
+  note?: string;
+}
+
+/**
+ * link_requests/{parentUid} - duong vao thu hai ben canh invites/.
+ * Doc id = uid nen moi Gmail chi co dung mot yeu cau.
+ */
+export interface LinkRequestDoc {
+  email: string;
+  parentName: string;
+  phone: string;
+  address?: string;
+  facebookUrl?: string;
+  relationship: string;
+  children: DeclaredChildInput[];
+  status: LinkRequestStatus;
+  rejectReason?: string;
+  reviewedBy?: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}

@@ -22,6 +22,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Tab, Tabs } from "@/components/ui/Tabs";
 import { ROLE_LABELS, USER_ROLES } from "@/constants/roles";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { LinkRequestsPanel } from "@/features/users/components/LinkRequestsPanel";
 import { RolesPermissionsPanel } from "@/features/users/components/RolesPermissionsPanel";
 import { createInvite, listInvites, revokeInvite } from "@/services/firestore/invites";
 import { listStudents } from "@/services/firestore/students";
@@ -31,7 +32,7 @@ import {
 import type { StudentDoc } from "@/types/academic";
 import type { InviteDoc, UserDoc, UserRole, UserStatus } from "@/types/user";
 
-type MainTab = "overview" | "staff" | "families" | "permissions";
+type MainTab = "overview" | "staff" | "families" | "linkRequests" | "permissions";
 type FamilyTab = "active" | "invited";
 type UserRecord = UserDoc & { uid: string };
 
@@ -39,6 +40,7 @@ const MAIN_TABS: Array<{ value: MainTab; label: string }> = [
   { value: "overview", label: "Tổng quan" },
   { value: "staff", label: "Tài khoản Staff" },
   { value: "families", label: "Phụ huynh/Học sinh" },
+  { value: "linkRequests", label: "Yêu cầu liên kết" },
   { value: "permissions", label: "Vai trò và phân quyền" },
 ];
 
@@ -193,7 +195,7 @@ export default function UsersAdminPage() {
   const students = studentsQuery.data ?? [];
   const studentById = new Map(students.map((student) => [student.id, student]));
 
-  return <><PageHeader actions={<Button variant="primary" icon={<UserPlus size={17} />} onClick={() => setInviteOpen(true)}>Mời tài khoản</Button>} /><TabBar value={tab} onChange={setTab} />{loading && tab !== "permissions" && <div className="rounded-card border border-neutral-200 bg-white p-5"><LoadingSkeleton rows={7} /></div>}{failed && tab !== "permissions" && <ErrorState message="Không tải được dữ liệu module Người dùng." onRetry={() => { usersQuery.refetch(); invitesQuery.refetch(); studentsQuery.refetch(); }} />}{tab === "permissions" && <RolesPermissionsPanel />}{!loading && !failed && tab === "overview" && <Overview users={users} invites={invites} onOpenStaff={() => setTab("staff")} />}{!loading && !failed && tab === "staff" && <StaffTable users={users} onEdit={setSelectedUser} />}{!loading && !failed && tab === "families" && <FamilyTable users={users} invites={invites} students={students} onView={setSelectedUser} onRevoke={(email) => revokeMutation.mutate(email)} />}
+  return <><PageHeader actions={<Button variant="primary" icon={<UserPlus size={17} />} onClick={() => setInviteOpen(true)}>Mời tài khoản</Button>} /><TabBar value={tab} onChange={setTab} />{loading && tab !== "permissions" && <div className="rounded-card border border-neutral-200 bg-white p-5"><LoadingSkeleton rows={7} /></div>}{failed && tab !== "permissions" && <ErrorState message="Không tải được dữ liệu module Người dùng." onRetry={() => { usersQuery.refetch(); invitesQuery.refetch(); studentsQuery.refetch(); }} />}{tab === "permissions" && <RolesPermissionsPanel />}{!loading && !failed && tab === "overview" && <Overview users={users} invites={invites} onOpenStaff={() => setTab("staff")} />}{!loading && !failed && tab === "staff" && <StaffTable users={users} onEdit={setSelectedUser} />}{!loading && !failed && tab === "families" && <FamilyTable users={users} invites={invites} students={students} onView={setSelectedUser} onRevoke={(email) => revokeMutation.mutate(email)} />}{!loading && !failed && tab === "linkRequests" && <LinkRequestsPanel students={students} />}
 
     <Modal open={inviteOpen} onClose={() => setInviteOpen(false)} title="Mời tài khoản mới" description="Chọn đúng vai trò và học sinh liên kết trước khi gửi." size="lg"><InviteForm students={students} pending={inviteMutation.isPending} onSubmit={(input) => inviteMutation.mutate(input)} onClose={() => setInviteOpen(false)} />{inviteMutation.isError && <p role="alert" className="mt-3 text-sm font-semibold text-danger-700">Không thể gửi lời mời. Kiểm tra email và thử lại.</p>}</Modal>
 

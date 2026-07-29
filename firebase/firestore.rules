@@ -279,7 +279,7 @@ service cloud.firestore {
 
     function validStudentData(studentId, data) {
       return data.keys().hasAll(['studentCode', 'fullName', 'dateOfBirth', 'parentUids', 'currentClassIds', 'teacherIds', 'status', 'createdAt', 'updatedAt']) &&
-        data.keys().hasOnly(['studentCode', 'fullName', 'dateOfBirth', 'parentUids', 'currentClassIds', 'teacherIds', 'staffNote', 'status', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['studentCode', 'fullName', 'nickname', 'dateOfBirth', 'parentUids', 'currentClassIds', 'teacherIds', 'staffNote', 'status', 'createdAt', 'updatedAt']) &&
         data.studentCode == studentId &&
         data.fullName is string &&
         data.dateOfBirth is string &&
@@ -287,6 +287,7 @@ service cloud.firestore {
         isStringList(data.currentClassIds) &&
         isStringList(data.teacherIds) &&
         (!data.keys().hasAny(['staffNote']) || data.staffNote is string) &&
+        (!data.keys().hasAny(['nickname']) || data.nickname is string) &&
         data.status in ['active', 'inactive'] &&
         hasTimestamps(data);
     }
@@ -552,7 +553,7 @@ service cloud.firestore {
       allow update: if isAdmin() || (
         request.auth.uid == uid &&
         request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['displayName', 'photoURL', 'lastLoginAt', 'notificationPrefs', 'updatedAt']) &&
+          .hasOnly(['displayName', 'photoURL', 'lastLoginAt', 'notificationPrefs', 'phone', 'address', 'facebookUrl', 'updatedAt']) &&
         request.resource.data.role == resource.data.role &&
         request.resource.data.studentIds == resource.data.studentIds &&
         request.resource.data.status == resource.data.status
@@ -585,6 +586,41 @@ service cloud.firestore {
       );
 
       allow delete: if isAdmin();
+    }
+
+    // ---------- link_requests/{parentUid} ----------
+    // Duong vao thu hai ben canh invites/: phu huynh dang nhap Gmail lan dau, tu
+    // khai bao con, roi cho Admin duyet. Doc id = uid nen moi Gmail chi co dung
+    // mot yeu cau - submit hai lan khong de ra hai ban ghi.
+    // Khong tu dong duyet bang Rules: du lieu tre em, giu mot buoc nguoi that kiem tra.
+
+    match /link_requests/{uid} {
+      allow read: if isStaff() || (signedIn() && request.auth.uid == uid);
+
+      allow create: if hasVerifiedEmail() &&
+        request.auth.uid == uid &&
+        !userExists() &&
+        request.resource.data.email == requesterEmail() &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.children is list &&
+        request.resource.data.children.size() >= 1 &&
+        request.resource.data.children.size() <= 5 &&
+        request.resource.data.keys().hasAll(['email', 'parentName', 'phone', 'relationship', 'children', 'status', 'createdAt', 'updatedAt']) &&
+        request.resource.data.keys().hasOnly([
+          'email', 'parentName', 'phone', 'address', 'facebookUrl', 'relationship',
+          'children', 'status', 'createdAt', 'updatedAt'
+        ]);
+        // ponytail: khong validate sau tung phan tu children - Rules khong lam gon duoc,
+        // va Admin doc bang mat truoc khi duyet. Nang len neu sau nay tu dong duyet.
+
+      allow update: if isAdmin() || (
+        signedIn() &&
+        request.auth.uid == uid &&
+        resource.data.status != 'approved' &&
+        request.resource.data.status == 'pending'
+      );
+
+      allow delete: if false;
     }
 
     // ---------- legacy client telemetry ----------
@@ -691,7 +727,7 @@ service cloud.firestore {
           isTeacher() &&
             request.auth.uid in resource.data.teacherIds &&
             request.resource.data.diff(resource.data).affectedKeys()
-              .hasOnly(['fullName', 'dateOfBirth', 'staffNote', 'updatedAt']) &&
+              .hasOnly(['fullName', 'nickname', 'dateOfBirth', 'staffNote', 'updatedAt']) &&
             request.resource.data.teacherIds == resource.data.teacherIds &&
             request.resource.data.currentClassIds == resource.data.currentClassIds &&
             request.resource.data.parentUids == resource.data.parentUids
@@ -1113,6 +1149,14 @@ service cloud.firestore {
 
     match /messenger_private_config/{configId} {
       allow read, write: if false;
+    }
+
+    // Trạng thái duyệt Utility Template do Worker ghi qua service account
+    // (bỏ qua Rules). Admin cần đọc được để dựng màn hình xem/bật/tắt template
+    // ở Giai đoạn 6; client không bao giờ được ghi.
+    match /messenger_template_status/{templateId} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     // fanpage_posts: lich su + hang cho dang bai Fanpage - client ghi truc tiep (Admin-only,

@@ -57,9 +57,13 @@ console.log(`Running Firestore rules tests on emulator port ${firestorePort}`);
 
 const firebaseCli = path.join(ROOT, "node_modules", "firebase-tools", "lib", "bin", "firebase.js");
 
+// Cho phep khoanh vung mot file khi debug:
+//   npm run test:rules -- firebase/tests/immutable-rules.test.ts
+const target = process.argv.slice(2).join(" ").trim() || "firebase/tests";
+
 const result = spawnSync(
   process.execPath,
-  [firebaseCli, "emulators:exec", "--only", "firestore", "--config", tempConfigPath, "vitest run firebase/tests --maxWorkers=1"],
+  [firebaseCli, "emulators:exec", "--only", "firestore", "--config", tempConfigPath, `vitest run ${target} --maxWorkers=1`],
   {
     cwd: ROOT,
     env: {

@@ -126,15 +126,18 @@ export function AttendanceMarkPanel({ presetSessionId }: AttendanceMarkPanelProp
     },
   });
 
-  const updateEntry = (studentId: string, changes: Partial<AttendanceEntry>) => setEntries((current) => ({
-    ...current,
-    [studentId]: {
-      studentId,
-      status: current[studentId]?.status ?? "present",
-      note: current[studentId]?.note ?? "",
-      ...changes,
-    },
-  }));
+  const updateEntry = (studentId: string, changes: Partial<AttendanceEntry>) => {
+    mutation.reset();
+    setEntries((current) => ({
+      ...current,
+      [studentId]: {
+        studentId,
+        status: current[studentId]?.status ?? "present",
+        note: current[studentId]?.note ?? "",
+        ...changes,
+      },
+    }));
+  };
 
   const normalizedSearch = search.trim().toLocaleLowerCase("vi");
   const visibleStudents = classStudents.filter((student) =>
@@ -161,7 +164,11 @@ export function AttendanceMarkPanel({ presetSessionId }: AttendanceMarkPanelProp
             <select
               id="attendance-session"
               value={sessionId}
-              onChange={(event) => setSessionId(event.target.value)}
+              onChange={(event) => {
+                mutation.reset();
+                setSessionId(event.target.value);
+                setSearch("");
+              }}
               className="min-h-touch w-full rounded-input border border-neutral-300 bg-white px-3 text-sm font-medium text-neutral-900 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
             >
               <option value="">Chọn buổi học</option>
@@ -175,7 +182,10 @@ export function AttendanceMarkPanel({ presetSessionId }: AttendanceMarkPanelProp
           {sessionId && (
             <button
               type="button"
-              onClick={() => setEntries((current) => Object.fromEntries(classStudents.map((student) => [student.id, { ...current[student.id], studentId: student.id, status: "present", note: current[student.id]?.note ?? "" }]))) }
+              onClick={() => {
+                mutation.reset();
+                setEntries((current) => Object.fromEntries(classStudents.map((student) => [student.id, { ...current[student.id], studentId: student.id, status: "present", note: current[student.id]?.note ?? "" }])));
+              }}
               className="inline-flex min-h-touch items-center justify-center gap-2 rounded-input border border-primary-200 bg-primary-50 px-4 text-sm font-semibold text-primary-700 transition hover:border-primary-300 hover:bg-primary-100"
             >
               <CheckCheck size={17} /> Tất cả có mặt
@@ -192,7 +202,7 @@ export function AttendanceMarkPanel({ presetSessionId }: AttendanceMarkPanelProp
         {sessionId && isLoadingDetails && <div className="p-5"><LoadingSkeleton rows={5} /></div>}
 
         {sessionId && selectedSession && klass.data && !isLoadingDetails && (
-          <div className="grid gap-px bg-neutral-200 sm:grid-cols-2 xl:grid-cols-5">
+          <div className="grid grid-cols-2 gap-px bg-neutral-200 xl:grid-cols-5">
             <InfoCell icon={GraduationCap} label="Lớp học" value={klass.data.name} detail={`${classStudents.length} học sinh`} />
             <InfoCell icon={CalendarDays} label="Khóa học" value={course?.name ?? "Chưa liên kết khóa học"} detail={course ? `${course.totalSessions} buổi toàn khóa` : "Cần bổ sung dữ liệu"} />
             <InfoCell icon={Clock3} label="Thời gian" value={format(selectedSession.startAt.toDate(), "EEEE, dd/MM", { locale: vi })} detail={`${format(selectedSession.startAt.toDate(), "HH:mm")} - ${format(selectedSession.endAt.toDate(), "HH:mm")}`} />
@@ -205,7 +215,7 @@ export function AttendanceMarkPanel({ presetSessionId }: AttendanceMarkPanelProp
       {sessionId && classStudents.length === 0 && !students.isLoading && <EmptyState title="Lớp chưa có học sinh" />}
 
       {classStudents.length > 0 && (
-        <section className="overflow-hidden rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)]">
+        <section className="rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)]">
           <div className="flex flex-col gap-3 border-b border-neutral-100 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
             <div>
               <h2 className="text-lg font-bold text-neutral-900">Danh sách học sinh</h2>
@@ -226,12 +236,12 @@ export function AttendanceMarkPanel({ presetSessionId }: AttendanceMarkPanelProp
             <span>Học sinh</span><span>Tình trạng điểm danh</span><span>Đánh giá chuyên cần</span><span>Ghi chú</span>
           </div>
 
-          <ul className="divide-y divide-neutral-100">
+          <ul className="divide-y divide-neutral-100 pb-36 md:pb-0">
             {visibleStudents.map((student) => {
               const studentHistory = history.data?.filter((item) => item.studentId === student.id) ?? [];
               const insight = getAttendanceInsight(studentHistory);
               return (
-                <li key={student.id} className="grid gap-4 px-4 py-4 transition hover:bg-neutral-50/70 lg:grid-cols-[minmax(190px,1.15fr)_minmax(300px,1.5fr)_minmax(170px,.8fr)_minmax(180px,1fr)] lg:items-center lg:px-5">
+                <li key={student.id} className="grid gap-3 px-3 py-3 transition hover:bg-neutral-50/70 sm:px-4 sm:py-4 lg:grid-cols-[minmax(190px,1.15fr)_minmax(300px,1.5fr)_minmax(170px,.8fr)_minmax(180px,1fr)] lg:items-center lg:gap-4 lg:px-5">
                   <div className="flex min-w-0 items-center gap-3">
                     <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary-50 text-sm font-bold text-primary-700">
                       {student.fullName.trim().split(/\s+/).slice(-1)[0]?.slice(0, 1).toUpperCase()}
@@ -257,7 +267,7 @@ export function AttendanceMarkPanel({ presetSessionId }: AttendanceMarkPanelProp
                             aria-pressed={active}
                             aria-label={`${option.label}: ${student.fullName}`}
                             onClick={() => updateEntry(student.id, { status: option.value })}
-                            className={`relative min-h-10 rounded-input border px-2 text-xs font-semibold transition ${active ? option.activeClass : "border-neutral-200 bg-white text-neutral-500 hover:border-neutral-300 hover:bg-neutral-50"}`}
+                            className={`relative min-h-touch rounded-input border px-2 text-xs font-semibold transition ${active ? option.activeClass : "border-neutral-200 bg-white text-neutral-500 hover:border-neutral-300 hover:bg-neutral-50"}`}
                           >
                             {active && <Check size={12} className="absolute right-1.5 top-1.5" />}
                             {option.shortLabel}
@@ -297,22 +307,22 @@ export function AttendanceMarkPanel({ presetSessionId }: AttendanceMarkPanelProp
 
           {visibleStudents.length === 0 && <div className="p-6"><EmptyState title="Không tìm thấy học sinh phù hợp" /></div>}
 
-          <div className="flex flex-col gap-4 border-t border-neutral-200 bg-neutral-50 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-            <div className="flex flex-wrap gap-2 text-xs font-semibold">
+          <div className="fixed inset-x-0 bottom-[calc(60px+env(safe-area-inset-bottom))] z-10 flex flex-col gap-3 border-t border-neutral-200 bg-white/95 p-3 shadow-[0_-10px_24px_rgba(28,26,21,.08)] backdrop-blur sm:p-4 md:relative md:inset-auto md:flex-row md:items-center md:justify-between md:p-5">
+            {mutation.isError && <p role="alert" className="absolute inset-x-0 bottom-full border-t border-danger-100 bg-danger-50 px-4 py-3 text-sm text-danger-700 shadow-[0_-8px_20px_rgba(28,26,21,.06)]">Lưu thất bại. Dữ liệu vẫn còn trên màn hình, hãy kiểm tra kết nối và thử lại.</p>}
+            {mutation.isSuccess && <p role="status" aria-live="polite" className="absolute inset-x-0 bottom-full border-t border-success-100 bg-success-50 px-4 py-3 text-sm font-medium text-success-700 shadow-[0_-8px_20px_rgba(28,26,21,.06)]">Đã lưu điểm danh và cập nhật đánh giá chuyên cần.</p>}
+            <div aria-live="polite" className="grid w-full grid-cols-2 gap-2 text-xs font-semibold sm:flex sm:w-auto sm:flex-wrap">
               {STATUS_OPTIONS.map((item) => <span key={item.value} className={`rounded-full px-2.5 py-1 ${item.activeClass}`}>{item.shortLabel}: {counts[item.value]}</span>)}
             </div>
             <button
               type="button"
               onClick={() => mutation.mutate()}
               disabled={mutation.isPending || Object.keys(entries).length === 0}
-              className="inline-flex min-h-touch items-center justify-center gap-2 rounded-input bg-primary-500 px-5 text-sm font-bold text-white shadow-[0_6px_16px_rgba(51,102,240,.22)] transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex min-h-touch w-full items-center justify-center gap-2 rounded-input bg-primary-500 px-5 text-sm font-bold text-white shadow-[0_6px_16px_rgba(51,102,240,.22)] transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-50 md:w-auto"
             >
               <Save size={17} /> {mutation.isPending ? "Đang lưu..." : `Lưu điểm danh (${classStudents.length})`}
             </button>
           </div>
 
-          {mutation.isError && <p role="alert" className="border-t border-danger-100 bg-danger-50 px-5 py-3 text-sm text-danger-700">Lưu thất bại. Dữ liệu vẫn còn trên màn hình, hãy kiểm tra kết nối và thử lại.</p>}
-          {mutation.isSuccess && <p className="border-t border-success-100 bg-success-50 px-5 py-3 text-sm font-medium text-success-700">Đã lưu điểm danh và cập nhật đánh giá chuyên cần.</p>}
         </section>
       )}
     </div>
@@ -333,7 +343,7 @@ function InfoCell({
   accent?: boolean;
 }) {
   return (
-    <div className={`min-w-0 p-4 sm:p-5 ${accent ? "bg-primary-500 text-white" : "bg-white"}`}>
+    <div className={`min-w-0 p-3 sm:p-5 ${accent ? "col-span-2 bg-primary-500 text-white xl:col-span-1" : "bg-white"}`}>
       <div className="flex items-center gap-2">
         <Icon size={16} className={accent ? "text-primary-100" : "text-primary-500"} />
         <p className={`text-2xs font-bold uppercase tracking-[0.1em] ${accent ? "text-primary-100" : "text-neutral-500"}`}>{label}</p>

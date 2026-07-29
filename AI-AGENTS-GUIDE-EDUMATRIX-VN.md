@@ -347,13 +347,7 @@ Ví dụ:
 ```typescript
 export type UserRole = "admin" | "teacher" | "viewer";
 
-export type AttendanceStatus =
-  | "present"
-  | "absent_excused"
-  | "absent_unexcused"
-  | "late"
-  | "makeup"
-  | "online";
+export type AttendanceStatus = "present" | "absent" | "late" | "excused";
 ```
 
 ### A7.2. Naming
@@ -616,7 +610,7 @@ lesson_plan_templates/{templateId}
 sessions/{sessionId}
 
 attendance/{sessionId_studentId}
-attendance_summaries/{classId_studentId}
+attendance_summaries/{sessionId}
 
 assignments/{assignmentId}
 assignment_summaries/{assignmentId}
@@ -1865,8 +1859,8 @@ lesson_plans/{lessonPlanId}
 lesson_plan_templates/{templateId}
 sessions/{sessionId}
 
-attendance/{attendanceId}
-attendance_summaries/{summaryId}
+attendance/{sessionId_studentId}
+attendance_summaries/{sessionId}
 
 assignments/{assignmentId}
 assignment_summaries/{assignmentId}
@@ -2147,13 +2141,13 @@ Màn hình gồm:
 ### 13.1. Trạng thái
 
 ```text
-present              Có mặt
-absent_excused       Vắng có phép
-absent_unexcused     Vắng không phép
-late                 Đi muộn
-makeup               Học bù
-online               Học online
+present    Có mặt
+absent     Vắng
+late       Đi muộn
+excused    Vắng có phép
 ```
+
+Nguồn sự thật: `src/types/academic.ts` (`AttendanceStatus`) và `firebase/firestore.rules`, cả hai chốt đúng 4 giá trị này. Buổi học bù không phải một trạng thái điểm danh — nó nằm ở tầng `sessions` qua `makeUpForSessionId`.
 
 ### 13.2. Dữ liệu
 
@@ -2187,23 +2181,25 @@ attendance/{sessionId_studentId}
 
 ### 13.4. Tổng hợp chuyên cần
 
+Tổng hợp **theo buổi học**, không phải theo học sinh. Khoá là `sessionId`.
+
 ```javascript
-attendance_summaries/{classId_studentId}
+attendance_summaries/{sessionId}
 {
+  sessionId: "session_001",
   classId: "class_001",
-  studentId: "student_001",
 
-  totalSessions: 20,
-  presentCount: 17,
-  absentExcusedCount: 1,
-  absentUnexcusedCount: 1,
-  lateCount: 1,
-  makeupCount: 0,
+  total: 20,
+  present: 17,
+  absent: 1,
+  late: 1,
+  excused: 1,
 
-  attendanceRate: 85,
   updatedAt: Timestamp
 }
 ```
+
+Hệ quả cần biết: **không có `attendanceRate` theo học sinh** ở tầng tổng hợp. Muốn tính tỷ lệ chuyên cần của một học sinh thì phải đọc lại `attendance` thô. Nếu sau này cần chỉ số đó cho Viewer, hãy thêm một collection riêng — đừng đổi khoá của `attendance_summaries`, collection này đã có dữ liệu production và đang được Staff Dashboard dùng.
 
 ### 13.5. UX mục tiêu
 

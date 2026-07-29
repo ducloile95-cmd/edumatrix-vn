@@ -71,6 +71,8 @@ export type StudentStatus = "active" | "inactive";
 export interface StudentDoc {
   studentCode: string;
   fullName: string;
+  /** Ten goi khac - chi de phan biet hoc sinh trung ten. Hien thi qua studentLabel(). */
+  nickname?: string;
   /** "YYYY-MM-DD" - khong can timezone (A7.5). */
   dateOfBirth: string;
   parentUids: string[];

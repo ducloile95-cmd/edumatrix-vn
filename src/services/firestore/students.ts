@@ -24,22 +24,24 @@ import type { ParentProfileInput } from "@/services/firestore/users";
 export interface CreateStudentInput {
   studentCode: string;
   fullName: string;
+  nickname?: string;
   dateOfBirth: string;
 }
 
 export interface UpdateStudentInput {
   fullName: string;
+  nickname?: string;
   dateOfBirth: string;
   staffNote?: string;
 }
 
 /** ID = ma hoc sinh chuan hoa (A13) - khong query kiem tra ton tai truoc. */
-function studentId(code: string): string {
+export function normalizeStudentCode(code: string): string {
   return code.trim().toUpperCase();
 }
 
 export async function createStudent(input: CreateStudentInput): Promise<void> {
-  const id = studentId(input.studentCode);
+  const id = normalizeStudentCode(input.studentCode);
   const currentUser = await getCurrentUserDoc();
   const ref = doc(db, COLLECTIONS.STUDENTS, id);
   await runTransaction(db, async (transaction) => {
@@ -48,6 +50,8 @@ export async function createStudent(input: CreateStudentInput): Promise<void> {
     transaction.set(ref, {
       studentCode: id,
       fullName: input.fullName,
+      // Ghi "" thay vi bo trong, giong staffNote - de moi doc co cung tap key.
+      nickname: input.nickname ?? "",
       dateOfBirth: input.dateOfBirth,
       parentUids: [],
       currentClassIds: [],
@@ -64,6 +68,7 @@ export async function updateStudent(studentDocId: string, input: UpdateStudentIn
   await updateDoc(doc(db, COLLECTIONS.STUDENTS, studentDocId), {
     fullName: input.fullName,
     dateOfBirth: input.dateOfBirth,
+    ...(input.nickname !== undefined ? { nickname: input.nickname } : {}),
     ...(input.staffNote !== undefined ? { staffNote: input.staffNote } : {}),
     updatedAt: serverTimestamp(),
   });

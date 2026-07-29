@@ -609,3 +609,81 @@ describe("Messenger referral secrets", () => {
     await assertFails(getDoc(psidRef));
   });
 });
+
+describe("Messenger utility template status", () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) =>
+      setDoc(doc(ctx.firestore(), "messenger_template_status", "template-1"), {
+        templateName: "edumatrix_tuition_payment_confirmation_vi",
+        status: "APPROVED",
+        language: "vi",
+        updatedAt: Timestamp.now(),
+      }));
+  });
+
+  test("admin can read template status for the Giai doan 6 admin screen", async () =>
+    assertSucceeds(getDoc(doc(asAdmin(), "messenger_template_status", "template-1"))));
+
+  test("teacher and viewer cannot read template status", async () => {
+    await assertFails(getDoc(doc(asTeacher(), "messenger_template_status", "template-1")));
+    await assertFails(getDoc(doc(asViewer(), "messenger_template_status", "template-1")));
+  });
+
+  test("no client role may write template status - only the Worker service account", async () => {
+    await assertFails(setDoc(doc(asAdmin(), "messenger_template_status", "template-2"), { status: "APPROVED" }));
+    await assertFails(updateDoc(doc(asAdmin(), "messenger_template_status", "template-1"), { status: "REJECTED" }));
+  });
+});
+
+describe("link_requests - phu huynh tu khai bao con", () => {
+  const NEW_PARENT_UID = "new-parent-uid";
+  const NEW_PARENT_EMAIL = "newparent@gmail.com";
+
+  const linkRequest = (extra: Record<string, unknown> = {}) => ({
+    email: NEW_PARENT_EMAIL,
+    parentName: "Nguyễn Văn A",
+    phone: "0900000000",
+    relationship: "Bố",
+    children: [{ fullName: "Nguyễn Minh Anh", dateOfBirth: "2015-04-02" }],
+    status: "pending",
+    createdAt: Timestamp.now(),
+    updatedAt: Timestamp.now(),
+    ...extra,
+  });
+
+  const asNewParent = () => asViewer(NEW_PARENT_UID, NEW_PARENT_EMAIL);
+
+  test("(a) phu huynh chua co tai khoan gui duoc yeu cau", async () =>
+    assertSucceeds(setDoc(doc(asNewParent(), "link_requests", NEW_PARENT_UID), linkRequest())));
+
+  test("(b) khong gui ho duoc cho uid khac", async () =>
+    assertFails(setDoc(doc(asNewParent(), "link_requests", "someone-else"), linkRequest())));
+
+  test("(c) tu dat status approved bi chan", async () =>
+    assertFails(setDoc(doc(asNewParent(), "link_requests", NEW_PARENT_UID), linkRequest({ status: "approved" }))));
+
+  test("(d) Teacher khong duyet duoc, Admin duyet duoc", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) =>
+      setDoc(doc(ctx.firestore(), "link_requests", NEW_PARENT_UID), linkRequest()));
+    await assertFails(updateDoc(doc(asTeacher(), "link_requests", NEW_PARENT_UID), { status: "approved" }));
+    await assertSucceeds(updateDoc(doc(asAdmin(), "link_requests", NEW_PARENT_UID), { status: "approved", reviewedBy: ADMIN_UID }));
+  });
+
+  test("email phai khop token, so con tu 1 den 5", async () => {
+    const db = asNewParent();
+    await assertFails(setDoc(doc(db, "link_requests", NEW_PARENT_UID), linkRequest({ email: "nguoikhac@gmail.com" })));
+    await assertFails(setDoc(doc(db, "link_requests", NEW_PARENT_UID), linkRequest({ children: [] })));
+    const sixChildren = Array.from({ length: 6 }, (_, index) => ({ fullName: `Con ${index}`, dateOfBirth: "2015-01-01" }));
+    await assertFails(setDoc(doc(db, "link_requests", NEW_PARENT_UID), linkRequest({ children: sixChildren })));
+  });
+
+  test("nguoi da co tai khoan thi khong can xin lien ket", async () =>
+    assertFails(setDoc(doc(asAdmin(), "link_requests", ADMIN_UID), linkRequest({ email: ADMIN_EMAIL }))));
+
+  test("phu huynh doc duoc yeu cau cua chinh minh, khong doc duoc cua nguoi khac", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) =>
+      setDoc(doc(ctx.firestore(), "link_requests", NEW_PARENT_UID), linkRequest()));
+    await assertSucceeds(getDoc(doc(asNewParent(), "link_requests", NEW_PARENT_UID)));
+    await assertFails(getDoc(doc(asViewer("nguoi-la", "nguoila@gmail.com"), "link_requests", NEW_PARENT_UID)));
+  });
+});

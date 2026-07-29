@@ -6,6 +6,7 @@ import { listClasses } from "@/services/firestore/classes";
 import { listCourses } from "@/services/firestore/courses";
 import { listStudentSummariesByIds } from "@/services/firestore/scores";
 import { listStudents } from "@/services/firestore/students";
+import { studentLabel } from "@/utils/student";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { USER_ROLES } from "@/constants/roles";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
@@ -84,7 +85,7 @@ export function StudentsList() {
         .toLowerCase();
       const matchesSearch =
         !keyword ||
-        student.fullName.toLowerCase().includes(keyword) ||
+        studentLabel(student).toLowerCase().includes(keyword) ||
         student.studentCode.toLowerCase().includes(keyword) ||
         classCourseText.includes(keyword);
       const matchesStatus = statusFilter === "all" || student.status === statusFilter;
@@ -130,6 +131,28 @@ export function StudentsList() {
     () => new Map((summariesQuery.data ?? []).map((summary) => [summary.id, summary])),
     [summariesQuery.data],
   );
+  const studentRows = pageItems.map((student) => {
+    const primaryClassId = student.currentClassIds[0] ?? "";
+    const primaryClass = primaryClassId ? classById.get(primaryClassId) : undefined;
+    const primaryCourse = primaryClass?.courseId ? courseById.get(primaryClass.courseId) : undefined;
+    const attendance = attendanceByStudent.get(student.id) ?? { percent: null, total: 0 };
+    const homework = homeworkByStudent.get(student.id) ?? { percent: null, total: 0 };
+    const summary = summaryByStudent.get(student.id);
+    const assessmentPercent = getAssessmentPercent(summary);
+
+    return {
+      assessmentPercent,
+      attendance,
+      grade: assessmentPercent === null ? null : getGradeLetter(assessmentPercent),
+      homework,
+      primaryClass,
+      primaryClassId,
+      primaryCourse,
+      progress: getLearningProgress(student, attendance, primaryCourse?.totalSessions),
+      student,
+      summary,
+    };
+  });
 
   if (isLoading) return <LoadingSkeleton rows={3} />;
   if (isError) return <ErrorState message="Không tải được danh sách học sinh." onRetry={() => refetch()} />;
@@ -157,7 +180,7 @@ export function StudentsList() {
 
         <div>
           <p className="mb-1 text-xs font-semibold text-neutral-500">Trạng thái học</p>
-          <div className="grid min-h-touch grid-cols-3 gap-1 rounded-input border border-neutral-300 bg-neutral-50 p-1">
+          <div className="grid grid-cols-3 gap-1 rounded-input border border-neutral-300 bg-neutral-50 p-1">
             {[
               ["all", "Tất cả"],
               ["active", "Đang học"],
@@ -170,7 +193,7 @@ export function StudentsList() {
                   setStatusFilter(value as StatusFilter);
                   setPage(1);
                 }}
-                className={`rounded-[7px] px-2 text-xs font-semibold transition ${
+                className={`min-h-touch rounded-[7px] px-2 text-xs font-semibold transition ${
                   statusFilter === value
                     ? "bg-primary-500 text-white shadow-[0_4px_12px_rgba(51,102,240,.18)]"
                     : "text-neutral-600 hover:bg-white hover:text-primary-700"
@@ -205,7 +228,85 @@ export function StudentsList() {
           </div>
         ) : (
           <>
-            <div className={DATA_LIST_SCROLL}>
+            <ul
+              aria-label="Danh sách học sinh trên di động"
+              className={`${DATA_LIST_SCROLL} grid content-start gap-3 bg-neutral-50 p-3 md:hidden`}
+            >
+              {studentRows.map(({
+                assessmentPercent,
+                attendance,
+                grade,
+                homework,
+                primaryClass,
+                primaryClassId,
+                primaryCourse,
+                progress,
+                student,
+                summary,
+              }) => (
+                <li key={student.id}>
+                  <article className="rounded-card border border-neutral-200 bg-white p-3 shadow-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className="truncate text-sm font-semibold text-neutral-900">
+                          {studentLabel(student)}
+                        </h3>
+                        <p className="mt-1 font-mono text-xs text-neutral-500">{student.studentCode}</p>
+                      </div>
+                      <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${student.status === "active" ? "bg-success-50 text-success-700" : "bg-neutral-100 text-neutral-600"}`}>
+                        {student.status === "active" ? "Đang học" : "Đã nghỉ"}
+                      </span>
+                    </div>
+
+                    <dl className="mt-3 grid grid-cols-2 gap-3 border-y border-neutral-100 py-3">
+                      <div className="min-w-0">
+                        <dt className="text-xs font-medium text-neutral-500">Lớp học</dt>
+                        <dd className="mt-1 truncate text-xs font-semibold text-neutral-900">
+                          {primaryClass?.name ?? "Chưa có lớp"}
+                        </dd>
+                        <dd className="mt-0.5 truncate font-mono text-2xs text-neutral-500">
+                          {primaryClassId || "--"}
+                        </dd>
+                      </div>
+                      <div className="min-w-0">
+                        <dt className="text-xs font-medium text-neutral-500">Khóa học</dt>
+                        <dd className="mt-1 truncate text-xs font-semibold text-neutral-900">
+                          {primaryCourse?.name ?? "Chưa có khóa"}
+                        </dd>
+                        <dd className="mt-0.5 truncate font-mono text-2xs text-neutral-500">
+                          {primaryClass?.courseId ?? "--"}
+                        </dd>
+                      </div>
+                    </dl>
+
+                    <div className="mt-3 rounded-input bg-neutral-50 p-3 ring-1 ring-neutral-200">
+                      <ProgressCell progress={progress} />
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-1 gap-2 rounded-input bg-primary-50 p-2 ring-1 ring-primary-200 min-[380px]:grid-cols-3">
+                      <ScoreRing label="Điểm danh" value={attendance.percent} total={attendance.total} />
+                      <ScoreRing label="Bài tập" value={homework.percent} total={homework.total} />
+                      <ScoreRing label="Đánh giá" value={assessmentPercent} total={summary?.scoreCount ?? 0} grade={grade} />
+                    </div>
+
+                    <button
+                      type="button"
+                      aria-label={`Xem thông tin ${studentLabel(student)}`}
+                      onClick={() => setViewingStudent(student)}
+                      className="mt-3 min-h-touch w-full rounded-input border border-primary-200 bg-primary-50 px-4 text-sm font-semibold text-primary-700 transition hover:border-primary-300 hover:bg-primary-100 active:scale-[.99]"
+                    >
+                      Xem thông tin
+                    </button>
+                  </article>
+                </li>
+              ))}
+            </ul>
+
+            <div
+              aria-label="Bảng học sinh trên máy tính"
+              className={`${DATA_LIST_SCROLL} hidden md:block`}
+              role="region"
+            >
               <div style={{ minWidth: STUDENT_TABLE_MIN_WIDTH }}>
                 <div
                   className="sticky top-0 z-10 grid gap-3 border-b border-neutral-200 bg-neutral-50 px-4 py-3 text-xs font-semibold text-neutral-500"
@@ -220,22 +321,22 @@ export function StudentsList() {
                   <div className="text-center">Thao tác</div>
                 </div>
                 <ul className="divide-y divide-neutral-100">
-              {pageItems.map((student) => {
-                const primaryClassId = student.currentClassIds[0] ?? "";
-                const primaryClass = primaryClassId ? classById.get(primaryClassId) : undefined;
-                const primaryCourse = primaryClass?.courseId ? courseById.get(primaryClass.courseId) : undefined;
-                const attendance = attendanceByStudent.get(student.id) ?? { percent: null, total: 0 };
-                const homework = homeworkByStudent.get(student.id) ?? { percent: null, total: 0 };
-                const summary = summaryByStudent.get(student.id);
-                const assessmentPercent = getAssessmentPercent(summary);
-                const grade = assessmentPercent === null ? null : getGradeLetter(assessmentPercent);
-                const progress = getLearningProgress(student, attendance, primaryCourse?.totalSessions);
-
-                return (
+              {studentRows.map(({
+                assessmentPercent,
+                attendance,
+                grade,
+                homework,
+                primaryClass,
+                primaryClassId,
+                primaryCourse,
+                progress,
+                student,
+                summary,
+              }) => (
                   <li key={student.id} className="px-4 py-3 transition hover:bg-neutral-50">
                     <div className="grid gap-3 xl:items-center" style={{ gridTemplateColumns: STUDENT_TABLE_COLUMNS }}>
                       <div>
-                        <p className="text-2xs font-semibold text-neutral-900">{student.fullName}</p>
+                        <p className="text-2xs font-semibold text-neutral-900">{studentLabel(student)}</p>
                         <p className="mt-0.5 font-mono text-2xs text-neutral-500">{student.studentCode}</p>
                       </div>
 
@@ -278,8 +379,7 @@ export function StudentsList() {
                       </div>
                     </div>
                   </li>
-                );
-              })}
+              ))}
                 </ul>
               </div>
             </div>

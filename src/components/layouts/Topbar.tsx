@@ -170,18 +170,18 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const title = findPageTitle(pathname);
   const seeAllHref = isStaff ? ROUTES.STAFF_ANNOUNCEMENTS : ROUTES.VIEWER_ANNOUNCEMENTS;
 
-  return <header className="glass-panel sticky top-0 z-20 flex h-16 items-center justify-between border-b border-white/70 px-4 sm:px-6">
+  return <header className="glass-panel sticky top-0 z-20 flex h-16 items-center justify-between border-b border-white/70 px-3 sm:px-6">
     <NotificationSoundMonitor />
-    <div className="flex min-w-0 items-center gap-3">
+    <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
       {onMenuClick && <button type="button" onClick={onMenuClick} aria-label="Mở menu điều hướng" className="icon-button lg:hidden"><Menu size={20} /></button>}
-      <h1 className="truncate text-lg font-semibold text-neutral-900">{title}</h1>
+      <h1 className="truncate text-base font-semibold text-neutral-900 sm:text-lg">{title}</h1>
     </div>
     {/* Cụm hành động (Tải lại / Thêm) tách khỏi cụm liên lạc (Chat / Thông báo) bằng dải phân cách - rõ nhóm chức năng, tối ưu quét mắt. */}
-    <div className="flex items-center gap-2 sm:gap-3">
-      <RefreshButton />
-      {isStaff && <AddMenu />}
-      {isStaff && <span aria-hidden="true" className="hidden h-6 w-px bg-neutral-200 sm:block" />}
-      {isStaff && <ChatButton />}
+    <div className="flex shrink-0 items-center gap-1 md:gap-3">
+      <div className="hidden md:block"><RefreshButton /></div>
+      {isStaff && <div className="hidden md:block"><AddMenu /></div>}
+      {isStaff && <span aria-hidden="true" className="hidden h-6 w-px bg-neutral-200 md:block" />}
+      {isStaff && <div className="hidden md:block"><ChatButton /></div>}
       <NotificationBell seeAllHref={seeAllHref} />
     </div>
   </header>;

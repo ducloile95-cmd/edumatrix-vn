@@ -1,7 +1,7 @@
 {
   "project": "Edumatrix VN",
   "title": "Roadmap nang cap theo phase",
-  "lastUpdatedAt": "2026-07-14T04:49:51.664Z",
+  "lastUpdatedAt": "2026-07-29T06:10:52.691Z",
   "owner": "Codex + project owner",
   "statusLegend": {
     "todo": "Chua lam",
@@ -122,7 +122,7 @@
       "id": "phase-1",
       "name": "Production hardening",
       "goal": "Dong cac rui ro bao mat, thanh toan va deploy truoc khi them tinh nang lon.",
-      "status": "active",
+      "status": "done",
       "window": "Ngay 2-4",
       "tasks": [
         {
@@ -255,7 +255,7 @@
           "title": "Chot worker production deploy config",
           "area": "Messenger Worker",
           "priority": "P1",
-          "status": "todo",
+          "status": "done",
           "analysis": "Wrangler canh bao deploy chua chi ro env, production origin van la placeholder.",
           "implementation": "Them script build:prod/deploy:prod voi --env production va cap nhat ALLOWED_ORIGIN that.",
           "tests": [
@@ -273,10 +273,18 @@
               "note": "Tam thoi bo qua P1-004 theo yeu cau, chuyen sang Phase 2",
               "test": "",
               "link": "docs/upgrade-roadmap-state.json"
+            },
+            {
+              "at": "2026-07-29T06:10:52.624Z",
+              "status": "done",
+              "note": "",
+              "test": "workers/messenger: build:prod + check:prod-config",
+              "link": "workers/messenger/package.json"
             }
           ],
-          "updatedAt": "2026-07-14T04:27:13.089Z",
-          "note": "Tam thoi bo qua P1-004 theo yeu cau, chuyen sang Phase 2"
+          "updatedAt": "2026-07-29T06:10:52.624Z",
+          "note": "Tam thoi bo qua P1-004 theo yeu cau, chuyen sang Phase 2",
+          "completedAt": "2026-07-29T06:10:52.624Z"
         }
       ]
     },
@@ -572,7 +580,7 @@
       "id": "phase-5",
       "name": "Release gate va CI",
       "goal": "Moi thay doi phai co test gate, preview va cap nhat roadmap truoc khi coi la xong.",
-      "status": "todo",
+      "status": "active",
       "window": "Ngay 21-24",
       "tasks": [
         {
@@ -580,7 +588,7 @@
           "title": "Cau hinh CI cho lint typecheck test build",
           "area": "CI",
           "priority": "P2",
-          "status": "todo",
+          "status": "done",
           "analysis": "Kiem tra dang chay thu cong, can bat buoc tren PR.",
           "implementation": "Them GitHub Actions cho app, rules tests va worker.",
           "tests": [
@@ -591,7 +599,17 @@
             "package.json",
             "workers/messenger/package.json"
           ],
-          "evidence": []
+          "evidence": [
+            {
+              "at": "2026-07-29T06:10:52.691Z",
+              "status": "done",
+              "note": "",
+              "test": "6 cong trong CI",
+              "link": ".github/workflows/ci.yml"
+            }
+          ],
+          "updatedAt": "2026-07-29T06:10:52.691Z",
+          "completedAt": "2026-07-29T06:10:52.691Z"
         },
         {
           "id": "P5-002",
@@ -614,6 +632,22 @@
     }
   ],
   "history": [
+    {
+      "taskId": "P5-001",
+      "at": "2026-07-29T06:10:52.691Z",
+      "status": "done",
+      "note": "",
+      "test": "6 cong trong CI",
+      "link": ".github/workflows/ci.yml"
+    },
+    {
+      "taskId": "P1-004",
+      "at": "2026-07-29T06:10:52.624Z",
+      "status": "done",
+      "note": "",
+      "test": "workers/messenger: build:prod + check:prod-config",
+      "link": "workers/messenger/package.json"
+    },
     {
       "taskId": "P3-001",
       "at": "2026-07-14T04:49:51.664Z",

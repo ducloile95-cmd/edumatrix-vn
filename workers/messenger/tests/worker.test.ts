@@ -37,24 +37,47 @@ test("ignores message echoes",()=>expect(extractInboundMessages({entry:[{messagi
 test("builds response payload by default",()=>expect(buildMessengerPayload({recipientPsid:"psid",text:"Xin chao"})).toEqual({recipient:{id:"psid"},messaging_type:"RESPONSE",message:{text:"Xin chao"}}));
 test("builds tagged payload for outside-window sends",()=>expect(buildMessengerPayload({recipientPsid:"psid",text:"Cap nhat tai khoan",tag:"ACCOUNT_UPDATE"})).toEqual({recipient:{id:"psid"},messaging_type:"MESSAGE_TAG",tag:"ACCOUNT_UPDATE",message:{text:"Cap nhat tai khoan"}}));
 test("builds an allowlisted utility template payload",()=>{
-  const body={recipientPsid:"psid",deliveryMode:"utility" as const,templateKey:"tuition_payment_confirmation" as const,parameters:{centerName:"EduMatrix",billingPeriod:"Thang 8",studentName:"Nguyen Van A",amount:"2.000.000 dong",paymentDate:"05/08/2026",paymentReference:"HP-001"}};
+  const body={recipientPsid:"psid",deliveryMode:"utility" as const,templateKey:"tuition_payment_confirmation" as const,parameters:{studentName:"Nguyen Van A",billingPeriod:"Thang 8",amount:"2.000.000 dong",paymentDate:"05/08/2026",paymentReference:"HP-001"}};
   expect(validUtilityParameters(body)).toBe(true);
   expect(buildUtilityPayload(body)).toEqual({
     recipient:{id:"psid"},
     messaging_type:"UTILITY",
-    message:{template:{name:"edumatrix_tuition_payment_confirmation_vi",language:{code:"vi"},components:[{type:"body",parameters:[
-      {type:"text",text:"EduMatrix"},
-      {type:"text",text:"Thang 8"},
+    message:{template:{name:"edumatrix_tuition_payment_confirmation_v2_vi",language:{code:"vi"},components:[{type:"body",parameters:[
       {type:"text",text:"Nguyen Van A"},
+      {type:"text",text:"Thang 8"},
       {type:"text",text:"2.000.000 dong"},
       {type:"text",text:"05/08/2026"},
       {type:"text",text:"HP-001"},
     ]}]}}
   });
 });
+test.each([
+  ["class_schedule_adjustment","edumatrix_class_schedule_adjustment_v2_vi",{className:"Lop A1",studentName:"Nguyen Van A",lessonDate:"30/07/2026",lessonTime:"18:00",adjustmentNote:"Hoc bu ngay 02/08/2026"},["Lop A1","Nguyen Van A","30/07/2026","18:00","Hoc bu ngay 02/08/2026"]],
+  ["lesson_feedback_request","edumatrix_lesson_feedback_notice_v2_vi",{className:"Lop A1",studentName:"Nguyen Van A",teacherName:"Co Nguyen Mai"},["Lop A1","Nguyen Van A","Co Nguyen Mai"]],
+  ["enrollment_confirmation","edumatrix_enrollment_confirmation_v2_vi",{studentName:"Nguyen Van A",courseName:"Luyen chu dep",centerName:"EduMatrix"},["Nguyen Van A","Luyen chu dep","EduMatrix"]],
+  ["parent_account_link_confirmation","edumatrix_parent_account_link_confirmation_v2_vi",{parentEmail:"phuhuynh@gmail.com",studentName:"Nguyen Van A"},["phuhuynh@gmail.com","Nguyen Van A"]],
+] as const)("builds approved %s v2 payload in Meta parameter order",(templateKey,metaName,parameters,expectedTexts)=>{
+  const payload=buildUtilityPayload({recipientPsid:"psid",deliveryMode:"utility",templateKey,parameters});
+  expect(payload.message.template.name).toBe(metaName);
+  expect(payload.message.template.components[0].parameters.map((parameter)=>parameter.text)).toEqual(expectedTexts);
+});
+test("builds the approved tuition reminder v2 payload in Meta parameter order",()=>{
+  const body={recipientPsid:"psid",deliveryMode:"utility" as const,templateKey:"tuition_payment_reminder" as const,parameters:{studentName:"Nguyen Van A",billingPeriod:"Thang 8",amount:"2.000.000 dong",dueDate:"05/08/2026"}};
+  expect(validUtilityParameters(body)).toBe(true);
+  expect(buildUtilityPayload(body)).toEqual({
+    recipient:{id:"psid"},
+    messaging_type:"UTILITY",
+    message:{template:{name:"edumatrix_tuition_payment_reminder_v2_vi",language:{code:"vi"},components:[{type:"body",parameters:[
+      {type:"text",text:"Nguyen Van A"},
+      {type:"text",text:"Thang 8"},
+      {type:"text",text:"2.000.000 dong"},
+      {type:"text",text:"05/08/2026"},
+    ]}]}}
+  });
+});
 test("rejects missing, extra, empty, and unknown utility parameters",()=>{
   expect(validUtilityParameters({deliveryMode:"utility",templateKey:"tuition_payment_reminder",parameters:{}})).toBe(false);
-  expect(validUtilityParameters({deliveryMode:"utility",templateKey:"tuition_payment_reminder",parameters:{centerName:"EduMatrix",billingPeriod:"Thang 8",studentName:"A",amount:"2m",dueDate:"",extra:"x"}})).toBe(false);
+  expect(validUtilityParameters({deliveryMode:"utility",templateKey:"tuition_payment_reminder",parameters:{billingPeriod:"Thang 8",studentName:"A",amount:"2m",dueDate:"",extra:"x"}})).toBe(false);
   expect(validUtilityParameters({deliveryMode:"utility",templateKey:"not_real" as never,parameters:{}})).toBe(false);
 });
 test("allows only supported Messenger tags",()=>{expect(isMessengerTagShape("ACCOUNT_UPDATE")).toBe(true);expect(isMessengerTagShape("CONFIRMED_EVENT_UPDATE")).toBe(true);expect(isMessengerTagShape("POST_PURCHASE_UPDATE")).toBe(true);expect(isMessengerTagShape("HUMAN_AGENT")).toBe(false);expect(isMessengerTagShape("ARBITRARY_VALID_SHAPE")).toBe(false);expect(isMessengerTagShape("bad tag")).toBe(false)});
@@ -114,6 +137,13 @@ test("allows admins and assigned teachers but rejects teachers outside student s
 test("returns CORS only for the configured origin",()=>{
   expect(corsHeaders(env,new Request("https://worker/health",{headers:{origin:"http://localhost:5173"}}))["access-control-allow-origin"]).toBe("http://localhost:5173");
   expect(corsHeaders(env,new Request("https://worker/health",{headers:{origin:"https://evil.example"}}))["access-control-allow-origin"]).not.toBe("https://evil.example");
+});
+test("never echoes a wildcard origin even if ALLOWED_ORIGIN is misconfigured to *",()=>{
+  const wildcardEnv={...env,ALLOWED_ORIGIN:"*"}satisfies Env;
+  expect(corsHeaders(wildcardEnv,new Request("https://worker/health",{headers:{origin:"https://evil.example"}}))["access-control-allow-origin"]).toBe("");
+  expect(corsHeaders(wildcardEnv)["access-control-allow-origin"]).toBe("");
+  const mixedEnv={...env,ALLOWED_ORIGIN:"*,https://edumatrix-vn-576b1.web.app"}satisfies Env;
+  expect(corsHeaders(mixedEnv,new Request("https://worker/health",{headers:{origin:"https://evil.example"}}))["access-control-allow-origin"]).toBe("https://edumatrix-vn-576b1.web.app");
 });
 test("maps internal and Meta failures to stable public error codes",()=>{
   expect(publicErrorCode(new Error('meta_{"message":"Invalid OAuth","code":190}'))).toBe("meta_token_invalid");

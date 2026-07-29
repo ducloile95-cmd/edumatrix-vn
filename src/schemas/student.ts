@@ -8,6 +8,7 @@ export const studentFormSchema = z.object({
     .min(1, "Vui lòng nhập mã học sinh")
     .transform((v) => v.toUpperCase()),
   fullName: z.string().trim().min(1, "Vui lòng nhập họ tên"),
+  nickname: z.string().trim().optional(),
   dateOfBirth: z.string().min(1, "Vui lòng chọn ngày sinh"),
   staffNote: z.string().trim().optional(),
   parentName: z.string().trim().optional(),

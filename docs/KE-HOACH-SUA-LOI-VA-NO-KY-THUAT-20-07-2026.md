@@ -1,6 +1,6 @@
 # Kế hoạch Sửa lỗi & Cập nhật Nợ kỹ thuật — Edumatrix VN
 
-> **Trạng thái: Đã chốt phạm vi (20/07), chờ duyệt Đợt 1 để bắt đầu.** Dựa trên `docs/BAO-CAO-REVIEW-MA-NGUON-20-07-2026.md` (review 20/07/2026). Chưa có dòng code nào được sửa. Lợi đã chọn: **ảnh Fanpage sửa đầy đủ (Option A)**, **gộp Đợt 6 vào lần triển khai này** (đủ 6 đợt), **duyệt và triển khai từng đợt một** — xong 1 đợt sẽ báo cáo kết quả (typecheck/lint + diff) và đợi duyệt mới sang đợt kế tiếp.
+> **Trạng thái: Đã hoàn thành 6/6 đợt (20/07).** Dựa trên `docs/BAO-CAO-REVIEW-MA-NGUON-20-07-2026.md` (review 20/07/2026). Lợi đã chọn: **ảnh Fanpage sửa đầy đủ (Option A)**, **gộp Đợt 6 vào lần triển khai này** (đủ 6 đợt), **duyệt và triển khai từng đợt một** — xong 1 đợt báo cáo kết quả (typecheck/lint + diff) rồi mới sang đợt kế tiếp. Cả 6 đợt bên dưới đều đã đánh `✅ HOÀN THÀNH (20/07)`.
 
 ## Nguyên tắc thực hiện
 - Sửa theo từng đợt (batch) độc lập, mỗi đợt có thể duyệt/triển khai riêng, không phụ thuộc đợt sau.
@@ -135,12 +135,3 @@
 
 - Nâng cấp Firebase lên Blaze / thêm Cloud Functions — kết luận review là chưa cần thiết ở quy mô hiện tại.
 - Bổ sung `hasOnly` cho Rules `scores`/`attendance`/`invoices` — rủi ro thấp (chỉ staff được ghi), để dành nếu có thời gian sau các đợt trên.
-- `access_token` Meta truyền qua query string thay vì header — thay đổi này cần test kỹ hành vi Graph API, để riêng nếu cần.
-
----
-
-## Câu hỏi cần Lợi trả lời trước khi bắt đầu
-
-1. Ảnh Fanpage (mục 1.2): chọn Option A (sửa đầy đủ) hay Option B (tạm ẩn)?
-2. Có gộp Đợt 6 (CSS/UI polish, không ảnh hưởng chức năng) vào lần triển khai này không, hay để lại làm sau?
-3. Duyệt toàn bộ 6 đợt để triển khai tuần tự, hay muốn duyệt/triển khai từng đợt một (an toàn hơn, dễ kiểm tra hơn)?

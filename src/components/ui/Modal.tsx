@@ -9,7 +9,7 @@ interface ModalProps {
   children: ReactNode;
   onClose: () => void;
   size?: "sm" | "md" | "lg" | "xl" | "2xl";
-  /** Ghi đè class của vùng nội dung (mặc định có scroll + padding). Dùng khi children tự quản lý scroll/layout riêng (VD: popup ngang chia cột). */
+  /** Ghi đè class vùng nội dung khi children tự quản lý scroll/layout. */
   bodyClassName?: string;
 }
 
@@ -47,12 +47,13 @@ export function Modal({ open, title, description, children, onClose, size = "md"
     document.addEventListener("keydown", onKeyDown);
     return () => { document.body.style.overflow = originalOverflow; document.removeEventListener("keydown", onKeyDown); previousFocus.current?.focus(); };
   }, [open]);
+
   if (!mounted) return null;
   const state = open ? "open" : "closed";
-  return createPortal(<div data-state={state} className="modal-backdrop fixed inset-0 z-50 grid place-items-center overflow-hidden bg-neutral-900/50 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-    <div data-state={state} ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={description ? descriptionId : undefined} className={`modal-panel grid max-h-[calc(100dvh-2rem)] w-full grid-rows-[auto_1fr] overflow-hidden rounded-modal border border-neutral-200 bg-neutral-50 shadow-[var(--shadow-4)] ${size === "2xl" ? "h-[calc(100dvh-2rem)]" : ""} ${sizes[size]}`}>
-      <header className="flex items-start justify-between border-b border-neutral-200 bg-white px-5 py-4"><div><h2 id={titleId} className="text-lg font-semibold text-neutral-900">{title}</h2>{description && <p id={descriptionId} className="mt-1 text-sm text-neutral-500">{description}</p>}</div><button type="button" onClick={onClose} aria-label="Đóng hộp thoại" className="icon-button -mr-2 -mt-1 flex"><X size={19} /></button></header>
-      <div className={bodyClassName ?? "overflow-y-auto bg-neutral-50 p-5 sm:p-6"}>{children}</div>
+  return createPortal(<div data-state={state} className="modal-backdrop fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-neutral-900/50 pt-[env(safe-area-inset-top)] sm:grid sm:place-items-center sm:p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <div data-state={state} ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={description ? descriptionId : undefined} className={`modal-panel grid max-h-full w-full grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-t-modal border border-b-0 border-neutral-200 bg-neutral-50 shadow-[var(--shadow-4)] sm:max-h-[calc(100dvh-2rem)] sm:rounded-modal sm:border-b ${size === "2xl" ? "h-full sm:h-[calc(100dvh-2rem)]" : ""} ${sizes[size]}`}>
+      <header className="flex items-start justify-between border-b border-neutral-200 bg-white px-4 py-3 sm:px-5 sm:py-4"><div className="min-w-0"><h2 id={titleId} className="text-lg font-semibold text-neutral-900">{title}</h2>{description && <p id={descriptionId} className="mt-1 text-sm text-neutral-500">{description}</p>}</div><button type="button" onClick={onClose} aria-label="Đóng hộp thoại" className="icon-button -mr-2 -mt-1 flex shrink-0"><X size={19} /></button></header>
+      <div className={bodyClassName !== undefined ? `min-h-0 ${bodyClassName}` : "min-h-0 overflow-y-auto overscroll-contain bg-neutral-50 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-6"}>{children}</div>
     </div>
   </div>, document.body);
 }

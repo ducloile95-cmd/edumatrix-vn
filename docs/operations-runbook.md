@@ -25,14 +25,35 @@ npm audit --audit-level=high
 Pop-Location
 ```
 
-## Backup thủ công trên Spark
+## Backup trên Spark
 
-Spark không có quy trình backup tự động của ứng dụng này. Trước một thay đổi dữ liệu lớn:
+Spark không có scheduled export (đó là tính năng của Blaze + GCS bucket), và Firebase Console **không có** nút xuất collection. Dùng script:
 
-1. Vào Firebase Console → Firestore → Data và xuất các collection nghiệp vụ quan trọng theo quy trình nội bộ.
-2. Ghi lại thời điểm, project ID, người thực hiện và phạm vi collection.
-3. Lưu bản xuất ngoài repository, trong nơi có phân quyền và mã hóa.
-4. Kiểm tra ngẫu nhiên một vài document trước khi thay đổi.
+```bash
+npm run backup:export                          # xuất tất cả collection
+npm run backup:export -- --only users,students # xuất một phần, tiết kiệm read
+npm run backup:export -- --out D:\backup\edumatrix
+```
+
+Mặc định ghi vào `backups/firestore-<thời-điểm>Z/`, mỗi collection một file JSON, kèm `_manifest.json` ghi sẵn project ID, thời điểm, người chạy và số document từng collection.
+
+Lưu ý khi chạy:
+
+1. Mỗi document đọc ra tốn **1 read** trong hạn mức 50.000/ngày. Script in tổng số read ở cuối và cảnh báo nếu vượt 40% hạn mức — lần sau dùng `--only`.
+2. `backups/` đã được gitignore. Bản xuất chứa dữ liệu cá nhân của trẻ em — lưu nơi có phân quyền và mã hóa, không đưa vào repository, không gửi qua chat.
+3. Kiểm tra ngẫu nhiên vài document trong file JSON trước khi thực hiện thay đổi lớn.
+4. Script cần file service account (`*firebase-adminsdk*.json`) ở thư mục gốc, hoặc chỉ đường dẫn bằng `--key`.
+
+### Khôi phục
+
+Định dạng xuất là **document wire format** của Firestore REST API, giữ nguyên kiểu dữ liệu (`timestampValue`, `referenceValue`, `mapValue`...), nên khôi phục là gửi ngược đúng khối `fields` đó:
+
+```
+PATCH https://firestore.googleapis.com/v1/projects/<projectId>/databases/(default)/documents/<collection>/<id>
+body: { "fields": <khối fields lấy từ file JSON> }
+```
+
+Chưa có script khôi phục tự động, và đó là **cố ý**: một lệnh ghi đè hàng loạt lên production nguy hiểm hơn nhiều so với lợi ích của việc có sẵn nó. Khi thật sự cần khôi phục, viết đoạn script cho đúng phạm vi lần đó, chạy thử trên emulator trước.
 
 Emulator dùng cho dữ liệu test có thể export/import bằng Firebase CLI; không coi dữ liệu emulator là backup production.
 

@@ -10,5 +10,5 @@ interface PageHeaderProps {
 export function PageHeader({ actions }: PageHeaderProps) {
   if (!actions) return null;
 
-  return <div className="mb-3 flex justify-end">{actions}</div>;
+  return <div className="mb-3 grid sm:flex sm:justify-end">{actions}</div>;
 }
