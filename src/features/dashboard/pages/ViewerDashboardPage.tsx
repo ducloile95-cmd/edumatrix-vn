@@ -195,7 +195,7 @@ export default function ViewerDashboardPage() {
             onSelect={selectStudent}
           />
 
-          <section className="order-2 rounded-card border border-primary-100 bg-white shadow-[var(--shadow-1)] lg:order-1">
+          <section aria-label="Hồ sơ học tập" className="order-1 rounded-card border border-primary-100 bg-white shadow-[var(--shadow-1)]">
             <div className="grid lg:grid-cols-[1fr_280px]">
               <div className="p-5 sm:p-6">
                 <div className="flex items-start gap-4">
@@ -261,7 +261,7 @@ export default function ViewerDashboardPage() {
             </div>
           </section>
 
-          <div className="order-3 grid gap-4 lg:order-2 xl:grid-cols-[0.9fr_1.1fr]">
+          <div role="region" aria-label="Tổng quan học tập" className="order-2 grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
             <ChartPanel title="Nhịp học tập" description="Hai chỉ số quan trọng trong kỳ học hiện tại" className="min-h-[300px]">
               <div className="grid h-full content-center gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
                 <MetricRing
@@ -312,7 +312,7 @@ export default function ViewerDashboardPage() {
 
           <section
             aria-label="Việc cần quan tâm"
-            className="order-1 rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)] lg:order-3"
+            className="order-3 rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)]"
           >
             <div className="grid divide-y divide-neutral-100 lg:grid-cols-4 lg:divide-x lg:divide-y-0">
               <DashboardList

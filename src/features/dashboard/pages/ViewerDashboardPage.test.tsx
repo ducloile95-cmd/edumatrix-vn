@@ -121,8 +121,8 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe("ViewerDashboardPage mobile priorities", () => {
-  test("puts actionable items first and keeps the selected student for other viewer pages", async () => {
+describe("ViewerDashboardPage content priorities", () => {
+  test("puts learning information before actionable items and keeps the selected student", async () => {
     renderWithQueryClient(
       <MemoryRouter>
         <ViewerDashboardPage />
@@ -130,7 +130,11 @@ describe("ViewerDashboardPage mobile priorities", () => {
     );
 
     const prioritySection = await screen.findByRole("region", { name: "Việc cần quan tâm" });
-    expect(prioritySection.className).toContain("order-1");
+    const profileSection = screen.getByRole("region", { name: "Hồ sơ học tập" });
+    const learningSection = screen.getByRole("region", { name: "Tổng quan học tập" });
+    expect(profileSection.className).toContain("order-1");
+    expect(learningSection.className).toContain("order-2");
+    expect(prioritySection.className).toContain("order-3");
     expect(within(prioritySection).getByText("Học phí Toán tháng 8")).toBeTruthy();
 
     const studentSelect = screen.getByRole<HTMLSelectElement>("combobox", {

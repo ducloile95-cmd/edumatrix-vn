@@ -1,4 +1,5 @@
 import { format } from "date-fns";
+import { vi } from "date-fns/locale";
 import { Modal } from "@/components/ui/Modal";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { SessionStatus } from "@/types/academic";
@@ -50,7 +51,7 @@ export function SessionDetailModal({
 
           {readOnly ? (
             <div className="rounded-input border border-neutral-200 bg-neutral-50 p-3 text-sm text-neutral-700">
-              {format(session.startAt.toDate(), "EEEE, dd/MM/yyyy")} · {format(session.startAt.toDate(), "HH:mm")} -{" "}
+              {format(session.startAt.toDate(), "EEEE, dd/MM/yyyy", { locale: vi })} · {format(session.startAt.toDate(), "HH:mm")} -{" "}
               {format(session.endAt.toDate(), "HH:mm")}
             </div>
           ) : (

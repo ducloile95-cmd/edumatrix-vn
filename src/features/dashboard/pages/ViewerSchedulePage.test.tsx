@@ -77,18 +77,19 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe("ViewerSchedulePage mobile workflow", () => {
-  test("shows a touch-friendly day list and opens session details with the keyboard-safe modal", async () => {
+describe("ViewerSchedulePage agenda workflow", () => {
+  test("shows a touch-friendly week navigator and opens session details with the keyboard-safe modal", async () => {
     renderWithQueryClient(<ViewerSchedulePage />);
 
     const sessionButton = await findMobileSessionButton("Lớp Toán A");
     expect(sessionButton.className).toContain("min-h-touch");
     expect(sessionButton.className).toContain("w-full");
-    expect(screen.getByText("Theo tuần").closest("button")?.getAttribute("aria-selected")).toBe("true");
+    const weekNavigator = screen.getByLabelText("Chọn ngày trong tuần");
+    expect(weekNavigator.querySelector("button[aria-pressed='true']")).not.toBeNull();
 
     sessionButton.focus();
     fireEvent.click(sessionButton);
-    await screen.findByText("Đã lên lịch");
+    expect((await screen.findAllByText("Đã lên lịch")).length).toBeGreaterThan(0);
     const dialog = document.querySelector<HTMLElement>("[role='dialog']");
     expect(dialog).not.toBeNull();
     expect(dialog!.className).toContain("rounded-t-modal");
