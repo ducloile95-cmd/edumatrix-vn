@@ -16,6 +16,8 @@ interface ImportMetaEnv {
   readonly VITE_GOOGLE_PICKER_API_KEY?: string;
   /** Google Cloud project number used by Picker setAppId(). */
   readonly VITE_GOOGLE_PICKER_APP_ID?: string;
+  /** Mirrors the Worker flag; keep false until Meta approves Utility Messaging. */
+  readonly VITE_UTILITY_MESSAGING_ENABLED?: string;
 }
 
 interface ImportMeta {

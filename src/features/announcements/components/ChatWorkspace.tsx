@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
-  ArrowLeft, CalendarClock, CheckCheck, CreditCard, History, Copy, ExternalLink,
+  ArrowLeft, CheckCheck, History, Copy, ExternalLink,
   AlertTriangle, Info, MessageCircle, MoreHorizontal, Plus, Search,
-  Send, ShieldCheck, Star, UserCheck, WifiOff,
+  Send, Star, WifiOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ErrorState } from "@/components/feedback/ErrorState";
@@ -13,32 +13,25 @@ import { Modal } from "@/components/ui/Modal";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { listMessageOutbox, subscribeChatMessages } from "@/services/firestore/chat";
 import { listStudents } from "@/services/firestore/students";
-import { createMessengerInviteLink, isMessengerInviteConfigured, linkMessengerConversation, MessengerSendError, messengerPageUrl, sendMessenger } from "@/services/integrations/messenger";
+import { createMessengerInviteLink, isMessengerInviteConfigured, linkMessengerConversation, MessengerSendError, messengerPageUrl, sendMessenger, type UtilityTemplateKey } from "@/services/integrations/messenger";
+import { UTILITY_TEMPLATES, utilityParameterField } from "@/constants/utilityTemplates";
 import { queryKeys } from "@/hooks/queryKeys";
 import type { ChatMessageDoc, ChatThreadDoc } from "@/types/chat";
 
 type Thread = ChatThreadDoc & { id: string };
 type Message = ChatMessageDoc & { id: string };
 type MessageTopic = "lesson_review" | "course_review" | "general_notice" | "tuition_reminder";
-type DeliveryMode = "response" | "account_update";
+type DeliveryMode = "response" | "account_update" | "utility";
 type StaffRole = "admin" | "teacher";
 /** Dinh dang Meta Message Tag (vd ACCOUNT_UPDATE) - khop kiem tra phia Worker (isMessengerTagShape). */
 const TAG_PATTERN = /^[A-Z_]{3,64}$/;
+const utilityMessagingEnabled = () => import.meta.env.VITE_UTILITY_MESSAGING_ENABLED === "true";
 const MESSAGE_TOPICS: Array<{ value: MessageTopic; label: string }> = [
   { value: "lesson_review", label: "Đánh giá buổi học" },
   { value: "course_review", label: "Đánh giá khóa học" },
   { value: "general_notice", label: "Thông báo tổng" },
   { value: "tuition_reminder", label: "Nhắc học phí" },
 ];
-const UTILITY_TEMPLATES = [
-  { key: "tuition_payment_reminder", label: "Nhắc học phí", description: "Nhắc kỳ học phí, số tiền và hạn thanh toán.", icon: CreditCard, teacherAllowed: true },
-  { key: "tuition_payment_confirmation", label: "Thanh toán học phí thành công", description: "Xác nhận khoản học phí đã được ghi nhận.", icon: CheckCheck, teacherAllowed: true },
-  { key: "class_schedule_adjustment", label: "Điều chỉnh lịch học", description: "Áp dụng cho nghỉ học, học bù hoặc học bổ sung.", icon: CalendarClock, teacherAllowed: true },
-  { key: "lesson_feedback_request", label: "Đánh giá buổi học", description: "Mời phụ huynh gửi đánh giá sau buổi học.", icon: Star, teacherAllowed: true },
-  { key: "enrollment_confirmation", label: "Xác nhận đăng ký học", description: "Thông báo đăng ký khóa học và lớp học thành công.", icon: UserCheck, teacherAllowed: true },
-  { key: "parent_account_link_confirmation", label: "Liên kết tài khoản phụ huynh", description: "Mời phụ huynh đăng nhập bằng email đã đăng ký.", icon: ShieldCheck, teacherAllowed: false },
-] as const;
-
 function initials(name: string) {
   return name.split(" ").slice(-2).map((part) => part[0]).join("").toUpperCase();
 }
@@ -98,6 +91,7 @@ export function ConnectionBar({ configured, onNewMessage, onOpenTemplates }: { c
 }
 
 export function UtilityTemplatesModal({ open, onClose, role }: { open: boolean; onClose: () => void; role: StaffRole }) {
+  const enabled = utilityMessagingEnabled();
   const templates = useMemo(
     () => UTILITY_TEMPLATES.filter((template) => role === "admin" || template.teacherAllowed),
     [role],
@@ -120,11 +114,11 @@ export function UtilityTemplatesModal({ open, onClose, role }: { open: boolean; 
           <section className="flex min-w-0 flex-col rounded-card border border-neutral-200 bg-white p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div><p className="text-xs font-semibold text-primary-700">UTILITY TEMPLATE</p><h3 className="mt-1 text-lg font-bold text-neutral-900">{selected.label}</h3><p className="mt-1 font-mono text-xs text-neutral-400">{selected.key}</p></div>
-              <StatusBadge tone="warning">Chờ Meta phê duyệt</StatusBadge>
+              <StatusBadge tone={enabled ? "success" : "warning"}>{enabled ? "Đã kích hoạt" : "Chờ Meta phê duyệt"}</StatusBadge>
             </div>
-            <div className="mt-5 rounded-input border border-warning-200 bg-warning-50 p-4 text-sm leading-6 text-warning-900">
-              <b>Chưa thể gửi trên production.</b>
-              <p className="mt-1">Mẫu sẽ được mở sau khi Meta phê duyệt và Admin bật tính năng Utility Messaging.</p>
+            <div className={`mt-5 rounded-input border p-4 text-sm leading-6 ${enabled ? "border-primary-200 bg-primary-50 text-primary-700" : "border-warning-200 bg-warning-50 text-warning-900"}`}>
+              <b>{enabled ? "Gửi từ màn hình \"Nhắn mới\"." : "Chưa thể gửi trên production."}</b>
+              <p className="mt-1">{enabled ? "Chọn học sinh, đổi Cách gửi thành Mẫu tiện ích rồi điền các giá trị của mẫu." : "Meta đang xét duyệt quyền Utility Messaging. Hệ thống sẽ chỉ mở gửi sau khi quyền và mẫu được phê duyệt."}</p>
             </div>
             <dl className="mt-5 grid gap-3 sm:grid-cols-2">
               <div className="rounded-input bg-neutral-50 p-3"><dt className="text-xs text-neutral-400">Đối tượng sử dụng</dt><dd className="mt-1 text-sm font-semibold text-neutral-800">{selected.teacherAllowed ? "Admin và Giáo viên" : "Chỉ Admin / Hệ thống"}</dd></div>
@@ -250,6 +244,8 @@ function ConversationPanel({ thread, configured, onBack }: { thread: Thread; con
   const [menuOpen, setMenuOpen] = useState(false);
   const [copiedThreadId, setCopiedThreadId] = useState(false);
   const queryClient = useQueryClient();
+  const responseWindowEnd = thread.responseWindowEndsAt?.toDate?.();
+  const responseWindowActive = Boolean(responseWindowEnd && responseWindowEnd.getTime() > Date.now());
 
   useEffect(
     () => subscribeChatMessages(thread.id, (items) => { setMessages(items); setMessageError(null); }, setMessageError),
@@ -275,9 +271,10 @@ function ConversationPanel({ thread, configured, onBack }: { thread: Thread; con
     },
   });
   const tagInvalid = tag.trim() !== "" && !TAG_PATTERN.test(tag.trim());
+  const deliveryAllowed = responseWindowActive || (tag.trim() !== "" && !tagInvalid);
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (draft.trim() && configured && !tagInvalid) send.mutate(draft.trim());
+    if (draft.trim() && configured && !tagInvalid && deliveryAllowed) send.mutate(draft.trim());
   };
 
   return (
@@ -320,6 +317,11 @@ function ConversationPanel({ thread, configured, onBack }: { thread: Thread; con
         </div>
         <form onSubmit={submit} className="border-t border-neutral-100 bg-white px-3 py-2 sm:px-5">
           <div className="w-full">
+            {!responseWindowActive && (
+              <p className="mb-2 rounded-input border-l-4 border-warning-500 bg-warning-50 px-3 py-2 text-xs leading-5 text-warning-800">
+                Cửa sổ phản hồi 24 giờ đã hết. Chỉ gửi bằng Message Tag đúng mục đích; Utility sẽ mở sau khi Meta phê duyệt.
+              </p>
+            )}
             <details className="mb-1 text-xs text-neutral-500">
               <summary className="cursor-pointer select-none font-semibold text-neutral-500 hover:text-neutral-800">Tùy chọn gửi ngoài cửa sổ 24 giờ</summary>
               <label className="mt-2 block max-w-xs">
@@ -336,17 +338,17 @@ function ConversationPanel({ thread, configured, onBack }: { thread: Thread; con
                   onKeyDown={(event) => {
                     if (event.key === "Enter" && !event.shiftKey) {
                       event.preventDefault();
-                      if (configured && draft.trim() && !tagInvalid && !send.isPending) send.mutate(draft.trim());
+                      if (configured && draft.trim() && !tagInvalid && deliveryAllowed && !send.isPending) send.mutate(draft.trim());
                     }
                   }}
                   rows={1}
                   maxLength={2000}
-                  disabled={!configured || send.isPending}
-                  placeholder={configured ? "Nhập tin nhắn..." : "Worker chưa cấu hình"}
+                  disabled={!configured || send.isPending || !deliveryAllowed}
+                  placeholder={!configured ? "Worker chưa cấu hình" : responseWindowActive ? "Nhập tin nhắn..." : tag.trim() ? "Nhập nội dung đúng với Message Tag..." : "Hết cửa sổ 24 giờ — chọn Message Tag phù hợp"}
                   className="max-h-24 min-h-[42px] w-full resize-none rounded-[12px] border border-neutral-200 bg-white px-3.5 py-2.5 text-sm leading-5 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:bg-neutral-100"
                 />
               </label>
-              <button type="submit" disabled={!configured || !draft.trim() || tagInvalid || send.isPending} aria-label="Gửi tin nhắn" className="motion-control flex size-[42px] shrink-0 items-center justify-center rounded-[11px] bg-primary-600 text-white active:scale-[.97] disabled:opacity-40"><Send size={18} /></button>
+              <button type="submit" disabled={!configured || !draft.trim() || tagInvalid || !deliveryAllowed || send.isPending} aria-label="Gửi tin nhắn" className="motion-control flex size-[42px] shrink-0 items-center justify-center rounded-[11px] bg-primary-600 text-white active:scale-[.97] disabled:opacity-40"><Send size={18} /></button>
             </div>
             <div className="mt-1 flex items-center justify-between gap-3 text-3xs text-neutral-400">
               <span>Enter để gửi · Shift + Enter để xuống dòng</span>
@@ -381,22 +383,39 @@ function NewConversationPicker({ open, onClose, configured, onSent }: { open: bo
   const [draft, setDraft] = useState("");
   const [topic, setTopic] = useState<MessageTopic>("lesson_review");
   const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>("response");
+  const [templateKey, setTemplateKey] = useState<UtilityTemplateKey>(UTILITY_TEMPLATES[0].key);
+  const [parameters, setParameters] = useState<Record<string, string>>({});
   const students = useQuery({ queryKey: queryKeys.students(), queryFn: listStudents, enabled: open });
   const queryClient = useQueryClient();
+  const utilityEnabled = utilityMessagingEnabled();
+
+  const template = UTILITY_TEMPLATES.find((item) => item.key === templateKey) ?? UTILITY_TEMPLATES[0];
+  const isUtility = deliveryMode === "utility";
+  // Worker doi du va dung thu tu tham so; thieu mot o la tra utility_parameters_invalid.
+  const missingParameters = template.parameterKeys.filter((key) => !parameters[key]?.trim());
 
   function reset() {
-    setSearch(""); setSelected(null); setDraft(""); setTopic("lesson_review"); setDeliveryMode("response"); send.reset();
+    setSearch(""); setSelected(null); setDraft(""); setTopic("lesson_review"); setDeliveryMode("response");
+    setTemplateKey(UTILITY_TEMPLATES[0].key); setParameters({}); send.reset();
   }
 
   const send = useMutation({
     mutationFn: async () => {
       if (!selected) throw new Error("Chưa chọn học sinh");
-      const result = await sendMessenger({
-        studentId: selected.id,
-        text: draft.trim(),
-        type: `manual_${topic}`,
-        tag: deliveryMode === "account_update" ? "ACCOUNT_UPDATE" : undefined,
-      });
+      const result = await sendMessenger(isUtility
+        ? {
+          studentId: selected.id,
+          type: `manual_${topic}`,
+          deliveryMode: "utility",
+          templateKey,
+          parameters: Object.fromEntries(template.parameterKeys.map((key) => [key, parameters[key].trim()])),
+        }
+        : {
+          studentId: selected.id,
+          text: draft.trim(),
+          type: `manual_${topic}`,
+          tag: deliveryMode === "account_update" ? "ACCOUNT_UPDATE" : undefined,
+        });
       if (!result.sent) throw new MessengerSendError(result.code);
       return result;
     },
@@ -420,9 +439,12 @@ function NewConversationPicker({ open, onClose, configured, onSent }: { open: bo
     setSelected({ id: student.id, fullName: student.fullName, studentCode: student.studentCode, parentUids: student.parentUids });
   }, [open, selected, students.data]);
 
+  // Che do utility khong co o nhap noi dung, dieu kien du la moi tham so cua mau.
+  const readyToSend = !!selected && configured && (isUtility ? utilityEnabled && !missingParameters.length : !!draft.trim());
+
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (selected && draft.trim() && configured) send.mutate();
+    if (readyToSend) send.mutate();
   };
 
   return (
@@ -486,13 +508,52 @@ function NewConversationPicker({ open, onClose, configured, onSent }: { open: bo
                   <select value={deliveryMode} onChange={(event) => setDeliveryMode(event.target.value as DeliveryMode)} disabled={send.isPending} className="min-h-touch w-full rounded-input border border-neutral-300 bg-white px-3 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:bg-neutral-100">
                     <option value="response">Phản hồi trong cửa sổ 24 giờ</option>
                     <option value="account_update">Cập nhật tài khoản, dùng ACCOUNT_UPDATE khi phù hợp</option>
+                    <option value="utility" disabled={!utilityEnabled}>Mẫu tiện ích, gửi được ngoài cửa sổ 24 giờ{utilityEnabled ? "" : " (chờ Meta duyệt)"}</option>
                   </select>
                 </label>
 
-                <label className="mt-4 block">
-                  <span className="mb-1.5 flex items-center justify-between gap-3 text-xs font-bold text-neutral-700"><span>Nội dung</span><span className="font-normal text-neutral-400">{draft.length} / 2000</span></span>
-                  <textarea value={draft} onChange={(event) => setDraft(event.target.value)} rows={7} maxLength={2000} disabled={send.isPending} placeholder="Nhập nội dung tin nhắn..." className="min-h-[180px] w-full resize-y rounded-input border border-neutral-300 px-3 py-2.5 text-sm leading-6 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:bg-neutral-100" />
-                </label>
+                {isUtility ? (
+                  <>
+                    <label className="mt-4 block">
+                      <span className="mb-1.5 flex items-center justify-between gap-3 text-xs font-bold text-neutral-700"><span>Mẫu tiện ích</span><span className="font-normal text-neutral-400">Đã đăng ký với Meta</span></span>
+                      <select value={templateKey} onChange={(event) => { setTemplateKey(event.target.value as UtilityTemplateKey); setParameters({}); }} disabled={send.isPending} className="min-h-touch w-full rounded-input border border-neutral-300 bg-white px-3 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:bg-neutral-100">
+                        {UTILITY_TEMPLATES.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
+                      </select>
+                    </label>
+
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                      {template.parameterKeys.map((key) => {
+                        const field = utilityParameterField(key);
+                        return (
+                          <label key={key} className="block">
+                            <span className="mb-1.5 block text-xs font-bold text-neutral-700">{field.label}</span>
+                            <input
+                              type={field.type}
+                              value={parameters[key] ?? ""}
+                              onChange={(event) => setParameters((current) => ({ ...current, [key]: event.target.value }))}
+                              disabled={send.isPending}
+                              className="min-h-touch w-full rounded-input border border-neutral-300 bg-white px-3 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:bg-neutral-100"
+                            />
+                          </label>
+                        );
+                      })}
+                    </div>
+
+                    <p className="mt-3 rounded-input border-l-4 border-primary-500 bg-primary-50 px-3 py-2 text-xs leading-5 text-primary-700">
+                      Nội dung tin do mẫu đã được Meta phê duyệt quyết định — hệ thống chỉ điền các giá trị ở trên vào chỗ trống. Không sửa được câu chữ ở đây.
+                    </p>
+                    {!template.teacherAllowed && (
+                      <p className="mt-2 rounded-input border-l-4 border-warning-500 bg-warning-50 px-3 py-2 text-xs leading-5 text-warning-800">
+                        Mẫu này chỉ Admin được gửi. Worker sẽ từ chối nếu tài khoản là Giáo viên.
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <label className="mt-4 block">
+                    <span className="mb-1.5 flex items-center justify-between gap-3 text-xs font-bold text-neutral-700"><span>Nội dung</span><span className="font-normal text-neutral-400">{draft.length} / 2000</span></span>
+                    <textarea value={draft} onChange={(event) => setDraft(event.target.value)} rows={7} maxLength={2000} disabled={send.isPending} placeholder="Nhập nội dung tin nhắn..." className="min-h-[180px] w-full resize-y rounded-input border border-neutral-300 px-3 py-2.5 text-sm leading-6 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:bg-neutral-100" />
+                  </label>
+                )}
 
                 {deliveryMode === "account_update" && <p className="mt-3 rounded-input border-l-4 border-warning-500 bg-warning-50 px-3 py-2 text-xs leading-5 text-warning-800">Chỉ dùng cho thông báo cập nhật tài khoản theo chính sách Meta.</p>}
                 {!configured && <p className="mt-3 text-xs font-semibold text-warning-700">Worker chưa cấu hình, chưa thể gửi.</p>}
@@ -525,7 +586,7 @@ function NewConversationPicker({ open, onClose, configured, onSent }: { open: bo
             <span className="hidden text-xs text-neutral-500 sm:block">{selected ? `Đang gửi cho ${selected.fullName}` : "Chưa chọn học sinh"}</span>
             <div className="ml-auto flex gap-2">
               <Button type="button" onClick={() => { reset(); onClose(); }}>Hủy</Button>
-              <Button type="submit" variant="primary" icon={<Send size={16} />} disabled={!configured || !selected || !draft.trim() || send.isPending}>
+              <Button type="submit" variant="primary" icon={<Send size={16} />} disabled={!readyToSend || send.isPending}>
                 {send.isPending ? "Đang gửi..." : "Gửi tin nhắn"}
               </Button>
             </div>
