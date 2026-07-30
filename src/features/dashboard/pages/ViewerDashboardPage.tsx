@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -25,6 +25,7 @@ import {
   RefreshCw,
   Trophy,
   UserRound,
+  WalletCards,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -35,10 +36,13 @@ import { ChartPanel } from "@/components/charts/ChartPanel";
 import { CHART_AXIS_TICK, CHART_PRIMARY, CHART_TOOLTIP_STYLE } from "@/components/charts/chartTheme";
 import { ROUTES } from "@/constants/routes";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { ViewerStudentSwitcher } from "@/features/students/components/ViewerStudentSwitcher";
+import { useViewerStudentSelection } from "@/features/students/hooks/useViewerStudentSelection";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { buildViewerDashboard } from "@/services/firestore/viewerDashboard";
 import { getAcademicSettings } from "@/services/firestore/settings";
 import type { AttendanceStatus } from "@/types/academic";
+import { formatVnd } from "@/utils/currency";
 import { DEFAULT_RANK_THRESHOLDS, rankFromPercent, type AcademicRank } from "@/utils/ranking";
 
 const RANK_META: Record<AcademicRank, { label: string; encouragement: string }> = {
@@ -87,7 +91,6 @@ export default function ViewerDashboardPage() {
   const { firebaseUser, userDoc } = useAuth();
   const reducedMotion = useReducedMotion();
   const studentIds = userDoc?.studentIds ?? [];
-  const [selectedStudentId, setSelectedStudentId] = useState<string>("");
   const dashboard = useQuery({
     queryKey: ["viewer-dashboard", firebaseUser?.uid, studentIds],
     queryFn: () => buildViewerDashboard(studentIds),
@@ -99,13 +102,7 @@ export default function ViewerDashboardPage() {
     enabled: !!userDoc,
   });
   const data = dashboard.data;
-
-  useEffect(() => {
-    if (!data?.students.length) return;
-    if (!data.students.some((student) => student.id === selectedStudentId)) {
-      setSelectedStudentId(data.students[0].id);
-    }
-  }, [data, selectedStudentId]);
+  const { selectedStudentId, selectStudent } = useViewerStudentSelection(data?.students ?? []);
 
   const overview = useMemo(() => {
     if (!data) return null;
@@ -145,6 +142,9 @@ export default function ViewerDashboardPage() {
     const nextSessions = data.nextSessions
       .filter((session) => classIdSet.has(session.classId) && session.status !== "cancelled")
       .sort((a, b) => a.startAt.toMillis() - b.startAt.toMillis());
+    const unpaidInvoices = data.unpaidInvoices
+      .filter((invoice) => invoice.studentId === student.id && invoice.status !== "paid")
+      .sort((a, b) => a.dueAt.toMillis() - b.dueAt.toMillis());
     const announcements = data.announcements.filter((item) => !item.studentId || item.studentId === student.id);
 
     return {
@@ -162,6 +162,7 @@ export default function ViewerDashboardPage() {
       scoreTrend,
       rank: rankFromPercent(scoreAverage, academicSettings.data?.rankThresholds ?? DEFAULT_RANK_THRESHOLDS),
       nextSessions,
+      unpaidInvoices,
       announcements,
     };
   }, [academicSettings.data?.rankThresholds, data, selectedStudentId]);
@@ -187,28 +188,14 @@ export default function ViewerDashboardPage() {
       )}
 
       {data && overview && (
-        <div className="space-y-4">
-          {data.students.length > 1 && (
-            <div className="flex gap-2 overflow-x-auto pb-1" aria-label="Chọn học sinh">
-              {data.students.map((student) => (
-                <button
-                  key={student.id}
-                  type="button"
-                  onClick={() => setSelectedStudentId(student.id)}
-                  aria-pressed={overview.student.id === student.id}
-                  className={`motion-control min-h-touch shrink-0 rounded-input border px-4 text-sm font-semibold active:scale-[.98] ${
-                    overview.student.id === student.id
-                      ? "border-primary-600 bg-primary-600 text-white"
-                      : "border-neutral-300 bg-white text-neutral-700 hover:border-primary-300"
-                  }`}
-                >
-                  {student.fullName}
-                </button>
-              ))}
-            </div>
-          )}
+        <div className="flex flex-col gap-4">
+          <ViewerStudentSwitcher
+            students={data.students}
+            selectedStudentId={overview.student.id}
+            onSelect={selectStudent}
+          />
 
-          <section className="rounded-card border border-primary-100 bg-white shadow-[var(--shadow-1)]">
+          <section className="order-2 rounded-card border border-primary-100 bg-white shadow-[var(--shadow-1)] lg:order-1">
             <div className="grid lg:grid-cols-[1fr_280px]">
               <div className="p-5 sm:p-6">
                 <div className="flex items-start gap-4">
@@ -274,7 +261,7 @@ export default function ViewerDashboardPage() {
             </div>
           </section>
 
-          <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+          <div className="order-3 grid gap-4 lg:order-2 xl:grid-cols-[0.9fr_1.1fr]">
             <ChartPanel title="Nhịp học tập" description="Hai chỉ số quan trọng trong kỳ học hiện tại" className="min-h-[300px]">
               <div className="grid h-full content-center gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
                 <MetricRing
@@ -323,8 +310,11 @@ export default function ViewerDashboardPage() {
             </ChartPanel>
           </div>
 
-          <section className="rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)]">
-            <div className="grid divide-y divide-neutral-100 lg:grid-cols-3 lg:divide-x lg:divide-y-0">
+          <section
+            aria-label="Việc cần quan tâm"
+            className="order-1 rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)] lg:order-3"
+          >
+            <div className="grid divide-y divide-neutral-100 lg:grid-cols-4 lg:divide-x lg:divide-y-0">
               <DashboardList
                 icon={<CalendarDays size={18} />}
                 title="Lịch học sắp tới"
@@ -345,6 +335,17 @@ export default function ViewerDashboardPage() {
                   id: assignment.id,
                   title: assignment.title,
                   meta: `Hạn nộp ${format(assignment.dueAt.toDate(), "dd/MM · HH:mm")}`,
+                }))}
+              />
+              <DashboardList
+                icon={<WalletCards size={18} />}
+                title="Học phí cần xử lý"
+                empty="Không có khoản học phí đang chờ."
+                link={{ to: ROUTES.VIEWER_TUITION, label: "Xem học phí" }}
+                items={overview.unpaidInvoices.slice(0, 4).map((invoice) => ({
+                  id: invoice.id,
+                  title: invoice.title,
+                  meta: `${formatVnd(invoice.amount)} · Hạn ${format(invoice.dueAt.toDate(), "dd/MM/yyyy")}`,
                 }))}
               />
               <DashboardList
@@ -386,7 +387,7 @@ function DashboardList({
     <div className="min-w-0 p-5">
       <div className="flex items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-sm font-bold text-neutral-900"><span className="text-primary-600">{icon}</span>{title}</h2>
-        <Link to={link.to} className="flex shrink-0 items-center gap-1 text-xs font-bold text-primary-700 hover:text-primary-900">
+        <Link to={link.to} className="flex min-h-touch shrink-0 items-center gap-1 text-xs font-bold text-primary-700 hover:text-primary-900">
           {link.label}<ArrowRight size={14} />
         </Link>
       </div>

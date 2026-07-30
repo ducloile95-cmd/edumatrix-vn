@@ -1,12 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { format } from "date-fns";
+import { differenceInCalendarDays, format } from "date-fns";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { SUBMISSION_STATUS_LABEL, SUBMISSION_STATUS_TONE } from "@/features/assignments/constants";
+import { ViewerStudentSwitcher } from "@/features/students/components/ViewerStudentSwitcher";
+import { useViewerStudentSelection } from "@/features/students/hooks/useViewerStudentSelection";
 import { getStudent } from "@/services/firestore/students";
 import { getClass } from "@/services/firestore/classes";
 import { listAssignmentsByClass, listSubmissionsByStudents } from "@/services/firestore/assignments";
@@ -28,28 +30,29 @@ function assignmentFilter(submission?: Submission): Exclude<Filter, "all"> {
   return submission.status === "graded" ? "graded" : "submitted";
 }
 
+const ASSIGNMENT_PRIORITY: Record<Exclude<Filter, "all">, number> = {
+  todo: 0,
+  submitted: 1,
+  graded: 2,
+};
+
 export default function ViewerAssignmentsPage() {
   const { userDoc } = useAuth();
   const studentIds = userDoc?.studentIds ?? [];
-  const [selectedStudentId, setSelectedStudentId] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const studentQueries = useQueries({ queries: studentIds.map((id) => ({ queryKey: ["student", id], queryFn: () => getStudent(id) })) });
   const students = studentQueries.flatMap((query) => query.data ? [query.data] : []);
-
-  useEffect(() => {
-    if (students.length > 0 && !students.some((student) => student.id === selectedStudentId)) {
-      setSelectedStudentId(students[0].id);
-    }
-  }, [selectedStudentId, students]);
+  const { selectedStudentId, selectStudent } = useViewerStudentSelection(students);
 
   const selectedStudent = students.find((student) => student.id === selectedStudentId) ?? students[0];
+  const activeStudentId = selectedStudent?.id ?? "";
   const classIds = selectedStudent?.currentClassIds ?? [];
   const classQueries = useQueries({ queries: classIds.map((id) => ({ queryKey: ["class", id], queryFn: () => getClass(id) })) });
   const assignmentQueries = useQueries({ queries: classIds.map((id) => ({ queryKey: ["viewer-assignments", id], queryFn: () => listAssignmentsByClass(id) })) });
   const submissions = useQuery({
-    queryKey: ["viewer-submissions", selectedStudentId],
-    queryFn: () => listSubmissionsByStudents([selectedStudentId]),
-    enabled: !!selectedStudentId,
+    queryKey: ["viewer-submissions", activeStudentId],
+    queryFn: () => listSubmissionsByStudents([activeStudentId]),
+    enabled: !!activeStudentId,
   });
 
   const assignments = useMemo(() => {
@@ -62,7 +65,14 @@ export default function ViewerAssignmentsPage() {
     assignment,
     submission: submissions.data?.find((item) => item.assignmentId === assignment.id),
     className: classQueries.find((query) => query.data?.id === assignment.classId)?.data?.name ?? "Lớp học",
-  })), [assignments, classQueries, submissions.data]);
+  })).sort((left, right) => {
+    const leftState = assignmentFilter(left.submission);
+    const rightState = assignmentFilter(right.submission);
+    const priorityDifference = ASSIGNMENT_PRIORITY[leftState] - ASSIGNMENT_PRIORITY[rightState];
+    if (priorityDifference !== 0) return priorityDifference;
+    const dueDifference = left.assignment.dueAt.toMillis() - right.assignment.dueAt.toMillis();
+    return leftState === "todo" ? dueDifference : -dueDifference;
+  }), [assignments, classQueries, submissions.data]);
 
   const counts = useMemo(() => ({
     all: rows.length,
@@ -100,22 +110,15 @@ export default function ViewerAssignmentsPage() {
         <EmptyState title="Chưa liên kết học sinh" description="Tài khoản phụ huynh cần được liên kết với học sinh để theo dõi bài tập." />
       )}
       {!isLoading && !firstError && selectedStudent && (
-        <div className="space-y-4 pb-20 sm:pb-0">
-          {students.length > 1 && (
-            <div className="flex gap-2 overflow-x-auto pb-1" aria-label="Chọn học sinh">
-              {students.map((student) => (
-                <button
-                  key={student.id}
-                  type="button"
-                  onClick={() => { setSelectedStudentId(student.id); setFilter("all"); }}
-                  aria-pressed={selectedStudent.id === student.id}
-                  className={`motion-control min-h-touch shrink-0 rounded-input border px-4 text-sm font-semibold active:scale-[.98] ${selectedStudent.id === student.id ? "border-primary-600 bg-primary-600 text-white" : "border-neutral-300 bg-white text-neutral-700 hover:border-primary-300"}`}
-                >
-                  {student.fullName}
-                </button>
-              ))}
-            </div>
-          )}
+        <div className="space-y-4 pb-36 sm:pb-0">
+          <ViewerStudentSwitcher
+            students={students}
+            selectedStudentId={selectedStudent.id}
+            onSelect={(studentId) => {
+              selectStudent(studentId);
+              setFilter("all");
+            }}
+          />
 
           <header className="flex items-end justify-between gap-5">
             <div>
@@ -139,12 +142,12 @@ export default function ViewerAssignmentsPage() {
           ) : visibleRows.length === 0 ? (
             <div className="rounded-card border border-dashed border-neutral-300 bg-white px-5 py-12 text-center text-sm text-neutral-500">Không có bài tập trong trạng thái này.</div>
           ) : (
-            <div className="space-y-2.5">
+            <section aria-label="Danh sách bài tập" className="space-y-2.5">
               {visibleRows.map((row) => <AssignmentCard key={row.assignment.id} {...row} />)}
-            </div>
+            </section>
           )}
 
-          <FilterTabs filter={filter} counts={counts} onChange={setFilter} className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-neutral-200 bg-white/95 px-2 pt-2 shadow-[0_-10px_30px_rgba(37,61,124,.1)] backdrop-blur-md [padding-bottom:calc(.5rem+env(safe-area-inset-bottom))] sm:hidden" mobile />
+          <FilterTabs filter={filter} counts={counts} onChange={setFilter} className="fixed inset-x-0 z-30 grid grid-cols-4 border-t border-neutral-200 bg-white/95 px-2 py-2 shadow-[0_-10px_30px_rgba(37,61,124,.1)] backdrop-blur-md [bottom:calc(60px+env(safe-area-inset-bottom))] sm:hidden" mobile />
         </div>
       )}
     </>
@@ -170,9 +173,10 @@ function FilterTabs({ filter, counts, onChange, className, mobile = false }: { f
           type="button"
           role="tab"
           aria-selected={filter === value}
+          aria-label={mobile ? (value === "todo" ? "Cần làm" : FILTER_LABEL[value]) : undefined}
           onClick={() => onChange(value)}
           className={mobile
-            ? `motion-control grid min-h-touch place-items-center rounded-input px-1 py-1 text-3xs font-bold ${filter === value ? "bg-primary-50 text-primary-700" : "text-neutral-500"}`
+            ? `motion-control grid min-h-touch place-items-center rounded-input px-1 py-1 text-xs font-bold ${filter === value ? "bg-primary-50 text-primary-700" : "text-neutral-500"}`
             : `motion-control min-h-9 rounded-input px-3 text-xs font-bold ${filter === value ? "bg-primary-600 text-white" : "text-neutral-600 hover:bg-neutral-100"}`}
         >
           {mobile && <b className="block text-sm leading-4 tabular-nums">{counts[value]}</b>}
@@ -185,15 +189,31 @@ function FilterTabs({ filter, counts, onChange, className, mobile = false }: { f
 
 function AssignmentCard({ assignment, submission, className }: { assignment: Assignment; submission?: Submission; className: string }) {
   const state = assignmentFilter(submission);
+  const due = getDueMeta(assignment.dueAt.toDate(), state);
   return (
     <article className="grid gap-4 rounded-card border border-neutral-200 bg-white p-4 shadow-[0_4px_18px_rgba(37,61,124,.035)] transition-colors hover:border-primary-200 lg:grid-cols-[minmax(0,1fr)_310px] lg:gap-6 lg:p-5">
       <div className="min-w-0">
-        <div className="mb-2 flex flex-wrap items-center gap-2 text-3xs font-bold text-primary-700">
-          <span className="rounded-input bg-primary-50 px-2 py-1">{className}</span>
-          <span>Bài tập được giao</span>
+        <div className="mb-2 flex items-start justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-primary-700">
+            <span className="rounded-input bg-primary-50 px-2 py-1">{className}</span>
+            <span className={`rounded-input px-2 py-1 ${due.className}`}>{due.label}</span>
+          </div>
+          <div className="shrink-0 lg:hidden">
+            {submission ? <StatusBadge tone={SUBMISSION_STATUS_TONE[submission.status]}>{SUBMISSION_STATUS_LABEL[submission.status]}</StatusBadge> : <StatusBadge tone="warning">Cần hoàn thành</StatusBadge>}
+          </div>
         </div>
         <h3 className="text-base font-bold text-neutral-900">{assignment.title}</h3>
-        {assignment.description && <p className="mt-1.5 text-sm leading-5 text-neutral-600">{assignment.description}</p>}
+        {assignment.description && (
+          <>
+            <p className="mt-1.5 hidden text-sm leading-5 text-neutral-600 sm:block">{assignment.description}</p>
+            <details className="group mt-2 sm:hidden">
+              <summary className="motion-control flex min-h-touch cursor-pointer list-none items-center text-sm font-semibold text-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 [&::-webkit-details-marker]:hidden">
+                Xem hướng dẫn
+              </summary>
+              <p className="pb-1 text-sm leading-5 text-neutral-600">{assignment.description}</p>
+            </details>
+          </>
+        )}
         <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-2xs text-neutral-500">
           <span>Giao bởi <b className="text-neutral-700">Giáo viên/Admin phụ trách</b></span>
           <span>Hạn hoàn thành <b className="tabular-nums text-neutral-700">{format(assignment.dueAt.toDate(), "dd/MM · HH:mm")}</b></span>
@@ -214,4 +234,19 @@ function AssignmentCard({ assignment, submission, className }: { assignment: Ass
       </div>
     </article>
   );
+}
+
+function getDueMeta(dueAt: Date, state: Exclude<Filter, "all">) {
+  if (state !== "todo") {
+    return {
+      className: "bg-neutral-100 text-neutral-600",
+      label: `Hạn ${format(dueAt, "dd/MM")}`,
+    };
+  }
+
+  const days = differenceInCalendarDays(dueAt, new Date());
+  if (days < 0) return { className: "bg-danger-50 text-danger-700", label: "Đã quá hạn" };
+  if (days === 0) return { className: "bg-danger-50 text-danger-700", label: "Hạn hôm nay" };
+  if (days <= 2) return { className: "bg-warning-50 text-warning-700", label: "Sắp đến hạn" };
+  return { className: "bg-primary-50 text-primary-700", label: `Còn ${days} ngày` };
 }
