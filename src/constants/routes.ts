@@ -31,6 +31,7 @@ export const ROUTES = {
   VIEWER_ASSIGNMENTS: "/portal/assignments",
   VIEWER_TUITION: "/portal/tuition",
   VIEWER_SCHEDULE: "/portal/schedule",
+  VIEWER_SCHEDULE_DEMO: "/demo/viewer-schedule",
   VIEWER_ANNOUNCEMENTS: "/portal/announcements",
 } as const;
 

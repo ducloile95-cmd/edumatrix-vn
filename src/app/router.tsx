@@ -39,6 +39,9 @@ const SettingsPage = lazy(() => import("@/features/settings/pages/SettingsPage")
 const ViewerTuitionPage = lazy(() => import("@/features/invoices/pages/ViewerTuitionPage"));
 const ViewerSchedulePage = lazy(() => import("@/features/dashboard/pages/ViewerSchedulePage"));
 const ViewerAnnouncementsPage = lazy(() => import("@/features/dashboard/pages/ViewerAnnouncementsPage"));
+const ViewerScheduleDemoPage = import.meta.env.DEV
+  ? lazy(() => import("@/features/dashboard/pages/ViewerScheduleDemoPage"))
+  : null;
 
 function RouteFallback() {
   const visible = useDelayedPending(true);
@@ -60,6 +63,9 @@ export function AppRouter() {
           <Route path={ROUTES.DATA_DELETION} element={<DataDeletionPage />} />
           <Route path={ROUTES.ACCESS_DENIED} element={<AccessDeniedPage />} />
           <Route path={ROUTES.ACCOUNT_DISABLED} element={<AccountDisabledPage />} />
+          {ViewerScheduleDemoPage && (
+            <Route path={ROUTES.VIEWER_SCHEDULE_DEMO} element={<ViewerScheduleDemoPage />} />
+          )}
 
           {/*
             Layout route Staff: AppShell dat o day nen Sidebar/Topbar/dong ho chi mount 1 lan
