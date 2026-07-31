@@ -4,7 +4,9 @@ import { stableDocumentId } from "@/utils/idempotency";
 export interface ScoreEntry { studentId: string; score: number; comment: string; }
 function scoreId(input: { classId: string; subjectId: string; assessmentName: string; studentId: string }): string { return stableDocumentId([input.classId, input.subjectId, input.assessmentName, input.studentId]); }
 export async function saveClassScores(input: { classId: string; subjectId: string; assessmentName: string; assessmentType: AssessmentType; maxScore: number; entries: ScoreEntry[]; actorUid: string }): Promise<void> {
+  if (!input.classId.trim() || !input.subjectId.trim() || !input.assessmentName.trim()) throw new Error("SCORE_METADATA_INVALID");
   if (input.maxScore <= 0) throw new Error("MAX_SCORE_INVALID");
+  if (input.entries.length === 0) throw new Error("SCORES_EMPTY");
   if (input.entries.some((entry) => entry.score < 0 || entry.score > input.maxScore)) throw new Error("SCORE_INVALID");
   if (new Set(input.entries.map((entry) => entry.studentId)).size !== input.entries.length) throw new Error("STUDENT_DUPLICATED");
   if (input.entries.length > 200) throw new Error("SCORE_BATCH_TOO_LARGE");
@@ -59,5 +61,5 @@ export async function saveClassScores(input: { classId: string; subjectId: strin
   });
 }
 export async function listScoresByStudent(studentId:string,pageSize=50):Promise<(ScoreDoc&{id:string})[]>{const snap=await getDocs(query(collection(db,COLLECTIONS.SCORES),where("studentId","==",studentId),orderBy("createdAt","desc"),limit(pageSize)));return snap.docs.map((item)=>({id:item.id,...(item.data() as ScoreDoc)})).filter((item)=>item.published!==false);}
-export async function listScoresByClass(classId:string):Promise<(ScoreDoc&{id:string})[]>{const snap=await getDocs(query(collection(db,COLLECTIONS.SCORES),where("classId","==",classId),limit(200)));return snap.docs.map((item)=>({id:item.id,...(item.data() as ScoreDoc)})).filter((item)=>item.published!==false);}
+export async function listScoresByClass(classId:string):Promise<(ScoreDoc&{id:string})[]>{const snap=await getDocs(query(collection(db,COLLECTIONS.SCORES),where("classId","==",classId),limit(500)));return snap.docs.map((item)=>({id:item.id,...(item.data() as ScoreDoc)})).filter((item)=>item.published!==false);}
 export async function listStudentSummariesByIds(studentIds:string[]):Promise<{id:string;scoreCount:number;averagePercent:number;latestScore:number;latestMaxScore:number}[]>{const unique=[...new Set(studentIds)].filter(Boolean);const groups=await Promise.all(unique.reduce<string[][]>((chunks,id,index)=>{if(index%30===0)chunks.push([]);chunks[chunks.length-1].push(id);return chunks;},[]).map(async(chunk)=>{const snap=await getDocs(query(collection(db,COLLECTIONS.STUDENT_SUMMARIES),where(documentId(),"in",chunk)));return snap.docs.map((item)=>({id:item.id,...(item.data() as {scoreCount:number;averagePercent:number;latestScore:number;latestMaxScore:number})}));}));return groups.flat();}

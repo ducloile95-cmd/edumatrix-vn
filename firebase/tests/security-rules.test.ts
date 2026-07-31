@@ -7,7 +7,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { collection, doc, documentId, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, Timestamp, where } from "firebase/firestore";
+import { collection, deleteDoc, doc, documentId, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, Timestamp, where } from "firebase/firestore";
 
 /**
  * Emulator test cho Firestore Security Rules (A16, A28).
@@ -621,17 +621,25 @@ describe("Messenger utility template status", () => {
       }));
   });
 
-  test("admin can read template status for the Giai doan 6 admin screen", async () =>
-    assertSucceeds(getDoc(doc(asAdmin(), "messenger_template_status", "template-1"))));
-
-  test("teacher and viewer cannot read template status", async () => {
-    await assertFails(getDoc(doc(asTeacher(), "messenger_template_status", "template-1")));
-    await assertFails(getDoc(doc(asViewer(), "messenger_template_status", "template-1")));
+  test("admin can read template status documents and collection", async () => {
+    await assertSucceeds(getDoc(doc(asAdmin(), "messenger_template_status", "template-1")));
+    await assertSucceeds(getDocs(collection(asAdmin(), "messenger_template_status")));
   });
 
-  test("no client role may write template status - only the Worker service account", async () => {
+  test("only admin can read template status", async () => {
+    await assertFails(getDoc(doc(asTeacher(), "messenger_template_status", "template-1")));
+    await assertFails(getDoc(doc(asViewer(), "messenger_template_status", "template-1")));
+    await assertFails(getDoc(doc(asUnauthenticated(), "messenger_template_status", "template-1")));
+    await assertFails(getDocs(collection(asTeacher(), "messenger_template_status")));
+  });
+
+  test("no client, including admin, may create, update, or delete template status", async () => {
     await assertFails(setDoc(doc(asAdmin(), "messenger_template_status", "template-2"), { status: "APPROVED" }));
     await assertFails(updateDoc(doc(asAdmin(), "messenger_template_status", "template-1"), { status: "REJECTED" }));
+    await assertFails(deleteDoc(doc(asAdmin(), "messenger_template_status", "template-1")));
+    await assertFails(setDoc(doc(asTeacher(), "messenger_template_status", "template-2"), { status: "APPROVED" }));
+    await assertFails(setDoc(doc(asViewer(), "messenger_template_status", "template-2"), { status: "APPROVED" }));
+    await assertFails(setDoc(doc(asUnauthenticated(), "messenger_template_status", "template-2"), { status: "APPROVED" }));
   });
 });
 

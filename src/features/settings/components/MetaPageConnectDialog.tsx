@@ -118,10 +118,10 @@ export function MetaPageConnectDialog({ open, onClose, onConnected }: MetaPageCo
             <>
               <span className="flex size-12 items-center justify-center rounded-input bg-[#1877F2] text-white"><Facebook size={24} /></span>
               <h3 className="mt-4 text-base font-bold text-neutral-900">Tiếp tục bằng tài khoản Facebook</h3>
-              <p className="mt-2 text-sm leading-6 text-neutral-600">Facebook sẽ hỏi tài khoản nào được dùng và những Fanpage anh đang quản lý. EduMatrix không lưu mật khẩu Facebook.</p>
+              <p className="mt-2 text-sm leading-6 text-neutral-600">Facebook sẽ hỏi tài khoản nào được dùng và những Fanpage anh đang quản lý. Hãy chấp thuận quyền Utility Messaging khi được hỏi; kết nối cũ cần thực hiện lại bước này.</p>
               <div className="mt-4 flex gap-2 rounded-input border border-success-100 bg-success-50 px-3 py-3 text-xs leading-5 text-success-800">
                 <ShieldCheck className="mt-0.5 shrink-0" size={17} />
-                Page Access Token được Worker mã hóa và lưu ở vùng riêng mà frontend không thể đọc.
+                EduMatrix chỉ hiển thị trạng thái quyền. Page Access Token được mã hóa trong vùng riêng và không được trả về frontend.
               </div>
               <Button className="mt-5" variant="primary" onClick={() => void begin()} icon={<Facebook size={16} />}>Tiếp tục với Facebook</Button>
             </>
@@ -140,6 +140,11 @@ export function MetaPageConnectDialog({ open, onClose, onConnected }: MetaPageCo
             <>
               <h3 className="text-sm font-bold text-neutral-900">Chọn Fanpage sử dụng với EduMatrix</h3>
               <p className="mt-1 text-xs leading-5 text-neutral-500">Chỉ một Trang được dùng để nhận webhook và gửi Messenger tại một thời điểm.</p>
+              {pages[0]?.utilityMessagingPermission !== "granted" && (
+                <p role="alert" className="mt-3 rounded-input border border-warning-200 bg-warning-50 px-3 py-2.5 text-xs font-semibold leading-5 text-warning-800">
+                  Facebook chưa xác nhận quyền Utility Messaging. Có thể tiếp tục kết nối Fanpage, nhưng không bật Utility Messaging cho đến khi kết nối lại và quyền này hiển thị “Đã cấp”.
+                </p>
+              )}
               <div className="mt-4 space-y-2">
                 {pages.map((page) => (
                   <button
@@ -167,6 +172,9 @@ export function MetaPageConnectDialog({ open, onClose, onConnected }: MetaPageCo
               <span className="flex size-12 items-center justify-center rounded-full bg-success-50 text-success-700"><Check size={24} /></span>
               <h3 className="mt-4 text-base font-bold text-neutral-900">Kết nối thành công</h3>
               <p className="mt-2 text-sm text-neutral-500">{selectedPage?.name} đã sẵn sàng cho Messenger và Fanpage.</p>
+              <p className={`mt-3 rounded-full px-3 py-1.5 text-xs font-bold ${selectedPage?.utilityMessagingPermission === "granted" ? "bg-success-50 text-success-700" : "bg-warning-50 text-warning-800"}`}>
+                Utility Messaging: {selectedPage?.utilityMessagingPermission === "granted" ? "Đã cấp quyền" : "Cần kết nối lại để cấp quyền"}
+              </p>
               <Button className="mt-5" variant="primary" onClick={onClose}>Hoàn tất</Button>
             </div>
           )}

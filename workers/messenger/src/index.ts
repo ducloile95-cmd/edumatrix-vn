@@ -9,6 +9,7 @@ export interface Env {
   META_APP_SECRET: string;
   META_WEBHOOK_VERIFY_TOKEN: string;
   META_GRAPH_VERSION: string;
+  META_PAGE_ID?: string;
   ALLOWED_ORIGIN: string;
   UTILITY_MESSAGING_ENABLED?: string;
   CF_VERSION_METADATA?: { id: string; tag: string; timestamp: string };
@@ -18,6 +19,7 @@ interface FirebaseClaims { sub: string; user_id?: string; email?: string }
 interface StaffProfile { role: "admin" | "teacher" }
 interface MessengerProfile { name: string | null; avatarUrl: string | null }
 interface MetaManagedPage { id: string; name: string; access_token: string; picture?: { data?: { url?: string } } }
+export type MetaUtilityPermissionStatus = "granted" | "missing" | "unknown";
 interface MetaConnectBody { state?: string; pageId?: string }
 interface Recipient { psid: string; parentUid: string; threadId?: string }
 interface ThreadContext {
@@ -62,6 +64,31 @@ const ALLOWED_MESSENGER_TAGS = new Set([
   "CONFIRMED_EVENT_UPDATE",
   "POST_PURCHASE_UPDATE",
 ]);
+export const META_OAUTH_SCOPES = [
+  "pages_show_list",
+  "pages_manage_metadata",
+  "pages_messaging",
+  "pages_read_engagement",
+  "pages_manage_posts",
+  "pages_utility_messaging",
+] as const;
+export function metaUtilityPermissionStatus(data: unknown): MetaUtilityPermissionStatus {
+  if (!data || typeof data !== "object" || !Array.isArray((data as { data?: unknown }).data)) return "unknown";
+  const permission = (data as { data: Array<{ permission?: unknown; status?: unknown }> }).data
+    .find((item) => item?.permission === "pages_utility_messaging");
+  return permission?.status === "granted" ? "granted" : "missing";
+}
+
+export async function checkMetaUtilityPermission(accessToken: string, env: Env): Promise<MetaUtilityPermissionStatus> {
+  const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/me/permissions`;
+  try {
+    const response = await fetch(url, { headers: { authorization: `Bearer ${accessToken}` } });
+    if (!response.ok) return "unknown";
+    return metaUtilityPermissionStatus(await response.json<unknown>());
+  } catch {
+    return "unknown";
+  }
+}
 interface UtilityTemplateDefinition {
   metaName: string;
   language: string;
@@ -631,7 +658,7 @@ async function configuredPageAccess(env: Env): Promise<{ token: string; pageId: 
   }
   return {
     token: normalizeSecret(env.META_PAGE_ACCESS_TOKEN, "META_PAGE_ACCESS_TOKEN"),
-    pageId: "",
+    pageId: env.META_PAGE_ID?.trim() ?? "",
   };
 }
 
@@ -727,9 +754,10 @@ export function metaErrorCode(data: Record<string, unknown>, status: number): st
 }
 
 export async function sendGraph(body: SendBody, env: Env): Promise<{ message_id?: string; recipient_id?: string }> {
-  const pageAccessToken = (await configuredPageAccess(env)).token;
-  const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/me/messages`;
-  const request = () => fetch(url, { method: "POST", headers: { authorization: `Bearer ${pageAccessToken}`, "content-type": "application/json" }, body: JSON.stringify(buildMessengerPayload(body)) });
+  const pageAccess = await configuredPageAccess(env);
+  const pageNode = encodeURIComponent(pageAccess.pageId || "me");
+  const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/${pageNode}/messages`;
+  const request = () => fetch(url, { method: "POST", headers: { authorization: `Bearer ${pageAccess.token}`, "content-type": "application/json" }, body: JSON.stringify(buildMessengerPayload(body)) });
   let response = await request();
   if (response.status >= 500 || response.status === 429) {
     // 429: doi theo Retry-After (chan tren 5s) roi thu lai dung 1 lan; 5xx: thu lai ngay.
@@ -770,6 +798,12 @@ async function handleSend(request: Request, env: Env): Promise<Response> {
   }
   const content = deliveryMode === "utility" ? `Thông báo tiện ích: ${template?.label ?? body.templateKey}` : body.text!.trim();
   const serviceToken = await serviceAccessToken(env);
+  if (deliveryMode === "utility") {
+    const integrations = await readDocument("settings", "integrations", serviceToken, env);
+    if (fieldString(integrations, "facebookUtilityMessagingPermission") !== "granted") {
+      return new Response(JSON.stringify({ error: "utility_permission_required" }), { status: 403, headers: corsHeaders(env, request) });
+    }
+  }
   if (!body.studentId && body.recipientPsid) {
     if (deliveryMode === "utility") return new Response(JSON.stringify({ error: "missing_recipient" }), { status: 400, headers: corsHeaders(env, request) });
     if (profile.role !== "admin") return new Response(JSON.stringify({ error: "admin_required" }), { status: 403, headers: corsHeaders(env, request) });
@@ -868,9 +902,10 @@ export function buildFeedPayload(body: PostBody, photoIds: string[]): Record<str
 }
 
 async function uploadPhoto(imageUrl: string, env: Env): Promise<string> {
-  const pageAccessToken = (await configuredPageAccess(env)).token;
-  const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/me/photos`;
-  const response = await fetch(url, { method: "POST", headers: { authorization: `Bearer ${pageAccessToken}`, "content-type": "application/json" }, body: JSON.stringify({ url: imageUrl, published: false }) });
+  const pageAccess = await configuredPageAccess(env);
+  const pageNode = encodeURIComponent(pageAccess.pageId || "me");
+  const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/${pageNode}/photos`;
+  const response = await fetch(url, { method: "POST", headers: { authorization: `Bearer ${pageAccess.token}`, "content-type": "application/json" }, body: JSON.stringify({ url: imageUrl, published: false }) });
   const data = await response.json<Record<string, unknown>>();
   if (!response.ok || typeof data.id !== "string") throw new Error(`meta_photo_${metaErrorCode(data, response.status)}`);
   return data.id;
@@ -878,9 +913,10 @@ async function uploadPhoto(imageUrl: string, env: Env): Promise<string> {
 
 export async function postGraph(body: PostBody, env: Env): Promise<{ id?: string }> {
   const photoIds = await Promise.all((body.imageUrls ?? []).map((imageUrl) => uploadPhoto(imageUrl, env)));
-  const pageAccessToken = (await configuredPageAccess(env)).token;
-  const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/me/feed`;
-  const response = await fetch(url, { method: "POST", headers: { authorization: `Bearer ${pageAccessToken}`, "content-type": "application/json" }, body: JSON.stringify(buildFeedPayload(body, photoIds)) });
+  const pageAccess = await configuredPageAccess(env);
+  const pageNode = encodeURIComponent(pageAccess.pageId || "me");
+  const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/${pageNode}/feed`;
+  const response = await fetch(url, { method: "POST", headers: { authorization: `Bearer ${pageAccess.token}`, "content-type": "application/json" }, body: JSON.stringify(buildFeedPayload(body, photoIds)) });
   const data = await response.json<Record<string, unknown>>();
   if (!response.ok) throw new Error(`meta_${metaErrorCode(data, response.status)}`);
   return data;
@@ -960,10 +996,10 @@ async function handleMetaConnectStart(request: Request, env: Env): Promise<Respo
   authorizationUrl.searchParams.set("redirect_uri", callbackUrl);
   authorizationUrl.searchParams.set("state", state);
   authorizationUrl.searchParams.set("response_type", "code");
-  // Năm quyền phải khớp hồ sơ App Review (docs/HO-SO-XET-DUYET-META-MESSENGER-UTILITY.md).
+  // Các quyền phải khớp tính năng Messenger, webhook, Utility và đăng Page.
   // pages_utility_messaging chưa được duyệt cho live: Facebook chỉ cấp cho Admin/Tester
   // của App và bỏ qua âm thầm với tài khoản khác, không làm hỏng các quyền còn lại.
-  authorizationUrl.searchParams.set("scope", "pages_show_list,pages_manage_metadata,pages_messaging,pages_read_engagement,pages_utility_messaging");
+  authorizationUrl.searchParams.set("scope", META_OAUTH_SCOPES.join(","));
   return new Response(JSON.stringify({ state, authorizationUrl: authorizationUrl.toString(), expiresAt: expiresAt.toISOString() }), { headers: corsHeaders(env, request) });
 }
 
@@ -998,6 +1034,7 @@ async function handleMetaConnectCallback(request: Request, env: Env): Promise<Re
   const tokenResponse = await fetch(tokenUrl);
   const tokenData = await tokenResponse.json<{ access_token?: string; error?: unknown }>();
   if (!tokenResponse.ok || !tokenData.access_token) throw new Error("meta_oauth_exchange_failed");
+  const utilityMessagingPermission = await checkMetaUtilityPermission(tokenData.access_token, env);
   const pagesUrl = new URL(`https://graph.facebook.com/${env.META_GRAPH_VERSION}/me/accounts`);
   pagesUrl.searchParams.set("fields", "id,name,access_token,picture");
   pagesUrl.searchParams.set("limit", "100");
@@ -1008,7 +1045,8 @@ async function handleMetaConnectCallback(request: Request, env: Env): Promise<Re
   await updateDocumentFields("messenger_oauth_states", state, {
     status: "ready",
     encryptedPages: await encryptPrivateValue(JSON.stringify(pages), env),
-    pageSummaries: JSON.stringify(pages.map((page) => ({ id: page.id, name: page.name, pictureUrl: page.picture?.data?.url ?? null }))),
+    pageSummaries: JSON.stringify(pages.map((page) => ({ id: page.id, name: page.name, pictureUrl: page.picture?.data?.url ?? null, utilityMessagingPermission }))),
+    utilityMessagingPermission,
     completedAt: new Date(),
   }, serviceToken, env);
   return oauthResultPage(origin, state, true, "Quay lại EduMatrix để chọn Fanpage.");
@@ -1043,11 +1081,15 @@ async function handleMetaConnectSelect(request: Request, env: Env): Promise<Resp
   const page = pages.find((item) => item.id === body.pageId);
   if (!page) throw new Error("meta_page_not_available");
   const now = new Date();
+  const utilityPermissionValue = fieldString(document, "utilityMessagingPermission");
+  const utilityMessagingPermission: MetaUtilityPermissionStatus =
+    utilityPermissionValue === "granted" || utilityPermissionValue === "missing" ? utilityPermissionValue : "unknown";
   await writeDocument("messenger_private_config", "page", {
     pageId: page.id,
     pageName: page.name,
     pagePictureUrl: page.picture?.data?.url ?? null,
     encryptedPageAccessToken: await encryptPrivateValue(page.access_token, env),
+    utilityMessagingPermission,
     connectedAt: now,
   }, serviceToken, env);
   await writeDocument("settings", "integrations", {
@@ -1055,12 +1097,13 @@ async function handleMetaConnectSelect(request: Request, env: Env): Promise<Resp
     facebookPageName: page.name,
     facebookPagePictureUrl: page.picture?.data?.url ?? null,
     facebookConnectionStatus: "connected",
+    facebookUtilityMessagingPermission: utilityMessagingPermission,
     facebookConnectedAt: now,
     updatedAt: now,
   }, serviceToken, env);
   await updateDocumentFields("messenger_oauth_states", body.state!, { status: "used", selectedPageId: page.id, usedAt: now, encryptedPages: null }, serviceToken, env);
   dynamicPageTokenCache = { token: page.access_token, pageId: page.id, expiresAt: Date.now() + 5 * 60 * 1000 };
-  return new Response(JSON.stringify({ page: { id: page.id, name: page.name, pictureUrl: page.picture?.data?.url ?? null } }), { headers: corsHeaders(env, request) });
+  return new Response(JSON.stringify({ page: { id: page.id, name: page.name, pictureUrl: page.picture?.data?.url ?? null, utilityMessagingPermission } }), { headers: corsHeaders(env, request) });
 }
 
 async function handleWebhook(request: Request, env: Env): Promise<Response> {

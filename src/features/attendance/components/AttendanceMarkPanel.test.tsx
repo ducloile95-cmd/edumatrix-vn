@@ -107,13 +107,14 @@ describe("AttendanceMarkPanel mobile workflow", () => {
     renderWithQueryClient(<AttendanceMarkPanel presetSessionId="session-1" />);
 
     const lateButton = await screen.findByRole("button", { name: "Đi muộn: Nguyễn An" });
+    expect(serviceMocks.listAttendanceBySession).toHaveBeenCalledWith("session-1", "class-1");
     expect(lateButton.className).toContain("min-h-touch");
     fireEvent.click(lateButton);
     expect(lateButton.getAttribute("aria-pressed")).toBe("true");
 
     const saveButton = screen.getByRole("button", { name: "Lưu điểm danh (1)" });
     expect(saveButton.className).toContain("w-full");
-    expect(saveButton.parentElement?.className).toContain("fixed");
+    expect(saveButton.closest(".fixed")).not.toBeNull();
     fireEvent.click(saveButton);
 
     await waitFor(() => {

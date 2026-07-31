@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import AssignmentsPage from "@/features/assignments/pages/AssignmentsPage";
 import ScoresPage from "@/features/scores/pages/ScoresPage";
@@ -8,11 +9,13 @@ import { Tab, Tabs } from "@/components/ui/Tabs";
 type LearningTab = "overview" | "assignments" | "gradebook";
 
 export default function LearningPage() {
+  const [gradebookDirty, setGradebookDirty] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTab = searchParams.get("tab");
   const tab: LearningTab = requestedTab === "assignments" || requestedTab === "gradebook" ? requestedTab : "overview";
 
   function selectTab(nextTab: LearningTab) {
+    if (tab === "gradebook" && nextTab !== "gradebook" && gradebookDirty && !window.confirm("Bạn có thay đổi điểm chưa lưu. Rời Sổ điểm và bỏ các thay đổi này?")) return;
     const next = new URLSearchParams(searchParams);
     next.set("tab", nextTab);
     setSearchParams(next, { replace: true });
@@ -35,7 +38,7 @@ export default function LearningPage() {
       <MotionTabPanel motionKey={tab}>
         {tab === "overview" && <LearningOverview onOpenAssignments={() => selectTab("assignments")} />}
         {tab === "assignments" && <AssignmentsPage embedded />}
-        {tab === "gradebook" && <ScoresPage embedded />}
+        {tab === "gradebook" && <ScoresPage embedded onDirtyChange={setGradebookDirty} />}
       </MotionTabPanel>
     </>
   );

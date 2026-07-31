@@ -8,6 +8,7 @@ import { ErrorState } from "@/components/feedback/ErrorState";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { SearchInput } from "@/components/ui/SearchInput";
+import { FilterField } from "@/components/ui/FilterToolbar";
 import { Pagination } from "@/components/ui/Pagination";
 import { DataListPanel, DATA_LIST_FOOTER, DATA_LIST_SCROLL } from "@/components/ui/dataListLayout";
 import { usePagination } from "@/hooks/usePagination";
@@ -75,7 +76,9 @@ export function SubjectsList({ canManage = true, onEdit, onAdd, selectedSubjectI
       </div>
 
       <div className="shrink-0 px-4 pt-3 sm:px-5">
+        <FilterField label="Tìm kiếm" htmlFor="subject-search">
         <SearchInput
+          id="subject-search"
           value={search}
           onChange={(value) => {
             setSearch(value);
@@ -83,6 +86,7 @@ export function SubjectsList({ canManage = true, onEdit, onAdd, selectedSubjectI
           }}
           placeholder="Tìm theo tên hoặc mã môn học"
         />
+        </FilterField>
       </div>
 
       <div className={`${DATA_LIST_SCROLL} p-4 pt-3 sm:p-5 sm:pt-3`}>

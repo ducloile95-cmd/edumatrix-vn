@@ -49,7 +49,7 @@ beforeEach(async () => {
     await setDoc(doc(db, "classes", "class-owned"), {
       name: "Owned class",
       courseId: "course-1",
-      subjectIds: [],
+      subjectIds: ["subject-1"],
       teacherIds: [assignedTeacher],
       studentIds: ["student-1"],
       scheduleText: "",
@@ -106,6 +106,18 @@ beforeEach(async () => {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
+    await setDoc(doc(db, "sessions", "session-owned-new"), {
+      classId: "class-owned",
+      title: "New owned session",
+      startAt: Timestamp.now(),
+      endAt: Timestamp.now(),
+      location: "",
+      status: "scheduled",
+      note: "",
+      makeUpForSessionId: null,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
     await setDoc(doc(db, "attendance", "session-owned_student-1"), {
       sessionId: "session-owned",
       classId: "class-owned",
@@ -115,6 +127,16 @@ beforeEach(async () => {
       markedBy: assignedTeacher,
       markedAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
+    });
+    await setDoc(doc(db, "announcements", "attendance_session-owned_student-1"), {
+      type: "attendance_alert",
+      sessionId: "session-owned",
+      classId: "class-owned",
+      studentId: "student-1",
+      title: "Absent",
+      message: "",
+      createdAt: Timestamp.now(),
+      resolvedAt: null,
     });
     await setDoc(doc(db, "assignments", "assignment-owned"), {
       title: "Assignment",
@@ -260,6 +282,68 @@ describe("teacher scope by assigned class", () => {
         updatedAt: Timestamp.now(),
       }),
     );
+  });
+
+  test("teacher attendance list query must include the assigned class scope", async () => {
+    const teacherDb = asTeacher(assignedTeacher);
+    await assertSucceeds(getDocs(query(
+      collection(teacherDb, "attendance"),
+      where("classId", "==", "class-owned"),
+      where("sessionId", "==", "session-owned"),
+    )));
+    await assertFails(getDocs(query(
+      collection(teacherDb, "attendance"),
+      where("sessionId", "==", "session-owned"),
+    )));
+  });
+
+  test("attendance create requires matching session, class, and roster student", async () => {
+    const teacherDb = asTeacher(assignedTeacher);
+    const valid = {
+      sessionId: "session-owned-new",
+      classId: "class-owned",
+      studentId: "student-1",
+      status: "present",
+      note: "",
+      markedBy: assignedTeacher,
+      markedAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    };
+    await assertSucceeds(setDoc(doc(teacherDb, "attendance", "session-owned-new_student-1"), valid));
+    await assertFails(setDoc(doc(teacherDb, "attendance", "session-other_student-1"), {
+      ...valid,
+      sessionId: "session-other",
+    }));
+    await assertFails(setDoc(doc(teacherDb, "attendance", "session-owned-new_student-2"), {
+      ...valid,
+      studentId: "student-2",
+    }));
+  });
+
+  test("attendance summary class must match its session", async () => {
+    const teacherDb = asTeacher(assignedTeacher);
+    const summary = {
+      sessionId: "session-owned-new",
+      classId: "class-owned",
+      total: 1,
+      present: 1,
+      absent: 0,
+      late: 0,
+      excused: 0,
+      updatedAt: Timestamp.now(),
+    };
+    await assertSucceeds(setDoc(doc(teacherDb, "attendance_summaries", "session-owned-new"), summary));
+    await assertFails(setDoc(doc(teacherDb, "attendance_summaries", "session-other"), {
+      ...summary,
+      sessionId: "session-other",
+    }));
+  });
+
+  test("teacher can resolve an attendance alert for an assigned class", async () => {
+    await assertSucceeds(updateDoc(
+      doc(asTeacher(assignedTeacher), "announcements", "attendance_session-owned_student-1"),
+      { title: "Updated", resolvedAt: Timestamp.now(), createdAt: Timestamp.now() },
+    ));
   });
 
   test("teacher saves classroom drafts only for assigned sessions", async () => {
@@ -444,6 +528,29 @@ describe("teacher scope by assigned class", () => {
     );
   });
 
+  test("teacher links assignments only to subjects in the assigned class", async () => {
+    const assignment = {
+      title: "Scoped assignment",
+      description: "",
+      classId: "class-owned",
+      subjectId: "subject-1",
+      lessonPlanId: null,
+      sessionId: null,
+      dueAt: Timestamp.now(),
+      submissionType: "text",
+      maxScore: 10,
+      status: "published",
+      createdBy: assignedTeacher,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    };
+    await assertSucceeds(setDoc(doc(asTeacher(assignedTeacher), "assignments", "assignment-new"), assignment));
+    await assertFails(setDoc(doc(asTeacher(assignedTeacher), "assignments", "assignment-wrong-subject"), {
+      ...assignment,
+      subjectId: "subject-2",
+    }));
+  });
+
   test("teacher writes scores only for assigned classes", async () => {
     await assertSucceeds(
       setDoc(doc(asTeacher(assignedTeacher), "scores", "score-new-owned"), {
@@ -468,6 +575,25 @@ describe("teacher scope by assigned class", () => {
       setDoc(doc(asTeacher(assignedTeacher), "scores", "score-new-other"), {
         studentId: "student-2",
         classId: "class-other",
+        subjectId: "subject-1",
+        assessmentName: "Quiz 2",
+        assessmentType: "quiz",
+        score: 9,
+        maxScore: 10,
+        teacherComment: "",
+        source: "manual",
+        assignmentId: null,
+        submissionId: null,
+        published: true,
+        createdBy: assignedTeacher,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      }),
+    );
+    await assertFails(
+      setDoc(doc(asTeacher(assignedTeacher), "scores", "score-new-wrong-student"), {
+        studentId: "student-2",
+        classId: "class-owned",
         subjectId: "subject-1",
         assessmentName: "Quiz 2",
         assessmentType: "quiz",

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { addDays, format, subDays } from "date-fns";
 import { vi } from "date-fns/locale";
@@ -9,14 +9,16 @@ import {
   Clock3,
   GraduationCap,
   MapPin,
-  Search,
   Save,
   Users,
 } from "lucide-react";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
+import { SearchInput } from "@/components/ui/SearchInput";
+import { FilterField, FilterSelect } from "@/components/ui/FilterToolbar";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { getClass } from "@/services/firestore/classes";
+import { writeAuditLog } from "@/services/firestore/auditLog";
 import { listCourses } from "@/services/firestore/courses";
 import { listStudents } from "@/services/firestore/students";
 import { listSessions, listSessionsByClass } from "@/services/firestore/sessions";
@@ -65,19 +67,32 @@ function getAttendanceInsight(history: AttendanceDoc[]) {
 }
 
 export function AttendanceMarkPanel({ presetSessionId }: AttendanceMarkPanelProps) {
-  const { firebaseUser } = useAuth();
+  const { firebaseUser, role } = useAuth();
   const queryClient = useQueryClient();
   const [sessionId, setSessionId] = useState(presetSessionId ?? "");
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<AttendanceStatus | "all">("all");
   const [entries, setEntries] = useState<Record<string, AttendanceEntry>>({});
+  const [baselineEntries, setBaselineEntries] = useState<Record<string, AttendanceEntry>>({});
+  const hydratedSessionRef = useRef("");
+
+  const dirtyCount = useMemo(() => Object.values(entries).filter((entry) => {
+    const baseline = baselineEntries[entry.studentId];
+    return !baseline || baseline.status !== entry.status || baseline.note !== entry.note;
+  }).length, [baselineEntries, entries]);
 
   useEffect(() => {
-    if (presetSessionId) setSessionId(presetSessionId);
-  }, [presetSessionId]);
+    if (!presetSessionId || presetSessionId === sessionId) return;
+    if (dirtyCount > 0 && !window.confirm("Bạn có thay đổi chưa lưu. Bỏ thay đổi và chuyển buổi học?")) return;
+    hydratedSessionRef.current = "";
+    setEntries({});
+    setBaselineEntries({});
+    setSessionId(presetSessionId);
+  }, [dirtyCount, presetSessionId, sessionId]);
 
   const sessions = useQuery({
     queryKey: ["attendance-sessions"],
-    queryFn: () => listSessions(subDays(new Date(), 180), addDays(new Date(), 180)),
+    queryFn: () => listSessions(subDays(new Date(), 30), addDays(new Date(), 60)),
   });
   const selectedSession = sessions.data?.find((item) => item.id === sessionId);
   const klass = useQuery({
@@ -89,8 +104,8 @@ export function AttendanceMarkPanel({ presetSessionId }: AttendanceMarkPanelProp
   const students = useQuery({ queryKey: ["students"], queryFn: listStudents });
   const existing = useQuery({
     queryKey: ["attendance", sessionId],
-    queryFn: () => listAttendanceBySession(sessionId),
-    enabled: !!sessionId,
+    queryFn: () => listAttendanceBySession(sessionId, selectedSession?.classId ?? ""),
+    enabled: !!sessionId && !!selectedSession,
   });
   const course = courses.data?.find((item) => item.id === klass.data?.courseId);
   const classStudents = useMemo(
@@ -109,16 +124,26 @@ export function AttendanceMarkPanel({ presetSessionId }: AttendanceMarkPanelProp
   });
 
   useEffect(() => {
-    if (!sessionId || !classStudents.length || existing.isLoading) return;
-    setEntries(Object.fromEntries(classStudents.map((student) => {
+    if (!sessionId || !classStudents.length || existing.isLoading || hydratedSessionRef.current === sessionId) return;
+    const nextEntries = Object.fromEntries(classStudents.map((student) => {
       const saved = existing.data?.find((item) => item.studentId === student.id);
       return [student.id, { studentId: student.id, status: saved?.status ?? "present", note: saved?.note ?? "" }];
-    })));
+    }));
+    hydratedSessionRef.current = sessionId;
+    setEntries(nextEntries);
+    setBaselineEntries(nextEntries);
   }, [sessionId, classStudents, existing.data, existing.isLoading]);
 
   const mutation = useMutation({
     mutationFn: () => saveAttendance(sessionId, selectedSession?.classId ?? "", Object.values(entries), firebaseUser?.uid ?? "unknown"),
     onSuccess: () => {
+      setBaselineEntries(entries);
+      if (role === "admin" && firebaseUser) {
+        void writeAuditLog(firebaseUser, "attendance_adjusted", "attendance_session", sessionId, {
+          classId: selectedSession?.classId ?? "",
+          changedStudents: String(dirtyCount),
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ["attendance", sessionId] });
       queryClient.invalidateQueries({ queryKey: ["attendance-summaries"] });
       queryClient.invalidateQueries({ queryKey: ["attendance-overview"] });
@@ -140,9 +165,11 @@ export function AttendanceMarkPanel({ presetSessionId }: AttendanceMarkPanelProp
   };
 
   const normalizedSearch = search.trim().toLocaleLowerCase("vi");
-  const visibleStudents = classStudents.filter((student) =>
-    `${student.fullName} ${student.studentCode}`.toLocaleLowerCase("vi").includes(normalizedSearch),
-  );
+  const visibleStudents = classStudents.filter((student) => {
+    const matchesSearch = `${student.fullName} ${student.studentCode}`.toLocaleLowerCase("vi").includes(normalizedSearch);
+    const matchesStatus = statusFilter === "all" || entries[student.id]?.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
   const counts = STATUS_OPTIONS.reduce<Record<AttendanceStatus, number>>((result, item) => {
     result[item.value] = Object.values(entries).filter((entry) => entry.status === item.value).length;
     return result;
@@ -153,10 +180,61 @@ export function AttendanceMarkPanel({ presetSessionId }: AttendanceMarkPanelProp
     : Math.max(0, (course?.totalSessions ?? klass.data?.recurrence?.sessionCount ?? 0) - completedSessions);
   const isLoadingDetails = klass.isLoading || students.isLoading || existing.isLoading || courses.isLoading;
 
+  const changeSession = (nextSessionId: string) => {
+    if (dirtyCount > 0 && !window.confirm("Bạn có thay đổi chưa lưu. Bỏ thay đổi và chuyển buổi học?")) return;
+    mutation.reset();
+    hydratedSessionRef.current = "";
+    setEntries({});
+    setBaselineEntries({});
+    setSessionId(nextSessionId);
+    setSearch("");
+    setStatusFilter("all");
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)]">
+      <aside className="hidden self-start overflow-hidden rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)] xl:sticky xl:top-4 xl:block">
+        <div className="border-b border-neutral-100 p-4">
+          <h2 className="text-base font-bold text-neutral-900">Buổi học</h2>
+          <p className="mt-1 text-xs text-neutral-500">
+            {role === "admin" ? "Toàn bộ lớp trong 30 ngày gần đây" : "Các lớp được phân công"}
+          </p>
+        </div>
+        <div className="max-h-[calc(100dvh-13rem)] space-y-1 overflow-y-auto p-2">
+          {sessions.data?.map((session) => {
+            const active = session.id === sessionId;
+            const ended = session.endAt.toMillis() < Date.now();
+            const running = session.startAt.toMillis() <= Date.now() && !ended;
+            return (
+              <button
+                key={session.id}
+                type="button"
+                aria-pressed={active}
+                onClick={() => changeSession(session.id)}
+                className={`w-full rounded-input border p-3 text-left transition ${
+                  active ? "border-primary-200 bg-primary-50" : "border-transparent hover:border-neutral-200 hover:bg-neutral-50"
+                }`}
+              >
+                <span className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-bold tabular-nums text-neutral-900">{format(session.startAt.toDate(), "dd/MM · HH:mm")}</span>
+                  <span className={`rounded-full px-2 py-0.5 text-2xs font-semibold ${ended ? "bg-neutral-100 text-neutral-600" : running ? "bg-success-50 text-success-700" : "bg-primary-50 text-primary-700"}`}>
+                    {ended ? "Đã kết thúc" : running ? "Đang diễn ra" : "Sắp tới"}
+                  </span>
+                </span>
+                <span className="mt-1 block truncate text-sm font-semibold text-neutral-800">{session.title}</span>
+                <span className="mt-1 block truncate text-xs text-neutral-500">{session.location || "Chưa cập nhật phòng"}</span>
+              </button>
+            );
+          })}
+          {!sessions.isLoading && sessions.data?.length === 0 && (
+            <p className="px-2 py-6 text-center text-xs text-neutral-500">Không có buổi học trong khoảng đang xem.</p>
+          )}
+        </div>
+      </aside>
+
+      <div className="min-w-0 space-y-4">
       <section className="overflow-hidden rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)]">
-        <div className="grid gap-4 border-b border-neutral-100 bg-neutral-50/70 p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end sm:p-5">
+        <div className="grid gap-4 border-b border-neutral-100 bg-neutral-50/70 p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end sm:p-5 xl:hidden">
           <div>
             <label htmlFor="attendance-session" className="mb-2 block text-xs font-bold uppercase tracking-[0.12em] text-neutral-500">
               Buổi học cần điểm danh
@@ -164,11 +242,7 @@ export function AttendanceMarkPanel({ presetSessionId }: AttendanceMarkPanelProp
             <select
               id="attendance-session"
               value={sessionId}
-              onChange={(event) => {
-                mutation.reset();
-                setSessionId(event.target.value);
-                setSearch("");
-              }}
+              onChange={(event) => changeSession(event.target.value)}
               className="min-h-touch w-full rounded-input border border-neutral-300 bg-white px-3 text-sm font-medium text-neutral-900 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
             >
               <option value="">Chọn buổi học</option>
@@ -202,13 +276,20 @@ export function AttendanceMarkPanel({ presetSessionId }: AttendanceMarkPanelProp
         {sessionId && isLoadingDetails && <div className="p-5"><LoadingSkeleton rows={5} /></div>}
 
         {sessionId && selectedSession && klass.data && !isLoadingDetails && (
-          <div className="grid grid-cols-2 gap-px bg-neutral-200 xl:grid-cols-5">
-            <InfoCell icon={GraduationCap} label="Lớp học" value={klass.data.name} detail={`${classStudents.length} học sinh`} />
-            <InfoCell icon={CalendarDays} label="Khóa học" value={course?.name ?? "Chưa liên kết khóa học"} detail={course ? `${course.totalSessions} buổi toàn khóa` : "Cần bổ sung dữ liệu"} />
-            <InfoCell icon={Clock3} label="Thời gian" value={format(selectedSession.startAt.toDate(), "EEEE, dd/MM", { locale: vi })} detail={`${format(selectedSession.startAt.toDate(), "HH:mm")} - ${format(selectedSession.endAt.toDate(), "HH:mm")}`} />
-            <InfoCell icon={MapPin} label="Địa điểm" value={selectedSession.location || klass.data.location || "Chưa cập nhật"} detail={selectedSession.title} />
-            <InfoCell icon={Users} label="Số buổi còn lại" value={`${remainingSessions} buổi`} detail={`Đã hoàn thành ${completedSessions} buổi`} accent />
-          </div>
+          <>
+            {role === "admin" && (
+              <p className="border-b border-warning-100 bg-warning-50 px-4 py-2.5 text-xs font-medium text-warning-700">
+                Bạn đang thao tác với quyền Admin. Mọi thay đổi sẽ được lưu dưới dạng điều chỉnh quản trị.
+              </p>
+            )}
+            <div className="grid grid-cols-2 gap-px bg-neutral-200 xl:grid-cols-5">
+              <InfoCell icon={GraduationCap} label="Lớp học" value={klass.data.name} detail={`${classStudents.length} học sinh`} />
+              <InfoCell icon={CalendarDays} label="Khóa học" value={course?.name ?? "Chưa liên kết khóa học"} detail={course ? `${course.totalSessions} buổi toàn khóa` : "Cần bổ sung dữ liệu"} />
+              <InfoCell icon={Clock3} label="Thời gian" value={format(selectedSession.startAt.toDate(), "EEEE, dd/MM", { locale: vi })} detail={`${format(selectedSession.startAt.toDate(), "HH:mm")} - ${format(selectedSession.endAt.toDate(), "HH:mm")}`} />
+              <InfoCell icon={MapPin} label="Địa điểm" value={selectedSession.location || klass.data.location || "Chưa cập nhật"} detail={selectedSession.title} />
+              <InfoCell icon={Users} label="Số buổi còn lại" value={`${remainingSessions} buổi`} detail={`Đã hoàn thành ${completedSessions} buổi`} accent />
+            </div>
+          </>
         )}
       </section>
 
@@ -216,20 +297,41 @@ export function AttendanceMarkPanel({ presetSessionId }: AttendanceMarkPanelProp
 
       {classStudents.length > 0 && (
         <section className="rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)]">
-          <div className="flex flex-col gap-3 border-b border-neutral-100 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+          <div className="grid gap-3 border-b border-neutral-100 p-4 md:grid-cols-[minmax(0,1fr)_minmax(180px,.45fr)_auto_auto] md:items-end sm:p-5">
             <div>
               <h2 className="text-lg font-bold text-neutral-900">Danh sách học sinh</h2>
+              <p className="mt-1 text-xs text-neutral-500">Đã xác nhận {Object.keys(entries).length}/{classStudents.length} học sinh</p>
             </div>
-            <div className="relative w-full sm:w-72">
-              <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={17} />
-              <input
+            <FilterField label="Tìm kiếm" htmlFor="attendance-student-search">
+              <SearchInput
+                id="attendance-student-search"
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={setSearch}
                 placeholder="Tìm tên hoặc mã học sinh"
-                aria-label="Tìm học sinh"
-                className="min-h-touch w-full rounded-input border border-neutral-300 bg-white pl-9 pr-3 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
               />
-            </div>
+            </FilterField>
+            <FilterSelect
+              id="attendance-status-filter"
+              label="Trạng thái"
+              value={statusFilter}
+              options={[{ value: "all", label: "Tất cả trạng thái" }, ...STATUS_OPTIONS]}
+              onChange={(value) => setStatusFilter(value as AttendanceStatus | "all")}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                mutation.reset();
+                setEntries((current) => Object.fromEntries(classStudents.map((student) => [student.id, {
+                  ...current[student.id],
+                  studentId: student.id,
+                  status: "present",
+                  note: current[student.id]?.note ?? "",
+                }])));
+              }}
+              className="hidden min-h-touch items-center justify-center gap-2 rounded-input border border-primary-200 bg-primary-50 px-4 text-sm font-semibold text-primary-700 transition hover:border-primary-300 hover:bg-primary-100 md:inline-flex"
+            >
+              <CheckCheck size={17} /> Tất cả có mặt
+            </button>
           </div>
 
           <div className="hidden grid-cols-[minmax(190px,1.15fr)_minmax(300px,1.5fr)_minmax(170px,.8fr)_minmax(180px,1fr)] gap-4 border-b border-neutral-100 bg-neutral-50 px-5 py-2.5 text-2xs font-bold uppercase tracking-[0.1em] text-neutral-500 lg:grid">
@@ -313,18 +415,33 @@ export function AttendanceMarkPanel({ presetSessionId }: AttendanceMarkPanelProp
             <div aria-live="polite" className="grid w-full grid-cols-2 gap-2 text-xs font-semibold sm:flex sm:w-auto sm:flex-wrap">
               {STATUS_OPTIONS.map((item) => <span key={item.value} className={`rounded-full px-2.5 py-1 ${item.activeClass}`}>{item.shortLabel}: {counts[item.value]}</span>)}
             </div>
-            <button
-              type="button"
-              onClick={() => mutation.mutate()}
-              disabled={mutation.isPending || Object.keys(entries).length === 0}
-              className="inline-flex min-h-touch w-full items-center justify-center gap-2 rounded-input bg-primary-500 px-5 text-sm font-bold text-white shadow-[0_6px_16px_rgba(51,102,240,.22)] transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-50 md:w-auto"
-            >
-              <Save size={17} /> {mutation.isPending ? "Đang lưu..." : `Lưu điểm danh (${classStudents.length})`}
-            </button>
+            <div className="flex w-full items-center gap-2 md:w-auto">
+              {dirtyCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    mutation.reset();
+                    setEntries(baselineEntries);
+                  }}
+                  className="min-h-touch rounded-input border border-neutral-300 bg-white px-4 text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
+                >
+                  Hoàn tác
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => mutation.mutate()}
+                disabled={mutation.isPending || Object.keys(entries).length === 0 || dirtyCount === 0}
+                className="inline-flex min-h-touch w-full flex-1 items-center justify-center gap-2 rounded-input bg-primary-500 px-5 text-sm font-bold text-white shadow-[0_6px_16px_rgba(51,102,240,.22)] transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-50 md:w-auto md:flex-none"
+              >
+                <Save size={17} /> {mutation.isPending ? "Đang lưu..." : role === "admin" ? `Lưu điều chỉnh (${dirtyCount})` : `Lưu điểm danh (${classStudents.length})`}
+              </button>
+            </div>
           </div>
 
         </section>
       )}
+      </div>
     </div>
   );
 }

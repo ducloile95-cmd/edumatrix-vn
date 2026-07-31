@@ -7,6 +7,7 @@ import { Modal } from "@/components/ui/Modal";
 import { StatCard } from "@/components/ui/StatCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { SearchInput } from "@/components/ui/SearchInput";
+import { FilterField, FilterSelect } from "@/components/ui/FilterToolbar";
 import { Pagination } from "@/components/ui/Pagination";
 import { DataListPanel, DATA_LIST_FOOTER, DATA_LIST_SCROLL } from "@/components/ui/dataListLayout";
 import { usePagination } from "@/hooks/usePagination";
@@ -134,40 +135,24 @@ export function LessonPlanList({ onEdit, onCreateNew }: LessonPlanListProps) {
             </div>
             <Button variant="primary" icon={<Plus size={17} />} onClick={onCreateNew}>Soạn giáo án mới</Button>
           </div>
-          <div className="mt-3 flex flex-wrap items-end gap-3">
-            <div className="min-w-[200px] flex-1">
-              <label htmlFor="lp-search" className="mb-1 block text-xs font-semibold text-neutral-500">Tìm kiếm</label>
+          <div className="mt-3 grid gap-3 md:grid-cols-[minmax(220px,1fr)_200px_220px] md:items-end">
+            <FilterField label="Tìm kiếm" htmlFor="lp-search">
               <SearchInput id="lp-search" value={search} onChange={(value) => { setSearch(value); setPage(1); }} placeholder="Tìm theo tiêu đề giáo án" />
-            </div>
-            <div>
-              <label htmlFor="lp-class-filter" className="mb-1 block text-xs font-semibold text-neutral-500">Lớp</label>
-              <select
-                id="lp-class-filter"
-                value={classFilter}
-                onChange={(event) => { setClassFilter(event.target.value); setPage(1); }}
-                className="min-h-touch rounded-input border border-neutral-300 px-3 text-sm focus:border-primary-500"
-              >
-                <option value="all">Tất cả lớp</option>
-                {classes?.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <p className="mb-1 text-xs font-semibold text-neutral-500">Trạng thái</p>
-              <div className="grid min-h-touch grid-cols-4 gap-1 rounded-input border border-neutral-300 bg-neutral-50 p-1">
-                {STATUS_FILTERS.map(({ value, label }) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => { setStatusFilter(value); setPage(1); }}
-                    className={`rounded-[7px] px-2 text-xs font-semibold transition ${
-                      statusFilter === value ? "bg-primary-500 text-white shadow-[0_4px_12px_rgba(51,102,240,.18)]" : "text-neutral-600 hover:bg-white hover:text-primary-700"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
+            </FilterField>
+            <FilterSelect
+              id="lp-class-filter"
+              label="Lớp"
+              value={classFilter}
+              options={[{ value: "all", label: "Tất cả lớp" }, ...(classes ?? []).map((item) => ({ value: item.id, label: item.name }))]}
+              onChange={(value) => { setClassFilter(value); setPage(1); }}
+            />
+            <FilterSelect
+              id="lp-status-filter"
+              label="Trạng thái"
+              value={statusFilter}
+              options={STATUS_FILTERS}
+              onChange={(value) => { setStatusFilter(value as LessonPlanStatus | "all"); setPage(1); }}
+            />
           </div>
         </div>
 

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, subDays } from "date-fns";
 import {
   Activity, BadgeCheck, CalendarClock, ChevronRight, CircleGauge, Clock3,
-  Edit3, Eye, HeartPulse, MailCheck, Search, ShieldCheck, UserCheck, UserPlus,
+  Edit3, Eye, HeartPulse, MailCheck, ShieldCheck, UserCheck, UserPlus,
   UsersRound,
 } from "lucide-react";
 import {
@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/Button";
 import { DataListPanel, DATA_LIST_FOOTER, DATA_LIST_SCROLL } from "@/components/ui/dataListLayout";
 import { Modal } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { SearchInput } from "@/components/ui/SearchInput";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Tab, Tabs } from "@/components/ui/Tabs";
 import { ROLE_LABELS, USER_ROLES } from "@/constants/roles";
@@ -125,7 +126,7 @@ function Overview({ users, invites, onOpenStaff }: { users: UserRecord[]; invite
 }
 
 function TableSearch({ title, count, value, onChange, children }: { title: string; count: number; value: string; onChange: (value: string) => void; children?: ReactNode }) {
-  return <div className="shrink-0 border-b border-neutral-200 p-4 sm:p-5"><div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between"><div><h2 className="text-base font-bold text-neutral-900">{title}</h2><p className="mt-1 text-sm text-neutral-500">{count} tài khoản phù hợp bộ lọc</p>{children}</div><label className="relative block w-full lg:w-80"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={17} /><span className="sr-only">Tìm kiếm tài khoản</span><input value={value} onChange={(event) => onChange(event.target.value)} placeholder="Tìm tên, email hoặc mã" className={`${FIELD_CLASS} pl-10`} /></label></div></div>;
+  return <div className="shrink-0 border-b border-neutral-200 p-4 sm:p-5"><div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between"><div><h2 className="text-base font-bold text-neutral-900">{title}</h2><p className="mt-1 text-sm text-neutral-500">{count} tài khoản phù hợp bộ lọc</p>{children}</div><div className="w-full lg:w-80"><label htmlFor="account-search" className="mb-1.5 block text-xs font-semibold text-neutral-600">Tìm kiếm</label><SearchInput id="account-search" value={value} onChange={onChange} placeholder="Tìm tên, email hoặc mã" /></div></div></div>;
 }
 
 function StaffTable({ users, onEdit }: { users: UserRecord[]; onEdit: (user: UserRecord) => void }) {

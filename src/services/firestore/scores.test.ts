@@ -55,6 +55,12 @@ describe("saveClassScores", () => {
     expect(runTransaction).not.toHaveBeenCalled();
   });
 
+  test("rejects blank metadata and an empty score batch before opening a transaction", async () => {
+    await expect(saveClassScores({ ...baseInput, assessmentName: "  ", entries: [{ studentId: "student-1", score: 8, comment: "" }] })).rejects.toThrow("SCORE_METADATA_INVALID");
+    await expect(saveClassScores({ ...baseInput, entries: [] })).rejects.toThrow("SCORES_EMPTY");
+    expect(runTransaction).not.toHaveBeenCalled();
+  });
+
   test("writes the whole class in one transaction", async () => {
     transactionGet.mockResolvedValue({ exists: () => false });
 

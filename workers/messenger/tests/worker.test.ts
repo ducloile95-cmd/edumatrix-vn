@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import worker, { assertStudentScope, buildFeedPayload, buildMessengerPayload, buildUtilityPayload, corsHeaders, extractBearer, extractInboundMessages, extractReferralLinks, extractUtilityTemplateStatuses, firebaseCertificates, isMessengerTagShape, markWebhookMessageProcessed, metaErrorCode, parseMessengerProfile, postGraph, publicErrorCode, referralClaimUid, referralTargetAllowed, resetFirebaseCachesForTest, sendGraph, serviceAccessToken, validPostImages, validUtilityParameters, verifyMetaSignature, webhookMessageProcessed, type Env } from "../src/index";
-const env={FIREBASE_PROJECT_ID:"project",FIREBASE_CLIENT_EMAIL:"email",FIREBASE_PRIVATE_KEY:"key",META_APP_ID:"app-id",META_PAGE_ACCESS_TOKEN:"token",META_APP_SECRET:"app-secret",META_WEBHOOK_VERIFY_TOKEN:"verify-me",META_GRAPH_VERSION:"v22.0",ALLOWED_ORIGIN:"http://localhost:5173"}satisfies Env;
+import worker, { assertStudentScope, buildFeedPayload, buildMessengerPayload, buildUtilityPayload, checkMetaUtilityPermission, corsHeaders, extractBearer, extractInboundMessages, extractReferralLinks, extractUtilityTemplateStatuses, firebaseCertificates, isMessengerTagShape, markWebhookMessageProcessed, META_OAUTH_SCOPES, metaErrorCode, metaUtilityPermissionStatus, parseMessengerProfile, postGraph, publicErrorCode, referralClaimUid, referralTargetAllowed, resetFirebaseCachesForTest, sendGraph, serviceAccessToken, validPostImages, validUtilityParameters, verifyMetaSignature, webhookMessageProcessed, type Env } from "../src/index";
+const env={FIREBASE_PROJECT_ID:"project",FIREBASE_CLIENT_EMAIL:"email",FIREBASE_PRIVATE_KEY:"key",META_APP_ID:"app-id",META_PAGE_ACCESS_TOKEN:"token",META_APP_SECRET:"app-secret",META_WEBHOOK_VERIFY_TOKEN:"verify-me",META_GRAPH_VERSION:"v25.0",META_PAGE_ID:"page-id",ALLOWED_ORIGIN:"http://localhost:5173"}satisfies Env;
 describe("messenger worker",()=>{
 afterEach(()=>{vi.restoreAllMocks();resetFirebaseCachesForTest()});
 test("extracts bearer",()=>expect(extractBearer("Bearer abc.def")).toBe("abc.def"));test("rejects malformed bearer",()=>expect(extractBearer("Basic abc")).toBeNull());
@@ -85,6 +85,7 @@ test("sends Messenger token in Authorization header, never the URL",async()=>{
   const fetchMock=vi.spyOn(globalThis,"fetch").mockResolvedValue(new Response(JSON.stringify({message_id:"mid"}),{status:200,headers:{"content-type":"application/json"}}));
   await sendGraph({recipientPsid:"psid",text:"Xin chao"},env);
   const [url,init]=fetchMock.mock.calls[0];
+  expect(String(url)).toBe("https://graph.facebook.com/v25.0/page-id/messages");
   expect(String(url)).not.toContain("access_token");
   expect(new Headers(init?.headers).get("authorization")).toBe("Bearer token");
 });
@@ -92,6 +93,10 @@ test("sends Page post token in Authorization header, never the URL",async()=>{
   const fetchMock=vi.spyOn(globalThis,"fetch").mockImplementation(async()=>new Response(JSON.stringify({id:"post"}),{status:200,headers:{"content-type":"application/json"}}));
   await postGraph({message:"Thong bao",imageUrls:["https://cdn.example/photo.jpg"]},env);
   expect(fetchMock).toHaveBeenCalledTimes(2);
+  expect(fetchMock.mock.calls.map(([url])=>String(url))).toEqual([
+    "https://graph.facebook.com/v25.0/page-id/photos",
+    "https://graph.facebook.com/v25.0/page-id/feed",
+  ]);
   for (const [url,init] of fetchMock.mock.calls) {
     expect(String(url)).not.toContain("access_token");
     expect(new Headers(init?.headers).get("authorization")).toBe("Bearer token");
@@ -173,4 +178,18 @@ test("post requires auth",async()=>expect((await worker.fetch(new Request("https
 test("validates post image urls",()=>{expect(validPostImages(undefined)).toBe(true);expect(validPostImages(["https://a/1.jpg","http://b/2.png"])).toBe(true);expect(validPostImages(["ftp://a/1.jpg"])).toBe(false);expect(validPostImages(["https://a/1.jpg","https://a/2.jpg","https://a/3.jpg","https://a/4.jpg","https://a/5.jpg"])).toBe(false);expect(validPostImages("https://a/1.jpg")).toBe(false)});
 test("builds plain feed payload with link",()=>expect(buildFeedPayload({message:"Hi",link:"https://x.vn"},[])).toEqual({message:"Hi",link:"https://x.vn"}));
 test("builds feed payload with attached media and folds link into message",()=>expect(buildFeedPayload({message:"Hi",link:"https://x.vn",imageUrls:["https://a/1.jpg","https://a/2.jpg"]},["ph1","ph2"])).toEqual({message:"Hi\nhttps://x.vn",attached_media:[{media_fbid:"ph1"},{media_fbid:"ph2"}]}));
+test("requests every permission used by the Page connection flow",()=>expect(META_OAUTH_SCOPES).toEqual(["pages_show_list","pages_manage_metadata","pages_messaging","pages_read_engagement","pages_manage_posts","pages_utility_messaging"]));
+test("recognizes granted, missing, and unknown Utility Messaging permission states",()=>{
+  expect(metaUtilityPermissionStatus({data:[{permission:"pages_utility_messaging",status:"granted"}]})).toBe("granted");
+  expect(metaUtilityPermissionStatus({data:[{permission:"pages_messaging",status:"granted"}]})).toBe("missing");
+  expect(metaUtilityPermissionStatus({error:"unavailable"})).toBe("unknown");
+});
+test("checks Utility permission without putting the access token in the URL",async()=>{
+  const secretToken="utility-secret-token";
+  const fetchMock=vi.spyOn(globalThis,"fetch").mockResolvedValue(new Response(JSON.stringify({data:[{permission:"pages_utility_messaging",status:"declined"}]}),{status:200,headers:{"content-type":"application/json"}}));
+  await expect(checkMetaUtilityPermission(secretToken,env)).resolves.toBe("missing");
+  const [url,init]=fetchMock.mock.calls[0];
+  expect(String(url)).not.toContain(secretToken);
+  expect(new Headers(init?.headers).get("authorization")).toBe(`Bearer ${secretToken}`);
+});
 test("serializes meta error objects so token code 190 stays diagnosable",()=>{expect(metaErrorCode({error:{message:"Invalid OAuth",code:190}},400)).toContain('"code":190');expect(metaErrorCode({error:"bad"},400)).toBe("bad");expect(metaErrorCode({},502)).toBe("502")});});

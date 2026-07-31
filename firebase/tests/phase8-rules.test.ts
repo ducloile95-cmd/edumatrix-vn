@@ -43,6 +43,7 @@ beforeEach(async () => {
     await setDoc(doc(db, "users", "admin"), { role: "admin", status: "active", studentIds: [] });
     await setDoc(doc(db, "users", "viewer"), { role: "viewer", status: "active", studentIds: ["student-1"] });
     await setDoc(doc(db, "users", "other"), { role: "viewer", status: "active", studentIds: ["student-2"] });
+    await setDoc(doc(db, "classes", "class-1"), { name: "Class 1", studentIds: ["student-1"], subjectIds: ["sub-1"], teacherIds: [] });
     await setDoc(doc(db, "scores", "score-1"), score);
     await setDoc(doc(db, "student_summaries", "student-1"), { studentId: "student-1", scoreCount: 1, averagePercent: 80, latestScore: 8, latestMaxScore: 10, updatedAt: Timestamp.now() });
   });

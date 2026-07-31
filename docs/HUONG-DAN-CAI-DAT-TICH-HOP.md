@@ -119,14 +119,16 @@ Worker là ranh giới bảo mật: nhận Firebase ID token từ frontend, xác
 {
   "vars": {
     "FIREBASE_PROJECT_ID": "edumatrix-vn-576b1",
-    "META_GRAPH_VERSION": "v22.0",
+    "META_GRAPH_VERSION": "v25.0",
+    "META_PAGE_ID": "100488521748588",
     "ALLOWED_ORIGIN": "http://localhost:5173"
   },
   "env": {
     "production": {
       "vars": {
         "FIREBASE_PROJECT_ID": "edumatrix-vn-576b1",
-        "META_GRAPH_VERSION": "v22.0",
+        "META_GRAPH_VERSION": "v25.0",
+        "META_PAGE_ID": "100488521748588",
         "ALLOWED_ORIGIN": "https://edumatrix-vn-576b1.web.app"
       }
     }

@@ -12,7 +12,7 @@ import {
   where,
   writeBatch,
 } from "firebase/firestore";
-import type { QueryConstraint } from "firebase/firestore";
+import type { QueryConstraint, WriteBatch } from "firebase/firestore";
 import { addDays, subDays } from "date-fns";
 import { db } from "@/services/firebase/firestoreClient";
 import { COLLECTIONS } from "@/constants/collections";
@@ -23,6 +23,53 @@ import { listStudents } from "@/services/firestore/students";
 import type { AttendanceDoc, AttendanceStatus, AttendanceSummaryDoc, SessionDoc } from "@/types/academic";
 
 export interface AttendanceEntry { studentId: string; status: AttendanceStatus; note: string; }
+
+export function queueAttendanceEntryWrite(
+  batch: WriteBatch,
+  sessionId: string,
+  classId: string,
+  entry: AttendanceEntry,
+  actorUid: string,
+): void {
+  const attendanceId = `${sessionId}_${entry.studentId}`;
+  const note = entry.note.trim();
+  batch.set(
+    doc(db, COLLECTIONS.ATTENDANCE, attendanceId),
+    {
+      sessionId,
+      classId,
+      studentId: entry.studentId,
+      status: entry.status,
+      note,
+      markedBy: actorUid,
+      markedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
+
+  const needsAlert = entry.status === "absent" || entry.status === "late";
+  batch.set(
+    doc(db, COLLECTIONS.ANNOUNCEMENTS, `attendance_${attendanceId}`),
+    {
+      type: "attendance_alert",
+      sessionId,
+      classId,
+      studentId: entry.studentId,
+      title: entry.status === "absent" ? "Học sinh vắng mặt" : entry.status === "late" ? "Học sinh đi muộn" : "Đã cập nhật chuyên cần",
+      message: note,
+      createdAt: serverTimestamp(),
+      resolvedAt: needsAlert ? null : serverTimestamp(),
+    },
+    { merge: true },
+  );
+}
+
+export function attendanceCounts(entries: AttendanceEntry[]): Record<AttendanceStatus, number> {
+  const counts: Record<AttendanceStatus, number> = { present: 0, absent: 0, late: 0, excused: 0 };
+  entries.forEach((entry) => { counts[entry.status] += 1; });
+  return counts;
+}
 
 /** Chia mang thanh cac nhom 30 phan tu - gioi han menh de "in" cua Firestore. */
 function chunk30(values: string[]): string[][] {
@@ -39,9 +86,7 @@ export async function saveAttendance(sessionId: string, classId: string, entries
     for (let offset = 0; offset < entries.length; offset += 200) {
       const batch = writeBatch(db);
       entries.slice(offset, offset + 200).forEach((entry) => {
-        const attendanceId = `${sessionId}_${entry.studentId}`;
-        batch.set(doc(db, COLLECTIONS.ATTENDANCE, attendanceId), { sessionId, classId, studentId: entry.studentId, status: entry.status, note: entry.note, markedBy: actorUid, markedAt: serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true });
-        if (entry.status === "absent" || entry.status === "late") batch.set(doc(db, COLLECTIONS.ANNOUNCEMENTS, `attendance_${attendanceId}`), { type: "attendance_alert", sessionId, classId, studentId: entry.studentId, title: entry.status === "absent" ? "Học sinh vắng mặt" : "Học sinh đi muộn", message: entry.note, createdAt: serverTimestamp() }, { merge: true });
+        queueAttendanceEntryWrite(batch, sessionId, classId, entry, actorUid);
       });
       await batch.commit();
     }
@@ -67,31 +112,31 @@ export async function registerLeave(
   note: string,
   actorUid: string,
 ): Promise<void> {
-  const attendanceId = `${sessionId}_${studentId}`;
-  await setDoc(
-    doc(db, COLLECTIONS.ATTENDANCE, attendanceId),
-    { sessionId, classId, studentId, status, note, markedBy: actorUid, markedAt: serverTimestamp(), updatedAt: serverTimestamp() },
-    { merge: true },
-  );
-  if (status === "absent") {
-    await setDoc(
-      doc(db, COLLECTIONS.ANNOUNCEMENTS, `attendance_${attendanceId}`),
-      { type: "attendance_alert", sessionId, classId, studentId, title: "Học sinh vắng mặt", message: note, createdAt: serverTimestamp() },
-      { merge: true },
-    );
-  }
+  const batch = writeBatch(db);
+  queueAttendanceEntryWrite(batch, sessionId, classId, { studentId, status, note }, actorUid);
+  await batch.commit();
   await rebuildAttendanceSummary(sessionId, classId);
 }
 
 async function rebuildAttendanceSummary(sessionId: string, classId: string): Promise<void> {
-  const snapshot = await getDocs(query(collection(db, COLLECTIONS.ATTENDANCE), where("sessionId", "==", sessionId), limit(500)));
+  const snapshot = await getDocs(query(
+    collection(db, COLLECTIONS.ATTENDANCE),
+    where("classId", "==", classId),
+    where("sessionId", "==", sessionId),
+    limit(500),
+  ));
   const counts: Record<AttendanceStatus, number> = { present: 0, absent: 0, late: 0, excused: 0 };
   snapshot.docs.forEach((item) => { const status = (item.data() as AttendanceDoc).status; counts[status] += 1; });
   await setDoc(doc(db, COLLECTIONS.ATTENDANCE_SUMMARIES, sessionId), { sessionId, classId, total: snapshot.size, ...counts, updatedAt: serverTimestamp() });
 }
 
-export async function listAttendanceBySession(sessionId: string): Promise<(AttendanceDoc & { id: string })[]> {
-  const snapshot = await getDocs(query(collection(db, COLLECTIONS.ATTENDANCE), where("sessionId", "==", sessionId), limit(500)));
+export async function listAttendanceBySession(sessionId: string, classId: string): Promise<(AttendanceDoc & { id: string })[]> {
+  const snapshot = await getDocs(query(
+    collection(db, COLLECTIONS.ATTENDANCE),
+    where("classId", "==", classId),
+    where("sessionId", "==", sessionId),
+    limit(500),
+  ));
   return snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as AttendanceDoc) }));
 }
 

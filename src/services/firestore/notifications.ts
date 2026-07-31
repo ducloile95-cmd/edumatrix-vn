@@ -24,6 +24,7 @@ type AnnouncementData = {
   title?: string;
   message?: string;
   createdAt?: Timestamp;
+  resolvedAt?: Timestamp | null;
 };
 
 const PER_STUDENT_LIMIT = 50;
@@ -49,7 +50,9 @@ export async function listViewerNotifications(
           limit(PER_STUDENT_LIMIT),
         ),
       );
-      return snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as AnnouncementData) }));
+      return snapshot.docs
+        .map((item) => ({ id: item.id, ...(item.data() as AnnouncementData) }))
+        .filter((item) => !item.resolvedAt);
     }),
   );
 

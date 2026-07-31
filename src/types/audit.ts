@@ -5,4 +5,6 @@ export type AuditAction =
   | "user_account_updated"
   | "link_request_approved"
   | "link_request_rejected"
+  | "attendance_adjusted"
+  | "scores_adjusted"
   | "settings_updated";

@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Edumatrix - Demo điểm danh theo buổi</title>
+  <style>
+    :root {
+      --blue-50:#eff4ff; --blue-100:#dbe6fe; --blue-200:#bfd3fe; --blue-500:#3366f0; --blue-600:#2348d6; --blue-700:#1d39ac;
+      --green-50:#ecfdf3; --green-100:#d1fadf; --green-600:#15803d; --green-700:#0f7a37;
+      --amber-50:#fffbeb; --amber-100:#fef3c7; --amber-600:#d97706; --amber-700:#b45309;
+      --red-50:#fef2f2; --red-100:#fee2e2; --red-600:#dc2626; --red-700:#b91c1c;
+      --sky-50:#f0f9ff; --sky-100:#e0f2fe; --sky-700:#0369a1;
+      --n-0:#fff; --n-50:#fafaf9; --n-100:#f4f3f1; --n-200:#e7e5e2; --n-300:#d3d0cb; --n-500:#78746d; --n-600:#57534d; --n-700:#403d39; --n-800:#2b2926; --n-900:#1c1a15;
+      --shadow:0 5px 20px rgba(28,51,137,.08); --shadow-lg:0 18px 48px rgba(28,51,137,.16);
+      --focus:0 0 0 3px rgba(51,102,240,.2);
+    }
+    * { box-sizing:border-box; }
+    html { color:var(--n-800); background:var(--n-50); font-family:"Be Vietnam Pro","Segoe UI",system-ui,sans-serif; }
+    body { margin:0; min-width:320px; min-height:100dvh; background:radial-gradient(circle at 8% 0,rgba(147,180,253,.22),transparent 28rem),var(--n-50); }
+    button,input,select,textarea { font:inherit; }
+    button,select { cursor:pointer; }
+    button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible { outline:0; box-shadow:var(--focus); }
+    button:disabled { cursor:not-allowed; opacity:.55; }
+    .icon { width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; flex:none; }
+    .demo-bar { min-height:58px; display:flex; align-items:center; justify-content:space-between; gap:16px; padding:8px 20px; background:#172554; color:white; position:sticky; top:0; z-index:50; }
+    .demo-title { display:flex; align-items:center; gap:10px; font-size:13px; font-weight:650; }
+    .demo-title span { color:#bfdbfe; font-weight:450; }
+    .demo-controls { display:flex; align-items:center; gap:12px; }
+    .role-switch { display:flex; gap:3px; padding:3px; border:1px solid rgba(255,255,255,.2); border-radius:10px; background:rgba(255,255,255,.08); }
+    .role-switch button { border:0; color:#dbeafe; background:transparent; border-radius:7px; min-height:34px; padding:0 13px; font-size:12px; font-weight:700; }
+    .role-switch button.active { color:#172554; background:white; }
+    .scenario { height:36px; border-radius:8px; border:1px solid rgba(255,255,255,.24); color:white; background:#1e3a8a; padding:0 10px; font-size:12px; }
+    .shell { display:grid; grid-template-columns:226px minmax(0,1fr); min-height:calc(100dvh - 58px); }
+    .sidebar { padding:18px 13px; border-right:1px solid rgba(211,208,203,.8); background:rgba(255,255,255,.82); backdrop-filter:blur(14px); }
+    .brand { display:flex; align-items:center; gap:10px; padding:4px 8px 18px; color:var(--blue-700); font-weight:800; letter-spacing:-.02em; }
+    .brand-mark { display:grid; place-items:center; width:34px; height:34px; border-radius:10px; background:var(--blue-600); color:white; }
+    .nav-label { margin:12px 10px 6px; color:var(--n-500); font-size:10px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+    .nav-item { display:flex; align-items:center; gap:10px; min-height:42px; margin:3px 0; padding:0 11px; border-radius:9px; color:var(--n-600); font-size:13px; font-weight:600; }
+    .nav-item.active { color:white; background:linear-gradient(135deg,var(--blue-500),var(--blue-700)); box-shadow:0 7px 16px rgba(35,72,214,.18); }
+    .main { min-width:0; padding:0 22px 100px; }
+    .topbar { min-height:66px; display:flex; align-items:center; justify-content:space-between; gap:16px; border-bottom:1px solid rgba(231,229,226,.8); }
+    h1 { margin:0; font-size:22px; color:var(--n-900); letter-spacing:-.02em; }
+    .top-meta { color:var(--n-500); font-size:12px; }
+    .page-intro { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:18px 0 14px; }
+    .page-intro p { margin:4px 0 0; max-width:780px; color:var(--n-600); font-size:13px; }
+    .scope-badge { display:inline-flex; align-items:center; gap:7px; min-height:36px; padding:0 11px; border:1px solid var(--blue-200); border-radius:9px; background:var(--blue-50); color:var(--blue-700); font-size:12px; font-weight:700; white-space:nowrap; }
+    .workspace { display:grid; grid-template-columns:280px minmax(0,1fr); gap:16px; align-items:start; }
+    .session-panel,.attendance-panel { border:1px solid var(--n-200); border-radius:12px; background:rgba(255,255,255,.94); box-shadow:var(--shadow); }
+    .session-panel { position:sticky; top:74px; overflow:hidden; }
+    .panel-head { padding:15px; border-bottom:1px solid var(--n-100); }
+    .panel-head h2 { margin:0; font-size:15px; color:var(--n-900); }
+    .panel-head p { margin:4px 0 0; color:var(--n-500); font-size:11px; }
+    .session-group { padding:12px 10px 4px; color:var(--n-500); font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+    .session-list { padding:0 7px 10px; }
+    .session-card { width:100%; display:block; padding:11px; border:1px solid transparent; border-radius:9px; text-align:left; color:var(--n-700); background:transparent; }
+    .session-card:hover { background:var(--n-50); }
+    .session-card.active { border-color:var(--blue-200); background:var(--blue-50); }
+    .session-row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .session-time { color:var(--n-900); font-size:13px; font-weight:750; }
+    .session-name { margin-top:3px; font-size:12px; font-weight:600; }
+    .session-place { margin-top:3px; color:var(--n-500); font-size:11px; }
+    .tag { display:inline-flex; align-items:center; min-height:22px; padding:0 7px; border-radius:999px; font-size:10px; font-weight:750; white-space:nowrap; }
+    .tag.current { color:var(--green-700); background:var(--green-50); }
+    .tag.pending { color:var(--amber-700); background:var(--amber-50); }
+    .tag.done { color:var(--n-600); background:var(--n-100); }
+    .attendance-panel { overflow:hidden; }
+    .context { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:18px; padding:18px; border-bottom:1px solid var(--n-100); }
+    .context-title { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+    .context-title h2 { margin:0; font-size:18px; color:var(--n-900); }
+    .context-line { display:flex; flex-wrap:wrap; gap:7px 16px; margin-top:8px; color:var(--n-600); font-size:12px; }
+    .context-line span { display:inline-flex; align-items:center; gap:6px; }
+    .context-side { text-align:right; }
+    .context-side b { display:block; color:var(--n-900); font-size:13px; }
+    .context-side span { color:var(--n-500); font-size:11px; }
+    .admin-notice { display:none; margin:12px 18px 0; padding:10px 12px; border:1px solid var(--amber-100); border-radius:9px; background:var(--amber-50); color:#92400e; font-size:12px; }
+    body[data-role="admin"] .admin-notice { display:flex; align-items:center; gap:8px; }
+    .stats { display:grid; grid-template-columns:1.35fr repeat(4,1fr); border-bottom:1px solid var(--n-100); }
+    .stat { padding:14px 16px; border-right:1px solid var(--n-100); }
+    .stat:last-child { border-right:0; }
+    .stat-label { color:var(--n-500); font-size:10px; font-weight:750; text-transform:uppercase; letter-spacing:.07em; }
+    .stat-value { margin-top:4px; color:var(--n-900); font-size:20px; font-weight:800; font-variant-numeric:tabular-nums; }
+    .stat-value.green { color:var(--green-700); } .stat-value.amber { color:var(--amber-700); } .stat-value.sky { color:var(--sky-700); } .stat-value.red { color:var(--red-700); }
+    .progress { width:100%; height:6px; margin-top:8px; border-radius:999px; overflow:hidden; background:var(--n-100); }
+    .progress span { display:block; height:100%; border-radius:inherit; background:var(--blue-500); transition:width .2s ease; }
+    .toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:13px 16px; border-bottom:1px solid var(--n-100); background:var(--n-50); }
+    .search { position:relative; flex:1; max-width:330px; }
+    .search .icon { position:absolute; left:11px; top:50%; transform:translateY(-50%); color:var(--n-500); }
+    .field { width:100%; min-height:42px; border:1px solid var(--n-300); border-radius:8px; color:var(--n-800); background:white; padding:0 12px; }
+    .search .field { padding-left:37px; }
+    .toolbar-actions { display:flex; align-items:center; gap:8px; }
+    .btn { min-height:42px; display:inline-flex; align-items:center; justify-content:center; gap:8px; border:1px solid var(--n-300); border-radius:8px; padding:0 13px; color:var(--n-700); background:white; font-size:12px; font-weight:750; transition:background .15s,border-color .15s,transform .08s; white-space:nowrap; }
+    .btn:hover { background:var(--n-50); border-color:var(--n-400); }
+    .btn:active { transform:scale(.98); }
+    .btn.primary { color:white; border-color:var(--blue-600); background:var(--blue-600); }
+    .btn.primary:hover { background:var(--blue-700); }
+    .roster-head,.student-row { display:grid; grid-template-columns:minmax(180px,1.1fr) minmax(350px,1.55fr) minmax(150px,.7fr) minmax(160px,.8fr); gap:14px; align-items:center; }
+    .roster-head { min-height:38px; padding:0 16px; border-bottom:1px solid var(--n-100); color:var(--n-500); font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.07em; }
+    .student-row { padding:12px 16px; border-bottom:1px solid var(--n-100); }
+    .student-row:hover { background:#fdfdfc; }
+    .student { display:flex; align-items:center; gap:10px; min-width:0; }
+    .avatar { width:36px; height:36px; display:grid; place-items:center; flex:none; border-radius:50%; color:var(--blue-700); background:var(--blue-50); font-size:11px; font-weight:800; }
+    .student-name { overflow:hidden; color:var(--n-900); font-size:13px; font-weight:750; text-overflow:ellipsis; white-space:nowrap; }
+    .student-code { margin-top:2px; color:var(--n-500); font-size:10px; }
+    .status-group { display:grid; grid-template-columns:repeat(4,1fr); gap:5px; }
+    .status-btn { min-height:38px; border:1px solid var(--n-200); border-radius:7px; color:var(--n-500); background:white; font-size:10px; font-weight:750; }
+    .status-btn:hover { border-color:var(--n-300); background:var(--n-50); }
+    .status-btn[aria-pressed="true"][data-status="present"] { color:var(--green-700); border-color:#86efac; background:var(--green-50); }
+    .status-btn[aria-pressed="true"][data-status="late"] { color:var(--amber-700); border-color:#fcd34d; background:var(--amber-50); }
+    .status-btn[aria-pressed="true"][data-status="excused"] { color:var(--sky-700); border-color:#7dd3fc; background:var(--sky-50); }
+    .status-btn[aria-pressed="true"][data-status="absent"] { color:var(--red-700); border-color:#fca5a5; background:var(--red-50); }
+    .signal strong { display:block; color:var(--n-800); font-size:12px; font-variant-numeric:tabular-nums; }
+    .signal span { color:var(--n-500); font-size:10px; }
+    .note { min-height:38px; font-size:11px; }
+    .empty { display:none; padding:48px 20px; text-align:center; color:var(--n-500); }
+    .empty strong { display:block; margin-bottom:4px; color:var(--n-800); font-size:14px; }
+    .savebar { position:fixed; left:calc(226px + 22px); right:22px; bottom:18px; z-index:40; display:flex; align-items:center; justify-content:space-between; gap:16px; padding:11px 13px 11px 16px; border:1px solid #c7d2fe; border-radius:12px; color:#1e3a8a; background:rgba(239,244,255,.96); box-shadow:var(--shadow-lg); backdrop-filter:blur(12px); transform:translateY(140%); opacity:0; transition:transform .22s ease,opacity .22s ease; pointer-events:none; }
+    .savebar.show { transform:translateY(0); opacity:1; pointer-events:auto; }
+    .save-message { font-size:12px; font-weight:700; }
+    .save-message span { display:block; margin-top:2px; color:var(--n-600); font-size:10px; font-weight:500; }
+    .save-actions { display:flex; gap:8px; }
+    .toast { position:fixed; top:72px; right:20px; z-index:70; max-width:360px; display:flex; align-items:flex-start; gap:10px; padding:12px 14px; border:1px solid var(--green-100); border-radius:10px; color:var(--green-700); background:white; box-shadow:var(--shadow-lg); transform:translateX(calc(100% + 30px)); transition:transform .22s ease; }
+    .toast.show { transform:translateX(0); }
+    .toast.error { color:var(--red-700); border-color:var(--red-100); }
+    .toast strong { display:block; font-size:12px; }
+    .toast span { display:block; margin-top:2px; color:var(--n-600); font-size:11px; }
+    .mobile-session { display:none; margin-bottom:12px; }
+    @media (max-width:1080px) {
+      .workspace { grid-template-columns:240px minmax(0,1fr); }
+      .roster-head,.student-row { grid-template-columns:minmax(160px,1fr) minmax(300px,1.45fr) minmax(135px,.7fr); }
+      .roster-head > :last-child { display:none; }
+      .student-row .note-wrap { grid-column:2 / 4; }
+    }
+    @media (max-width:820px) {
+      .demo-bar { align-items:flex-start; flex-direction:column; }
+      .demo-controls { width:100%; justify-content:space-between; }
+      .shell { display:block; }
+      .sidebar { display:none; }
+      .main { padding:0 14px 105px; }
+      .topbar { min-height:58px; }
+      .top-meta { display:none; }
+      .page-intro { align-items:flex-start; flex-direction:column; padding-top:14px; }
+      .workspace { display:block; }
+      .session-panel { display:none; }
+      .mobile-session { display:block; }
+      .context { grid-template-columns:1fr; padding:15px; }
+      .context-side { text-align:left; }
+      .stats { grid-template-columns:repeat(2,1fr); }
+      .stat:first-child { grid-column:1 / -1; }
+      .stat { border-bottom:1px solid var(--n-100); }
+      .toolbar { align-items:stretch; flex-direction:column; }
+      .search { max-width:none; }
+      .toolbar-actions { display:grid; grid-template-columns:1fr 1fr; }
+      .roster-head { display:none; }
+      .student-row { display:block; padding:14px; }
+      .status-group { margin-top:12px; grid-template-columns:repeat(2,1fr); }
+      .signal { margin-top:11px; padding:9px 10px; border-radius:8px; background:var(--n-50); }
+      .note-wrap { margin-top:10px; }
+      .savebar { left:14px; right:14px; bottom:12px; }
+    }
+    @media (max-width:520px) {
+      .demo-title span,.scenario { display:none; }
+      .demo-controls { justify-content:flex-end; }
+      .scope-badge { white-space:normal; }
+      .stats { grid-template-columns:repeat(2,1fr); }
+      .stat { padding:11px 12px; }
+      .stat-value { font-size:18px; }
+      .savebar { align-items:stretch; flex-direction:column; }
+      .save-actions { display:grid; grid-template-columns:1fr 1fr; }
+    }
+    @media (prefers-reduced-motion:reduce) {
+      *,*::before,*::after { scroll-behavior:auto!important; transition-duration:.01ms!important; animation-duration:.01ms!important; }
+    }
+  </style>
+</head>
+<body data-role="teacher">
+  <div class="demo-bar">
+    <div class="demo-title">BẢN DEMO DUYỆT GIAO DIỆN <span>Dữ liệu mẫu, không kết nối Firestore</span></div>
+    <div class="demo-controls">
+      <select class="scenario" id="saveScenario" aria-label="Kịch bản lưu demo">
+        <option value="success">Kịch bản: Lưu thành công</option>
+        <option value="error">Kịch bản: Lỗi mạng và thử lại</option>
+      </select>
+      <div class="role-switch" role="group" aria-label="Xem giao diện theo vai trò">
+        <button class="active" data-role-switch="teacher" aria-pressed="true">Teacher</button>
+        <button data-role-switch="admin" aria-pressed="false">Admin</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="shell">
+    <aside class="sidebar" aria-label="Điều hướng mẫu">
+      <div class="brand"><span class="brand-mark">E</span> Edumatrix</div>
+      <div class="nav-label">Giảng dạy</div>
+      <div class="nav-item"><svg class="icon"><path d="M4 5h16v14H4zM8 3v4m8-4v4M4 9h16"/></svg>Lịch học</div>
+      <div class="nav-item active"><svg class="icon"><path d="M9 11l2 2 4-4M5 4h14v16H5z"/></svg>Điểm danh</div>
+      <div class="nav-item"><svg class="icon"><path d="M4 19V5l8-3 8 3v14l-8 3zM9 9h6m-6 4h6"/></svg>Tương tác lớp học</div>
+      <div class="nav-item"><svg class="icon"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Bài tập</div>
+      <div class="nav-label admin-only">Quản trị</div>
+      <div class="nav-item admin-only"><svg class="icon"><path d="M4 5h16v14H4zM8 9h8m-8 4h5"/></svg>Lớp học</div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <h1>Điểm danh</h1>
+        <div class="top-meta">Thứ Sáu, 31/07/2026 · 11:58</div>
+      </header>
+
+      <section class="page-intro">
+        <div>
+          <p>Chọn buổi, xác nhận trạng thái từng học sinh và lưu một lần cho cả lớp.</p>
+        </div>
+        <div class="scope-badge" id="scopeBadge"><svg class="icon"><path d="M12 3l7 4v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V7zM9 12l2 2 4-4"/></svg>2 lớp được phân công</div>
+      </section>
+
+      <label class="mobile-session">
+        <span style="display:block;margin-bottom:6px;font-size:11px;font-weight:750;color:var(--n-600)">Buổi học</span>
+        <select class="field" id="mobileSession"></select>
+      </label>
+
+      <div class="workspace">
+        <aside class="session-panel" aria-label="Danh sách buổi học">
+          <div class="panel-head">
+            <h2>Buổi học</h2>
+            <p>Ưu tiên buổi đang diễn ra và chưa hoàn tất</p>
+          </div>
+          <div id="sessionList"></div>
+        </aside>
+
+        <section class="attendance-panel" aria-labelledby="classTitle">
+          <div class="context">
+            <div>
+              <div class="context-title">
+                <h2 id="classTitle">IELTS Foundation 04</h2>
+                <span class="tag current" id="sessionTag">Đang diễn ra</span>
+              </div>
+              <div class="context-line">
+                <span><svg class="icon"><path d="M4 5h16v14H4zM8 3v4m8-4v4M4 9h16"/></svg><span id="dateText">Thứ Sáu, 31/07/2026</span></span>
+                <span><svg class="icon"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span id="timeText">18:00 - 19:30</span></span>
+                <span><svg class="icon"><path d="M12 21s6-5.2 6-11a6 6 0 10-12 0c0 5.8 6 11 6 11z"/><circle cx="12" cy="10" r="2"/></svg><span id="roomText">Phòng 202</span></span>
+              </div>
+            </div>
+            <div class="context-side"><b id="teacherText">GV. Trần Thu Hà</b><span id="updatedText">Chưa lưu điểm danh</span></div>
+          </div>
+
+          <div class="admin-notice"><svg class="icon"><path d="M12 9v4m0 4h.01M10 3h4l7 14H3z"/></svg><span>Bạn đang xem với quyền Admin. Mọi điều chỉnh dữ liệu đã lưu cần được ghi vào nhật ký thao tác.</span></div>
+
+          <div class="stats" aria-label="Tổng hợp trạng thái">
+            <div class="stat">
+              <div class="stat-label">Đã xác nhận</div>
+              <div class="stat-value" id="confirmedCount">6 / 6</div>
+              <div class="progress"><span id="confirmedProgress" style="width:100%"></span></div>
+            </div>
+            <div class="stat"><div class="stat-label">Có mặt</div><div class="stat-value green" id="presentCount">3</div></div>
+            <div class="stat"><div class="stat-label">Đi muộn</div><div class="stat-value amber" id="lateCount">1</div></div>
+            <div class="stat"><div class="stat-label">Có phép</div><div class="stat-value sky" id="excusedCount">1</div></div>
+            <div class="stat"><div class="stat-label">Vắng</div><div class="stat-value red" id="absentCount">1</div></div>
+          </div>
+
+          <div class="toolbar">
+            <div class="search">
+              <svg class="icon"><circle cx="10" cy="10" r="6"/><path d="M15 15l5 5"/></svg>
+              <input class="field" id="searchInput" type="search" placeholder="Tìm tên hoặc mã học sinh" aria-label="Tìm học sinh">
+            </div>
+            <div class="toolbar-actions">
+              <select class="field" id="statusFilter" aria-label="Lọc theo trạng thái">
+                <option value="all">Tất cả trạng thái</option>
+                <option value="present">Có mặt</option>
+                <option value="late">Đi muộn</option>
+                <option value="excused">Vắng có phép</option>
+                <option value="absent">Vắng không phép</option>
+              </select>
+              <button class="btn" id="markAllPresent"><svg class="icon"><path d="M4 12l4 4L18 6m-6 10l2 2 6-8"/></svg>Tất cả có mặt</button>
+            </div>
+          </div>
+
+          <div class="roster-head"><span>Học sinh</span><span>Trạng thái</span><span>Chuyên cần 30 ngày</span><span>Ghi chú</span></div>
+          <div id="roster"></div>
+          <div class="empty" id="emptyState"><strong>Không tìm thấy học sinh</strong>Thử từ khóa hoặc bộ lọc trạng thái khác.</div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div class="savebar" id="savebar" role="region" aria-label="Thay đổi chưa lưu">
+    <div class="save-message"><span id="dirtyCount" style="display:inline;color:inherit;font-size:inherit;font-weight:inherit">0</span> thay đổi chưa lưu<span>Kiểm tra đủ trạng thái trước khi lưu cả lớp.</span></div>
+    <div class="save-actions">
+      <button class="btn" id="discardButton">Hoàn tác</button>
+      <button class="btn primary" id="saveButton"><svg class="icon"><path d="M5 4h12l2 2v14H5zM8 4v6h8V4M8 20v-6h8v6"/></svg><span id="saveLabel">Lưu điểm danh</span></button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">
+    <svg class="icon" id="toastIcon"><path d="M4 12l5 5L20 6"/></svg>
+    <div><strong id="toastTitle">Đã lưu điểm danh</strong><span id="toastBody">6 học sinh đã được cập nhật.</span></div>
+  </div>
+
+  <script>
+    const sessions = [
+      { id:"s1", group:"Hôm nay", time:"18:00 - 19:30", name:"IELTS Foundation 04", room:"Phòng 202", date:"Thứ Sáu, 31/07/2026", teacher:"GV. Trần Thu Hà", tag:"Đang diễn ra", tone:"current", assigned:true, saved:false },
+      { id:"s2", group:"Hôm nay", time:"19:45 - 21:15", name:"HN53 Essentials", room:"Phòng 105", date:"Thứ Sáu, 31/07/2026", teacher:"GV. Trần Thu Hà", tag:"Sắp tới", tone:"done", assigned:true, saved:false },
+      { id:"s3", group:"Cần hoàn tất", time:"18:00 - 19:30", name:"Toán nâng cao 7A", room:"Phòng 301", date:"Thứ Năm, 30/07/2026", teacher:"GV. Nguyễn Minh Quân", tag:"Chưa đủ", tone:"pending", assigned:false, saved:true }
+    ];
+    const initialStudents = [
+      { id:"HS0198", name:"Trần Minh Anh", initials:"MA", status:"present", rate:96, history:"Vắng 0 · Muộn 1", note:"" },
+      { id:"HS0205", name:"Đỗ Gia Hân", initials:"GH", status:"late", rate:88, history:"Vắng 1 · Muộn 2", note:"Trễ 10 phút" },
+      { id:"HS0231", name:"Nguyễn Hoài Bảo", initials:"HB", status:"excused", rate:92, history:"Vắng 0 · Muộn 0", note:"Đã đăng ký nghỉ do ốm" },
+      { id:"HS0177", name:"Vũ Đăng Khoa", initials:"ĐK", status:"absent", rate:71, history:"Vắng 3 · Muộn 1", note:"Chưa liên hệ được" },
+      { id:"HS0256", name:"Lê Thảo Vy", initials:"TV", status:"present", rate:94, history:"Vắng 0 · Muộn 1", note:"" },
+      { id:"HS0264", name:"Phạm Anh Khoa", initials:"AK", status:"present", rate:90, history:"Vắng 1 · Muộn 0", note:"" }
+    ];
+    let role = "teacher";
+    let activeSession = "s1";
+    let baseline = structuredClone(initialStudents);
+    let students = structuredClone(initialStudents);
+    let toastTimer;
+
+    const statusLabels = { present:"Có mặt", late:"Đi muộn", excused:"Vắng có phép", absent:"Vắng không phép" };
+    const $ = (id) => document.getElementById(id);
+
+    function availableSessions() {
+      return role === "admin" ? sessions : sessions.filter((session) => session.assigned);
+    }
+
+    function renderSessions() {
+      const visible = availableSessions();
+      if (!visible.some((session) => session.id === activeSession)) activeSession = visible[0].id;
+      const groups = [...new Set(visible.map((session) => session.group))];
+      $("sessionList").innerHTML = groups.map((group) => `
+        <div class="session-group">${group}</div>
+        <div class="session-list">${visible.filter((session) => session.group === group).map((session) => `
+          <button class="session-card ${session.id === activeSession ? "active" : ""}" data-session="${session.id}" aria-pressed="${session.id === activeSession}">
+            <div class="session-row"><span class="session-time">${session.time}</span><span class="tag ${session.tone}">${session.tag}</span></div>
+            <div class="session-name">${session.name}</div>
+            <div class="session-place">${session.room} · ${session.teacher.replace("GV. ","")}</div>
+          </button>`).join("")}
+        </div>`).join("");
+      $("mobileSession").innerHTML = visible.map((session) => `<option value="${session.id}" ${session.id === activeSession ? "selected" : ""}>${session.time} · ${session.name}</option>`).join("");
+      document.querySelectorAll("[data-session]").forEach((button) => button.addEventListener("click", () => changeSession(button.dataset.session)));
+      updateSessionContext();
+    }
+
+    function changeSession(id) {
+      if (dirtyRows().length && !confirm("Bạn có thay đổi chưa lưu. Bỏ thay đổi và chuyển buổi?")) return;
+      activeSession = id;
+      students = structuredClone(initialStudents);
+      baseline = structuredClone(initialStudents);
+      renderSessions();
+      renderRoster();
+      updateDirtyState();
+    }
+
+    function updateSessionContext() {
+      const session = sessions.find((item) => item.id === activeSession);
+      $("classTitle").textContent = session.name;
+      $("sessionTag").textContent = session.tag;
+      $("sessionTag").className = `tag ${session.tone}`;
+      $("dateText").textContent = session.date;
+      $("timeText").textContent = session.time;
+      $("roomText").textContent = session.room;
+      $("teacherText").textContent = session.teacher;
+      $("updatedText").textContent = session.saved ? "Đã lưu lúc 20:04 hôm qua" : "Chưa lưu điểm danh";
+    }
+
+    function filteredStudents() {
+      const term = $("searchInput").value.trim().toLocaleLowerCase("vi");
+      const filter = $("statusFilter").value;
+      return students.filter((student) => {
+        const matchesText = `${student.name} ${student.id}`.toLocaleLowerCase("vi").includes(term);
+        return matchesText && (filter === "all" || student.status === filter);
+      });
+    }
+
+    function renderRoster() {
+      const visible = filteredStudents();
+      $("roster").innerHTML = visible.map((student) => `
+        <div class="student-row" data-student-row="${student.id}">
+          <div class="student">
+            <span class="avatar">${student.initials}</span>
+            <div style="min-width:0"><div class="student-name">${student.name}</div><div class="student-code">${student.id}</div></div>
+          </div>
+          <div class="status-group" role="group" aria-label="Trạng thái của ${student.name}">
+            ${Object.entries(statusLabels).map(([status,label]) => `<button class="status-btn" data-student="${student.id}" data-status="${status}" aria-pressed="${student.status === status}">${label}</button>`).join("")}
+          </div>
+          <div class="signal"><strong>${student.rate}%</strong><span>${student.history}</span></div>
+          <div class="note-wrap"><input class="field note" data-note="${student.id}" value="${student.note.replaceAll('"',"&quot;")}" placeholder="Nhập ghi chú" aria-label="Ghi chú cho ${student.name}"></div>
+        </div>`).join("");
+      $("emptyState").style.display = visible.length ? "none" : "block";
+      document.querySelectorAll("[data-student]").forEach((button) => button.addEventListener("click", () => {
+        const student = students.find((item) => item.id === button.dataset.student);
+        student.status = button.dataset.status;
+        renderRoster();
+        updateSummary();
+        updateDirtyState();
+      }));
+      document.querySelectorAll("[data-note]").forEach((input) => input.addEventListener("input", () => {
+        students.find((item) => item.id === input.dataset.note).note = input.value;
+        updateDirtyState();
+      }));
+      updateSummary();
+    }
+
+    function updateSummary() {
+      const counts = { present:0, late:0, excused:0, absent:0 };
+      students.forEach((student) => counts[student.status]++);
+      Object.keys(counts).forEach((key) => $(`${key}Count`).textContent = counts[key]);
+      $("confirmedCount").textContent = `${students.length} / ${students.length}`;
+      $("confirmedProgress").style.width = "100%";
+    }
+
+    function dirtyRows() {
+      return students.filter((student) => {
+        const before = baseline.find((item) => item.id === student.id);
+        return !before || before.status !== student.status || before.note !== student.note;
+      });
+    }
+
+    function updateDirtyState() {
+      const dirty = dirtyRows();
+      $("dirtyCount").textContent = dirty.length;
+      $("savebar").classList.toggle("show", dirty.length > 0);
+      $("saveLabel").textContent = role === "admin" ? "Lưu điều chỉnh" : "Lưu điểm danh";
+    }
+
+    function showToast(kind,title,body) {
+      clearTimeout(toastTimer);
+      $("toast").classList.toggle("error", kind === "error");
+      $("toastTitle").textContent = title;
+      $("toastBody").textContent = body;
+      $("toastIcon").innerHTML = kind === "error" ? '<path d="M12 8v5m0 3h.01M4 4l16 16M12 3a9 9 0 110 18 9 9 0 010-18z"/>' : '<path d="M4 12l5 5L20 6"/>';
+      $("toast").classList.add("show");
+      toastTimer = setTimeout(() => $("toast").classList.remove("show"),5000);
+    }
+
+    document.querySelectorAll("[data-role-switch]").forEach((button) => button.addEventListener("click", () => {
+      role = button.dataset.roleSwitch;
+      document.body.dataset.role = role;
+      document.querySelectorAll("[data-role-switch]").forEach((item) => {
+        const active = item.dataset.roleSwitch === role;
+        item.classList.toggle("active",active);
+        item.setAttribute("aria-pressed",String(active));
+      });
+      document.querySelectorAll(".admin-only").forEach((item) => item.style.display = role === "admin" ? "" : "none");
+      $("scopeBadge").lastChild.textContent = role === "admin" ? "Toàn bộ trung tâm · quyền điều chỉnh" : "2 lớp được phân công";
+      renderSessions();
+      updateDirtyState();
+    }));
+
+    $("mobileSession").addEventListener("change",(event) => changeSession(event.target.value));
+    $("searchInput").addEventListener("input",renderRoster);
+    $("statusFilter").addEventListener("change",renderRoster);
+    $("markAllPresent").addEventListener("click",() => {
+      students.forEach((student) => student.status = "present");
+      renderRoster();
+      updateDirtyState();
+      showToast("success","Đã đánh dấu cả lớp có mặt","Bạn vẫn có thể hoàn tác trước khi lưu.");
+    });
+    $("discardButton").addEventListener("click",() => {
+      students = structuredClone(baseline);
+      renderRoster();
+      updateDirtyState();
+      showToast("success","Đã hoàn tác","Dữ liệu trở về lần lưu gần nhất.");
+    });
+    $("saveButton").addEventListener("click",() => {
+      const button = $("saveButton");
+      const label = $("saveLabel");
+      button.disabled = true;
+      label.textContent = "Đang lưu...";
+      setTimeout(() => {
+        button.disabled = false;
+        if ($("saveScenario").value === "error") {
+          label.textContent = role === "admin" ? "Thử lưu điều chỉnh" : "Thử lưu lại";
+          showToast("error","Không thể lưu điểm danh","Kết nối bị gián đoạn. Dữ liệu vẫn được giữ để bạn thử lại.");
+          return;
+        }
+        const changed = dirtyRows().length;
+        baseline = structuredClone(students);
+        $("updatedText").textContent = `Vừa lưu bởi ${role === "admin" ? "Admin Nguyễn An" : "GV. Trần Thu Hà"}`;
+        updateDirtyState();
+        showToast("success",role === "admin" ? "Đã lưu điều chỉnh" : "Đã lưu điểm danh",`${changed} học sinh đã được cập nhật.`);
+      },750);
+    });
+
+    window.addEventListener("beforeunload",(event) => {
+      if (dirtyRows().length) { event.preventDefault(); event.returnValue = ""; }
+    });
+
+    document.querySelectorAll(".admin-only").forEach((item) => item.style.display = "none");
+    renderSessions();
+    renderRoster();
+    updateDirtyState();
+  </script>
+</body>
+</html>

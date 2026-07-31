@@ -435,6 +435,18 @@ service cloud.firestore {
         hasTimestamps(data);
     }
 
+    function assignmentLinksBelongToClass(data) {
+      return (
+          !data.keys().hasAny(['subjectId']) ||
+          data.subjectId in get(/databases/$(database)/documents/classes/$(data.classId)).data.subjectIds
+        ) &&
+        (
+          data.lessonPlanId == null ||
+          get(/databases/$(database)/documents/lesson_plans/$(data.lessonPlanId)).data.classId == data.classId
+        ) &&
+        (data.sessionId == null || sessionBelongsToClass(data.sessionId, data.classId));
+    }
+
     function validSubmissionData(data) {
       return data.keys().hasAll(['assignmentId', 'studentId', 'classId', 'submissionUrl', 'submissionText', 'studentNote', 'status', 'score', 'teacherComment', 'checkedBy', 'submittedAt', 'checkedAt', 'updatedAt']) &&
         data.keys().hasOnly(['assignmentId', 'studentId', 'classId', 'submissionUrl', 'submissionText', 'studentNote', 'status', 'score', 'teacherComment', 'checkedBy', 'submittedAt', 'checkedAt', 'updatedAt']) &&
@@ -455,14 +467,25 @@ service cloud.firestore {
 
     function validAnnouncementData(data) {
       return data.keys().hasAll(['type', 'title', 'message', 'createdAt']) &&
-        data.keys().hasOnly(['type', 'sessionId', 'assignmentId', 'classId', 'studentId', 'title', 'message', 'createdAt']) &&
+        data.keys().hasOnly(['type', 'sessionId', 'assignmentId', 'classId', 'studentId', 'title', 'message', 'createdAt', 'resolvedAt']) &&
         data.type in ['attendance_alert', 'schedule_change', 'homework_reminder', 'session_summary'] &&
         data.title is string &&
         data.message is string &&
         (!data.keys().hasAny(['sessionId']) || data.sessionId is string) &&
         (!data.keys().hasAny(['assignmentId']) || data.assignmentId is string) &&
         (!data.keys().hasAny(['classId']) || data.classId is string) &&
-        (!data.keys().hasAny(['studentId']) || data.studentId is string);
+        (!data.keys().hasAny(['studentId']) || data.studentId is string) &&
+        (!data.keys().hasAny(['resolvedAt']) || data.resolvedAt == null || data.resolvedAt is timestamp);
+    }
+
+    function validAttendanceData(data, attendanceId) {
+      return data.keys().hasAll(['sessionId', 'classId', 'studentId', 'status', 'note', 'markedBy', 'markedAt', 'updatedAt']) &&
+        data.keys().hasOnly(['sessionId', 'classId', 'studentId', 'status', 'note', 'markedBy', 'markedAt', 'updatedAt']) &&
+        attendanceId == data.sessionId + '_' + data.studentId &&
+        data.status in ['present', 'absent', 'late', 'excused'] &&
+        data.note is string && data.note.size() <= 1000 &&
+        data.markedBy is string && data.markedAt is timestamp && data.updatedAt is timestamp &&
+        sessionBelongsToClass(data.sessionId, data.classId);
     }
 
     function validLessonPlanPublicData(data, lessonPlanId) {
@@ -890,7 +913,7 @@ service cloud.firestore {
           )
         ) &&
         keepsImmutable(['type', 'sessionId', 'classId', 'studentId']) &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'message', 'createdAt']);
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'message', 'createdAt', 'resolvedAt']);
       allow delete: if false;
     }
 
@@ -947,10 +970,11 @@ service cloud.firestore {
     match /attendance/{attendanceId} {
       allow read: if canManageClass(resource.data.classId) || ownsStudent(resource.data.studentId);
       allow create: if canManageClass(request.resource.data.classId) &&
-        attendanceId == request.resource.data.sessionId + '_' + request.resource.data.studentId &&
-        request.resource.data.status in ['present', 'absent', 'late', 'excused'];
+        validAttendanceData(request.resource.data, attendanceId) &&
+        request.resource.data.studentId in
+          get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data.studentIds;
       allow update: if canManageClass(resource.data.classId) &&
-        request.resource.data.status in ['present', 'absent', 'late', 'excused'] &&
+        validAttendanceData(request.resource.data, attendanceId) &&
         keepsImmutable(['sessionId', 'classId', 'studentId']);
       allow delete: if false;
     }
@@ -962,9 +986,12 @@ service cloud.firestore {
           .hasAny(currentUser().studentIds)
       );
       allow create: if canManageClass(request.resource.data.classId) &&
-        request.resource.data.sessionId == sessionId && validAttendanceSummary(request.resource.data);
+        request.resource.data.sessionId == sessionId &&
+        sessionBelongsToClass(sessionId, request.resource.data.classId) &&
+        validAttendanceSummary(request.resource.data);
       allow update: if canManageClass(resource.data.classId) &&
         request.resource.data.sessionId == sessionId &&
+        sessionBelongsToClass(sessionId, request.resource.data.classId) &&
         validAttendanceSummary(request.resource.data) &&
         keepsImmutable(['sessionId', 'classId']);
       allow delete: if false;
@@ -977,9 +1004,11 @@ service cloud.firestore {
       );
       allow create: if canManageClass(request.resource.data.classId) &&
         request.resource.data.createdBy == request.auth.uid &&
-        validAssignmentData(request.resource.data);
+        validAssignmentData(request.resource.data) &&
+        assignmentLinksBelongToClass(request.resource.data);
       allow update: if canManageClass(resource.data.classId) &&
         validAssignmentData(request.resource.data) &&
+        assignmentLinksBelongToClass(request.resource.data) &&
         keepsImmutable(['classId', 'createdBy', 'createdAt']);
       allow delete: if false;
     }
@@ -1038,6 +1067,11 @@ service cloud.firestore {
       allow create: if canManageClass(request.resource.data.classId) &&
         request.resource.data.maxScore > 0 &&
         request.resource.data.score >= 0 && request.resource.data.score <= request.resource.data.maxScore &&
+        (
+          request.resource.data.get('source', 'manual') == 'assignment' ||
+          request.resource.data.studentId in
+            get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data.studentIds
+        ) &&
         validScoreSource(request.resource.data, scoreId);
       allow update: if canManageClass(resource.data.classId) &&
         request.resource.data.maxScore > 0 &&

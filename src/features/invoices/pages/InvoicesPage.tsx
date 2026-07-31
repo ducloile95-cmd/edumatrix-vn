@@ -14,6 +14,7 @@ import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
 import { Modal } from "@/components/ui/Modal";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { SearchInput } from "@/components/ui/SearchInput";
+import { FilterField, FilterSelect } from "@/components/ui/FilterToolbar";
 import { StatCard } from "@/components/ui/StatCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Tab, Tabs } from "@/components/ui/Tabs";
@@ -269,11 +270,11 @@ export default function InvoicesPage() {
           <div className="shrink-0 border-b border-neutral-200 p-4 sm:p-5">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
               <div><h2 className="text-base font-bold text-neutral-900">Danh sách công nợ</h2><p className="mt-1 text-sm text-neutral-500">{filteredInvoices.length} hóa đơn phù hợp bộ lọc</p></div>
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <div className="w-full sm:w-80"><SearchInput value={search} onChange={setSearch} placeholder="Tìm mã, học sinh hoặc nội dung" /></div>
-                <select aria-label="Lọc trạng thái hóa đơn" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as InvoiceStatus | "all")} className="min-h-touch rounded-input border border-neutral-300 bg-white px-3 text-sm text-neutral-700">
-                  {STATUS_FILTER_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                </select>
+              <div className="grid w-full gap-3 sm:grid-cols-[minmax(240px,1fr)_220px] lg:w-auto">
+                <FilterField label="Tìm kiếm" htmlFor="invoice-search">
+                  <SearchInput id="invoice-search" value={search} onChange={setSearch} placeholder="Tìm mã, học sinh hoặc nội dung" />
+                </FilterField>
+                <FilterSelect id="invoice-status-filter" label="Trạng thái" value={statusFilter} options={STATUS_FILTER_OPTIONS} onChange={(value) => setStatusFilter(value as InvoiceStatus | "all")} />
               </div>
             </div>
           </div>

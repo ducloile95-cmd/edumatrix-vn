@@ -14,6 +14,7 @@ import {
 import { format } from "date-fns";
 import { COLLECTIONS } from "@/constants/collections";
 import { db } from "@/services/firebase/firestoreClient";
+import { attendanceCounts, queueAttendanceEntryWrite } from "@/services/firestore/attendance";
 import { sendMessenger } from "@/services/integrations/messenger";
 import type {
   AttendanceStatus,
@@ -112,9 +113,12 @@ export async function saveClassroomDraft(input: SaveClassroomDraftInput): Promis
     updatedAt: serverTimestamp(),
   }, { merge: true });
 
-  const attendanceCounts: Record<AttendanceStatus, number> = { present: 0, absent: 0, late: 0, excused: 0 };
+  const counts = attendanceCounts(input.entries.map((entry) => ({
+    studentId: entry.studentId,
+    status: entry.attendanceStatus,
+    note: entry.individualComment,
+  })));
   input.entries.forEach((entry) => {
-    attendanceCounts[entry.attendanceStatus] += 1;
     batch.set(doc(db, COLLECTIONS.SESSION_STUDENT_REVIEWS, `${input.sessionId}_${entry.studentId}`), {
       sessionId: input.sessionId,
       classId: input.classId,
@@ -125,23 +129,18 @@ export async function saveClassroomDraft(input: SaveClassroomDraftInput): Promis
       updatedBy: input.teacherId,
       updatedAt: serverTimestamp(),
     }, { merge: true });
-    batch.set(doc(db, COLLECTIONS.ATTENDANCE, `${input.sessionId}_${entry.studentId}`), {
-      sessionId: input.sessionId,
-      classId: input.classId,
+    queueAttendanceEntryWrite(batch, input.sessionId, input.classId, {
       studentId: entry.studentId,
       status: entry.attendanceStatus,
-      note: entry.individualComment.trim(),
-      markedBy: input.teacherId,
-      markedAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    }, { merge: true });
+      note: entry.individualComment,
+    }, input.teacherId);
   });
 
   batch.set(doc(db, COLLECTIONS.ATTENDANCE_SUMMARIES, input.sessionId), {
     sessionId: input.sessionId,
     classId: input.classId,
     total: input.entries.length,
-    ...attendanceCounts,
+    ...counts,
     updatedAt: serverTimestamp(),
   }, { merge: true });
   await batch.commit();

@@ -11,7 +11,9 @@ export async function listAnnouncementsByStudent(
   const snap = await getDocs(
     query(collection(db, COLLECTIONS.ANNOUNCEMENTS), where("studentId", "==", studentId), limit(pageSize)),
   );
-  return snap.docs.map((item) => ({ id: item.id, ...(item.data() as AnnouncementDoc) }));
+  return snap.docs
+    .map((item) => ({ id: item.id, ...(item.data() as AnnouncementDoc) }))
+    .filter((item) => !item.resolvedAt);
 }
 
 /** Gop thong bao cua nhieu hoc sinh (vd Phu huynh co nhieu con), moi nhat truoc. */

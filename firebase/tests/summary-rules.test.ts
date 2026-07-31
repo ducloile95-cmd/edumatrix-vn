@@ -25,6 +25,8 @@ beforeEach(async () => {
     const db = ctx.firestore();
     await setDoc(doc(db, "users", "admin"), { role: "admin", status: "active", studentIds: [] });
     await setDoc(doc(db, "classes", "class-1"), { teacherIds: [], studentIds: ["student-1"] });
+    await setDoc(doc(db, "sessions", "session-1"), { classId: "class-1" });
+    await setDoc(doc(db, "sessions", "session-2"), { classId: "class-1" });
   });
 });
 

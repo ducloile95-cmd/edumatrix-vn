@@ -121,13 +121,17 @@ export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
       }
 
       if (isAdmin && values.parentEmail) {
-        const result = await linkParentToStudent(studentId, values.parentEmail, {
-          address: values.parentAddress ?? "",
-          displayName: values.parentName ?? "",
-          facebookUrl: values.parentFacebookUrl ?? "",
-          phone: values.parentPhone ?? "",
-        });
-        if (!result.linked) warnings.push(`parent_${result.reason}`);
+        try {
+          const result = await linkParentToStudent(studentId, values.parentEmail, {
+            address: values.parentAddress ?? "",
+            displayName: values.parentName ?? "",
+            facebookUrl: values.parentFacebookUrl ?? "",
+            phone: values.parentPhone ?? "",
+          });
+          if (!result.linked) warnings.push(`parent_${result.reason}`);
+        } catch {
+          warnings.push("parent_error");
+        }
       }
 
       if (values.classId) {
@@ -251,7 +255,7 @@ export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
               <li key={warning}>{getWarningMessage(warning)}</li>
             ))}
           </ul>
-          <p className="mt-1">Hồ sơ đã lưu — dùng chức năng Sửa để bổ sung, đừng thêm lại từ đầu.</p>
+          <p className="mt-1">Hồ sơ đã được lưu an toàn. Đừng thêm lại học sinh từ đầu; làm theo hướng dẫn trên để hoàn tất phần còn thiếu.</p>
         </div>
       )}
 
@@ -308,11 +312,11 @@ function getMutationErrorMessage(error: unknown): string {
 
 /** Cac buoc bo sung that bai SAU khi ho so da duoc tao - hoc sinh van ton tai (C1). */
 function getWarningMessage(warning: string): string {
-  if (warning === "staff_note_failed") return "Chưa lưu được ghi chú giáo viên/Admin.";
-  if (warning === "parent_not_found") return "Chưa liên kết phụ huynh: không tìm thấy tài khoản theo email đã nhập.";
-  if (warning === "parent_not_viewer") return "Chưa liên kết phụ huynh: email này không thuộc tài khoản phụ huynh/học sinh.";
-  if (warning === "parent_error") return "Chưa liên kết phụ huynh: lỗi khi ghi dữ liệu, thử lại ở màn hình Sửa.";
-  if (warning === "class_not_found") return "Chưa đăng ký lớp: không tìm thấy lớp học đã chọn.";
-  if (warning === "enroll_failed") return "Chưa đăng ký lớp: ghi danh thất bại, thử lại ở màn hình Sửa.";
+  if (warning === "staff_note_failed") return "Chưa lưu được ghi chú. Mở Thông tin học sinh, nhập lại ghi chú rồi lưu.";
+  if (warning === "parent_not_found") return "Chưa liên kết phụ huynh: không tìm thấy tài khoản theo email đã nhập. Kiểm tra tài khoản rồi liên kết lại trong Thông tin học sinh.";
+  if (warning === "parent_not_viewer") return "Chưa liên kết phụ huynh: email không thuộc tài khoản phụ huynh/học sinh. Kiểm tra đúng loại tài khoản rồi liên kết lại trong Thông tin học sinh.";
+  if (warning === "parent_error") return "Chưa liên kết phụ huynh do lỗi ghi dữ liệu. Mở Thông tin học sinh và liên kết lại.";
+  if (warning === "class_not_found") return "Chưa ghi danh: không tìm thấy lớp đã chọn. Vào Lớp học, mở lớp phù hợp và ghi danh học sinh.";
+  if (warning === "enroll_failed") return "Chưa ghi danh do lỗi ghi dữ liệu. Vào Lớp học, mở lớp đã chọn và ghi danh học sinh.";
   return "Một bước bổ sung chưa hoàn tất.";
 }

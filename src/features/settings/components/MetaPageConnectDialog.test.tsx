@@ -111,6 +111,7 @@ describe("MetaPageConnectDialog polling", () => {
       id: "page-1",
       name: "EduMatrix",
       pictureUrl: null,
+      utilityMessagingPermission: "granted",
     };
     integrationMocks.getStatus.mockResolvedValue({
       status: "ready",
@@ -173,6 +174,35 @@ describe("MetaPageConnectDialog polling", () => {
 
     expect((await screen.findByRole("alert")).textContent).toContain(
       "Facebook từ chối quyền quản lý Trang.",
+    );
+  });
+
+  test("warns when the reconnected page is still missing Utility Messaging permission", async () => {
+    vi.useRealTimers();
+    integrationMocks.getStatus.mockResolvedValue({
+      status: "ready",
+      pages: [{
+        id: "page-1",
+        name: "EduMatrix",
+        pictureUrl: null,
+        utilityMessagingPermission: "missing",
+      }],
+      error: null,
+    });
+
+    render(
+      <MetaPageConnectDialog
+        open
+        onClose={vi.fn()}
+        onConnected={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Tiếp tục với Facebook" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Kiểm tra lại" }));
+
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "không bật Utility Messaging",
     );
   });
 });

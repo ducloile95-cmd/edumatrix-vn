@@ -124,8 +124,9 @@ describe("StudentsList responsive views", () => {
     expect(desktopTable.className).toContain("hidden");
     expect(desktopTable.className).toContain("md:block");
 
-    const statusFilter = screen.getByRole("button", { name: "Đang học" });
+    const statusFilter = screen.getByRole("combobox", { name: "Trạng thái học" });
     expect(statusFilter.className).toContain("min-h-touch");
+    fireEvent.change(statusFilter, { target: { value: "active" } });
 
     const detailsButton = within(mobileList).getByRole("button", {
       name: "Xem thông tin Nguyễn An (Bin)",

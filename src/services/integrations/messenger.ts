@@ -20,6 +20,7 @@ const FRIENDLY_ERRORS: Record<string, string> = {
   utility_parameters_invalid: "Thông tin của mẫu thông báo chưa đầy đủ hoặc không hợp lệ.",
   utility_template_not_allowed: "Tài khoản của bạn không được phép sử dụng mẫu thông báo này.",
   utility_template_not_approved: "Mẫu thông báo chưa được Meta phê duyệt hoặc chưa được bật.",
+  utility_permission_required: "Fanpage chưa cấp quyền Utility Messaging. Admin cần kết nối lại Fanpage trước khi bật tính năng.",
 };
 
 export function friendlyMessengerError(message: string): string {
@@ -122,6 +123,7 @@ export interface MetaManagedPageSummary {
   id: string;
   name: string;
   pictureUrl: string | null;
+  utilityMessagingPermission: "granted" | "missing" | "unknown";
 }
 
 export interface MetaConnectSession {

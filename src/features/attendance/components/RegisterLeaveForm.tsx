@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { addDays } from "date-fns";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { listClasses } from "@/services/firestore/classes";
 import { listStudents } from "@/services/firestore/students";
 import { listSessionsByClass } from "@/services/firestore/sessions";
 import { registerLeave } from "@/services/firestore/attendance";
@@ -28,13 +29,20 @@ export function RegisterLeaveForm({ onDone }: RegisterLeaveFormProps) {
   const { firebaseUser } = useAuth();
   const queryClient = useQueryClient();
   const [studentId, setStudentId] = useState("");
+  const [classId, setClassId] = useState("");
   const [sessionId, setSessionId] = useState("");
   const [leaveType, setLeaveType] = useState<LeaveType>("excused");
   const [note, setNote] = useState("");
 
   const { data: students } = useQuery({ queryKey: ["students"], queryFn: listStudents });
+  const { data: classes } = useQuery({ queryKey: ["classes"], queryFn: listClasses });
   const selectedStudent = students?.find((item) => item.id === studentId);
-  const classId = selectedStudent?.currentClassIds[0] ?? "";
+  const eligibleClasses = classes?.filter((item) => selectedStudent?.currentClassIds.includes(item.id)) ?? [];
+  const soleClassId = eligibleClasses.length === 1 ? eligibleClasses[0].id : "";
+
+  useEffect(() => {
+    if (soleClassId) setClassId(soleClassId);
+  }, [soleClassId]);
 
   const { data: sessions } = useQuery({
     queryKey: ["sessions-by-class", classId, "leave"],
@@ -48,6 +56,7 @@ export function RegisterLeaveForm({ onDone }: RegisterLeaveFormProps) {
       queryClient.invalidateQueries({ queryKey: ["attendance-overview"] });
       queryClient.invalidateQueries({ queryKey: ["attendance", sessionId] });
       setStudentId("");
+      setClassId("");
       setSessionId("");
       setLeaveType("excused");
       setNote("");
@@ -57,6 +66,7 @@ export function RegisterLeaveForm({ onDone }: RegisterLeaveFormProps) {
 
   function onSelectStudent(value: string) {
     setStudentId(value);
+    setClassId("");
     setSessionId("");
   }
 
@@ -80,6 +90,28 @@ export function RegisterLeaveForm({ onDone }: RegisterLeaveFormProps) {
             </option>
           ))}
         </select>
+      </div>
+
+      <div>
+        <label htmlFor="leave-class" className={LABEL}>
+          Lớp học<span className="ml-0.5 text-danger-500">*</span>
+        </label>
+        <select
+          id="leave-class"
+          className={INPUT}
+          disabled={!studentId}
+          value={classId}
+          onChange={(event) => {
+            setClassId(event.target.value);
+            setSessionId("");
+          }}
+        >
+          <option value="">-- Chọn lớp học --</option>
+          {eligibleClasses.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+        </select>
+        {studentId && eligibleClasses.length === 0 && (
+          <p className="mt-1 text-xs text-danger-700">Học sinh chưa thuộc lớp nào mà tài khoản này được quản lý.</p>
+        )}
       </div>
 
       <div>
@@ -149,7 +181,7 @@ export function RegisterLeaveForm({ onDone }: RegisterLeaveFormProps) {
         <Button type="button" onClick={() => onDone?.()}>
           Hủy
         </Button>
-        <Button type="submit" variant="primary" disabled={!studentId || !sessionId || mutation.isPending}>
+        <Button type="submit" variant="primary" disabled={!studentId || !classId || !sessionId || mutation.isPending}>
           {mutation.isPending ? "Đang lưu..." : "Lưu đăng ký"}
         </Button>
       </div>

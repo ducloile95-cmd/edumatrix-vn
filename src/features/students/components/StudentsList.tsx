@@ -13,6 +13,7 @@ import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { SearchInput } from "@/components/ui/SearchInput";
+import { FilterField, FilterSelect, FilterToolbar } from "@/components/ui/FilterToolbar";
 import { Pagination } from "@/components/ui/Pagination";
 import { DataListPanel, DATA_LIST_FOOTER, DATA_LIST_SCROLL } from "@/components/ui/dataListLayout";
 import { usePagination } from "@/hooks/usePagination";
@@ -162,11 +163,8 @@ export function StudentsList() {
 
   return (
     <div>
-      <div className="mb-4 grid gap-3 xl:grid-cols-[minmax(360px,1fr)_280px_auto] xl:items-end">
-        <div>
-          <label htmlFor="student-search" className="mb-1 block text-xs font-semibold text-neutral-500">
-            Ô tìm kiếm
-          </label>
+      <FilterToolbar label="Tìm kiếm và lọc học sinh" className="[&>div]:xl:grid-cols-[minmax(360px,1fr)_240px_auto]">
+        <FilterField label="Tìm kiếm" htmlFor="student-search">
           <SearchInput
             id="student-search"
             value={search}
@@ -176,34 +174,22 @@ export function StudentsList() {
             }}
             placeholder="Tìm theo tên, mã học sinh hoặc mã lớp"
           />
-        </div>
+        </FilterField>
 
-        <div>
-          <p className="mb-1 text-xs font-semibold text-neutral-500">Trạng thái học</p>
-          <div className="grid grid-cols-3 gap-1 rounded-input border border-neutral-300 bg-neutral-50 p-1">
-            {[
-              ["all", "Tất cả"],
-              ["active", "Đang học"],
-              ["inactive", "Đã nghỉ"],
-            ].map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => {
-                  setStatusFilter(value as StatusFilter);
-                  setPage(1);
-                }}
-                className={`min-h-touch rounded-[7px] px-2 text-xs font-semibold transition ${
-                  statusFilter === value
-                    ? "bg-primary-500 text-white shadow-[0_4px_12px_rgba(51,102,240,.18)]"
-                    : "text-neutral-600 hover:bg-white hover:text-primary-700"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
+        <FilterSelect
+          id="student-status-filter"
+          label="Trạng thái học"
+          value={statusFilter}
+          options={[
+            { value: "all", label: "Tất cả" },
+            { value: "active", label: "Đang học" },
+            { value: "inactive", label: "Đã nghỉ" },
+          ]}
+          onChange={(value) => {
+            setStatusFilter(value as StatusFilter);
+            setPage(1);
+          }}
+        />
 
         <div>
           <p className="mb-1 text-xs font-semibold text-neutral-500">Thời gian lọc</p>
@@ -215,7 +201,7 @@ export function StudentsList() {
             }}
           />
         </div>
-      </div>
+      </FilterToolbar>
 
       <DataListPanel className="rounded-card border border-neutral-200 bg-white">
         <div className="shrink-0 border-b border-neutral-200 px-4 py-4 sm:px-5">

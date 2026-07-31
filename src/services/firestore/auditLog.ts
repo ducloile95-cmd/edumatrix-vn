@@ -11,7 +11,7 @@ import type { User } from "firebase/auth";
 export async function writeAuditLog(
   actor: User,
   action: AuditAction,
-  targetType: "invite" | "user" | "settings",
+  targetType: "invite" | "user" | "settings" | "attendance_session" | "gradebook",
   targetId: string,
   meta?: Record<string, string>,
 ): Promise<void> {

@@ -76,6 +76,8 @@ export function IntegrationsWorkspace() {
   const driveReady = drivePublicConfig && Boolean(form.driveFolderId.trim());
   const messengerWorker = (import.meta.env.VITE_MESSENGER_WORKER_URL ?? "").trim();
   const messengerReady = Boolean(messengerWorker && form.facebookPageId.trim());
+  const utilityPermission = settings.data?.facebookUtilityMessagingPermission ?? "unknown";
+  const utilityReconnectRequired = messengerReady && utilityPermission !== "granted";
   const paymentReady = Boolean(payment.data?.bankBin && payment.data?.accountNumber);
 
   return <div className="space-y-4">
@@ -86,9 +88,9 @@ export function IntegrationsWorkspace() {
         <Button size="sm" variant={driveConnected ? "secondary" : "primary"} disabled={!drivePublicConfig || drive.isPending} onClick={() => drive.mutate()}>{drive.isPending ? "Đang kết nối..." : driveConnected ? "Kết nối lại" : "Kết nối Drive"}</Button>
         {driveConnected && <Button size="sm" variant="secondary" icon={<Unplug size={14} />} onClick={() => { disconnectGoogleDrive(); setDriveConnected(false); }}>Ngắt phiên</Button>}
       </IntegrationCard>
-      <IntegrationCard icon={<Facebook size={19} />} title="Facebook & Messenger" description="Kết nối Fanpage để dùng Messenger và đăng bài." configured={messengerReady} detail={settings.data?.facebookPageName ? `${settings.data.facebookPageName} · ${form.facebookPageId}` : form.facebookPageId ? `Page ID: ${form.facebookPageId}` : "Chưa kết nối Fanpage"}>
+      <IntegrationCard icon={<Facebook size={19} />} title="Facebook & Messenger" description="Kết nối Fanpage để dùng Messenger và đăng bài." configured={messengerReady} detail={`${settings.data?.facebookPageName ? `${settings.data.facebookPageName} · ${form.facebookPageId}` : form.facebookPageId ? `Page ID: ${form.facebookPageId}` : "Chưa kết nối Fanpage"}${messengerReady ? ` · Utility: ${utilityPermission === "granted" ? "Đã cấp quyền" : utilityPermission === "missing" ? "Thiếu quyền" : "Chưa kiểm tra"}` : ""}`}>
         <Button size="sm" variant={messengerReady ? "secondary" : "primary"} icon={messengerReady ? <RefreshCw size={14} /> : <Facebook size={14} />} onClick={() => setMetaConnectOpen(true)}>
-          {messengerReady ? "Đổi Fanpage" : "Kết nối Facebook"}
+          {utilityReconnectRequired ? "Kết nối lại Fanpage" : messengerReady ? "Đổi Fanpage" : "Kết nối Facebook"}
         </Button>
         {messengerWorker && <a href={messengerWorker} target="_blank" rel="noreferrer" className="inline-flex min-h-9 items-center gap-2 rounded-input border border-neutral-300 px-3 text-xs font-bold text-neutral-700 hover:bg-neutral-50">Mở Worker <ExternalLink size={14} /></a>}
       </IntegrationCard>
@@ -96,6 +98,15 @@ export function IntegrationsWorkspace() {
         <Link to="?section=payment" className="inline-flex min-h-9 items-center rounded-input border border-neutral-300 px-3 text-xs font-bold text-neutral-700 hover:bg-neutral-50">Mở cấu hình thanh toán</Link>
       </IntegrationCard>
     </section>
+
+    {utilityReconnectRequired && (
+      <p role="alert" className="rounded-input border border-warning-200 bg-warning-50 px-4 py-3 text-sm font-semibold leading-6 text-warning-900">
+        {utilityPermission === "missing"
+          ? "Fanpage hiện tại chưa cấp quyền pages_utility_messaging."
+          : "Kết nối Fanpage này được tạo trước khi hệ thống kiểm tra quyền Utility Messaging."}{" "}
+        Chọn “Kết nối lại Fanpage”, chấp thuận quyền Utility Messaging trên Facebook và chỉ bật tính năng sau khi trạng thái chuyển thành “Đã cấp quyền”.
+      </p>
+    )}
 
     {messengerUnhealthy && (
       <p role="alert" className="rounded-input border border-danger-100 bg-danger-50 px-4 py-3 text-sm font-semibold text-danger-700">

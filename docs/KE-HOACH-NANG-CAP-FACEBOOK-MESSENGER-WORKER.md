@@ -137,10 +137,11 @@ Quyền yêu cầu trong dialog OAuth hiện tại:
 
 ```text
 pages_show_list, pages_manage_metadata, pages_messaging, pages_read_engagement,
-pages_utility_messaging
+pages_manage_posts, pages_utility_messaging
 ```
 
-Năm quyền này khớp đúng hồ sơ App Review đang chuẩn bị.
+Sáu quyền này khớp đúng các tính năng kết nối Page, Messenger, đăng Page và
+Utility trong hồ sơ App Review đang chuẩn bị.
 
 Cấu hình phải khai trong Meta App Dashboard:
 

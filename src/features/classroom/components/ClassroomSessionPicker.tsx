@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/feedback/EmptyState";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
 import { SearchInput } from "@/components/ui/SearchInput";
+import { FilterField, FilterSelect } from "@/components/ui/FilterToolbar";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { USER_ROLES } from "@/constants/roles";
 import { classDetailPath, classroomSessionPath } from "@/constants/routes";
@@ -125,19 +126,21 @@ export function ClassroomSessionPicker() {
         <div className="border-b border-neutral-100 p-5">
           <h2 className="text-xl font-bold text-neutral-900">Danh sách lớp học</h2>
           <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(220px,1fr)_190px]">
-            <div>
-              <label htmlFor="classroom-class-search" className="mb-1 block text-xs font-semibold text-neutral-600">Tìm kiếm</label>
+            <FilterField label="Tìm kiếm" htmlFor="classroom-class-search">
               <SearchInput id="classroom-class-search" value={search} onChange={setSearch} placeholder="Tên lớp, khóa học hoặc giáo viên" />
-            </div>
-            <label className="block">
-              <span className="mb-1 block text-xs font-semibold text-neutral-600">Trạng thái</span>
-              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as ClassStatus | "all")} className="min-h-touch w-full rounded-input border border-neutral-300 bg-white px-3 text-sm focus:border-primary-500">
-                <option value="all">Tất cả</option>
-                <option value="active">Đang hoạt động</option>
-                <option value="completed">Đã kết thúc</option>
-                <option value="cancelled">Đã hủy</option>
-              </select>
-            </label>
+            </FilterField>
+            <FilterSelect
+              id="classroom-status-filter"
+              label="Trạng thái"
+              value={statusFilter}
+              options={[
+                { value: "all", label: "Tất cả" },
+                { value: "active", label: "Đang hoạt động" },
+                { value: "completed", label: "Đã kết thúc" },
+                { value: "cancelled", label: "Đã hủy" },
+              ]}
+              onChange={(value) => setStatusFilter(value as ClassStatus | "all")}
+            />
           </div>
         </div>
 

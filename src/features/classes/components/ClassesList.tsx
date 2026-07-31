@@ -16,6 +16,7 @@ import { EmptyState } from "@/components/feedback/EmptyState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { StatCard } from "@/components/ui/StatCard";
 import { SearchInput } from "@/components/ui/SearchInput";
+import { FilterField, FilterSelect, FilterToolbar } from "@/components/ui/FilterToolbar";
 import { Pagination } from "@/components/ui/Pagination";
 import { DataListPanel, DATA_LIST_FOOTER, DATA_LIST_SCROLL_ALWAYS } from "@/components/ui/dataListLayout";
 import { usePagination } from "@/hooks/usePagination";
@@ -163,11 +164,8 @@ export function ClassesList({ onDelete, onEdit, canDelete = false, canEdit = fal
         />
       </div>
 
-      <div className="mb-3 flex flex-wrap items-end gap-3">
-        <div className="min-w-[220px] flex-1">
-          <label htmlFor="class-search" className="mb-1 block text-xs font-semibold text-neutral-500">
-            Tìm kiếm
-          </label>
+      <FilterToolbar label="Tìm kiếm và lọc lớp học">
+        <FilterField label="Tìm kiếm" htmlFor="class-search">
           <SearchInput
             id="class-search"
             value={search}
@@ -177,30 +175,18 @@ export function ClassesList({ onDelete, onEdit, canDelete = false, canEdit = fal
             }}
             placeholder="Tìm theo tên lớp hoặc khóa học"
           />
-        </div>
-        <div>
-          <p className="mb-1 text-xs font-semibold text-neutral-500">Trạng thái</p>
-          <div className="grid min-h-touch grid-cols-4 gap-1 rounded-input border border-neutral-300 bg-neutral-50 p-1">
-            {STATUS_FILTERS.map(({ value, label }) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => {
-                  setStatusFilter(value);
-                  setPage(1);
-                }}
-                className={`rounded-[7px] px-2 text-xs font-semibold transition ${
-                  statusFilter === value
-                    ? "bg-primary-500 text-white shadow-[0_4px_12px_rgba(51,102,240,.18)]"
-                    : "text-neutral-600 hover:bg-white hover:text-primary-700"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+        </FilterField>
+        <FilterSelect
+          id="class-status-filter"
+          label="Trạng thái"
+          value={statusFilter}
+          options={STATUS_FILTERS}
+          onChange={(value) => {
+            setStatusFilter(value as ClassStatus | "all");
+            setPage(1);
+          }}
+        />
+      </FilterToolbar>
 
       <DataListPanel className="rounded-card border border-neutral-200 bg-white">
         <div className="shrink-0 border-b border-neutral-200 px-4 py-4 sm:px-5">

@@ -62,7 +62,7 @@ describe("StudentForm partial-write handling", () => {
   });
 
   test("keeps the student and warns instead of throwing when parent link and enrollment both fail", async () => {
-    serviceMocks.linkParentToStudent.mockResolvedValue({ linked: false, reason: "not_found" });
+    serviceMocks.linkParentToStudent.mockRejectedValue(new Error("permission-denied"));
     serviceMocks.enrollStudent.mockRejectedValue(new Error("permission-denied"));
     const onDone = vi.fn();
     renderWithQueryClient(<StudentForm onDone={onDone} />);
@@ -72,12 +72,15 @@ describe("StudentForm partial-write handling", () => {
     submit();
 
     // (c) ca hai canh bao deu hien, khong phai chi canh bao phu huynh.
-    await screen.findByText(/không tìm thấy tài khoản theo email đã nhập/);
-    await screen.findByText(/ghi danh thất bại/);
+    await screen.findByText(/Chưa liên kết phụ huynh do lỗi ghi dữ liệu/);
+    await screen.findByText(/Chưa ghi danh do lỗi ghi dữ liệu/);
 
     // (a) mutation van thanh cong: hoc sinh da duoc tao, khong co loi do.
     expect(serviceMocks.createStudent).toHaveBeenCalledTimes(1);
+    expect(serviceMocks.enrollStudent).toHaveBeenCalledTimes(1);
     expect(screen.queryByText(/Không thể lưu học sinh/)).toBeNull();
+    expect(screen.getByText(/Hồ sơ đã được lưu an toàn/)).toBeTruthy();
+    expect(screen.getByText(/Vào Lớp học, mở lớp đã chọn và ghi danh học sinh/)).toBeTruthy();
 
     // Form giu nguyen de Admin doc canh bao, khong dong ngay.
     expect(onDone).not.toHaveBeenCalled();
