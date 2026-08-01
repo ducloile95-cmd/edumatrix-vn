@@ -11,7 +11,7 @@ import { EmptyState } from "@/components/feedback/EmptyState";
 import { StatCard } from "@/components/ui/StatCard";
 import { ChartPanel } from "@/components/charts/ChartPanel";
 import { ChartGradientDefs, CHART_DEPTH_FILTER, CHART_GRADIENT } from "@/components/charts/ChartGradientDefs";
-import { CHART_AXIS_TICK, CHART_NEUTRAL, CHART_SUCCESS, CHART_TOOLTIP_STYLE, CHART_WARNING } from "@/components/charts/chartTheme";
+import { CHART_ANIMATION_DURATION, CHART_AXIS_TICK, CHART_NEUTRAL, CHART_SUCCESS, CHART_TOOLTIP_STYLE, CHART_WARNING } from "@/components/charts/chartTheme";
 import type { CourseStatus } from "@/types/academic";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 
@@ -153,7 +153,7 @@ export function CatalogDashboard({ onCreateCourseForSubject }: CatalogDashboardP
                   <XAxis type="number" allowDecimals={false} hide />
                   <YAxis type="category" dataKey="status" width={90} tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} />
                   <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number) => [`${value} khóa học`, "Số lượng"]} />
-                  <Bar dataKey="count" filter={CHART_DEPTH_FILTER} radius={[0, 10, 10, 0]} barSize={18} isAnimationActive={!reducedMotion} animationDuration={280}>
+                  <Bar dataKey="count" filter={CHART_DEPTH_FILTER} radius={[0, 10, 10, 0]} barSize={18} isAnimationActive={!reducedMotion} animationDuration={CHART_ANIMATION_DURATION}>
                     {statusData.map((entry, index) => (
                       <Cell key={entry.status} fill={[CHART_GRADIENT.warning, CHART_GRADIENT.success, CHART_GRADIENT.neutral][index]} />
                     ))}
@@ -175,7 +175,7 @@ export function CatalogDashboard({ onCreateCourseForSubject }: CatalogDashboardP
                   <XAxis type="number" allowDecimals={false} hide />
                   <YAxis type="category" dataKey="name" width={90} tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} />
                   <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number) => [`${value} khóa học`, "Số lượng"]} />
-                  <Bar dataKey="count" fill={CHART_GRADIENT.primary} filter={CHART_DEPTH_FILTER} radius={[0, 10, 10, 0]} barSize={18} isAnimationActive={!reducedMotion} animationDuration={280} />
+                  <Bar dataKey="count" fill={CHART_GRADIENT.primary} filter={CHART_DEPTH_FILTER} radius={[0, 10, 10, 0]} barSize={18} isAnimationActive={!reducedMotion} animationDuration={CHART_ANIMATION_DURATION} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -195,7 +195,7 @@ export function CatalogDashboard({ onCreateCourseForSubject }: CatalogDashboardP
                   <XAxis dataKey="label" tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} />
                   <YAxis allowDecimals={false} tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} />
                   <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number) => [`${value} khóa học`, "Số lượng"]} />
-                  <Bar dataKey="count" fill={CHART_GRADIENT.primary} filter={CHART_DEPTH_FILTER} radius={[10, 10, 3, 3]} barSize={28} isAnimationActive={!reducedMotion} animationDuration={280} />
+                  <Bar dataKey="count" fill={CHART_GRADIENT.primary} filter={CHART_DEPTH_FILTER} radius={[10, 10, 3, 3]} barSize={28} isAnimationActive={!reducedMotion} animationDuration={CHART_ANIMATION_DURATION} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

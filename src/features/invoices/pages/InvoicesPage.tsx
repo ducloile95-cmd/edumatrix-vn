@@ -5,7 +5,7 @@ import { Bar, BarChart, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } fro
 import { CircleDollarSign, Clock3, Plus, ReceiptText, ShieldCheck, WalletCards } from "lucide-react";
 import { ChartEmpty, ChartPanel } from "@/components/charts/ChartPanel";
 import { ChartGradientDefs, CHART_DEPTH_FILTER, CHART_GRADIENT } from "@/components/charts/ChartGradientDefs";
-import { CHART_AXIS_TICK, CHART_TOOLTIP_STYLE } from "@/components/charts/chartTheme";
+import { CHART_ANIMATION_DURATION, CHART_AXIS_TICK, CHART_TOOLTIP_STYLE } from "@/components/charts/chartTheme";
 import { Button } from "@/components/ui/Button";
 import { DataListPanel, DATA_LIST_FOOTER, DATA_LIST_SCROLL } from "@/components/ui/dataListLayout";
 import { EmptyState } from "@/components/feedback/EmptyState";
@@ -231,8 +231,8 @@ export default function InvoicesPage() {
                       <YAxis tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} tickFormatter={(value: number) => formatAxisVnd(value)} />
                       <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number) => formatVnd(value)} />
                       <Legend />
-                      <Bar dataKey="duKien" name="Phải thu" fill={CHART_GRADIENT.primarySoft} filter={CHART_DEPTH_FILTER} radius={[9, 9, 2, 2]} isAnimationActive={!reducedMotion} animationDuration={280} />
-                      <Bar dataKey="thucThu" name="Đã thu" fill={CHART_GRADIENT.success} filter={CHART_DEPTH_FILTER} radius={[9, 9, 2, 2]} isAnimationActive={!reducedMotion} animationDuration={280} />
+                      <Bar dataKey="duKien" name="Phải thu" fill={CHART_GRADIENT.primarySoft} filter={CHART_DEPTH_FILTER} radius={[9, 9, 2, 2]} isAnimationActive={!reducedMotion} animationDuration={CHART_ANIMATION_DURATION} />
+                      <Bar dataKey="thucThu" name="Đã thu" fill={CHART_GRADIENT.success} filter={CHART_DEPTH_FILTER} radius={[9, 9, 2, 2]} isAnimationActive={!reducedMotion} animationDuration={CHART_ANIMATION_DURATION} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -248,7 +248,7 @@ export default function InvoicesPage() {
                       <XAxis type="number" allowDecimals={false} hide />
                       <YAxis type="category" dataKey="status" width={112} tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} />
                       <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number) => [`${value} hóa đơn`, "Số lượng"]} />
-                      <Bar dataKey="count" fill={CHART_GRADIENT.primary} filter={CHART_DEPTH_FILTER} radius={[0, 10, 10, 0]} barSize={18} isAnimationActive={!reducedMotion} animationDuration={280} />
+                      <Bar dataKey="count" fill={CHART_GRADIENT.primary} filter={CHART_DEPTH_FILTER} radius={[0, 10, 10, 0]} barSize={18} isAnimationActive={!reducedMotion} animationDuration={CHART_ANIMATION_DURATION} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>

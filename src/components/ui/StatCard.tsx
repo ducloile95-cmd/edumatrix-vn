@@ -24,7 +24,7 @@ interface StatCardProps {
 /** Thẻ KPI dùng chung cho hàng chỉ số đầu trang (Tổng quan, Lớp học, ...). */
 export function StatCard({ icon: Icon, tone, value, label, hint }: StatCardProps) {
   return (
-    <div className="rounded-card border border-neutral-200 bg-neutral-0 p-4">
+    <div className="motion-card rounded-card border border-neutral-200 bg-neutral-0 p-4">
       <span className={`mb-2 flex h-9 w-9 items-center justify-center rounded-input ${TONE_CHIP[tone]}`}>
         <Icon size={18} aria-hidden="true" />
       </span>

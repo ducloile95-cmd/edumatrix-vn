@@ -72,7 +72,7 @@ function Leaf({
       ? "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800"
       : "text-primary-700 hover:bg-primary-50 hover:text-primary-800";
   const label = (
-    <span className={`min-w-0 flex-1 truncate transition-opacity ${collapsed ? "lg:pointer-events-none lg:opacity-0" : "opacity-100"}`}>
+    <span className={`min-w-0 flex-1 truncate transition-opacity duration-fast ${collapsed ? "lg:pointer-events-none lg:opacity-0" : "opacity-100"}`}>
       {item.label}
     </span>
   );
@@ -151,8 +151,7 @@ function Group({
       </button>
 
       <div
-        className={`grid transition-[grid-template-rows] ease-out ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"} ${collapsed ? "lg:hidden" : ""}`}
-        style={{ transitionDuration: "var(--motion-duration)" }}
+        className={`grid transition-[grid-template-rows] duration-fast ease-out ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"} ${collapsed ? "lg:hidden" : ""}`}
       >
         <ul className="ml-[18px] mt-1 space-y-0.5 overflow-hidden border-l border-neutral-200 pl-2">
           {group.children.map((child) => (
@@ -242,12 +241,17 @@ export function Sidebar({ collapsed, mobileOpen, onClose, onToggle }: SidebarPro
 
   return (
     <>
-      {mobileOpen && <button className="fixed inset-0 z-30 bg-neutral-900/40 backdrop-blur-[2px] lg:hidden" aria-label="Đóng menu điều hướng" onClick={onClose} />}
+      <button
+        className={`fixed inset-0 z-30 bg-neutral-900/40 transition-opacity duration-standard lg:hidden ${mobileOpen ? "opacity-100 backdrop-blur-[2px]" : "pointer-events-none opacity-0"}`}
+        aria-label="Đóng menu điều hướng"
+        aria-hidden={!mobileOpen}
+        tabIndex={mobileOpen ? 0 : -1}
+        onClick={onClose}
+      />
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-[244px] -translate-x-full flex-col border-r border-neutral-200 bg-white transition-[transform,width] lg:sticky lg:top-0 lg:h-dvh lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-[244px] -translate-x-full flex-col border-r border-neutral-200 bg-white transition-transform duration-overlay lg:sticky lg:top-0 lg:h-dvh lg:translate-x-0 ${
           mobileOpen ? "translate-x-0" : ""
         } ${collapsed ? "lg:w-[76px]" : "lg:w-[244px]"}`}
-        style={{ transitionDuration: "var(--motion-duration)" }}
       >
         <div className="flex h-[72px] shrink-0 items-center justify-between px-4">
           <Logo className={`h-10 w-auto ${collapsed ? "lg:w-10 lg:object-cover lg:object-left" : ""}`} />
@@ -264,7 +268,7 @@ export function Sidebar({ collapsed, mobileOpen, onClose, onToggle }: SidebarPro
           </button>
         </div>
 
-        <div className={`px-4 pb-3 transition-opacity ${collapsed ? "lg:pointer-events-none lg:h-0 lg:overflow-hidden lg:px-2 lg:pb-0 lg:opacity-0" : "opacity-100"}`}>
+        <div className={`px-4 pb-3 transition-opacity duration-fast ${collapsed ? "lg:pointer-events-none lg:h-0 lg:overflow-hidden lg:px-2 lg:pb-0 lg:opacity-0" : "opacity-100"}`}>
           <label className="flex h-9 items-center gap-2 rounded-input border border-neutral-200 bg-neutral-50 px-2.5 text-neutral-500 shadow-[0_1px_2px_rgba(15,23,42,.04)] focus-within:border-primary-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-primary-100">
             <Search size={16} className="shrink-0" />
             <input
@@ -294,7 +298,7 @@ export function Sidebar({ collapsed, mobileOpen, onClose, onToggle }: SidebarPro
 
         <div ref={accountRef} className="relative p-3">
           {accountOpen && (
-            <div className="absolute inset-x-3 bottom-full mb-2 rounded-card border border-neutral-200 bg-white p-2 shadow-[var(--shadow-3)]">
+            <div className="motion-dropdown absolute inset-x-3 bottom-full mb-2 rounded-card border border-neutral-200 bg-white p-2 shadow-[var(--shadow-3)]">
               <button type="button" onClick={() => signOut(auth)} className="flex h-9 w-full items-center gap-2 rounded-input px-2.5 text-sm font-medium text-danger-700 transition hover:bg-danger-50">
                 <LogOut size={16} />
                 Đăng xuất
@@ -311,7 +315,7 @@ export function Sidebar({ collapsed, mobileOpen, onClose, onToggle }: SidebarPro
             <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-gradient-to-br from-primary-500 to-primary-700 text-xs font-semibold text-white shadow-[0_6px_16px_rgba(35,72,214,.18)]">
               {userDoc?.displayName?.trim().charAt(0).toUpperCase() || "E"}
             </span>
-            <span className={`min-w-0 flex-1 transition-opacity ${collapsed ? "lg:pointer-events-none lg:opacity-0" : "opacity-100"}`}>
+            <span className={`min-w-0 flex-1 transition-opacity duration-fast ${collapsed ? "lg:pointer-events-none lg:opacity-0" : "opacity-100"}`}>
               <span className="block truncate text-sm font-semibold text-neutral-900">{userDoc?.displayName ?? "Tài khoản"}</span>
               <span className="block truncate text-2xs text-neutral-500">{userDoc ? ROLE_LABELS[userDoc.role] : ""}</span>
             </span>

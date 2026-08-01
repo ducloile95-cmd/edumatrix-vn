@@ -13,7 +13,7 @@ const WELCOME_KEY = "edumatrix_welcomed";
 
 const labelCls = "mb-1.5 block text-xs font-semibold text-neutral-700";
 const fieldCls =
-  "flex items-center rounded-input border border-neutral-300 px-3 transition focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-100";
+  "flex items-center rounded-input border border-neutral-300 px-3 transition duration-fast focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-100";
 const inputCls = "h-12 w-full bg-transparent text-sm text-neutral-900 outline-none placeholder:text-neutral-400 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0";
 
 function GoogleIcon() {
@@ -101,7 +101,7 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-neutral-100 p-4 sm:p-6">
-      <div className="grid w-full max-w-5xl overflow-hidden rounded-modal border border-neutral-200 bg-neutral-0 shadow-[0_18px_50px_rgba(27,46,110,0.14)] lg:grid-cols-2">
+      <div className="login-card-enter grid w-full max-w-5xl overflow-hidden rounded-modal border border-neutral-200 bg-neutral-0 shadow-[0_18px_50px_rgba(27,46,110,0.14)] lg:grid-cols-2">
         {/* ===== FORM ===== */}
         <div className="flex flex-col p-7 sm:p-9">
           <Logo className="mx-auto h-20 w-auto" />
@@ -166,7 +166,7 @@ export default function LoginPage() {
             {error && <p role="alert" className="mt-4 rounded-input bg-danger-50 px-3 py-2 text-sm text-danger-700">{error}</p>}
             {notice && <p className="mt-4 rounded-input bg-success-50 px-3 py-2 text-sm text-success-700">{notice}</p>}
 
-            <button type="submit" disabled={busy} className="mt-5 flex h-12 w-full items-center justify-center rounded-input bg-primary-500 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(51,102,240,0.3)] transition hover:bg-primary-600 disabled:opacity-60">
+            <button type="submit" disabled={busy} className="mt-5 flex h-12 w-full items-center justify-center rounded-input bg-primary-500 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(51,102,240,0.3)] transition duration-fast hover:bg-primary-600 disabled:opacity-60">
               {busy ? "Đang xử lý..." : submitLabel}
             </button>
 
@@ -179,7 +179,7 @@ export default function LoginPage() {
                   type="button"
                   disabled={busy}
                   onClick={() => run(() => signInGoogle(remember))}
-                  className="flex h-11 w-full items-center justify-center gap-2.5 rounded-input border border-neutral-300 text-sm font-medium text-neutral-800 transition hover:bg-neutral-50 disabled:opacity-60"
+                  className="flex h-11 w-full items-center justify-center gap-2.5 rounded-input border border-neutral-300 text-sm font-medium text-neutral-800 transition duration-fast hover:bg-neutral-50 disabled:opacity-60"
                 >
                   <GoogleIcon />Đăng nhập bằng Google
                 </button>
@@ -224,8 +224,8 @@ export default function LoginPage() {
 
       {/* ===== WELCOME POPUP (lần đầu truy cập) ===== */}
       {!welcomed && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-primary-900/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-modal bg-neutral-0 p-6 text-center shadow-[0_24px_60px_rgba(10,20,60,0.35)]">
+        <div className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-primary-900/50 p-4 backdrop-blur-sm">
+          <div className="modal-panel w-full max-w-sm rounded-modal bg-neutral-0 p-6 text-center shadow-[0_24px_60px_rgba(10,20,60,0.35)]">
             <Logo className="mx-auto h-16 w-auto" />
             <h2 className="mt-3 text-lg font-bold text-primary-900">Chào mừng bạn đã truy cập EduMatrix</h2>
             <p className="mb-4 mt-1 text-sm text-neutral-500">Chọn vai trò để tiếp tục đăng nhập</p>

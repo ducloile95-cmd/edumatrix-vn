@@ -33,7 +33,7 @@ import { EmptyState } from "@/components/feedback/EmptyState";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
 import { ChartPanel } from "@/components/charts/ChartPanel";
-import { CHART_AXIS_TICK, CHART_PRIMARY, CHART_TOOLTIP_STYLE } from "@/components/charts/chartTheme";
+import { CHART_ANIMATION_DURATION, CHART_AXIS_TICK, CHART_PRIMARY, CHART_TOOLTIP_STYLE } from "@/components/charts/chartTheme";
 import { ROUTES } from "@/constants/routes";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { ViewerStudentSwitcher } from "@/features/students/components/ViewerStudentSwitcher";
@@ -302,7 +302,7 @@ export default function ViewerDashboardPage() {
                       <XAxis dataKey="name" tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} interval="preserveStartEnd" />
                       <YAxis domain={[0, 100]} tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} unit="%" />
                       <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number) => [`${value}%`, "Kết quả"]} />
-                      <Area type="monotone" dataKey="score" stroke={CHART_PRIMARY} strokeWidth={3} fill="url(#viewerScoreArea)" isAnimationActive={!reducedMotion} animationDuration={280} />
+                      <Area type="monotone" dataKey="score" stroke={CHART_PRIMARY} strokeWidth={3} fill="url(#viewerScoreArea)" isAnimationActive={!reducedMotion} animationDuration={CHART_ANIMATION_DURATION} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>

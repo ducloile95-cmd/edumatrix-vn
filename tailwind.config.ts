@@ -113,6 +113,18 @@ export default {
       minWidth: {
         touch: "44px",
       },
+      transitionDuration: {
+        DEFAULT: "var(--motion-standard)",
+        micro: "var(--motion-instant)",
+        fast: "var(--motion-fast)",
+        overlay: "var(--motion-emphasis)",
+        page: "var(--motion-slow)",
+        progress: "var(--motion-progress)",
+      },
+      animation: {
+        spin: "spin var(--motion-spinner) linear infinite",
+        pulse: "pulse var(--motion-pulse) cubic-bezier(.4, 0, .6, 1) infinite",
+      },
     },
   },
   plugins: [],

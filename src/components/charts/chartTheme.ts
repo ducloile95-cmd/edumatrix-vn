@@ -1,4 +1,5 @@
 export const CHART_GRID_COLOR = "#EEECEA";
+export const CHART_ANIMATION_DURATION = 600;
 export const CHART_AXIS_TICK = { fontSize: 10, fill: "#78746D" } as const;
 export const CHART_TOOLTIP_STYLE = {
   borderRadius: 12,

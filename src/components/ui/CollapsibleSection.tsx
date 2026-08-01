@@ -59,8 +59,7 @@ export function CollapsibleSection({
       </div>
 
       <div
-        className={`grid transition-[grid-template-rows] ease-out ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
-        style={{ transitionDuration: "var(--motion-duration)" }}
+        className={`grid transition-[grid-template-rows] duration-fast ease-out ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
       >
         <div className="overflow-hidden">
           <div className="pt-3">{children}</div>

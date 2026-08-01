@@ -3,15 +3,22 @@
 @tailwind utilities;
 
 :root {
-  --motion-instant: 80ms;
-  --motion-fast: 140ms;
-  --motion-standard: 200ms;
-  --motion-emphasis: 280ms;
-  --motion-slow: 360ms;
+  --motion-instant: 150ms;
+  --motion-fast: 200ms;
+  --motion-standard: 250ms;
+  --motion-emphasis: 300ms;
+  --motion-toast: 320ms;
+  --motion-slow: 400ms;
+  --motion-progress: 600ms;
+  --motion-spinner: 800ms;
+  --motion-typing: 1200ms;
+  --motion-pulse: 1600ms;
   --motion-duration: var(--motion-standard);
-  --ease-standard: cubic-bezier(.2, 0, 0, 1);
-  --ease-enter: cubic-bezier(.16, 1, .3, 1);
+  --ease-standard: cubic-bezier(.4, 0, .2, 1);
+  --ease-enter: cubic-bezier(0, 0, .2, 1);
   --ease-exit: cubic-bezier(.4, 0, 1, 1);
+  --ease-modal: cubic-bezier(.34, 1.56, .64, 1);
+  --ease-toast: cubic-bezier(.2, .9, .3, 1.2);
   --grad-page: radial-gradient(circle at 12% 5%, rgba(147, 180, 253, .24), transparent 30rem), radial-gradient(circle at 92% 18%, rgba(209, 250, 223, .3), transparent 28rem), #fafaf9;
   --shadow-1: 0 4px 18px rgba(28, 51, 137, .07);
   --shadow-2: 0 12px 32px rgba(28, 51, 137, .1);
@@ -49,16 +56,24 @@
 
 @layer components {
   .glass-panel { background: rgba(255, 255, 255, .74); backdrop-filter: blur(14px) saturate(150%); box-shadow: inset 0 1px rgba(255,255,255,.85); }
-  .icon-button { @apply min-h-touch min-w-touch items-center justify-center rounded-card text-neutral-600 hover:bg-white/80 hover:text-primary-700 active:scale-95; transition: color var(--motion-fast) var(--ease-standard), background-color var(--motion-fast) var(--ease-standard), transform var(--motion-instant) var(--ease-standard); }
-  .motion-control { transition: color var(--motion-fast) var(--ease-standard), background-color var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-standard) var(--ease-standard), transform var(--motion-instant) var(--ease-standard), opacity var(--motion-fast) var(--ease-standard); }
-  .route-enter { animation: route-enter var(--motion-standard) var(--ease-enter) both; backface-visibility: hidden; }
-  .page-enter, .motion-content-enter { animation: content-enter var(--motion-fast) var(--ease-enter) both; backface-visibility: hidden; }
+  .icon-button { @apply min-h-touch min-w-touch items-center justify-center rounded-card text-neutral-600 hover:bg-white/80 hover:text-primary-700 active:scale-95; transition: color var(--motion-standard) var(--ease-standard), background-color var(--motion-standard) var(--ease-standard), transform var(--motion-instant) var(--ease-standard); }
+  .icon-button:hover { transform: scale(1.05); }
+  .motion-control { transition: color var(--motion-standard) var(--ease-standard), background-color var(--motion-standard) var(--ease-standard), border-color var(--motion-standard) var(--ease-standard), box-shadow var(--motion-standard) var(--ease-standard), transform var(--motion-instant) var(--ease-standard), opacity var(--motion-standard) var(--ease-standard); }
+  button.motion-control:not(:disabled):hover { transform: translateY(-1px); }
+  .motion-card { transition: border-color var(--motion-standard) var(--ease-standard), box-shadow var(--motion-standard) var(--ease-standard), transform var(--motion-standard) var(--ease-standard); }
+  .motion-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); }
+  .login-card-enter { animation: content-enter var(--motion-standard) var(--ease-enter) both; backface-visibility: hidden; }
+  .route-enter { animation: route-enter var(--motion-slow) var(--ease-enter) both; backface-visibility: hidden; }
+  .page-enter, .motion-content-enter { animation: content-enter var(--motion-slow) var(--ease-enter) both; backface-visibility: hidden; }
   .motion-row { animation: row-enter var(--motion-fast) var(--ease-enter) both; }
-  .modal-backdrop { animation: backdrop-in var(--motion-fast) linear both; }
-  .modal-backdrop[data-state="closed"] { animation: backdrop-out var(--motion-fast) linear both; }
-  .modal-panel { animation: modal-in var(--motion-emphasis) var(--ease-enter) both; transform-origin: center; }
-  .modal-panel[data-state="closed"] { animation: modal-out var(--motion-fast) var(--ease-exit) both; }
-  .toast-lifecycle { animation: toast-lifecycle 3s var(--ease-enter) both; }
+  .motion-dropdown { animation: dropdown-in var(--motion-fast) ease both; transform-origin: top; }
+  .motion-progress { transition: width var(--motion-progress) ease; }
+  .modal-backdrop { animation: backdrop-in var(--motion-emphasis) ease both; }
+  .modal-backdrop[data-state="closed"] { animation: backdrop-out var(--motion-emphasis) ease both; }
+  .modal-panel { animation: modal-in var(--motion-emphasis) var(--ease-modal) both; transform-origin: center; }
+  .modal-panel[data-state="closed"] { animation: modal-out var(--motion-emphasis) var(--ease-standard) both; }
+  .toast-lifecycle { animation: toast-lifecycle 3200ms linear both; }
+  .toast-exit { animation: toast-out var(--motion-standard) var(--ease-exit) both; pointer-events: none; }
   .skeleton-shimmer { position: relative; overflow: hidden; background: linear-gradient(90deg, theme(colors.neutral.200) 25%, theme(colors.neutral.100) 50%, theme(colors.neutral.200) 75%); background-size: 220% 100%; animation: skeleton-shimmer 1.25s linear infinite; }
   .edumatrix-chart .recharts-cartesian-axis-tick-value { @apply fill-neutral-500 text-3xs; }
   .edumatrix-chart .recharts-legend-item-text { @apply text-xs text-neutral-600; }
@@ -91,23 +106,24 @@
 @layer utilities {
   /* Dense-but-readable data rows: consistent across every role and module. */
   main .divide-y > li { @apply py-2; }
-  main tbody > tr { animation: row-enter var(--motion-fast) var(--ease-enter) both; }
-  main tbody > tr:nth-child(2) { animation-delay: 18ms; }
-  main tbody > tr:nth-child(3) { animation-delay: 36ms; }
-  main tbody > tr:nth-child(4) { animation-delay: 54ms; }
-  main tbody > tr:nth-child(n+5) { animation-delay: 70ms; }
 }
 @supports not (backdrop-filter: blur(1px)) { .glass-panel { background: rgba(255,255,255,.96); } }
 @keyframes route-enter { from { opacity: 0; transform: translate3d(0, 8px, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }
-@keyframes content-enter { from { opacity: 0; transform: translate3d(0, 5px, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }
+@keyframes content-enter { from { opacity: 0; transform: translate3d(0, 8px, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }
 @keyframes row-enter { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes dropdown-in { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes backdrop-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes backdrop-out { from { opacity: 1; } to { opacity: 0; } }
-@keyframes modal-in { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
-@keyframes modal-out { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(5px) scale(.99); } }
-@keyframes modal-sheet-in { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes modal-sheet-out { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(16px); } }
-@keyframes toast-lifecycle { 0% { opacity: 0; transform: translateY(-18px); } 8%, 88% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-8px); } }
+@keyframes modal-in { from { opacity: 0; transform: translateY(30px) scale(.9); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes modal-out { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(30px) scale(.9); } }
+@keyframes modal-sheet-in { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes modal-sheet-out { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(30px); } }
+@keyframes toast-lifecycle {
+  0% { opacity: 0; transform: translateY(-18px); animation-timing-function: var(--ease-toast); }
+  10%, 92% { opacity: 1; transform: translateY(0); animation-timing-function: var(--ease-standard); }
+  100% { opacity: 0; transform: translateY(-8px); }
+}
+@keyframes toast-out { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-8px); } }
 @keyframes skeleton-shimmer { from { background-position: 100% 0; } to { background-position: -120% 0; } }
 
 @media (max-width: 639px) {
@@ -122,10 +138,13 @@
  */
 .page-view { view-transition-name: page; }
 ::view-transition-old(page) { animation: content-exit var(--motion-fast) var(--ease-exit) both; }
-::view-transition-new(page) { animation: content-enter var(--motion-standard) var(--ease-enter) both; }
+::view-transition-new(page) { animation: content-enter var(--motion-slow) var(--ease-enter) both; }
 @keyframes content-exit { from { opacity: 1; } to { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  .login-card-enter, .route-enter, .page-enter, .motion-content-enter, .motion-row, .motion-dropdown,
+  .modal-panel, .modal-panel[data-state="closed"], .toast-lifecycle, .toast-exit { animation: none !important; transform: none !important; }
+  .motion-card:hover, .icon-button:hover, button.motion-control:not(:disabled):hover { transform: none !important; }
   ::view-transition-old(page), ::view-transition-new(page) { animation: none !important; }
 }
 

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { AlertCircle, CheckCircle2, Info, X } from "lucide-react";
 import { ToastContext, type ToastInput, type ToastTone } from "@/components/feedback/toastContext";
@@ -7,22 +7,43 @@ interface ToastItem extends ToastInput {
   id: number;
   duration: number;
   tone: ToastTone;
+  closing?: boolean;
 }
+
+const DEFAULT_TOAST_DURATION_MS = 3200;
+const TOAST_EXIT_MS = 250;
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<ToastItem[]>([]);
   const nextId = useRef(0);
+  const timers = useRef(new Map<number, number>());
 
   const dismiss = useCallback((id: number) => {
-    setItems((current) => current.filter((item) => item.id !== id));
+    const activeTimer = timers.current.get(id);
+    if (activeTimer !== undefined) window.clearTimeout(activeTimer);
+    setItems((current) => current.map((item) => item.id === id ? { ...item, closing: true } : item));
+    const exitTimer = window.setTimeout(() => {
+      timers.current.delete(id);
+      setItems((current) => current.filter((item) => item.id !== id));
+    }, TOAST_EXIT_MS);
+    timers.current.set(id, exitTimer);
   }, []);
 
   const showToast = useCallback((input: ToastInput) => {
     const id = nextId.current += 1;
-    const duration = input.duration ?? 3000;
+    const duration = input.duration ?? DEFAULT_TOAST_DURATION_MS;
     setItems((current) => [...current, { ...input, id, duration, tone: input.tone ?? "info" }]);
-    window.setTimeout(() => dismiss(id), duration);
-  }, [dismiss]);
+    const timer = window.setTimeout(() => {
+      timers.current.delete(id);
+      setItems((current) => current.filter((item) => item.id !== id));
+    }, duration);
+    timers.current.set(id, timer);
+  }, []);
+
+  useEffect(() => () => {
+    timers.current.forEach((timer) => window.clearTimeout(timer));
+    timers.current.clear();
+  }, []);
 
   const value = useMemo(() => ({ showToast }), [showToast]);
 
@@ -42,8 +63,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               <div
                 key={item.id}
                 role={item.tone === "error" ? "alert" : "status"}
-                className={`toast-lifecycle pointer-events-auto flex w-full max-w-md items-start gap-3 rounded-card border bg-white px-4 py-3 shadow-[var(--shadow-3)] ${toneClass}`}
-                style={{ animationDuration: `${item.duration}ms` }}
+                className={`${item.closing ? "toast-exit" : "toast-lifecycle"} pointer-events-auto flex w-full max-w-md items-start gap-3 rounded-card border bg-white px-4 py-3 shadow-[var(--shadow-3)] ${toneClass}`}
+                style={{ animationDuration: `${item.closing ? TOAST_EXIT_MS : item.duration}ms` }}
               >
                 <Icon className="mt-0.5 shrink-0" size={19} strokeWidth={2} aria-hidden="true" />
                 <div className="min-w-0 flex-1">

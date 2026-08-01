@@ -14,6 +14,7 @@ interface ModalProps {
 }
 
 const sizes = { sm: "max-w-md", md: "max-w-2xl", lg: "max-w-[960px]", xl: "max-w-[1320px]", "2xl": "max-w-[1920px]" };
+const MODAL_EXIT_MS = 300;
 
 export function Modal({ open, title, description, children, onClose, size = "md", bodyClassName }: ModalProps) {
   const titleId = useId(); const descriptionId = useId(); const panelRef = useRef<HTMLDivElement>(null); const previousFocus = useRef<HTMLElement | null>(null); const onCloseRef = useRef(onClose);
@@ -29,7 +30,7 @@ export function Modal({ open, title, description, children, onClose, size = "md"
       return;
     }
     if (!mounted) return;
-    const timer = window.setTimeout(() => setMounted(false), 140);
+    const timer = window.setTimeout(() => setMounted(false), MODAL_EXIT_MS);
     return () => window.clearTimeout(timer);
   }, [mounted, open]);
 

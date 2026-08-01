@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { useState } from "react";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { Modal } from "@/components/ui/Modal";
 
@@ -26,6 +26,7 @@ function ModalHarness() {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
@@ -78,5 +79,27 @@ describe("Modal", () => {
     closeButton.focus();
     fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
     expect(saveButton).toBe(document.activeElement);
+  });
+
+  test("keeps the dialog mounted for the 300ms exit animation", () => {
+    vi.useFakeTimers();
+    const { rerender } = render(
+      <Modal open onClose={() => undefined} title="Chi tiết">
+        Nội dung
+      </Modal>,
+    );
+
+    rerender(
+      <Modal open={false} onClose={() => undefined} title="Chi tiết">
+        Nội dung
+      </Modal>,
+    );
+    expect(screen.queryByRole("dialog", { name: "Chi tiết" })).not.toBeNull();
+
+    act(() => vi.advanceTimersByTime(299));
+    expect(screen.queryByRole("dialog", { name: "Chi tiết" })).not.toBeNull();
+
+    act(() => vi.advanceTimersByTime(1));
+    expect(screen.queryByRole("dialog", { name: "Chi tiết" })).toBeNull();
   });
 });

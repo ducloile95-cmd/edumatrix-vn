@@ -1,7 +1,7 @@
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ChartPanel } from "@/components/charts/ChartPanel";
 import { ChartGradientDefs, CHART_DEPTH_FILTER, CHART_GLOW_FILTER, CHART_GRADIENT } from "@/components/charts/ChartGradientDefs";
-import { CHART_AXIS_TICK, CHART_GRID_COLOR, CHART_PRIMARY, CHART_TOOLTIP_STYLE } from "@/components/charts/chartTheme";
+import { CHART_ANIMATION_DURATION, CHART_AXIS_TICK, CHART_GRID_COLOR, CHART_PRIMARY, CHART_TOOLTIP_STYLE } from "@/components/charts/chartTheme";
 import type { DashboardLearningData } from "@/services/firestore/staffDashboard";
 
 interface QualityChartsProps {
@@ -25,7 +25,7 @@ export default function QualityCharts({ days, attendanceTrend, rankDistribution,
               <XAxis dataKey="date" tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} minTickGap={22} />
               <YAxis domain={[0, 100]} unit="%" tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} />
               <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number) => [`${value}%`, "Có mặt"]} />
-              <Area type="monotone" dataKey="rate" stroke={CHART_GRADIENT.primary} strokeWidth={4} fill={CHART_GRADIENT.area} filter={CHART_GLOW_FILTER} activeDot={{ r: 6, fill: "#fff", stroke: CHART_PRIMARY, strokeWidth: 3 }} isAnimationActive={!reducedMotion} animationDuration={280} />
+              <Area type="monotone" dataKey="rate" stroke={CHART_GRADIENT.primary} strokeWidth={4} fill={CHART_GRADIENT.area} filter={CHART_GLOW_FILTER} activeDot={{ r: 6, fill: "#fff", stroke: CHART_PRIMARY, strokeWidth: 3 }} isAnimationActive={!reducedMotion} animationDuration={CHART_ANIMATION_DURATION} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -39,7 +39,7 @@ export default function QualityCharts({ days, attendanceTrend, rankDistribution,
               <XAxis dataKey="rank" tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} />
               <YAxis allowDecimals={false} tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} />
               <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number) => [`${value} học sinh`, "Số lượng"]} />
-              <Bar dataKey="count" fill={CHART_GRADIENT.primarySoft} filter={CHART_DEPTH_FILTER} radius={[10, 10, 3, 3]} barSize={32} isAnimationActive={!reducedMotion} animationDuration={280} />
+              <Bar dataKey="count" fill={CHART_GRADIENT.primarySoft} filter={CHART_DEPTH_FILTER} radius={[10, 10, 3, 3]} barSize={32} isAnimationActive={!reducedMotion} animationDuration={CHART_ANIMATION_DURATION} />
             </BarChart>
           </ResponsiveContainer>
         </div>

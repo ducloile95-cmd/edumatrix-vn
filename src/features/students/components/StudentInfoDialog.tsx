@@ -375,13 +375,13 @@ export function StudentInfoDialog({ canManageLinks, onClose, open, student }: St
               aria-checked={isActive}
               disabled={statusMutation.isPending}
               onClick={toggleStatus}
-              className={`relative h-9 w-[68px] rounded-full p-1 transition-colors duration-300 disabled:cursor-not-allowed disabled:opacity-60 ${
+              className={`relative h-9 w-[68px] rounded-full p-1 transition-colors duration-fast disabled:cursor-not-allowed disabled:opacity-60 ${
                 isActive ? "bg-success-500" : "bg-neutral-400"
               }`}
             >
               <span
-                className={`absolute top-1 grid size-7 place-items-center rounded-full bg-white text-3xs font-bold shadow-[0_3px_10px_rgba(28,51,137,.22)] transition-all duration-300 ${
-                  isActive ? "left-9 text-success-700" : "left-1 text-neutral-500"
+                className={`absolute left-1 top-1 grid size-7 place-items-center rounded-full bg-white text-3xs font-bold shadow-[0_3px_10px_rgba(28,51,137,.22)] transition-[color,box-shadow,transform] duration-fast ${
+                  isActive ? "translate-x-8 text-success-700" : "text-neutral-500"
                 }`}
               >
                 {isActive ? "ON" : "OFF"}
