@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-const { getCurrentUserDoc, isAdminUser, runTransaction, transactionGet, transactionUpdate } = vi.hoisted(() => ({
+const { getCurrentUserDoc, getDoc, isAdminUser, runTransaction, transactionGet, transactionUpdate } = vi.hoisted(() => ({
   getCurrentUserDoc: vi.fn(),
+  getDoc: vi.fn(),
   isAdminUser: vi.fn(),
   runTransaction: vi.fn(),
   transactionGet: vi.fn(),
@@ -13,7 +14,7 @@ vi.mock("firebase/firestore", () => ({
   addDoc: vi.fn(),
   collection: vi.fn((_db, name: string) => name),
   doc: vi.fn((_db, name: string, id?: string) => id ? `${name}/${id}` : `${name}/new`),
-  getDoc: vi.fn(),
+  getDoc,
   getDocs: vi.fn(),
   limit: vi.fn(),
   orderBy: vi.fn(),
@@ -30,7 +31,7 @@ vi.mock("@/services/firestore/authz", () => ({
   isTeacherUser: vi.fn(),
 }));
 
-import { updateClass } from "@/services/firestore/classes";
+import { listAccessibleClassesByIds, updateClass } from "@/services/firestore/classes";
 
 const input = {
   name: "Class 1",
@@ -95,5 +96,25 @@ describe("updateClass teacher assignment", () => {
 
     expect(transactionGet).toHaveBeenCalledTimes(1);
     expect(transactionUpdate).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("listAccessibleClassesByIds", () => {
+  beforeEach(() => getDoc.mockReset());
+
+  test("keeps readable classes and ignores a stale viewer class link", async () => {
+    getDoc.mockImplementation(async (ref: string) => {
+      if (ref === "classes/class-stale") {
+        throw Object.assign(new Error("stale class link"), { code: "permission-denied" });
+      }
+      return {
+        id: "class-active",
+        exists: () => true,
+        data: () => ({ name: "Class active" }),
+      };
+    });
+
+    await expect(listAccessibleClassesByIds(["class-active", "class-stale"]))
+      .resolves.toEqual([{ id: "class-active", name: "Class active" }]);
   });
 });

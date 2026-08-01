@@ -10,7 +10,7 @@ import { SUBMISSION_STATUS_LABEL, SUBMISSION_STATUS_TONE } from "@/features/assi
 import { ViewerStudentSwitcher } from "@/features/students/components/ViewerStudentSwitcher";
 import { useViewerStudentSelection } from "@/features/students/hooks/useViewerStudentSelection";
 import { getStudent } from "@/services/firestore/students";
-import { getClass } from "@/services/firestore/classes";
+import { listAccessibleClassesByIds } from "@/services/firestore/classes";
 import { listAssignmentsByClass, listSubmissionsByStudents } from "@/services/firestore/assignments";
 import type { AssignmentDoc, SubmissionDoc } from "@/types/academic";
 
@@ -47,8 +47,14 @@ export default function ViewerAssignmentsPage() {
   const selectedStudent = students.find((student) => student.id === selectedStudentId) ?? students[0];
   const activeStudentId = selectedStudent?.id ?? "";
   const classIds = selectedStudent?.currentClassIds ?? [];
-  const classQueries = useQueries({ queries: classIds.map((id) => ({ queryKey: ["class", id], queryFn: () => getClass(id) })) });
-  const assignmentQueries = useQueries({ queries: classIds.map((id) => ({ queryKey: ["viewer-assignments", id], queryFn: () => listAssignmentsByClass(id) })) });
+  const classes = useQuery({
+    queryKey: ["viewer-classes", classIds],
+    queryFn: () => listAccessibleClassesByIds(classIds),
+    enabled: !!selectedStudent,
+  });
+  const accessibleClasses = useMemo(() => classes.data ?? [], [classes.data]);
+  const accessibleClassIds = accessibleClasses.map((klass) => klass.id);
+  const assignmentQueries = useQueries({ queries: accessibleClassIds.map((id) => ({ queryKey: ["viewer-assignments", id], queryFn: () => listAssignmentsByClass(id) })) });
   const submissions = useQuery({
     queryKey: ["viewer-submissions", activeStudentId],
     queryFn: () => listSubmissionsByStudents([activeStudentId]),
@@ -64,7 +70,7 @@ export default function ViewerAssignmentsPage() {
   const rows = useMemo(() => assignments.map((assignment) => ({
     assignment,
     submission: submissions.data?.find((item) => item.assignmentId === assignment.id),
-    className: classQueries.find((query) => query.data?.id === assignment.classId)?.data?.name ?? "Lớp học",
+    className: accessibleClasses.find((klass) => klass.id === assignment.classId)?.name ?? "Lớp học",
   })).sort((left, right) => {
     const leftState = assignmentFilter(left.submission);
     const rightState = assignmentFilter(right.submission);
@@ -72,7 +78,7 @@ export default function ViewerAssignmentsPage() {
     if (priorityDifference !== 0) return priorityDifference;
     const dueDifference = left.assignment.dueAt.toMillis() - right.assignment.dueAt.toMillis();
     return leftState === "todo" ? dueDifference : -dueDifference;
-  }), [assignments, classQueries, submissions.data]);
+  }), [accessibleClasses, assignments, submissions.data]);
 
   const counts = useMemo(() => ({
     all: rows.length,
@@ -87,17 +93,17 @@ export default function ViewerAssignmentsPage() {
   const visibleRows = filter === "all" ? rows : rows.filter((row) => assignmentFilter(row.submission) === filter);
 
   const isLoading = studentQueries.some((query) => query.isLoading)
-    || classQueries.some((query) => query.isLoading)
+    || classes.isLoading
     || assignmentQueries.some((query) => query.isLoading)
     || submissions.isLoading;
   const firstError = studentQueries.find((query) => query.error)?.error
-    ?? classQueries.find((query) => query.error)?.error
+    ?? classes.error
     ?? assignmentQueries.find((query) => query.error)?.error
     ?? submissions.error;
 
   const retry = () => {
     studentQueries.forEach((query) => query.refetch());
-    classQueries.forEach((query) => query.refetch());
+    classes.refetch();
     assignmentQueries.forEach((query) => query.refetch());
     submissions.refetch();
   };
@@ -128,7 +134,11 @@ export default function ViewerAssignmentsPage() {
             <span className="hidden shrink-0 rounded-input border border-primary-200 bg-primary-50 px-3 py-2 text-xs font-bold text-primary-700 sm:inline-block">Chỉ theo dõi</span>
           </header>
 
-          <section className="grid grid-cols-2 overflow-hidden rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)] lg:grid-cols-4" aria-label="Tổng quan bài tập">
+          {accessibleClasses.length === 0 ? (
+            <EmptyState title="Chưa được phân lớp" description="Hồ sơ học sinh vẫn được lưu. Bài tập sẽ hiển thị sau khi học sinh được phân vào lớp." />
+          ) : (
+            <>
+              <section className="grid grid-cols-2 overflow-hidden rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)] lg:grid-cols-4" aria-label="Tổng quan bài tập">
             <SummaryCell label="Tổng bài được giao" value={counts.all} hint="Trong kỳ học hiện tại" />
             <SummaryCell label="Cần hoàn thành" value={counts.todo} hint={counts.todo > 0 ? "Cần phụ huynh theo dõi" : "Không có bài tồn"} />
             <SummaryCell label="Đã nộp" value={counts.submitted} hint="Đang chờ đánh giá" />
@@ -147,7 +157,9 @@ export default function ViewerAssignmentsPage() {
             </section>
           )}
 
-          <FilterTabs filter={filter} counts={counts} onChange={setFilter} className="fixed inset-x-0 z-30 grid grid-cols-4 border-t border-neutral-200 bg-white/95 px-2 py-2 shadow-[0_-10px_30px_rgba(37,61,124,.1)] backdrop-blur-md [bottom:calc(60px+env(safe-area-inset-bottom))] sm:hidden" mobile />
+              <FilterTabs filter={filter} counts={counts} onChange={setFilter} className="fixed inset-x-0 z-30 grid grid-cols-4 border-t border-neutral-200 bg-white/95 px-2 py-2 shadow-[0_-10px_30px_rgba(37,61,124,.1)] backdrop-blur-md [bottom:calc(60px+env(safe-area-inset-bottom))] sm:hidden" mobile />
+            </>
+          )}
         </div>
       )}
     </>

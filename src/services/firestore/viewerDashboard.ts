@@ -7,7 +7,7 @@ import { listPublicLessonPlansByClass } from "@/services/firestore/lessonPlans";
 import { listScoresByStudent } from "@/services/firestore/scores";
 import { listSessionsByClass } from "@/services/firestore/sessions";
 import { getStudent } from "@/services/firestore/students";
-import { getClass } from "@/services/firestore/classes";
+import { listAccessibleClassesByIds } from "@/services/firestore/classes";
 import { getCourse } from "@/services/firestore/courses";
 import type {
   AnnouncementDoc,
@@ -55,10 +55,9 @@ const DASHBOARD_LIMITS = {
 export async function buildViewerDashboard(studentIds: string[]): Promise<ViewerDashboardData> {
   const studentResults = await Promise.all(studentIds.map(getStudent));
   const students = studentResults.filter((student): student is NonNullable<typeof student> => !!student);
-  const classIds = [...new Set(students.flatMap((student) => student.currentClassIds ?? []))];
-
-  const classResults = await Promise.all(classIds.map(getClass));
-  const classes = classResults.filter((klass): klass is NonNullable<typeof klass> => !!klass);
+  const requestedClassIds = [...new Set(students.flatMap((student) => student.currentClassIds ?? []))];
+  const classes = await listAccessibleClassesByIds(requestedClassIds);
+  const classIds = classes.map((klass) => klass.id);
 
   // Chỉ đọc đúng những khóa học mà lớp của học sinh tham chiếu tới. Trước đây
   // đây là listCourses() đọc toàn bộ collection, trong khi nơi tiêu thụ duy nhất

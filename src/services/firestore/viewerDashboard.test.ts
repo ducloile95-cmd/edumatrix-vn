@@ -3,7 +3,7 @@ import { buildViewerDashboard } from "@/services/firestore/viewerDashboard";
 
 const serviceMocks = vi.hoisted(() => ({
   getStudent: vi.fn(),
-  getClass: vi.fn(),
+  listAccessibleClassesByIds: vi.fn(),
   getCourse: vi.fn(),
   listSessionsByClass: vi.fn(),
   listPublicLessonPlansByClass: vi.fn(),
@@ -16,7 +16,7 @@ const serviceMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/services/firestore/students", () => ({ getStudent: serviceMocks.getStudent }));
-vi.mock("@/services/firestore/classes", () => ({ getClass: serviceMocks.getClass }));
+vi.mock("@/services/firestore/classes", () => ({ listAccessibleClassesByIds: serviceMocks.listAccessibleClassesByIds }));
 vi.mock("@/services/firestore/courses", () => ({ getCourse: serviceMocks.getCourse }));
 vi.mock("@/services/firestore/sessions", () => ({ listSessionsByClass: serviceMocks.listSessionsByClass }));
 vi.mock("@/services/firestore/lessonPlans", () => ({ listPublicLessonPlansByClass: serviceMocks.listPublicLessonPlansByClass }));
@@ -40,7 +40,7 @@ function primeMocks() {
     id,
     currentClassIds: ["class-1", "class-2", "class-3", "class-missing"],
   }));
-  serviceMocks.getClass.mockImplementation(async (id: string) => CLASSES[id] ?? null);
+  serviceMocks.listAccessibleClassesByIds.mockResolvedValue(Object.values(CLASSES));
   serviceMocks.getCourse.mockImplementation(async (id: string) => ({ id, name: `Khoa ${id}` }));
   serviceMocks.listSessionsByClass.mockResolvedValue([]);
   serviceMocks.listPublicLessonPlansByClass.mockResolvedValue([]);
@@ -67,12 +67,35 @@ describe("buildViewerDashboard course reads", () => {
     expect(dashboard.courses.map((course) => course.id).sort()).toEqual(["course-1", "course-2"]);
   });
 
-  test("skips classes that no longer exist instead of reading an undefined course", async () => {
+  test("uses only accessible classes for downstream viewer queries", async () => {
     primeMocks();
 
     await buildViewerDashboard(["student-1"]);
 
-    // "class-missing" tra ve null => khong duoc sinh ra loi goi getCourse(undefined).
+    expect(serviceMocks.listAccessibleClassesByIds).toHaveBeenCalledWith([
+      "class-1",
+      "class-2",
+      "class-3",
+      "class-missing",
+    ]);
     expect(serviceMocks.getCourse).not.toHaveBeenCalledWith(undefined);
+    expect(serviceMocks.listSessionsByClass).not.toHaveBeenCalledWith(
+      "class-missing",
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+    );
+  });
+
+  test("still returns student-level data when the student has no accessible class", async () => {
+    primeMocks();
+    serviceMocks.listAccessibleClassesByIds.mockResolvedValue([]);
+
+    const dashboard = await buildViewerDashboard(["student-1"]);
+
+    expect(dashboard.students).toHaveLength(1);
+    expect(dashboard.classes).toEqual([]);
+    expect(serviceMocks.listAttendanceByStudents).toHaveBeenCalledWith(["student-1"], 50);
+    expect(serviceMocks.listSessionsByClass).not.toHaveBeenCalled();
   });
 });

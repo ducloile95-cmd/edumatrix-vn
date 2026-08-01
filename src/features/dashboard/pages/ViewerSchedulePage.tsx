@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useQueries } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { addDays, addWeeks, endOfWeek, format, isSameDay, startOfWeek, subDays } from "date-fns";
 import { vi } from "date-fns/locale";
 import { BookOpen, CalendarDays, ChevronLeft, ChevronRight, Clock3, MapPin } from "lucide-react";
@@ -12,7 +12,7 @@ import { SessionDetailModal } from "@/features/sessions/components/SessionDetail
 import type { TimetableSession } from "@/features/sessions/components/TimetableGrid";
 import { ViewerStudentSwitcher } from "@/features/students/components/ViewerStudentSwitcher";
 import { useViewerStudentSelection } from "@/features/students/hooks/useViewerStudentSelection";
-import { getClass } from "@/services/firestore/classes";
+import { listAccessibleClassesByIds } from "@/services/firestore/classes";
 import { listSessionsByClass } from "@/services/firestore/sessions";
 import { getStudent } from "@/services/firestore/students";
 import type { SessionStatus } from "@/types/academic";
@@ -46,18 +46,22 @@ export default function ViewerSchedulePage() {
   const selectedStudent = students.find((student) => student.id === selectedStudentId) ?? students[0];
   const classIds = useMemo(() => selectedStudent?.currentClassIds ?? [], [selectedStudent]);
 
-  const classQueries = useQueries({
-    queries: classIds.map((id) => ({ queryKey: ["viewer-class", id], queryFn: () => getClass(id) })),
+  const classes = useQuery({
+    queryKey: ["viewer-classes", classIds],
+    queryFn: () => listAccessibleClassesByIds(classIds),
+    enabled: !!selectedStudent,
   });
+  const accessibleClasses = useMemo(() => classes.data ?? [], [classes.data]);
+  const accessibleClassIds = accessibleClasses.map((klass) => klass.id);
   const classById = useMemo(
-    () => new Map(classQueries.map((query, index) => [classIds[index], query.data])),
-    [classIds, classQueries],
+    () => new Map(accessibleClasses.map((klass) => [klass.id, klass])),
+    [accessibleClasses],
   );
 
   const windowFrom = useMemo(() => subDays(today, WINDOW_PAST_DAYS), [today]);
   const windowTo = useMemo(() => addDays(today, WINDOW_FUTURE_DAYS), [today]);
   const sessionQueries = useQueries({
-    queries: classIds.map((id) => ({
+    queries: accessibleClassIds.map((id) => ({
       queryKey: ["viewer-sessions", id],
       queryFn: () => listSessionsByClass(id, windowFrom, windowTo),
     })),
@@ -96,15 +100,15 @@ export default function ViewerSchedulePage() {
   );
 
   const isLoading = studentQueries.some((query) => query.isLoading)
-    || classQueries.some((query) => query.isLoading)
+    || classes.isLoading
     || sessionQueries.some((query) => query.isLoading);
   const firstError = studentQueries.find((query) => query.error)?.error
-    ?? classQueries.find((query) => query.error)?.error
+    ?? classes.error
     ?? sessionQueries.find((query) => query.error)?.error;
 
   const retry = () => {
     studentQueries.forEach((query) => query.refetch());
-    classQueries.forEach((query) => query.refetch());
+    classes.refetch();
     sessionQueries.forEach((query) => query.refetch());
   };
 
@@ -153,11 +157,15 @@ export default function ViewerSchedulePage() {
             <p className="mt-1.5 text-sm text-neutral-500">Theo dõi buổi học và các thay đổi quan trọng trong tuần.</p>
           </header>
 
-          <div className="lg:hidden">
-            <NextSessionCard session={nextSession} onOpen={setSelectedSession} />
-          </div>
+          {accessibleClasses.length === 0 ? (
+            <EmptyState title="Chưa được phân lớp" description="Hồ sơ học sinh vẫn được lưu. Lịch học sẽ hiển thị sau khi học sinh được phân vào lớp." />
+          ) : (
+            <>
+              <div className="lg:hidden">
+                <NextSessionCard session={nextSession} onOpen={setSelectedSession} />
+              </div>
 
-          <section className="overflow-hidden rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)]">
+              <section className="overflow-hidden rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)]">
             <WeekNavigator
               days={days}
               sessions={weekSessions}
@@ -246,7 +254,9 @@ export default function ViewerSchedulePage() {
                 </div>
               </aside>
             </div>
-          </section>
+              </section>
+            </>
+          )}
         </div>
       )}
 

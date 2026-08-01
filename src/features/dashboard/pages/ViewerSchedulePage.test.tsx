@@ -6,7 +6,7 @@ import ViewerSchedulePage from "@/features/dashboard/pages/ViewerSchedulePage";
 import { renderWithQueryClient } from "@/test/renderWithQueryClient";
 
 const serviceMocks = vi.hoisted(() => ({
-  getClass: vi.fn(),
+  listAccessibleClassesByIds: vi.fn(),
   getStudent: vi.fn(),
   listSessionsByClass: vi.fn(),
 }));
@@ -20,7 +20,7 @@ vi.mock("@/services/firestore/students", () => ({
 }));
 
 vi.mock("@/services/firestore/classes", () => ({
-  getClass: serviceMocks.getClass,
+  listAccessibleClassesByIds: serviceMocks.listAccessibleClassesByIds,
 }));
 
 vi.mock("@/services/firestore/sessions", () => ({
@@ -61,10 +61,10 @@ beforeEach(() => {
       ? { id: "student-1", fullName: "Nguyễn An", studentCode: "HS001", currentClassIds: ["class-1"] }
       : { id: "student-2", fullName: "Trần Bình", studentCode: "HS002", currentClassIds: ["class-2"] }
   ));
-  serviceMocks.getClass.mockImplementation(async (classId: string) => ({
+  serviceMocks.listAccessibleClassesByIds.mockImplementation(async (classIds: string[]) => classIds.map((classId) => ({
     id: classId,
     name: classId === "class-1" ? "Lớp Toán A" : "Lớp Anh B",
-  }));
+  })));
   serviceMocks.listSessionsByClass.mockImplementation(async (classId: string) => (
     classId === "class-1"
       ? [session("session-1", "class-1", 18)]
@@ -109,6 +109,16 @@ describe("ViewerSchedulePage agenda workflow", () => {
     expect(await findMobileSessionButton("Lớp Anh B")).toBeTruthy();
     expect(screen.queryAllByText("Lớp Toán A")).toHaveLength(0);
     expect(window.localStorage.getItem("edumatrix.viewer.selectedStudentId")).toBe("student-2");
+  });
+
+  test("keeps the student portal available when no class is readable", async () => {
+    serviceMocks.listAccessibleClassesByIds.mockResolvedValue([]);
+
+    renderWithQueryClient(<ViewerSchedulePage />);
+
+    expect(await screen.findByText("Chưa được phân lớp")).toBeTruthy();
+    expect(screen.queryByText("Không thể tải lịch học")).toBeNull();
+    expect(serviceMocks.listSessionsByClass).not.toHaveBeenCalled();
   });
 });
 

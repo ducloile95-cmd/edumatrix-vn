@@ -233,3 +233,27 @@ export async function getClass(classId: string): Promise<(ClassDoc & { id: strin
   if (!snap.exists()) return null;
   return { id: snap.id, ...(snap.data() as ClassDoc) };
 }
+
+function isUnavailableClass(error: unknown): boolean {
+  if (!error || typeof error !== "object" || !("code" in error)) return false;
+  const code = String(error.code);
+  return code === "not-found" || code === "permission-denied";
+}
+
+/**
+ * Viewer data can temporarily reference a class that was removed or is no
+ * longer readable. Ignore only those stale links; connectivity errors still
+ * reject so the UI does not misreport them as an unassigned student.
+ */
+export async function listAccessibleClassesByIds(classIds: string[]): Promise<(ClassDoc & { id: string })[]> {
+  const uniqueIds = [...new Set(classIds)].filter(Boolean);
+  const classes = await Promise.all(uniqueIds.map(async (classId) => {
+    try {
+      return await getClass(classId);
+    } catch (error) {
+      if (isUnavailableClass(error)) return null;
+      throw error;
+    }
+  }));
+  return classes.filter((klass): klass is NonNullable<typeof klass> => !!klass);
+}

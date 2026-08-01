@@ -6,7 +6,7 @@ import ViewerAssignmentsPage from "@/features/assignments/pages/ViewerAssignment
 import { renderWithQueryClient } from "@/test/renderWithQueryClient";
 
 const serviceMocks = vi.hoisted(() => ({
-  getClass: vi.fn(),
+  listAccessibleClassesByIds: vi.fn(),
   getStudent: vi.fn(),
   listAssignmentsByClass: vi.fn(),
   listSubmissionsByStudents: vi.fn(),
@@ -21,7 +21,7 @@ vi.mock("@/services/firestore/students", () => ({
 }));
 
 vi.mock("@/services/firestore/classes", () => ({
-  getClass: serviceMocks.getClass,
+  listAccessibleClassesByIds: serviceMocks.listAccessibleClassesByIds,
 }));
 
 vi.mock("@/services/firestore/assignments", () => ({
@@ -50,10 +50,10 @@ beforeEach(() => {
     fullName: "Nguyễn An",
     studentCode: "HS001",
   });
-  serviceMocks.getClass.mockResolvedValue({
+  serviceMocks.listAccessibleClassesByIds.mockResolvedValue([{
     id: "class-1",
     name: "Lớp Toán A1",
-  });
+  }]);
   serviceMocks.listAssignmentsByClass.mockResolvedValue([
     {
       id: "assignment-graded",
@@ -113,5 +113,15 @@ describe("ViewerAssignmentsPage mobile workflow", () => {
     fireEvent.click(mobileTodoFilter);
 
     expect(screen.queryByRole("heading", { name: "Bài đã chấm" })).toBeNull();
+  });
+
+  test("keeps the student portal available when no class is readable", async () => {
+    serviceMocks.listAccessibleClassesByIds.mockResolvedValue([]);
+
+    renderWithQueryClient(<ViewerAssignmentsPage />);
+
+    expect(await screen.findByText("Chưa được phân lớp")).toBeTruthy();
+    expect(screen.queryByText("Không thể tải danh sách bài tập")).toBeNull();
+    expect(serviceMocks.listAssignmentsByClass).not.toHaveBeenCalled();
   });
 });

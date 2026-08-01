@@ -215,7 +215,7 @@ export default function ViewerDashboardPage() {
                   </div>
                   <div>
                     <dt className="flex items-center gap-2 text-xs font-semibold text-neutral-500"><BookOpen size={15} />Lớp học</dt>
-                    <dd className="mt-1.5 text-sm font-bold text-neutral-900">{overview.studentClasses.map((klass) => klass.name).join(", ") || "Chưa cập nhật"}</dd>
+                    <dd className="mt-1.5 text-sm font-bold text-neutral-900">{overview.studentClasses.map((klass) => klass.name).join(", ") || "Chưa được phân lớp"}</dd>
                   </div>
                 </dl>
               </div>
