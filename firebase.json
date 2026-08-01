@@ -20,9 +20,9 @@
     "indexes": "firebase/firestore.indexes.json"
   },
   "emulators": {
-    "auth": { "port": 9099 },
-    "firestore": { "port": 8090 },
-    "hosting": { "port": 5000 },
-    "ui": { "enabled": true }
+    "auth": { "port": 9100 },
+    "firestore": { "port": 8091 },
+    "hosting": { "port": 5001 },
+    "ui": { "enabled": true, "port": 4001 }
   }
 }

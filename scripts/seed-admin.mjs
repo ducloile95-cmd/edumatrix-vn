@@ -1,5 +1,5 @@
 // Seed lời mời admin vào Firestore Emulator để test local (bootstrap admin đầu tiên).
-// Yêu cầu: Firestore Emulator đang chạy (port 8090). Bypass Security Rules.
+// Yêu cầu: Firestore Emulator đang chạy (port 8091). Bypass Security Rules.
 //
 // Dùng:  node scripts/seed-admin.mjs <email> [projectId]
 //   projectId mặc định "demo-edumatrix" — phải KHỚP VITE_FIREBASE_PROJECT_ID của app.
@@ -16,7 +16,7 @@ if (!email) {
 
 const testEnv = await initializeTestEnvironment({
   projectId,
-  firestore: { host: "127.0.0.1", port: 8090 },
+  firestore: { host: "127.0.0.1", port: 8091 },
 });
 
 await testEnv.withSecurityRulesDisabled(async (context) => {

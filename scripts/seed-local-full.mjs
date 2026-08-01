@@ -9,8 +9,8 @@ import { initializeTestEnvironment } from "@firebase/rules-unit-testing";
 import { doc, Timestamp, writeBatch } from "firebase/firestore";
 
 const projectId = process.env.FIREBASE_PROJECT_ID ?? "demo-edumatrix";
-const authUrl = "http://127.0.0.1:9099";
-const firestoreUrl = "http://127.0.0.1:8090";
+const authUrl = "http://127.0.0.1:9100";
+const firestoreUrl = "http://127.0.0.1:8091";
 const password = "Test@123456";
 const reset = process.argv.includes("--reset");
 
@@ -104,7 +104,7 @@ connectAuthEmulator(auth, authUrl, { disableWarnings: true });
 const uid = {};
 for (const account of accounts) uid[account.key] = await ensureAccount(auth, account);
 
-const env = await initializeTestEnvironment({ projectId, firestore: { host: "127.0.0.1", port: 8090 } });
+const env = await initializeTestEnvironment({ projectId, firestore: { host: "127.0.0.1", port: 8091 } });
 await env.withSecurityRulesDisabled(async (context) => {
   const db = context.firestore();
   const batch = writeBatch(db);

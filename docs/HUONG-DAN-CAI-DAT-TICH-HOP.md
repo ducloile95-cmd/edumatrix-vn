@@ -92,7 +92,7 @@ Firebase web config **không phải** khóa quản trị — bảo vệ dữ li�
 **Các bước:**
 
 1. Tạo Web App trong Firebase Console, sao chép web config vào `.env.local`, bật đúng phương thức đăng nhập dự án dùng.
-2. Kiểm tra Firestore Rules bằng emulator: `npm run emulators` (Auth 9099, Firestore 8090, Hosting 5000).
+2. Kiểm tra Firestore Rules bằng emulator: `npm run emulators` (Auth 9100, Firestore 8091, Hosting 5001).
 3. Đăng ký App Check cho Web — mã nguồn hiện dùng reCAPTCHA v3. Theo dõi metrics trước, sau đó mới bật enforcement có kiểm soát.
 4. Xóa debug token ở production — `VITE_APPCHECK_DEBUG_TOKEN` chỉ dành cho local, không đưa vào build production.
 5. Deploy Rules, Indexes và Hosting:

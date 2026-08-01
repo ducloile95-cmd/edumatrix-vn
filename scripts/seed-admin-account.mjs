@@ -2,7 +2,7 @@
 // (email + mật khẩu) + hồ sơ users/{uid} role admin. Vì seed thẳng users/{uid}
 // nên AuthContext không chạy claim -> KHÔNG cần xác minh email.
 //
-// Yêu cầu: đang chạy CẢ Auth emulator (9099) VÀ Firestore emulator (8090).
+// Yêu cầu: đang chạy CẢ Auth emulator (9100) VÀ Firestore emulator (8091).
 //          -> npm run emulators
 // Dùng:    node scripts/seed-admin-account.mjs [email] [password]
 //          projectId lấy từ FIREBASE_PROJECT_ID (mặc định demo-edumatrix,
@@ -18,7 +18,7 @@ const projectId = process.env.FIREBASE_PROJECT_ID ?? "demo-edumatrix";
 
 const app = initializeApp({ apiKey: "demo-key", projectId, authDomain: `${projectId}.firebaseapp.com` });
 const auth = getAuth(app);
-connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
+connectAuthEmulator(auth, "http://127.0.0.1:9100", { disableWarnings: true });
 
 let uid;
 try {
@@ -29,7 +29,7 @@ try {
   process.exit(1);
 }
 
-const testEnv = await initializeTestEnvironment({ projectId, firestore: { host: "127.0.0.1", port: 8090 } });
+const testEnv = await initializeTestEnvironment({ projectId, firestore: { host: "127.0.0.1", port: 8091 } });
 await testEnv.withSecurityRulesDisabled(async (context) => {
   await setDoc(doc(context.firestore(), "users", uid), {
     email,

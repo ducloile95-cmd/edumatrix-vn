@@ -287,7 +287,7 @@ npm run build
 npx firebase deploy --only firestore:rules,firestore:indexes,hosting</code></pre></div>
         <div class="step-list">
           <div class="step"><input type="checkbox" id="s04" data-step><label for="s04"><strong>Tạo Web App trong Firebase Console</strong><small>Sao chép web config vào <code>.env.local</code>; bật phương thức đăng nhập mà dự án sử dụng.</small></label></div>
-          <div class="step"><input type="checkbox" id="s05" data-step><label for="s05"><strong>Kiểm tra Firestore Rules bằng emulator</strong><small>Có thể dùng <code>npm run emulators</code>. Emulator ports: Auth 9099, Firestore 8090, Hosting 5000.</small></label></div>
+          <div class="step"><input type="checkbox" id="s05" data-step><label for="s05"><strong>Kiểm tra Firestore Rules bằng emulator</strong><small>Có thể dùng <code>npm run emulators</code>. Emulator ports: Auth 9100, Firestore 8091, Hosting 5001.</small></label></div>
           <div class="step"><input type="checkbox" id="s06" data-step><label for="s06"><strong>Đăng ký App Check cho Web</strong><small>Mã nguồn hiện dùng reCAPTCHA v3. Theo dõi metrics trước, sau đó mới bật enforcement có kiểm soát.</small></label></div>
           <div class="step"><input type="checkbox" id="s07" data-step><label for="s07"><strong>Xóa debug token ở production</strong><small><code>VITE_APPCHECK_DEBUG_TOKEN</code> chỉ dành cho local. Không đưa token debug vào build production.</small></label></div>
           <div class="step"><input type="checkbox" id="s08" data-step><label for="s08"><strong>Deploy Rules, Indexes và Hosting</strong><small>Build output nằm trong <code>dist</code>. Sau deploy, đăng nhập và mở một màn hình đọc Firestore để smoke test.</small></label></div>

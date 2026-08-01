@@ -35,7 +35,7 @@ beforeAll(async () => {
     firestore: {
       rules: fs.readFileSync(path.resolve(__dirname, "../firestore.rules"), "utf8"),
       host: "localhost",
-      port: Number(process.env.FIRESTORE_EMULATOR_PORT ?? 8090),
+      port: Number(process.env.FIRESTORE_EMULATOR_PORT ?? 8091),
     },
   });
 });

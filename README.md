@@ -147,7 +147,7 @@ App tự trỏ sang emulator khi bật cờ `VITE_USE_EMULATORS`. Toàn bộ ch�
    VITE_FIREBASE_API_KEY=demo            # các VITE_FIREBASE_* khác để giá trị giả
    VITE_APPCHECK_SITE_KEY=               # để trống (App Check không áp dụng cho emulator)
    ```
-2. **Terminal 1** — bật emulator (Auth 9099 + Firestore 8090, kèm Emulator UI):
+2. **Terminal 1** — bật emulator (Auth 9100 + Firestore 8091, Emulator UI 4001):
    ```
    npm run emulators
    ```

@@ -7,6 +7,7 @@ export interface AuthContextValue {
   firebaseUser: User | null;
   userDoc: UserDoc | null;
   loading: boolean;
+  profileError: boolean;
   claiming: boolean;
   claimFailureReason: ClaimFailureReason | null;
 }
@@ -15,6 +16,7 @@ export const AuthContext = createContext<AuthContextValue>({
   firebaseUser: null,
   userDoc: null,
   loading: true,
+  profileError: false,
   claiming: false,
   claimFailureReason: null,
 });

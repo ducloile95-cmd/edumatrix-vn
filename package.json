@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "prebuild": "node scripts/validate-production-env.mjs",
     "dev": "vite",
     "build": "tsc --noEmit -p tsconfig.app.json && vite build --mode real",
     "preview": "vite preview",

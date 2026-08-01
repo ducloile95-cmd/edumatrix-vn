@@ -14,7 +14,7 @@ export const db: Firestore = initializeFirestore(firebaseApp, {
   }),
 });
 
-// Test local: bat VITE_USE_EMULATORS=true de tro Firestore(8090) sang Firebase Emulator.
+// Test local: bat VITE_USE_EMULATORS=true de tro Firestore(8091) sang Firebase Emulator.
 if (import.meta.env.DEV && import.meta.env.VITE_USE_EMULATORS === "true") {
-  connectFirestoreEmulator(db, "127.0.0.1", 8090);
+  connectFirestoreEmulator(db, "127.0.0.1", 8091);
 }

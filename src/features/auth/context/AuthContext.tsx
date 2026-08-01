@@ -15,6 +15,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [userDoc, setUserDoc] = useState<UserDoc | null>(null);
   const [authResolved, setAuthResolved] = useState(false);
   const [profileResolved, setProfileResolved] = useState(false);
+  const [profileError, setProfileError] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [claimFailureReason, setClaimFailureReason] = useState<
     AuthContextValue["claimFailureReason"]
@@ -30,6 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // "resolved" cua phien dang xuat, LoginPage co the dieu huong qua som
       // truoc khi users/{uid} bat dau duoc doc.
       setUserDoc(null);
+      setProfileError(false);
       setProfileResolved(!user);
       if (!user) {
         claimAttemptedForUid.current = null;
@@ -44,6 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!firebaseUser) return;
 
     setProfileResolved(false);
+    setProfileError(false);
     // Realtime o day la chap nhan duoc: chi 1 document, can phan quyen
     // (role/status) cap nhat ngay lap tuc khi Admin khoa tai khoan (A14).
     let cancelled = false;
@@ -58,11 +61,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const data = snapshot.exists() ? (snapshot.data() as UserDoc) : null;
             setUserDoc(data);
             setCachedUserDoc(data ? { uid: firebaseUser.uid, ...data } : null);
+            setProfileError(false);
             setProfileResolved(true);
           },
           () => {
             setUserDoc(null);
             setCachedUserDoc(null);
+            setProfileError(true);
             setProfileResolved(true);
           },
         );
@@ -70,6 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .catch(() => {
         if (cancelled) return;
         setUserDoc(null);
+        setProfileError(true);
         setProfileResolved(true);
       });
 
@@ -82,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Tu dong thu claim invite khi dang nhap Google lan dau nhung chua co
   // users/{uid} - moi uid chi thu 1 lan de tranh vong lap (Section 7.1).
   useEffect(() => {
-    if (!firebaseUser || !profileResolved || userDoc) return;
+    if (!firebaseUser || !profileResolved || profileError || userDoc) return;
     if (claimAttemptedForUid.current === firebaseUser.uid) return;
 
     claimAttemptedForUid.current = firebaseUser.uid;
@@ -111,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [firebaseUser, profileResolved, userDoc]);
+  }, [firebaseUser, profileError, profileResolved, userDoc]);
 
   // Ghi nhan lan dang nhap gan nhat - 1 lan cho moi uid trong phien (khong ghi
   // lai moi khi Firestore listener nhan snapshot khac vi ly do khac).
@@ -129,6 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         firebaseUser,
         userDoc,
         loading: !authResolved || !profileResolved,
+        profileError,
         claiming,
         claimFailureReason,
       }}

@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const ROOT = process.cwd();
-const DEFAULT_FIRESTORE_PORT = 8090;
+const DEFAULT_FIRESTORE_PORT = 8091;
 const FIREBASE_CONFIG = path.join(ROOT, "firebase.json");
 
 function readFirebaseConfig() {

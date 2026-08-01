@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
 import { ROUTES } from "@/constants/routes";
 
@@ -9,7 +10,7 @@ import { ROUTES } from "@/constants/routes";
  * Rules, day van la lop bao mat that su (A16.3).
  */
 export function RequireAuth({ children }: { children: ReactNode }) {
-  const { loading, isSignedIn, userDoc, claiming } = useAuth();
+  const { loading, isSignedIn, userDoc, profileError, claiming } = useAuth();
 
   if (loading || claiming) {
     return (
@@ -21,6 +22,18 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 
   if (!isSignedIn) {
     return <Navigate to={ROUTES.LOGIN} replace />;
+  }
+
+  if (profileError) {
+    return (
+      <div className="mx-auto flex min-h-screen max-w-lg items-center p-6">
+        <ErrorState
+          title="Không thể xác minh tài khoản"
+          message="Hệ thống chưa tải được hồ sơ đăng nhập. Vui lòng thử lại; nếu lỗi tiếp diễn, liên hệ quản trị viên."
+          onRetry={() => window.location.reload()}
+        />
+      </div>
+    );
   }
 
   if (!userDoc) {
