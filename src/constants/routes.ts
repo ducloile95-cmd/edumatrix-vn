@@ -25,6 +25,8 @@ export const ROUTES = {
   STAFF_CHAT: "/app/chat",
   STAFF_ANNOUNCEMENTS: "/app/announcements",
   STAFF_CHAT_DEMO: "/app/chat-demo",
+  MOTION_DEMO: "/demo/motion",
+  FORM_POPUP_DEMO: "/demo/form-popups",
   STAFF_SETTINGS: "/app/settings",
   STAFF_SETTINGS_DEMO: "/app/settings-demo",
   VIEWER_DASHBOARD: "/portal/dashboard",

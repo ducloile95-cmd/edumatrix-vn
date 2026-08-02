@@ -21,19 +21,21 @@ afterEach(() => {
 });
 
 describe("ToastProvider", () => {
-  test("uses the Elinkgolf 3.2s lifecycle by default", () => {
+  test("starts the exit animation after the default 3.2s lifetime", () => {
     vi.useFakeTimers();
     render(<ToastProvider><ToastHarness /></ToastProvider>);
 
     fireEvent.click(screen.getByRole("button", { name: "Hiện thông báo" }));
     const toast = screen.getByRole("status");
     expect(toast.className).toContain("toast-lifecycle");
-    expect(toast.getAttribute("style")).toContain("3200ms");
 
     act(() => vi.advanceTimersByTime(3199));
     expect(screen.queryByRole("status")).not.toBeNull();
 
     act(() => vi.advanceTimersByTime(1));
+    expect(screen.getByRole("status").className).toContain("toast-exit");
+
+    act(() => vi.advanceTimersByTime(250));
     expect(screen.queryByRole("status")).toBeNull();
   });
 

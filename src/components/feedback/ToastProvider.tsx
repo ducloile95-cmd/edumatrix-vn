@@ -34,11 +34,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     const duration = input.duration ?? DEFAULT_TOAST_DURATION_MS;
     setItems((current) => [...current, { ...input, id, duration, tone: input.tone ?? "info" }]);
     const timer = window.setTimeout(() => {
-      timers.current.delete(id);
-      setItems((current) => current.filter((item) => item.id !== id));
+      dismiss(id);
     }, duration);
     timers.current.set(id, timer);
-  }, []);
+  }, [dismiss]);
 
   useEffect(() => () => {
     timers.current.forEach((timer) => window.clearTimeout(timer));
@@ -64,7 +63,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 key={item.id}
                 role={item.tone === "error" ? "alert" : "status"}
                 className={`${item.closing ? "toast-exit" : "toast-lifecycle"} pointer-events-auto flex w-full max-w-md items-start gap-3 rounded-card border bg-white px-4 py-3 shadow-[var(--shadow-3)] ${toneClass}`}
-                style={{ animationDuration: `${item.closing ? TOAST_EXIT_MS : item.duration}ms` }}
+                style={item.closing ? { animationDuration: `${TOAST_EXIT_MS}ms` } : undefined}
               >
                 <Icon className="mt-0.5 shrink-0" size={19} strokeWidth={2} aria-hidden="true" />
                 <div className="min-w-0 flex-1">

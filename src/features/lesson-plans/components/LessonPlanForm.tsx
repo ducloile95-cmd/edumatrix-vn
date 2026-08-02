@@ -61,7 +61,7 @@ const TEXTAREA = "min-h-20 w-full rounded-input border border-neutral-300 p-3 te
 const LABEL = "mb-1 block text-sm font-medium text-neutral-700";
 const SECTION_TITLE = "mb-3 text-xs font-bold uppercase tracking-wide text-primary-700";
 /** Khung ngăn cách các khối trong 1 cột (không dùng card lồng card vì cột đã có viền riêng). */
-const BLOCK = "border-b border-neutral-200 pb-4 last:border-b-0 last:pb-0";
+const BLOCK = "rounded-card border border-neutral-200 bg-white p-4 shadow-[var(--shadow-1)]";
 
 function driveAttachmentFromPlan(plan?: LessonPlanDoc | null): LessonPlanDriveAttachment | null {
   if (!plan?.driveFileId || !plan.driveFileName || !plan.driveMimeType || !plan.driveWebViewLink || !plan.driveModifiedTime) return null;
@@ -216,8 +216,8 @@ export function LessonPlanForm({ editingPlan, onDone }: LessonPlanFormProps) {
   return (
     <form onSubmit={handleSubmit((values) => saveMutation.mutate(values))} className="flex h-full min-h-0 flex-col">
       {/* Popup ngang: 1 cột trái gọn (thông tin/mục tiêu/chuẩn bị/đính kèm) + 1 cột phải nội dung chính (tiến trình buổi học). Không tab, không phân nhánh. */}
-      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-[minmax(360px,400px)_minmax(0,1fr)] lg:overflow-hidden">
-        <div className="space-y-4 border-b border-neutral-200 bg-white/60 p-4 lg:min-h-0 lg:overflow-y-auto lg:border-b-0 lg:border-r">
+      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto lg:grid-cols-[minmax(360px,400px)_minmax(0,1fr)] lg:overflow-hidden 2xl:grid-cols-[minmax(380px,420px)_minmax(0,1fr)]">
+        <div className="space-y-4 border-b border-neutral-200 bg-neutral-100/70 p-4 lg:min-h-0 lg:overflow-y-auto lg:border-b-0 lg:border-r lg:p-5">
           <LessonPlanBasicsSection
             classes={classes}
             classId={classId}
@@ -243,7 +243,7 @@ export function LessonPlanForm({ editingPlan, onDone }: LessonPlanFormProps) {
           />
         </div>
 
-        <div className="space-y-4 p-4 lg:min-h-0 lg:overflow-y-auto">
+        <div className="space-y-4 bg-neutral-50/60 p-4 lg:min-h-0 lg:overflow-y-auto lg:p-5">
           {templates && templates.length > 0 && (
 
           <div className={BLOCK}>
@@ -296,7 +296,7 @@ export function LessonPlanForm({ editingPlan, onDone }: LessonPlanFormProps) {
         </div>
       </div>
 
-      <div className="flex flex-none flex-col gap-2 border-t border-neutral-200 bg-white px-4 py-3 sm:px-5">
+      <div className="flex flex-none flex-col gap-2 border-t border-neutral-200 bg-white/95 px-4 py-3 shadow-[0_-8px_24px_rgba(28,26,21,.06)] backdrop-blur sm:px-5">
         {saveMutation.isError && (
           <p role="alert" className="text-sm text-danger-700">Không thể lưu giáo án. Vui lòng thử lại.</p>
         )}

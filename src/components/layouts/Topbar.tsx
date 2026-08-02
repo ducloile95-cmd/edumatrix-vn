@@ -9,6 +9,7 @@ import { subscribeChatThreads } from "@/services/firestore/chat";
 import { ROUTES } from "@/constants/routes";
 import { findPageTitle } from "@/constants/navigation";
 import { playNotificationSound, unlockNotificationSound } from "@/utils/notificationSound";
+import { runViewTransition } from "@/utils/viewTransition";
 
 type Notification = { id: string; title: string; time: string };
 
@@ -68,7 +69,7 @@ function NotificationBell({ seeAllHref }: { seeAllHref: string }) {
           {notifications.length === 0
             ? <div className="px-4 py-8 text-center text-sm text-neutral-500">Chưa có thông báo mới</div>
             : <ul className="max-h-80 overflow-y-auto">{notifications.map((item) => <li key={item.id} className="border-b border-neutral-100 px-4 py-3 last:border-0"><p className="text-sm font-medium text-neutral-900">{item.title}</p><p className="text-xs text-neutral-400">{item.time}</p></li>)}</ul>}
-          <footer className="border-t border-neutral-200 p-2 text-center"><Link to={seeAllHref} onClick={() => setOpen(false)} className="block rounded-card px-3 py-2 text-sm font-semibold text-primary-600 hover:bg-neutral-50">Xem tất cả thông báo</Link></footer>
+          <footer className="border-t border-neutral-200 p-2 text-center"><Link to={seeAllHref} viewTransition onClick={() => setOpen(false)} className="block rounded-card px-3 py-2 text-sm font-semibold text-primary-600 hover:bg-neutral-50">Xem tất cả thông báo</Link></footer>
         </div>
       )}
     </div>
@@ -119,7 +120,7 @@ function useChatUnreadCount(): number {
 function ChatButton() {
   const unread = useChatUnreadCount();
   return (
-    <Link to={ROUTES.STAFF_CHAT} aria-label={`Chat${unread ? ` (${unread} tin chưa đọc)` : ""}`} title="Chat" className="icon-button relative flex">
+    <Link to={ROUTES.STAFF_CHAT} viewTransition aria-label={`Chat${unread ? ` (${unread} tin chưa đọc)` : ""}`} title="Chat" className="icon-button relative flex">
       <MessagesSquare size={20} />
       {unread > 0 && <span aria-live="polite" className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-gradient-to-br from-primary-500 to-primary-700 px-1 text-3xs font-bold text-white ring-2 ring-white">{unread > 99 ? "99+" : unread}</span>}
     </Link>
@@ -151,13 +152,14 @@ function AddMenu() {
     { label: "Khóa học", to: `${ROUTES.STAFF_CATALOG}?create=course` },
     { label: "Giáo án", to: `${ROUTES.STAFF_LESSON_PLANS}?create=lesson-plan` },
     { label: "Thông báo", to: `${ROUTES.STAFF_CHAT}?create=message` },
+    ...(import.meta.env.DEV ? [{ label: "Demo Motion", to: ROUTES.MOTION_DEMO }] : []),
   ];
   return (
     <div ref={ref} className="relative">
       <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-haspopup="menu" className="motion-control inline-flex h-9 items-center gap-1.5 rounded-input bg-primary-600 px-3 text-xs font-bold text-white shadow-[0_5px_14px_rgba(35,72,214,.2)] hover:bg-primary-700 active:scale-[.98]"><Plus size={15} />Thêm<ChevronDown size={14} /></button>
       {open && <div role="menu" className="absolute right-0 z-40 mt-2 w-48 overflow-hidden rounded-card border border-neutral-200 bg-white p-1.5 shadow-[var(--shadow-3)]">
         {items.map((item) => {
-          return <button key={item.label} type="button" role="menuitem" onClick={() => { setOpen(false); navigate(item.to); }} className="flex min-h-9 w-full items-center justify-between rounded-input px-3 text-left text-sm font-medium text-neutral-700 hover:bg-primary-50 hover:text-primary-700">{item.label}</button>;
+          return <button key={item.label} type="button" role="menuitem" onClick={() => { setOpen(false); runViewTransition(() => navigate(item.to)); }} className="flex min-h-9 w-full items-center justify-between rounded-input px-3 text-left text-sm font-medium text-neutral-700 hover:bg-primary-50 hover:text-primary-700">{item.label}</button>;
         })}
       </div>}
     </div>

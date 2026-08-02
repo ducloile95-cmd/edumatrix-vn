@@ -8,7 +8,7 @@ const INPUT = "min-h-touch w-full rounded-input border border-neutral-300 px-3 t
 const TEXTAREA = "min-h-20 w-full rounded-input border border-neutral-300 p-3 text-sm focus:border-primary-500";
 const LABEL = "mb-1 block text-sm font-medium text-neutral-700";
 const SECTION_TITLE = "mb-3 text-xs font-bold uppercase tracking-wide text-primary-700";
-const BLOCK = "border-b border-neutral-200 pb-4 last:border-b-0 last:pb-0";
+const BLOCK = "rounded-card border border-neutral-200 bg-white p-4 shadow-[var(--shadow-1)]";
 
 type ClassItem = Awaited<ReturnType<typeof listClasses>>[number];
 type SessionItem = Awaited<ReturnType<typeof listSessionsByClass>>[number];

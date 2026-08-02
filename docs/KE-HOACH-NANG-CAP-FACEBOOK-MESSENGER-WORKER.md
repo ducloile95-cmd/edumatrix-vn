@@ -137,7 +137,7 @@ Quyền yêu cầu trong dialog OAuth hiện tại:
 
 ```text
 pages_show_list, pages_manage_metadata, pages_messaging, pages_read_engagement,
-pages_manage_posts, pages_utility_messaging
+pages_manage_posts, page_utility_messaging
 ```
 
 Sáu quyền này khớp đúng các tính năng kết nối Page, Messenger, đăng Page và
@@ -156,17 +156,17 @@ Collection Firestore phát sinh từ luồng này:
 - `messenger_private_config/page` — Page Access Token mã hóa AES-GCM bằng khóa dẫn
   xuất từ `META_APP_SECRET`. Token không bao giờ trả về frontend.
 
-**Việc bắt buộc sau khi bổ sung `pages_utility_messaging` vào `scope` (28/07/2026):**
+**Việc bắt buộc sau khi bổ sung `page_utility_messaging` vào `scope` (28/07/2026):**
 
 Page Access Token đã lưu trước đó không tự có thêm quyền. Admin phải **kết nối lại
 Fanpage** trong Cài đặt → Tích hợp thì token mới mang quyền Utility.
 
-`pages_utility_messaging` hiện chưa được Meta duyệt cho môi trường live. Facebook chỉ
+`page_utility_messaging` hiện chưa được Meta duyệt cho môi trường live. Facebook chỉ
 cấp quyền này cho tài khoản là Admin hoặc Tester của App và bỏ qua âm thầm với tài
 khoản khác — bốn quyền còn lại vẫn được cấp bình thường, luồng kết nối không hỏng.
 
 Kiểm tra sau khi kết nối lại: mở Meta App Dashboard → mục quyền của Page, xác nhận
-`pages_utility_messaging` xuất hiện trong danh sách đã cấp. Chỉ khi đó mới quay video
+`page_utility_messaging` xuất hiện trong danh sách đã cấp. Chỉ khi đó mới quay video
 kiểm thử Utility và đặt `UTILITY_MESSAGING_ENABLED=true`.
 
 Frontend đang gọi Worker qua:

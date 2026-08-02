@@ -29,16 +29,24 @@
 @layer base {
   html {
     @apply text-neutral-800;
-    scroll-behavior: smooth;
   }
   body {
     @apply bg-neutral-50 font-sans text-sm antialiased;
     min-width: 320px;
-    background: var(--grad-page);
-    background-attachment: fixed;
+    isolation: isolate;
+    background: #fafaf9;
     letter-spacing: -0.005em;
     line-height: 1.55;
   }
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: var(--grad-page);
+    pointer-events: none;
+  }
+  :is(button, a, input, select, textarea) { touch-action: manipulation; }
   /* Tối ưu font: heading tracking chặt cho cảm giác hiện đại, cân đối với dấu tiếng Việt. */
   h1 {
     @apply text-2xl font-semibold tracking-normal text-neutral-900;
@@ -63,18 +71,34 @@
   .motion-card { transition: border-color var(--motion-standard) var(--ease-standard), box-shadow var(--motion-standard) var(--ease-standard), transform var(--motion-standard) var(--ease-standard); }
   .motion-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); }
   .login-card-enter { animation: content-enter var(--motion-standard) var(--ease-enter) both; backface-visibility: hidden; }
-  .route-enter { animation: route-enter var(--motion-slow) var(--ease-enter) both; backface-visibility: hidden; }
+  .route-enter { animation: route-enter var(--motion-emphasis) var(--ease-enter) both; backface-visibility: hidden; }
   .page-enter, .motion-content-enter { animation: content-enter var(--motion-slow) var(--ease-enter) both; backface-visibility: hidden; }
   .motion-row { animation: row-enter var(--motion-fast) var(--ease-enter) both; }
   .motion-dropdown { animation: dropdown-in var(--motion-fast) ease both; transform-origin: top; }
-  .motion-progress { transition: width var(--motion-progress) ease; }
+  .motion-progress { transition: transform var(--motion-progress) var(--ease-enter); }
   .modal-backdrop { animation: backdrop-in var(--motion-emphasis) ease both; }
-  .modal-backdrop[data-state="closed"] { animation: backdrop-out var(--motion-emphasis) ease both; }
+  .modal-backdrop[data-state="closed"] { animation: backdrop-out var(--motion-fast) var(--ease-exit) both; pointer-events: none; }
   .modal-panel { animation: modal-in var(--motion-emphasis) var(--ease-modal) both; transform-origin: center; }
-  .modal-panel[data-state="closed"] { animation: modal-out var(--motion-emphasis) var(--ease-standard) both; }
-  .toast-lifecycle { animation: toast-lifecycle 3200ms linear both; }
+  .modal-panel[data-state="closed"] { animation: modal-out var(--motion-fast) var(--ease-exit) both; }
+  .toast-lifecycle { animation: toast-in var(--motion-toast) var(--ease-toast) both; }
   .toast-exit { animation: toast-out var(--motion-standard) var(--ease-exit) both; pointer-events: none; }
   .skeleton-shimmer { position: relative; overflow: hidden; background: linear-gradient(90deg, theme(colors.neutral.200) 25%, theme(colors.neutral.100) 50%, theme(colors.neutral.200) 75%); background-size: 220% 100%; animation: skeleton-shimmer 1.25s linear infinite; }
+  .route-loading { position: relative; min-height: 18rem; overflow: hidden; }
+  .route-loading-bar { height: 3px; margin-bottom: 1rem; border-radius: 999px; background: theme(colors.primary.500); transform-origin: left; animation: route-loading-progress 1.2s var(--ease-enter) infinite; }
+  .motion-tab-indicator { will-change: transform; transition: transform var(--motion-standard) var(--ease-enter), opacity var(--motion-instant) ease; }
+  .motion-demo .motion-tab-indicator { animation: tab-indicator-in var(--motion-fast) var(--ease-enter) both; }
+  .motion-demo-hero-copy > * { animation: motion-demo-rise var(--motion-emphasis) var(--ease-enter) both; }
+  .motion-demo-hero-copy > :nth-child(2) { animation-delay: 55ms; }
+  .motion-demo-hero-copy > :nth-child(3) { animation-delay: 110ms; }
+  .motion-demo-hero-copy > :nth-child(4) { animation-delay: 165ms; }
+  .motion-demo-stage { animation: motion-demo-stage-in var(--motion-slow) var(--ease-enter) both; }
+  .motion-demo .motion-content-enter { animation: motion-demo-panel-in 320ms var(--ease-enter) both; }
+  .motion-demo-scan { will-change: transform; animation: motion-demo-scan 2.4s var(--ease-standard) infinite; }
+  .motion-demo-live > span { animation: motion-demo-live 1.6s var(--ease-standard) infinite; }
+  .motion-demo-token, .motion-demo-list-item, .motion-demo-check { animation: motion-demo-rise var(--motion-standard) var(--ease-enter) both; }
+  .motion-demo-success { animation: motion-demo-success var(--motion-emphasis) var(--ease-modal) both; }
+  .motion-demo-tour-progress { animation: motion-demo-tour-progress 6.5s linear both; }
+  .motion-demo-paused * { animation-play-state: paused !important; }
   .edumatrix-chart .recharts-cartesian-axis-tick-value { @apply fill-neutral-500 text-3xs; }
   .edumatrix-chart .recharts-legend-item-text { @apply text-xs text-neutral-600; }
   .edumatrix-chart .recharts-surface { overflow: visible; }
@@ -102,33 +126,57 @@
   [role="dialog"] button[type="submit"]:hover { filter: brightness(1.06); }
   [role="dialog"] button[type="submit"]:active { transform: scale(.98); }
   [role="dialog"] button[type="submit"]:disabled { opacity: .55; }
+  main tbody > tr { transition: background-color var(--motion-fast) var(--ease-standard); }
 }
 @layer utilities {
   /* Dense-but-readable data rows: consistent across every role and module. */
   main .divide-y > li { @apply py-2; }
 }
+@supports (content-visibility: auto) {
+  .perf-section { content-visibility: auto; contain-intrinsic-size: auto 360px; }
+}
 @supports not (backdrop-filter: blur(1px)) { .glass-panel { background: rgba(255,255,255,.96); } }
-@keyframes route-enter { from { opacity: 0; transform: translate3d(0, 8px, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }
+@keyframes route-enter { from { opacity: 0; transform: translate3d(0, 16px, 0) scale(.992); } to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } }
 @keyframes content-enter { from { opacity: 0; transform: translate3d(0, 8px, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }
 @keyframes row-enter { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes dropdown-in { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes backdrop-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes backdrop-out { from { opacity: 1; } to { opacity: 0; } }
-@keyframes modal-in { from { opacity: 0; transform: translateY(30px) scale(.9); } to { opacity: 1; transform: translateY(0) scale(1); } }
-@keyframes modal-out { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(30px) scale(.9); } }
+@keyframes modal-in { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes modal-out { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(10px) scale(.98); } }
 @keyframes modal-sheet-in { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes modal-sheet-out { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(30px); } }
-@keyframes toast-lifecycle {
-  0% { opacity: 0; transform: translateY(-18px); animation-timing-function: var(--ease-toast); }
-  10%, 92% { opacity: 1; transform: translateY(0); animation-timing-function: var(--ease-standard); }
-  100% { opacity: 0; transform: translateY(-8px); }
-}
+@keyframes toast-in { from { opacity: 0; transform: translateY(-18px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes toast-out { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-8px); } }
 @keyframes skeleton-shimmer { from { background-position: 100% 0; } to { background-position: -120% 0; } }
+@keyframes route-loading-progress { 0% { opacity: .45; transform: scaleX(.06); } 55% { opacity: 1; transform: scaleX(.72); } 100% { opacity: .3; transform: scaleX(1); } }
+@keyframes tab-indicator-in { from { opacity: 0; transform: scaleX(.45); } to { opacity: 1; transform: scaleX(1); } }
+@keyframes motion-demo-rise { from { opacity: 0; transform: translate3d(0, 18px, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }
+@keyframes motion-demo-stage-in { from { opacity: 0; transform: translate3d(28px, 0, 0) scale(.97); } to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } }
+@keyframes motion-demo-panel-in { from { opacity: 0; transform: translate3d(0, 16px, 0) scale(.99); } to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } }
+@keyframes motion-demo-scan { 0%, 12% { transform: translate3d(-140%, 0, 0); } 78%, 100% { transform: translate3d(420%, 0, 0); } }
+@keyframes motion-demo-live { 0%, 100% { opacity: .5; transform: scale(.9); } 50% { opacity: 1; transform: scale(1.12); } }
+@keyframes motion-demo-success { from { opacity: 0; transform: scale(.72); } to { opacity: 1; transform: scale(1); } }
+@keyframes motion-demo-tour-progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+html[data-demo-motion="reduced"] *, html[data-demo-motion="reduced"] *::before, html[data-demo-motion="reduced"] *::after {
+  animation-duration: .01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: .01ms !important;
+}
+html[data-demo-motion="reduced"] :is(.motion-card:hover, .icon-button:hover, button.motion-control:not(:disabled):hover) { transform: none !important; }
 
 @media (max-width: 639px) {
   .modal-panel { animation-name: modal-sheet-in; transform-origin: bottom; }
   .modal-panel[data-state="closed"] { animation-name: modal-sheet-out; }
+}
+
+/* Web View: compact typography by exactly 1px and let content shrink with its viewport. */
+@media (min-width: 768px) {
+  :root { --web-font-size-adjustment: -1px; }
+  #main-content, #main-content > div { min-width: 0; max-width: 100%; }
+  #main-content :where(.flex, .grid) > * { min-width: 0; }
+  #main-content :where(img, video, canvas) { max-width: 100%; }
 }
 
 /*
@@ -138,14 +186,13 @@
  */
 .page-view { view-transition-name: page; }
 ::view-transition-old(page) { animation: content-exit var(--motion-fast) var(--ease-exit) both; }
-::view-transition-new(page) { animation: content-enter var(--motion-slow) var(--ease-enter) both; }
+::view-transition-new(page) { animation: route-enter var(--motion-emphasis) var(--ease-enter) both; }
 @keyframes content-exit { from { opacity: 1; } to { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
-  .login-card-enter, .route-enter, .page-enter, .motion-content-enter, .motion-row, .motion-dropdown,
-  .modal-panel, .modal-panel[data-state="closed"], .toast-lifecycle, .toast-exit { animation: none !important; transform: none !important; }
-  .motion-card:hover, .icon-button:hover, button.motion-control:not(:disabled):hover { transform: none !important; }
-  ::view-transition-old(page), ::view-transition-new(page) { animation: none !important; }
+  html:not([data-demo-motion="full"]) *, html:not([data-demo-motion="full"]) *::before, html:not([data-demo-motion="full"]) *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  html:not([data-demo-motion="full"]) :is(.login-card-enter, .route-enter, .page-enter, .motion-content-enter, .motion-row, .motion-dropdown, .modal-panel, .modal-panel[data-state="closed"], .toast-lifecycle, .toast-exit) { animation: none !important; transform: none !important; }
+  html:not([data-demo-motion="full"]) :is(.motion-card:hover, .icon-button:hover, button.motion-control:not(:disabled):hover) { transform: none !important; }
+  html:not([data-demo-motion="full"])::view-transition-old(page), html:not([data-demo-motion="full"])::view-transition-new(page) { animation: none !important; }
 }
 
 /* In giáo án (module Giáo án - LessonPlanDetail): chỉ áp dụng khi body có class .printing-lesson-plan (bật/tắt bằng JS quanh window.print()). */

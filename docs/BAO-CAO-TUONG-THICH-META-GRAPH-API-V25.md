@@ -37,7 +37,7 @@ Nguồn đối chiếu: [Meta Messenger Platform API collection](https://www.pos
 5. **App Review → Permissions and Features:** xác nhận Advanced Access cho
    `pages_show_list`, `pages_manage_metadata`, `pages_messaging`,
    `pages_read_engagement`; thêm `pages_manage_posts` nếu dùng chức năng đăng
-   Page; chỉ thêm/bật `pages_utility_messaging` sau khi Utility được duyệt.
+   Page; chỉ thêm/bật `page_utility_messaging` sau khi Utility được duyệt.
 6. Sau khi quyền OAuth thay đổi, Admin phải kết nối lại Fanpage trong EduMatrix
    để Page Access Token mới nhận scope mới. Không sửa token trong repository.
 7. Trước khi Live, dùng tài khoản App Admin/Tester chạy smoke test: nhận một tin

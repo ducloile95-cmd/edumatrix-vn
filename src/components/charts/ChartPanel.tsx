@@ -9,7 +9,7 @@ interface ChartPanelProps {
 
 export function ChartPanel({ title, description, children, className = "" }: ChartPanelProps) {
   return (
-    <section className={`edumatrix-chart motion-card grid grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-card border border-neutral-200 bg-white p-5 shadow-[var(--shadow-1)] ${className}`}>
+    <section className={`edumatrix-chart perf-section motion-card grid grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-card border border-neutral-200 bg-white p-5 shadow-[var(--shadow-1)] ${className}`}>
       <header>
         <h2 className="text-sm font-semibold text-neutral-900">{title}</h2>
         {description && <p className="mt-1 text-xs text-neutral-500">{description}</p>}

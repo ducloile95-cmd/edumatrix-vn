@@ -78,6 +78,7 @@ describe("ClassForm", () => {
       { uid: "teacher-1", displayName: "Cô An" },
     ]);
     serviceMocks.createClass.mockResolvedValue(undefined);
+    serviceMocks.createClassWithSchedule.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -134,5 +135,36 @@ describe("ClassForm", () => {
       );
     });
     expect(screen.getByLabelText(/Tên lớp/)).toHaveProperty("value", "Lớp A1");
+  });
+
+  test("creates an admin class with the interactive recurring schedule", async () => {
+    authState.value = {
+      firebaseUser: { uid: "admin-1" },
+      role: "admin",
+    };
+    renderWithQueryClient(<ClassForm />);
+    await fillValidClassForm();
+
+    fireEvent.click(screen.getByLabelText("Tự động sinh lịch"));
+    fireEvent.change(screen.getByLabelText(/Ngày bắt đầu/), { target: { value: "2026-08-03" } });
+    fireEvent.click(screen.getByRole("button", { name: "Thứ 2" }));
+    fireEvent.click(screen.getByRole("button", { name: "Thứ 4" }));
+    fireEvent.change(screen.getByLabelText(/^Bắt đầu/), { target: { value: "18:00" } });
+    fireEvent.change(screen.getByLabelText(/^Kết thúc/), { target: { value: "19:30" } });
+    fireEvent.change(screen.getByLabelText(/Tổng số buổi/), { target: { value: "12" } });
+    fireEvent.click(screen.getByRole("button", { name: "Tạo lớp học" }));
+
+    await waitFor(() => {
+      expect(serviceMocks.createClassWithSchedule).toHaveBeenCalledWith(expect.objectContaining({
+        name: "Lớp A1",
+        recurrence: expect.objectContaining({
+          daysOfWeek: [1, 3],
+          startTime: "18:00",
+          endTime: "19:30",
+          sessionCount: 12,
+        }),
+      }));
+    });
+    expect(serviceMocks.createClass).not.toHaveBeenCalled();
   });
 });

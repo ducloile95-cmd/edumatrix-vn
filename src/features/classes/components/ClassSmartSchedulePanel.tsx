@@ -1,8 +1,27 @@
-import type { Dispatch, SetStateAction } from "react";
-import { format } from "date-fns";
+import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import {
+  addMonths,
+  eachDayOfInterval,
+  endOfMonth,
+  endOfWeek,
+  format,
+  isSameMonth,
+  startOfMonth,
+  startOfWeek,
+  subMonths,
+} from "date-fns";
+import { CalendarDays, ChevronLeft, ChevronRight, Clock3, Sparkles } from "lucide-react";
 import { generateRecurringSessions } from "@/utils/recurrence";
 
-const DOW_LABEL = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+const WEEKDAYS = [
+  { day: 1, short: "T2", full: "Thứ 2" },
+  { day: 2, short: "T3", full: "Thứ 3" },
+  { day: 3, short: "T4", full: "Thứ 4" },
+  { day: 4, short: "T5", full: "Thứ 5" },
+  { day: 5, short: "T6", full: "Thứ 6" },
+  { day: 6, short: "T7", full: "Thứ 7" },
+  { day: 0, short: "CN", full: "Chủ nhật" },
+] as const;
 
 export interface RecurrenceFormState {
   startDate: string;
@@ -23,6 +42,8 @@ interface ClassSmartSchedulePanelProps {
   recurrencePreview: ReturnType<typeof generateRecurringSessions> | null;
 }
 
+const FIELD_CLASS = "min-h-touch w-full rounded-input border border-neutral-300 bg-white px-3 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100";
+
 export function ClassSmartSchedulePanel({
   isEditing,
   isAdmin,
@@ -33,127 +54,109 @@ export function ClassSmartSchedulePanel({
   toggleDay,
   recurrencePreview,
 }: ClassSmartSchedulePanelProps) {
+  const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(new Date()));
+  const sessionsByDate = useMemo(() => new Map(
+    (recurrencePreview?.sessions ?? []).map((session, index) => [format(session.startAt, "yyyy-MM-dd"), index + 1]),
+  ), [recurrencePreview]);
+  const monthDays = useMemo(() => eachDayOfInterval({
+    start: startOfWeek(startOfMonth(visibleMonth), { weekStartsOn: 1 }),
+    end: endOfWeek(endOfMonth(visibleMonth), { weekStartsOn: 1 }),
+  }), [visibleMonth]);
+
+  if (isEditing || !isAdmin) return null;
+
+  const setStartDate = (value: string) => {
+    setRecurrence((current) => ({ ...current, startDate: value }));
+    if (value) setVisibleMonth(startOfMonth(new Date(`${value}T00:00:00`)));
+  };
+  const selectCalendarDate = (date: Date) => {
+    const day = date.getDay();
+    setRecurrence((current) => ({
+      ...current,
+      startDate: format(date, "yyyy-MM-dd"),
+      daysOfWeek: current.daysOfWeek.includes(day) ? current.daysOfWeek : [...current.daysOfWeek, day].sort(),
+    }));
+  };
+  const goToStartMonth = () => {
+    if (recurrence.startDate) setVisibleMonth(startOfMonth(new Date(`${recurrence.startDate}T00:00:00`)));
+  };
+
   return (
-    <>
-{!isEditing && isAdmin && (
-        <div className="mt-4 rounded-card border border-neutral-200 bg-white p-4 sm:p-5">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-xs font-bold uppercase tracking-wide text-primary-700">Lịch học thông minh</h3>
-            <label className="flex items-center gap-2 text-sm text-neutral-700">
-              <input
-                type="checkbox"
-                checked={useSmartSchedule}
-                onChange={(event) => setUseSmartSchedule(event.target.checked)}
-                className="size-4 rounded border-neutral-300"
-              />
-              Tự động sinh buổi học lặp theo tuần
-            </label>
+    <section className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-5">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary-50 text-primary-700"><Sparkles size={18} /></span>
+          <div>
+            <h3 className="text-sm font-bold text-neutral-950">Lịch học thông minh</h3>
+            <p className="mt-0.5 text-xs leading-5 text-neutral-500">Tự động sinh buổi học theo tuần và kiểm tra trực tiếp trên lịch tháng.</p>
           </div>
+        </div>
+        <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-primary-100 bg-primary-50 px-3 py-2 text-xs font-bold text-primary-800">
+          <input type="checkbox" checked={useSmartSchedule} onChange={(event) => setUseSmartSchedule(event.target.checked)} className="size-4 accent-primary-600" />
+          Tự động sinh lịch
+        </label>
+      </div>
 
-          {useSmartSchedule && (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <label htmlFor="recurrence-start-date" className="mb-1 block text-sm font-medium text-neutral-700">
-                  Bắt đầu tìm từ ngày<span className="ml-0.5 text-danger-500">*</span>
-                </label>
-                <input
-                  id="recurrence-start-date"
-                  type="date"
-                  value={recurrence.startDate}
-                  onChange={(event) => setRecurrence((prev) => ({ ...prev, startDate: event.target.value }))}
-                  className="min-h-touch w-full rounded-input border border-neutral-300 px-3 text-sm focus:border-primary-500"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="recurrence-session-count" className="mb-1 block text-sm font-medium text-neutral-700">
-                  Tổng số buổi<span className="ml-0.5 text-danger-500">*</span>
-                </label>
-                <input
-                  id="recurrence-session-count"
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={recurrence.sessionCount}
-                  onChange={(event) => setRecurrence((prev) => ({ ...prev, sessionCount: Number(event.target.value) }))}
-                  className="min-h-touch w-full rounded-input border border-neutral-300 px-3 text-sm focus:border-primary-500"
-                />
-              </div>
-
-              <div className="sm:col-span-2">
-                <span className="mb-1 block text-sm font-medium text-neutral-700">
-                  Các thứ trong tuần<span className="ml-0.5 text-danger-500">*</span>
-                </span>
-                <div className="flex flex-wrap gap-2" role="group" aria-label="Chọn thứ trong tuần">
-                  {DOW_LABEL.map((label, day) => {
-                    const checked = recurrence.daysOfWeek.includes(day);
-                    return (
-                      <button
-                        key={label}
-                        type="button"
-                        aria-pressed={checked}
-                        onClick={() => toggleDay(day)}
-                        className={`min-h-touch rounded-full border px-3.5 text-xs font-semibold transition ${
-                          checked
-                            ? "border-primary-500 bg-primary-500 text-white"
-                            : "border-neutral-300 bg-white text-neutral-600 hover:border-primary-300"
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="recurrence-start-time" className="mb-1 block text-sm font-medium text-neutral-700">
-                  Giờ bắt đầu<span className="ml-0.5 text-danger-500">*</span>
-                </label>
-                <input
-                  id="recurrence-start-time"
-                  type="time"
-                  value={recurrence.startTime}
-                  onChange={(event) => setRecurrence((prev) => ({ ...prev, startTime: event.target.value }))}
-                  className="min-h-touch w-full rounded-input border border-neutral-300 px-3 text-sm focus:border-primary-500"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="recurrence-end-time" className="mb-1 block text-sm font-medium text-neutral-700">
-                  Giờ kết thúc<span className="ml-0.5 text-danger-500">*</span>
-                </label>
-                <input
-                  id="recurrence-end-time"
-                  type="time"
-                  value={recurrence.endTime}
-                  onChange={(event) => setRecurrence((prev) => ({ ...prev, endTime: event.target.value }))}
-                  className="min-h-touch w-full rounded-input border border-neutral-300 px-3 text-sm focus:border-primary-500"
-                />
-              </div>
-
-              <div className="sm:col-span-2 rounded-input bg-neutral-50 px-3 py-2 text-sm text-neutral-600">
-                {recurrencePreview ? (
-                  <>
-                    Buổi đầu:{" "}
-                    <span className="font-medium text-neutral-900">
-                      {format(recurrencePreview.sessions[0].startAt, "dd/MM/yyyy")}
-                    </span>
-                    {" · "}Bế giảng dự kiến:{" "}
-                    <span className="font-medium text-neutral-900">
-                      {format(recurrencePreview.endDate, "dd/MM/yyyy")}
-                    </span>
-                    {" · "}
-                    {recurrencePreview.sessions.length} buổi
-                  </>
-                ) : (
-                  "Điền đủ ngày bắt đầu, các thứ trong tuần, giờ học và tổng số buổi để xem trước lịch."
-                )}
+      {useSmartSchedule ? (
+        <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
+          <div className="space-y-4 rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+            <div>
+              <label htmlFor="recurrence-start-date" className="mb-1.5 block text-xs font-bold text-neutral-700">Ngày bắt đầu<span className="ml-0.5 text-danger-500">*</span></label>
+              <input id="recurrence-start-date" type="date" value={recurrence.startDate} onChange={(event) => setStartDate(event.target.value)} className={FIELD_CLASS} />
+            </div>
+            <div>
+              <span className="mb-2 block text-xs font-bold text-neutral-700">Các thứ trong tuần<span className="ml-0.5 text-danger-500">*</span></span>
+              <div className="grid grid-cols-4 gap-2" role="group" aria-label="Chọn thứ trong tuần">
+                {WEEKDAYS.map(({ day, short, full }) => {
+                  const checked = recurrence.daysOfWeek.includes(day);
+                  return (
+                    <button key={day} type="button" aria-label={full} aria-pressed={checked} onClick={() => toggleDay(day)} className={`min-h-9 cursor-pointer rounded-lg border text-xs font-bold transition ${checked ? "border-primary-500 bg-primary-500 text-white" : "border-neutral-300 bg-white text-neutral-600 hover:border-primary-300 hover:text-primary-700"}`}>
+                      {short}
+                    </button>
+                  );
+                })}
               </div>
             </div>
-          )}
+            <div className="grid grid-cols-2 gap-3">
+              <div><label htmlFor="recurrence-start-time" className="mb-1.5 block text-xs font-bold text-neutral-700">Bắt đầu<span className="ml-0.5 text-danger-500">*</span></label><input id="recurrence-start-time" type="time" value={recurrence.startTime} onChange={(event) => setRecurrence((current) => ({ ...current, startTime: event.target.value }))} className={FIELD_CLASS} /></div>
+              <div><label htmlFor="recurrence-end-time" className="mb-1.5 block text-xs font-bold text-neutral-700">Kết thúc<span className="ml-0.5 text-danger-500">*</span></label><input id="recurrence-end-time" type="time" value={recurrence.endTime} onChange={(event) => setRecurrence((current) => ({ ...current, endTime: event.target.value }))} className={FIELD_CLASS} /></div>
+            </div>
+            <div><label htmlFor="recurrence-session-count" className="mb-1.5 block text-xs font-bold text-neutral-700">Tổng số buổi<span className="ml-0.5 text-danger-500">*</span></label><input id="recurrence-session-count" type="number" min={1} step={1} value={recurrence.sessionCount} onChange={(event) => setRecurrence((current) => ({ ...current, sessionCount: Number(event.target.value) }))} className={FIELD_CLASS} /></div>
+            <div className="rounded-xl border border-success-100 bg-success-50 p-3 text-xs leading-5 text-success-900">
+              {recurrencePreview ? <><strong className="block text-sm">{recurrencePreview.sessions.length} buổi dự kiến</strong>Buổi đầu {format(recurrencePreview.sessions[0].startAt, "dd/MM/yyyy")}, bế giảng {format(recurrencePreview.endDate, "dd/MM/yyyy")}.</> : "Điền đủ ngày bắt đầu, thứ trong tuần, giờ học và tổng số buổi để xem trước."}
+            </div>
+          </div>
+
+          <div className="min-w-0 rounded-xl border border-neutral-200 bg-white p-3 sm:p-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div><p className="flex items-center gap-1.5 text-xs font-semibold text-neutral-500"><CalendarDays size={14} /> Lịch tháng tương tác</p><h4 className="mt-0.5 text-base font-black text-neutral-950">Tháng {format(visibleMonth, "MM / yyyy")}</h4></div>
+              <div className="flex items-center gap-1.5">
+                <button type="button" onClick={goToStartMonth} disabled={!recurrence.startDate} className="min-h-9 cursor-pointer rounded-lg border border-neutral-300 bg-white px-3 text-xs font-semibold text-neutral-600 transition hover:border-primary-300 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-50">Tháng bắt đầu</button>
+                <button type="button" aria-label="Tháng trước" onClick={() => setVisibleMonth((month) => subMonths(month, 1))} className="grid size-9 cursor-pointer place-items-center rounded-lg border border-neutral-300 text-neutral-600 transition hover:border-primary-300 hover:text-primary-700"><ChevronLeft size={17} /></button>
+                <button type="button" aria-label="Tháng sau" onClick={() => setVisibleMonth((month) => addMonths(month, 1))} className="grid size-9 cursor-pointer place-items-center rounded-lg border border-neutral-300 text-neutral-600 transition hover:border-primary-300 hover:text-primary-700"><ChevronRight size={17} /></button>
+              </div>
+            </div>
+            <div className="grid grid-cols-7 border-b border-neutral-200 pb-2 text-center text-[10px] font-bold uppercase tracking-wide text-neutral-400">{WEEKDAYS.map((weekday) => <span key={weekday.day}>{weekday.short}</span>)}</div>
+            <div className="mt-2 grid grid-cols-7 gap-1 sm:gap-1.5">
+              {monthDays.map((date) => {
+                const key = format(date, "yyyy-MM-dd");
+                const sessionNumber = sessionsByDate.get(key);
+                const isStart = key === recurrence.startDate;
+                const inMonth = isSameMonth(date, visibleMonth);
+                return (
+                  <button key={key} type="button" onClick={() => selectCalendarDate(date)} aria-label={`Chọn ngày bắt đầu ${format(date, "dd/MM/yyyy")}`} aria-pressed={isStart} className={`relative min-h-14 cursor-pointer rounded-lg border p-1.5 text-left transition sm:min-h-16 ${isStart ? "border-primary-500 bg-primary-50 ring-2 ring-primary-100" : sessionNumber ? "border-success-200 bg-success-50 hover:border-success-300" : "border-transparent hover:border-primary-200 hover:bg-neutral-50"} ${inMonth ? "text-neutral-800" : "text-neutral-300"}`}>
+                    <span className="text-xs font-bold">{format(date, "d")}</span>
+                    {sessionNumber && <span className="mt-1 flex items-center gap-1 text-[9px] font-bold text-success-700 sm:text-[10px]"><Clock3 size={10} /> Buổi {sessionNumber}</span>}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-3 text-xs leading-5 text-neutral-500">Bấm một ngày để đặt lại ngày bắt đầu. Hệ thống sẽ tự thêm thứ tương ứng nếu cần và tạo lại toàn bộ lịch.</p>
+          </div>
         </div>
+      ) : (
+        <div className="rounded-xl border border-dashed border-neutral-300 bg-neutral-50 p-6 text-center text-sm text-neutral-500">Lịch thông minh đang tắt. Bạn vẫn có thể nhập mô tả lịch học thủ công ở phần trên.</div>
       )}
-    </>
+    </section>
   );
 }

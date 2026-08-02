@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { LoaderCircle } from "lucide-react";
 
 type ButtonVariant = "primary" | "secondary" | "danger" | "ghost";
 type ButtonSize = "sm" | "md";
@@ -7,6 +8,8 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   size?: ButtonSize;
   icon?: ReactNode;
+  loading?: boolean;
+  loadingLabel?: string;
 }
 
 const base =
@@ -33,14 +36,25 @@ export function Button({
   children,
   className,
   icon,
+  loading = false,
+  loadingLabel = "Đang xử lý",
   size = "md",
   type = "button",
   variant = "secondary",
+  disabled,
+  "aria-label": ariaLabel,
   ...props
 }: ButtonProps) {
   return (
-    <button type={type} className={cx(base, variants[variant], sizes[size], className)} {...props}>
-      {icon}
+    <button
+      type={type}
+      className={cx(base, variants[variant], sizes[size], className)}
+      disabled={disabled || loading}
+      aria-busy={loading || undefined}
+      aria-label={loading ? loadingLabel : ariaLabel}
+      {...props}
+    >
+      {loading ? <LoaderCircle className="animate-spin" size={16} aria-hidden="true" /> : icon}
       {children}
     </button>
   );

@@ -65,7 +65,7 @@ Kết quả quyền:
   - có 124 lượt gọi API;
   - trạng thái hiển thị `Sẵn sàng thử nghiệm`;
   - đang nằm trong hồ sơ App Review ở mục `Chưa gửi`.
-- `pages_utility_messaging`:
+- `page_utility_messaging`:
   - đã được thêm vào trường hợp sử dụng;
   - có 0 lượt gọi API;
   - trạng thái hiển thị `Sẵn sàng thử nghiệm`;
@@ -90,7 +90,7 @@ Phát hiện cần xử lý:
 - Worker vẫn gọi Graph API `v22.0`, trong khi webhook Page hiện dùng `v25.0`.
 - Không tự đổi Worker sang `v25.0` trước khi chạy compatibility test.
 - Hồ sơ App Review hiện gom nhiều quyền không thuộc phạm vi Messenger; cần làm sạch hồ sơ trước khi gửi để giảm nguy cơ bị từ chối.
-- `pages_utility_messaging` chưa được phép dùng production chỉ vì đang có trạng thái `Sẵn sàng thử nghiệm`.
+- `page_utility_messaging` chưa được phép dùng production chỉ vì đang có trạng thái `Sẵn sàng thử nghiệm`.
 
 Kết luận cổng sau kiểm tra:
 
@@ -217,7 +217,7 @@ Năm quyền còn lại:
 
 1. `pages_show_list`;
 2. `pages_manage_metadata`;
-3. `pages_utility_messaging`;
+3. `page_utility_messaging`;
 4. `pages_messaging`;
 5. `pages_read_engagement`.
 
@@ -238,7 +238,7 @@ Năm quyền còn lại:
 Trạng thái API test còn thiếu:
 
 - `pages_manage_metadata`: `0/1`;
-- `pages_utility_messaging`: `0/1`;
+- `page_utility_messaging`: `0/1`;
 - `pages_read_engagement`: `0/1`.
 
 Trạng thái xác minh:
@@ -438,7 +438,7 @@ Còn lại sau Lần 3:
   `deliveryMode: "response"`, nhưng đừng dùng nó làm mẫu khi mở rộng Utility.
 - `templateVersion` đang gán cứng `1`; registry chưa có trường phiên bản riêng. Phải thay
   bằng version thật trước khi có mẫu thứ hai của cùng một `templateKey`.
-- Dialog OAuth kết nối Page đã bổ sung `pages_utility_messaging` (28/07/2026). Admin
+- Dialog OAuth kết nối Page đã bổ sung `page_utility_messaging` (28/07/2026). Admin
   phải kết nối lại Fanpage thì token mới có quyền; xem
   `KE-HOACH-NANG-CAP-FACEBOOK-MESSENGER-WORKER.md` mục 4.1.
 

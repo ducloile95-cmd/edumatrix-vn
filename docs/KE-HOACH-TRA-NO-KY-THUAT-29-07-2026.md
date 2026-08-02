@@ -136,7 +136,7 @@ Rủi ro bằng 0, làm song song với bất kỳ đợt nào.
 | B1 (1 vs 2) | Sau khi Đợt 1.2 chạy, xem số read thật trong Firebase Console 1 tuần rồi chọn: chấp nhận thực tế + sửa tài liệu, hay xây `viewer_dashboards/{uid}` thật | **CÒN MỞ** — chờ số liệu |
 | B2, B3 | "Giữ code, sửa tài liệu" cho `attendance_summaries` và enum điểm danh | ✅ 29/07 — sửa `AI-AGENTS-GUIDE` và `ke-hoach…spark.md`, mỗi file 3 chỗ (enum, sơ đồ collection, §13.4), kèm dòng chỉ rõ nguồn sự thật là `academic.ts` + `firestore.rules` |
 | B6 | Chốt phiên bản Node, ghi vào **một** chỗ duy nhất | ✅ 29/07 — thêm `.nvmrc` (= 22), `ci.yml` đọc qua `node-version-file` ở cả 2 job. Lưu ý: lý do gốc để tránh Node 24 đã hết hiệu lực — bản cài thực tế là `superstatic@10.0.0` với `engines: "20 \|\| 22 \|\| 24"`, không phải 9.2.0 như báo cáo 24/07 giả định. Đổi sang 24 chỉ là sửa 1 ký tự trong `.nvmrc` |
-| Mới | Xác minh `pages_utility_messaging` có thực sự được cấp — `handleMetaConnectCallback` (`index.ts:970-1008`) không đọc `granted_scopes`. Khi bật flag lên `true` mà gửi tin lỗi, sẽ không có gì trong log cho biết quyền có được cấp hay không |
+| Mới | Xác minh `page_utility_messaging` có thực sự được cấp — `handleMetaConnectCallback` (`index.ts:970-1008`) không đọc `granted_scopes`. Khi bật flag lên `true` mà gửi tin lỗi, sẽ không có gì trong log cho biết quyền có được cấp hay không |
 | Mới | Khoá Admin SDK (`edumatrix-vn-576b1-…json`) đã sạch khỏi Git (không có trong `ls-files` lẫn `log --all`, đã có trong `.gitignore:23`). Chỉ cần xoay khoá **nếu** commit từng chứa nó đã được push |
 
 ---

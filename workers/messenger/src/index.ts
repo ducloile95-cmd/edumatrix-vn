@@ -70,12 +70,25 @@ export const META_OAUTH_SCOPES = [
   "pages_messaging",
   "pages_read_engagement",
   "pages_manage_posts",
-  "pages_utility_messaging",
 ] as const;
+export const META_UTILITY_OAUTH_SCOPE = "page_utility_messaging";
+export function metaOAuthScopes(env: Env): readonly string[] {
+  return env.UTILITY_MESSAGING_ENABLED === "true" ? [...META_OAUTH_SCOPES, META_UTILITY_OAUTH_SCOPE] : META_OAUTH_SCOPES;
+}
+export function metaOAuthErrorMessage(error: string, reason: string): string {
+  return error === "access_denied" || reason === "user_denied"
+    ? "Facebook chưa cấp quyền cho ứng dụng."
+    : "Facebook không thể mở kết nối. Kiểm tra trạng thái App và các quyền đã được Meta duyệt.";
+}
+export function metaOAuthCompletionErrorMessage(error: string): string {
+  return error === "meta_no_managed_pages"
+    ? "Không tìm thấy Fanpage được tài khoản này quản lý."
+    : "Không thể hoàn tất kết nối Facebook. Vui lòng thử lại.";
+}
 export function metaUtilityPermissionStatus(data: unknown): MetaUtilityPermissionStatus {
   if (!data || typeof data !== "object" || !Array.isArray((data as { data?: unknown }).data)) return "unknown";
   const permission = (data as { data: Array<{ permission?: unknown; status?: unknown }> }).data
-    .find((item) => item?.permission === "pages_utility_messaging");
+    .find((item) => item?.permission === META_UTILITY_OAUTH_SCOPE);
   return permission?.status === "granted" ? "granted" : "missing";
 }
 
@@ -996,10 +1009,8 @@ async function handleMetaConnectStart(request: Request, env: Env): Promise<Respo
   authorizationUrl.searchParams.set("redirect_uri", callbackUrl);
   authorizationUrl.searchParams.set("state", state);
   authorizationUrl.searchParams.set("response_type", "code");
-  // Các quyền phải khớp tính năng Messenger, webhook, Utility và đăng Page.
-  // pages_utility_messaging chưa được duyệt cho live: Facebook chỉ cấp cho Admin/Tester
-  // của App và bỏ qua âm thầm với tài khoản khác, không làm hỏng các quyền còn lại.
-  authorizationUrl.searchParams.set("scope", META_OAUTH_SCOPES.join(","));
+  // Chỉ yêu cầu Utility sau khi App Review đã duyệt và feature flag được bật.
+  authorizationUrl.searchParams.set("scope", metaOAuthScopes(env).join(","));
   return new Response(JSON.stringify({ state, authorizationUrl: authorizationUrl.toString(), expiresAt: expiresAt.toISOString() }), { headers: corsHeaders(env, request) });
 }
 
@@ -1022,34 +1033,53 @@ async function handleMetaConnectCallback(request: Request, env: Env): Promise<Re
     return oauthResultPage(origin, state, false, "Phiên kết nối đã hết hạn. Vui lòng mở lại từ EduMatrix.");
   }
   if (!code || url.searchParams.get("error")) {
-    await updateDocumentFields("messenger_oauth_states", state, { status: "failed", error: "facebook_authorization_cancelled" }, serviceToken, env);
-    return oauthResultPage(origin, state, false, "Facebook chưa cấp quyền cho ứng dụng.");
+    const metaError = url.searchParams.get("error") ?? "authorization_code_missing";
+    const metaErrorReason = url.searchParams.get("error_reason") ?? "";
+    const error = metaOAuthErrorMessage(metaError, metaErrorReason);
+    await updateDocumentFields("messenger_oauth_states", state, {
+      status: "failed",
+      error,
+      metaError: metaError.slice(0, 120),
+      metaErrorReason: metaErrorReason.slice(0, 120),
+      metaErrorCode: (url.searchParams.get("error_code") ?? "").slice(0, 40),
+      metaErrorDescription: (url.searchParams.get("error_description") ?? "").slice(0, 240),
+    }, serviceToken, env);
+    return oauthResultPage(origin, state, false, error);
   }
-  const callbackUrl = `${url.origin}/api/meta/connect/callback`;
-  const tokenUrl = new URL(`https://graph.facebook.com/${env.META_GRAPH_VERSION}/oauth/access_token`);
-  tokenUrl.searchParams.set("client_id", env.META_APP_ID);
-  tokenUrl.searchParams.set("client_secret", normalizeSecret(env.META_APP_SECRET, "META_APP_SECRET"));
-  tokenUrl.searchParams.set("redirect_uri", callbackUrl);
-  tokenUrl.searchParams.set("code", code);
-  const tokenResponse = await fetch(tokenUrl);
-  const tokenData = await tokenResponse.json<{ access_token?: string; error?: unknown }>();
-  if (!tokenResponse.ok || !tokenData.access_token) throw new Error("meta_oauth_exchange_failed");
-  const utilityMessagingPermission = await checkMetaUtilityPermission(tokenData.access_token, env);
-  const pagesUrl = new URL(`https://graph.facebook.com/${env.META_GRAPH_VERSION}/me/accounts`);
-  pagesUrl.searchParams.set("fields", "id,name,access_token,picture");
-  pagesUrl.searchParams.set("limit", "100");
-  const pagesResponse = await fetch(pagesUrl, { headers: { authorization: `Bearer ${tokenData.access_token}` } });
-  const pagesData = await pagesResponse.json<{ data?: MetaManagedPage[] }>();
-  const pages = (pagesData.data ?? []).filter((page) => page.id && page.name && page.access_token);
-  if (!pagesResponse.ok || !pages.length) throw new Error("meta_no_managed_pages");
-  await updateDocumentFields("messenger_oauth_states", state, {
-    status: "ready",
-    encryptedPages: await encryptPrivateValue(JSON.stringify(pages), env),
-    pageSummaries: JSON.stringify(pages.map((page) => ({ id: page.id, name: page.name, pictureUrl: page.picture?.data?.url ?? null, utilityMessagingPermission }))),
-    utilityMessagingPermission,
-    completedAt: new Date(),
-  }, serviceToken, env);
-  return oauthResultPage(origin, state, true, "Quay lại EduMatrix để chọn Fanpage.");
+  try {
+    const callbackUrl = `${url.origin}/api/meta/connect/callback`;
+    const tokenUrl = new URL(`https://graph.facebook.com/${env.META_GRAPH_VERSION}/oauth/access_token`);
+    tokenUrl.searchParams.set("client_id", env.META_APP_ID);
+    tokenUrl.searchParams.set("client_secret", normalizeSecret(env.META_APP_SECRET, "META_APP_SECRET"));
+    tokenUrl.searchParams.set("redirect_uri", callbackUrl);
+    tokenUrl.searchParams.set("code", code);
+    const tokenResponse = await fetch(tokenUrl);
+    const tokenData = await tokenResponse.json<{ access_token?: string; error?: unknown }>();
+    if (!tokenResponse.ok || !tokenData.access_token) throw new Error("meta_oauth_exchange_failed");
+    const utilityMessagingPermission = await checkMetaUtilityPermission(tokenData.access_token, env);
+    const pagesUrl = new URL(`https://graph.facebook.com/${env.META_GRAPH_VERSION}/me/accounts`);
+    pagesUrl.searchParams.set("fields", "id,name,access_token,picture");
+    pagesUrl.searchParams.set("limit", "100");
+    const pagesResponse = await fetch(pagesUrl, { headers: { authorization: `Bearer ${tokenData.access_token}` } });
+    const pagesData = await pagesResponse.json<{ data?: MetaManagedPage[] }>();
+    const pages = (pagesData.data ?? []).filter((page) => page.id && page.name && page.access_token);
+    if (!pagesResponse.ok || !pages.length) throw new Error("meta_no_managed_pages");
+    await updateDocumentFields("messenger_oauth_states", state, {
+      status: "ready",
+      encryptedPages: await encryptPrivateValue(JSON.stringify(pages), env),
+      pageSummaries: JSON.stringify(pages.map((page) => ({ id: page.id, name: page.name, pictureUrl: page.picture?.data?.url ?? null, utilityMessagingPermission }))),
+      utilityMessagingPermission,
+      completedAt: new Date(),
+    }, serviceToken, env);
+    return oauthResultPage(origin, state, true, "Quay lại EduMatrix để chọn Fanpage.");
+  } catch (reason) {
+    const reasonMessage = reason instanceof Error ? reason.message : "";
+    const errorCode = ["meta_no_managed_pages", "meta_oauth_exchange_failed"].includes(reasonMessage) ? reasonMessage : "meta_oauth_callback_failed";
+    const error = metaOAuthCompletionErrorMessage(errorCode);
+    await updateDocumentFields("messenger_oauth_states", state, { status: "failed", error, diagnosticError: errorCode.slice(0, 200) }, serviceToken, env);
+    logEvent("warn", "meta_oauth_callback_failed", { errorCode });
+    return oauthResultPage(origin, state, false, error);
+  }
 }
 
 async function metaConnectState(request: Request, env: Env): Promise<{ body: MetaConnectBody; claims: FirebaseClaims; document: unknown; serviceToken: string }> {

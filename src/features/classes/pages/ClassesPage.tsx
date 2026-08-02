@@ -3,7 +3,6 @@ import { Plus } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { ClassForm } from "@/features/classes/components/ClassForm";
 import { ClassesList } from "@/features/classes/components/ClassesList";
 import { deleteClass } from "@/services/firestore/classes";
@@ -32,19 +31,19 @@ export default function ClassesPage() {
 
   return (
     <>
-      {canManageClasses && (
-        <PageHeader actions={<Button variant="primary" icon={<Plus size={17} />} onClick={() => { setEditingClass(null); setOpen(true); }}>Tạo lớp học</Button>} />
-      )}
-      <div>
-        <ClassesList
-          onEdit={openEdit}
-          onDelete={canDeleteClasses ? setDeletingClass : undefined}
-          canEdit={canManageClasses}
-          canDelete={canDeleteClasses}
-        />
-      </div>
+      <ClassesList
+        onEdit={openEdit}
+        onDelete={canDeleteClasses ? setDeletingClass : undefined}
+        canEdit={canManageClasses}
+        canDelete={canDeleteClasses}
+        primaryAction={canManageClasses ? (
+          <Button variant="primary" icon={<Plus size={17} />} onClick={() => { setEditingClass(null); setOpen(true); }}>
+            Tạo lớp học
+          </Button>
+        ) : undefined}
+      />
 
-      <Modal open={open} onClose={() => setOpen(false)} size="lg"
+      <Modal open={open} onClose={() => setOpen(false)} size="xl" bodyClassName="flex flex-col p-0"
         title={editingClass ? `Sửa lớp ${editingClass.name}` : "Tạo lớp học"}
         description={editingClass ? undefined : "Điền thông tin lớp và phân công giáo viên."}>
         <ClassForm editingClass={editingClass} onDone={() => setOpen(false)} />

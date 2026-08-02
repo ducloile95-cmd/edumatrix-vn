@@ -8,6 +8,8 @@ import { ROUTES } from "@/constants/routes";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
 import { AppShell } from "@/components/layouts/AppShell";
 import { ViewerShell } from "@/components/layouts/ViewerShell";
+import { PublicPageMotion } from "@/components/motion/PublicPageMotion";
+import { RouteMotionProvider } from "@/components/motion/RouteMotionProvider";
 import { useDelayedPending } from "@/hooks/useDelayedPending";
 
 // Lazy load tung page de tach bundle theo route (React.lazy + Suspense).
@@ -35,6 +37,12 @@ const ChatPage = lazy(() => import("@/features/announcements/pages/ChatPage"));
 const ChatDemoPage = import.meta.env.DEV
   ? lazy(() => import("@/features/announcements/pages/ChatDemoPage"))
   : null;
+const MotionDemoPage = import.meta.env.DEV
+  ? lazy(() => import("@/features/demo/pages/MotionDemoPage"))
+  : null;
+const FormPopupDemoPage = import.meta.env.DEV
+  ? lazy(() => import("@/features/demo/pages/FormPopupDemoPage"))
+  : null;
 const SettingsPage = lazy(() => import("@/features/settings/pages/SettingsPage"));
 const ViewerTuitionPage = lazy(() => import("@/features/invoices/pages/ViewerTuitionPage"));
 const ViewerSchedulePage = lazy(() => import("@/features/dashboard/pages/ViewerSchedulePage"));
@@ -56,15 +64,22 @@ function RouteFallback() {
 export function AppRouter() {
   return (
     <BrowserRouter>
-      <Suspense fallback={<RouteFallback />}>
-        <Routes>
-          <Route path={ROUTES.LOGIN} element={<LoginPage />} />
-          <Route path={ROUTES.PRIVACY_POLICY} element={<PrivacyPolicyPage />} />
-          <Route path={ROUTES.DATA_DELETION} element={<DataDeletionPage />} />
-          <Route path={ROUTES.ACCESS_DENIED} element={<AccessDeniedPage />} />
-          <Route path={ROUTES.ACCOUNT_DISABLED} element={<AccountDisabledPage />} />
+      <RouteMotionProvider>
+        <Suspense fallback={<RouteFallback />}>
+          <Routes>
+          <Route path={ROUTES.LOGIN} element={<PublicPageMotion><LoginPage /></PublicPageMotion>} />
+          <Route path={ROUTES.PRIVACY_POLICY} element={<PublicPageMotion><PrivacyPolicyPage /></PublicPageMotion>} />
+          <Route path={ROUTES.DATA_DELETION} element={<PublicPageMotion><DataDeletionPage /></PublicPageMotion>} />
+          <Route path={ROUTES.ACCESS_DENIED} element={<PublicPageMotion><AccessDeniedPage /></PublicPageMotion>} />
+          <Route path={ROUTES.ACCOUNT_DISABLED} element={<PublicPageMotion><AccountDisabledPage /></PublicPageMotion>} />
           {ViewerScheduleDemoPage && (
-            <Route path={ROUTES.VIEWER_SCHEDULE_DEMO} element={<ViewerScheduleDemoPage />} />
+            <Route path={ROUTES.VIEWER_SCHEDULE_DEMO} element={<PublicPageMotion><ViewerScheduleDemoPage /></PublicPageMotion>} />
+          )}
+          {MotionDemoPage && (
+            <Route path={ROUTES.MOTION_DEMO} element={<PublicPageMotion><MotionDemoPage /></PublicPageMotion>} />
+          )}
+          {FormPopupDemoPage && (
+            <Route path={ROUTES.FORM_POPUP_DEMO} element={<PublicPageMotion><FormPopupDemoPage /></PublicPageMotion>} />
           )}
 
           {/*
@@ -167,8 +182,9 @@ export function AppRouter() {
           />
 
           <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Suspense>
+          </Routes>
+        </Suspense>
+      </RouteMotionProvider>
     </BrowserRouter>
   );
 }

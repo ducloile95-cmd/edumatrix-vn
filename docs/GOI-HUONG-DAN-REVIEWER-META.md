@@ -15,7 +15,7 @@ App ID: `1028280243271801`
 - Hồ sơ giữ 6 quyền:
   - `pages_show_list`
   - `pages_manage_metadata`
-  - `pages_utility_messaging`
+- `page_utility_messaging`
   - `pages_manage_posts`
   - `pages_messaging`
   - `pages_read_engagement`
@@ -57,7 +57,7 @@ After signing in:
 6. The Page is subscribed to Messenger webhook events so inbound messages,
    delivery events, and read events can be processed. This demonstrates
    pages_manage_metadata.
-7. For pages_utility_messaging, open a test conversation outside the 24-hour
+7. For page_utility_messaging, open a test conversation outside the 24-hour
    response window. Free-form input is unavailable. Select the approved Utility
    Template, review its fixed business parameters, and send it to the linked
    test recipient.
@@ -92,7 +92,7 @@ Quyền mà hộp thoại OAuth đang yêu cầu (khớp đúng sáu quyền tro
 
 ```text
 pages_show_list, pages_manage_metadata, pages_messaging, pages_read_engagement,
-pages_utility_messaging, pages_manage_posts
+page_utility_messaging, pages_manage_posts
 ```
 
 Admin phải **kết nối lại Fanpage** sau thay đổi này thì Page Access Token mới mang

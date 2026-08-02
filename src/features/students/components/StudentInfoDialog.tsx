@@ -203,7 +203,7 @@ export function StudentInfoDialog({ canManageLinks, onClose, open, student }: St
         role="dialog"
         aria-modal="true"
         aria-labelledby="student-info-title"
-        className="page-enter grid max-h-[calc(100dvh-2rem)] w-full max-w-[1120px] grid-rows-[auto_1fr_auto] overflow-hidden rounded-modal border border-neutral-200 bg-white shadow-[var(--shadow-4)]"
+        className="page-enter grid max-h-[calc(100dvh-2rem)] w-full max-w-[1120px] grid-rows-[auto_1fr_auto] overflow-hidden rounded-modal border border-neutral-200 bg-white shadow-[var(--shadow-4)] lg:max-w-[1760px]"
       >
         <header className="flex items-start justify-between gap-4 border-b border-neutral-200 bg-neutral-50 px-5 py-4">
           <div className="min-w-0">

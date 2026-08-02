@@ -102,6 +102,7 @@ const PAGE_TITLES: Record<string, string> = {
     ? {
         [ROUTES.STAFF_SETTINGS_DEMO]: "Demo Cài đặt Admin",
         [ROUTES.STAFF_CHAT_DEMO]: "Demo Chat",
+        [ROUTES.MOTION_DEMO]: "Demo Motion & Animation",
       }
     : {}),
 };

@@ -18,7 +18,7 @@ export function ProgressCell({ progress }: { progress: ReturnType<typeof getLear
         <span className="text-2xs font-semibold text-neutral-900">{progress.startDate}</span>
       </div>
       <div className="h-2.5 overflow-hidden rounded-full bg-neutral-100">
-        <div className={`motion-progress h-full rounded-full ${fillClass}`} style={{ width: `${progress.percent}%` }} />
+        <div className={`motion-progress h-full w-full origin-left rounded-full ${fillClass}`} style={{ transform: `scaleX(${progress.percent / 100})` }} />
       </div>
       <div className="mt-2 flex items-center justify-between gap-2">
         <span className={`text-2xs font-semibold ${textClass}`}>{progress.percent}%</span>

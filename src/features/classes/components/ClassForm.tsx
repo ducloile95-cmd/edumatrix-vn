@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useForm, Controller } from "react-hook-form";
+import { BookOpen, MapPin, UsersRound } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { classFormSchema, type ClassFormValues } from "@/schemas/class";
@@ -21,10 +22,25 @@ import {
 } from "@/features/classes/components/classFormDefaults";
 import type { ClassDoc } from "@/types/academic";
 
+const DAY_LABELS = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
+
 interface ClassFormProps {
   editingClass?: (ClassDoc & { id: string }) | null;
   onDone?: () => void;
 }
+
+function FormSectionHeader({ icon, title, description }: { icon: ReactNode; title: string; description: string }) {
+  return (
+    <div className="mb-4 flex items-start gap-3">
+      <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary-50 text-primary-700">{icon}</span>
+      <div>
+        <h3 className="text-sm font-bold text-neutral-950">{title}</h3>
+        <p className="mt-0.5 text-xs leading-5 text-neutral-500">{description}</p>
+      </div>
+    </div>
+  );
+}
+
 export function ClassForm({ editingClass, onDone }: ClassFormProps) {
   const queryClient = useQueryClient();
   const isEditing = !!editingClass;
@@ -139,9 +155,11 @@ export function ClassForm({ editingClass, onDone }: ClassFormProps) {
   ) ?? [];
 
   return (
-    <form onSubmit={handleSubmit((values) => mutation.mutate(values))}>
-      <div className="rounded-card border border-neutral-200 bg-white p-4 sm:p-5">
-        <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-primary-700">Thông tin lớp</h3>
+    <form onSubmit={handleSubmit((values) => mutation.mutate(values))} className="flex min-h-0 flex-1 flex-col">
+      <div className="grid min-h-0 flex-1 overflow-y-auto bg-neutral-50/80 xl:grid-cols-[minmax(360px,430px)_minmax(0,1fr)] xl:overflow-hidden">
+        <div className="space-y-4 border-b border-neutral-200 p-4 sm:p-5 xl:overflow-y-auto xl:border-b-0 xl:border-r">
+      <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-5">
+        <FormSectionHeader icon={<BookOpen size={18} />} title="Thông tin lớp" description="Thông tin nhận diện và trạng thái vận hành của lớp." />
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <label htmlFor="class-name" className="mb-1 block text-sm font-medium text-neutral-700">
@@ -201,8 +219,8 @@ export function ClassForm({ editingClass, onDone }: ClassFormProps) {
         </div>
       </div>
 
-      <div className="mt-4 rounded-card border border-neutral-200 bg-white p-4 sm:p-5">
-        <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-primary-700">Phân công</h3>
+      <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-5">
+        <FormSectionHeader icon={<UsersRound size={18} />} title="Phân công" description="Chọn môn học và giáo viên phụ trách lớp." />
 
         <div className="mb-4">
           <span className="mb-1 block text-sm font-medium text-neutral-700">
@@ -289,16 +307,21 @@ export function ClassForm({ editingClass, onDone }: ClassFormProps) {
         </div>
       </div>
 
-      <div className="mt-4 rounded-card border border-neutral-200 bg-white p-4 sm:p-5">
-        <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-primary-700">Lịch &amp; địa điểm</h3>
+        </div>
+        <div className="space-y-4 p-4 sm:p-5 xl:overflow-y-auto">
+
+      <div className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-5">
+        <FormSectionHeader icon={<MapPin size={18} />} title="Lịch và địa điểm" description="Mô tả lịch được đồng bộ từ lịch thông minh hoặc nhập thủ công." />
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label htmlFor="class-schedule" className="mb-1 block text-sm font-medium text-neutral-700">
               Lịch học (mô tả)
             </label>
             {useSmartSchedule ? (
-              <p className="min-h-touch flex items-center rounded-input border border-dashed border-neutral-300 px-3 text-sm text-neutral-500">
-                Sẽ tự động tạo từ khối "Lịch học thông minh" bên dưới
+              <p id="class-schedule" className="min-h-touch flex items-center rounded-input border border-primary-100 bg-primary-50 px-3 text-sm text-primary-800">
+                {recurrencePreview
+                  ? `${recurrence.daysOfWeek.map((day) => DAY_LABELS[day]).join(", ")} | ${recurrence.startTime}-${recurrence.endTime} | ${recurrencePreview.sessions.length} buổi`
+                  : "Sẽ tự động tạo từ khối Lịch học thông minh bên dưới"}
               </p>
             ) : (
               <input
@@ -336,6 +359,9 @@ export function ClassForm({ editingClass, onDone }: ClassFormProps) {
         toggleDay={toggleDay}
         recurrencePreview={recurrencePreview}
       />
+
+        </div>
+      </div>
 
       <ClassFormActions
         isEditing={isEditing}

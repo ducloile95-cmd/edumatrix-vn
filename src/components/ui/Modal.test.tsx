@@ -42,7 +42,25 @@ describe("Modal", () => {
     expect(dialog.getAttribute("aria-modal")).toBe("true");
     expect(dialog.className).toContain("rounded-t-modal");
     expect(dialog.className).toContain("sm:rounded-modal");
+    expect(dialog.className).toContain("lg:max-w-[1080px]");
     expect(dialog.parentElement?.className).toContain("items-end");
+  });
+
+  test("uses the 1920 by 980 workspace only on desktop for the 2xl size", () => {
+    render(
+      <Modal open onClose={() => undefined} title="Thiết lập giáo án" size="2xl">
+        Nội dung giáo án
+      </Modal>,
+    );
+
+    const dialog = screen.getByRole("dialog", { name: "Thiết lập giáo án" });
+    expect(dialog.className).toContain("max-w-[1920px]");
+    expect(dialog.className).toContain("lg:max-h-[980px]");
+    expect(dialog.className).toContain("lg:h-dvh");
+    expect(dialog.parentElement?.className).toContain("lg:p-0");
+    expect(dialog.style.width).toBe("100vw");
+    expect(dialog.style.maxWidth).toBe("1920px");
+    expect(dialog.style.maxHeight).toBe("980px");
   });
 
   test("closes with Escape and returns focus to the trigger", async () => {
@@ -81,7 +99,7 @@ describe("Modal", () => {
     expect(saveButton).toBe(document.activeElement);
   });
 
-  test("keeps the dialog mounted for the 300ms exit animation", () => {
+  test("keeps the dialog mounted for the 200ms exit animation", () => {
     vi.useFakeTimers();
     const { rerender } = render(
       <Modal open onClose={() => undefined} title="Chi tiết">
@@ -96,7 +114,7 @@ describe("Modal", () => {
     );
     expect(screen.queryByRole("dialog", { name: "Chi tiết" })).not.toBeNull();
 
-    act(() => vi.advanceTimersByTime(299));
+    act(() => vi.advanceTimersByTime(199));
     expect(screen.queryByRole("dialog", { name: "Chi tiết" })).not.toBeNull();
 
     act(() => vi.advanceTimersByTime(1));

@@ -84,7 +84,7 @@ export function TimeRangeFilter({ value, onApply }: TimeRangeFilterProps) {
             role="dialog"
             aria-modal="true"
             aria-labelledby="time-filter-title"
-            className="page-enter grid w-full max-w-[480px] grid-rows-[auto_1fr_auto] overflow-hidden rounded-modal border border-neutral-200 bg-white shadow-[var(--shadow-4)]"
+            className="page-enter grid w-full max-w-[480px] grid-rows-[auto_1fr_auto] overflow-hidden rounded-modal border border-neutral-200 bg-white shadow-[var(--shadow-4)] lg:max-w-[720px]"
           >
             <header className="flex min-h-[64px] items-center justify-between border-b border-neutral-200 px-5">
               <h2 id="time-filter-title" className="text-lg font-semibold text-neutral-900">

@@ -24,6 +24,8 @@ export const ROUTE_PREFETCH: Record<string, () => void> = {
     ? {
         [ROUTES.STAFF_CHAT_DEMO]: () =>
           void import("@/features/announcements/pages/ChatDemoPage"),
+        [ROUTES.MOTION_DEMO]: () =>
+          void import("@/features/demo/pages/MotionDemoPage"),
       }
     : {}),
   [ROUTES.STAFF_SETTINGS]: () => void import("@/features/settings/pages/SettingsPage"),

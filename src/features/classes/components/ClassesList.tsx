@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState, type ComponentType, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { addDays, isWithinInterval, subDays } from "date-fns";
-import { AlertTriangle, CheckCircle2, Sparkles, Users } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, CalendarDays, CheckCircle2, Pencil, Sparkles, Trash2, Users, type LucideProps } from "lucide-react";
 import { listClasses } from "@/services/firestore/classes";
 import { listCourses } from "@/services/firestore/courses";
 import { listSubjects } from "@/services/firestore/subjects";
@@ -14,9 +14,8 @@ import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { StatCard } from "@/components/ui/StatCard";
 import { SearchInput } from "@/components/ui/SearchInput";
-import { FilterField, FilterSelect, FilterToolbar } from "@/components/ui/FilterToolbar";
+import { FilterField, FilterSelect } from "@/components/ui/FilterToolbar";
 import { Pagination } from "@/components/ui/Pagination";
 import { DataListPanel, DATA_LIST_FOOTER, DATA_LIST_SCROLL_ALWAYS } from "@/components/ui/dataListLayout";
 import { usePagination } from "@/hooks/usePagination";
@@ -29,6 +28,7 @@ interface ClassesListProps {
   onDelete?: (klass: ClassDoc & { id: string }) => void;
   canEdit?: boolean;
   canDelete?: boolean;
+  primaryAction?: ReactNode;
 }
 
 const STATUS_TONE: Record<ClassStatus, "success" | "neutral" | "danger"> = {
@@ -48,9 +48,31 @@ const STATUS_FILTERS: { value: ClassStatus | "all"; label: string }[] = [
   { value: "cancelled", label: "Đã hủy" },
 ];
 
-export function ClassesList({ onDelete, onEdit, canDelete = false, canEdit = false }: ClassesListProps) {
+const ROW_ICON_ACTION = "grid size-10 shrink-0 place-items-center rounded-input border border-neutral-200 bg-white text-neutral-500 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700";
+
+function SecondaryMetric({ icon: Icon, value, label, hint, tone }: {
+  icon: ComponentType<LucideProps>;
+  value: number;
+  label: string;
+  hint: string;
+  tone: string;
+}) {
+  return (
+    <div className="flex min-w-0 items-start gap-3 bg-white p-3.5 md:p-4">
+      <span className={`grid size-9 shrink-0 place-items-center rounded-input ${tone}`}><Icon size={17} aria-hidden="true" /></span>
+      <div className="min-w-0">
+        <p className="text-lg font-bold tabular-nums text-neutral-900">{value}</p>
+        <p className="text-xs font-semibold text-neutral-700">{label}</p>
+        <p className="mt-0.5 truncate text-2xs text-neutral-500" title={hint}>{hint}</p>
+      </div>
+    </div>
+  );
+}
+
+export function ClassesList({ onDelete, onEdit, canDelete = false, canEdit = false, primaryAction }: ClassesListProps) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<ClassStatus | "all">("all");
+  const deferredSearch = useDeferredValue(search);
 
   const { data: classes, isLoading, isError, refetch } = useQuery({
     queryKey: ["classes"],
@@ -106,7 +128,7 @@ export function ClassesList({ onDelete, onEdit, canDelete = false, canEdit = fal
 
   const filtered = useMemo(() => {
     if (!classes) return [];
-    const keyword = search.trim().toLowerCase();
+    const keyword = deferredSearch.trim().toLowerCase();
     return classes.filter((c) => {
       const courseName = courseById.get(c.courseId)?.name ?? "";
       const matchesKeyword =
@@ -114,7 +136,7 @@ export function ClassesList({ onDelete, onEdit, canDelete = false, canEdit = fal
       const matchesStatus = statusFilter === "all" || c.status === statusFilter;
       return matchesKeyword && matchesStatus;
     });
-  }, [classes, courseById, search, statusFilter]);
+  }, [classes, courseById, deferredSearch, statusFilter]);
   const { page, pageSize, pageItems, setPage } = usePagination(filtered);
 
   const kpi = useMemo(() => {
@@ -125,46 +147,9 @@ export function ClassesList({ onDelete, onEdit, canDelete = false, canEdit = fal
     return { total: list.length, active: active.length, totalStudents, incomplete };
   }, [classes]);
 
-  if (isLoading) return <LoadingSkeleton rows={3} />;
-  if (isError) return <ErrorState message="Không tải được danh sách lớp học." onRetry={() => refetch()} />;
-  if (!classes || classes.length === 0) {
-    return <EmptyState title="Chưa có lớp học nào" description="Tạo lớp học ở nút phía trên." />;
-  }
-
-  return (
-    <div>
-      <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-        <StatCard
-          icon={Sparkles}
-          tone="accent"
-          value={newUpcomingClassesCount}
-          label="Lớp mới sắp tới"
-          hint={`Tạo trong ${NEW_CLASS_WINDOW_DAYS} ngày gần đây, còn buổi chưa học`}
-        />
-        <StatCard
-          icon={CheckCircle2}
-          tone="success"
-          value={kpi.active}
-          label="Đang hoạt động"
-          hint={`${kpi.total - kpi.active} lớp đã kết thúc/hủy`}
-        />
-        <StatCard
-          icon={Users}
-          tone="info"
-          value={kpi.totalStudents}
-          label="Học sinh đang học"
-          hint="Cộng dồn các lớp đang hoạt động"
-        />
-        <StatCard
-          icon={AlertTriangle}
-          tone="warning"
-          value={kpi.incomplete}
-          label="Lớp thiếu dữ liệu"
-          hint="Chưa có lịch hoặc chưa gán giáo viên"
-        />
-      </div>
-
-      <FilterToolbar label="Tìm kiếm và lọc lớp học">
+  const filterToolbar = (
+    <section aria-label="Tìm kiếm và lọc lớp học" className="mb-3 rounded-card border border-neutral-200 bg-white p-3 shadow-[var(--shadow-1)] sm:p-4">
+      <div className="grid gap-3 md:grid-cols-[minmax(320px,1fr)_200px_auto] md:items-end">
         <FilterField label="Tìm kiếm" htmlFor="class-search">
           <SearchInput
             id="class-search"
@@ -186,12 +171,28 @@ export function ClassesList({ onDelete, onEdit, canDelete = false, canEdit = fal
             setPage(1);
           }}
         />
-      </FilterToolbar>
+        {primaryAction && <div className="grid md:min-w-36">{primaryAction}</div>}
+      </div>
+    </section>
+  );
+
+  if (isLoading) return <>{filterToolbar}<LoadingSkeleton rows={3} /></>;
+  if (isError) return <>{filterToolbar}<ErrorState message="Không tải được danh sách lớp học." onRetry={() => refetch()} /></>;
+  if (!classes || classes.length === 0) {
+    return <>{filterToolbar}<EmptyState title="Chưa có lớp học nào" description="Tạo lớp học ở nút phía trên." /></>;
+  }
+
+  return (
+    <div>
+      {filterToolbar}
 
       <DataListPanel className="rounded-card border border-neutral-200 bg-white">
-        <div className="shrink-0 border-b border-neutral-200 px-4 py-4 sm:px-5">
-          <h2 className="text-base font-semibold text-neutral-900">Danh sách lớp học</h2>
-          <p className="mt-1 text-sm text-neutral-500">{filtered.length} lớp phù hợp bộ lọc</p>
+        <div className="flex shrink-0 items-center justify-between gap-4 border-b border-neutral-200 px-4 py-3 sm:px-5">
+          <div>
+            <h2 className="text-base font-semibold text-neutral-900">Danh sách lớp học</h2>
+            <p className="mt-0.5 text-xs text-neutral-500">{filtered.length} lớp phù hợp bộ lọc</p>
+          </div>
+          <span className="hidden text-xs font-medium text-neutral-400 sm:block">Chọn tên lớp hoặc “Mở lớp” để xem chi tiết</span>
         </div>
 
         {filtered.length === 0 ? (
@@ -206,25 +207,26 @@ export function ClassesList({ onDelete, onEdit, canDelete = false, canEdit = fal
               aria-label="Danh sách lớp học có thể cuộn"
               tabIndex={0}
             >
-              <table className="w-full min-w-[1040px] border-collapse text-sm">
+              <table className="w-full min-w-[920px] table-fixed border-collapse text-sm">
+                <caption className="sr-only">Danh sách lớp học cùng giáo viên, sĩ số, lịch học, trạng thái và thao tác</caption>
                 <thead className="sticky top-0 z-10 bg-neutral-50">
                   <tr className="border-b border-neutral-200 bg-neutral-50 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
-                    <th scope="col" className="px-4 py-3">
+                    <th scope="col" className="w-[25%] px-4 py-3">
                       Lớp học
                     </th>
-                    <th scope="col" className="px-4 py-3">
+                    <th scope="col" className="w-[16%] px-4 py-3">
                       Giáo viên
                     </th>
-                    <th scope="col" className="px-4 py-3 text-center">
+                    <th scope="col" className="w-[7%] px-3 py-3 text-center">
                       Sĩ số
                     </th>
-                    <th scope="col" className="px-4 py-3">
+                    <th scope="col" className="w-[18%] px-4 py-3">
                       Lịch &amp; địa điểm
                     </th>
-                    <th scope="col" className="px-4 py-3">
+                    <th scope="col" className="w-[14%] px-4 py-3">
                       Trạng thái
                     </th>
-                    <th scope="col" className="px-4 py-3 text-right">
+                    <th scope="col" className="w-[20%] px-4 py-3 text-right">
                       Thao tác
                     </th>
                   </tr>
@@ -240,8 +242,8 @@ export function ClassesList({ onDelete, onEdit, canDelete = false, canEdit = fal
                       .filter((name): name is string => !!name);
 
                     return (
-                      <tr key={klass.id} className="transition hover:bg-neutral-50">
-                        <td className="px-4 py-3">
+                      <tr key={klass.id} className="transition-colors hover:bg-primary-50/40">
+                        <td className="px-4 py-3.5">
                           <Link to={classDetailPath(klass.id)} className="font-medium text-primary-700 hover:underline">
                             {klass.name}
                           </Link>
@@ -256,7 +258,7 @@ export function ClassesList({ onDelete, onEdit, canDelete = false, canEdit = fal
                             </div>
                           )}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3.5">
                           {teacherNames.length > 0 ? (
                             <span className="text-neutral-800">
                               {teacherNames[0]}
@@ -271,47 +273,53 @@ export function ClassesList({ onDelete, onEdit, canDelete = false, canEdit = fal
                             </span>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-center font-medium tabular-nums text-neutral-800">
+                        <td className="px-3 py-3.5 text-center font-semibold tabular-nums text-neutral-800">
                           {klass.studentIds.length}
                         </td>
-                        <td className="px-4 py-3 text-neutral-600">
+                        <td className="px-4 py-3.5 text-neutral-600">
                           {klass.scheduleText || <span className="text-xs font-semibold text-warning-700">Chưa có lịch</span>}
                           {klass.location && <span className="block text-xs text-neutral-400">{klass.location}</span>}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3.5">
                           <StatusBadge tone={STATUS_TONE[klass.status]}>{STATUS_LABEL[klass.status]}</StatusBadge>
                         </td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-wrap justify-end gap-2">
-                            {canEdit && (
-                            <button
-                              type="button"
-                              onClick={() => onEdit(klass)}
-                              className="min-h-touch rounded-input border border-neutral-300 px-3 text-xs font-medium text-neutral-600 hover:bg-neutral-50"
+                        <td className="px-4 py-3.5">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <Link
+                              to={sessionsForClassPath(klass.id)}
+                              className={ROW_ICON_ACTION}
+                              aria-label={`Xem lịch lớp ${klass.name}`}
+                              title="Xem lịch"
                             >
-                              Sửa
-                            </button>
+                              <CalendarDays size={16} aria-hidden="true" />
+                            </Link>
+                            {canEdit && (
+                              <button
+                                type="button"
+                                onClick={() => onEdit(klass)}
+                                className={ROW_ICON_ACTION}
+                                aria-label={`Sửa lớp ${klass.name}`}
+                                title="Sửa lớp"
+                              >
+                                <Pencil size={16} aria-hidden="true" />
+                              </button>
                             )}
                             {canDelete && klass.status !== "cancelled" && (
                               <button
                                 type="button"
                                 onClick={() => onDelete?.(klass)}
-                                className="min-h-touch rounded-input border border-danger-200 bg-danger-50 px-3 text-xs font-medium text-danger-700 hover:bg-danger-100"
+                                className={`${ROW_ICON_ACTION} text-danger-600 hover:border-danger-200 hover:bg-danger-50 hover:text-danger-700`}
+                                aria-label={`Xóa lớp ${klass.name}`}
+                                title="Xóa lớp"
                               >
-                                Xóa
+                                <Trash2 size={16} aria-hidden="true" />
                               </button>
                             )}
                             <Link
-                              to={sessionsForClassPath(klass.id)}
-                              className="flex min-h-touch items-center rounded-input border border-neutral-300 px-3 text-xs font-medium text-neutral-600 hover:bg-neutral-50"
-                            >
-                              Xem lịch
-                            </Link>
-                            <Link
                               to={classDetailPath(klass.id)}
-                              className="flex min-h-touch items-center rounded-input border border-neutral-300 px-3 text-xs font-medium text-neutral-600 hover:bg-neutral-50"
+                              className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-input bg-primary-50 px-3 text-xs font-semibold text-primary-700 transition hover:bg-primary-100"
                             >
-                              Quản lý học sinh
+                              Mở lớp <ArrowUpRight size={15} aria-hidden="true" />
                             </Link>
                           </div>
                         </td>
@@ -327,6 +335,13 @@ export function ClassesList({ onDelete, onEdit, canDelete = false, canEdit = fal
           </>
         )}
       </DataListPanel>
+
+      <section aria-label="Tóm tắt lớp học" className="mt-3 grid grid-cols-2 gap-px overflow-hidden rounded-card border border-neutral-200 bg-neutral-100 md:grid-cols-4">
+        <SecondaryMetric icon={Sparkles} tone="bg-accent-50 text-accent-700" value={newUpcomingClassesCount} label="Lớp mới sắp tới" hint={`Tạo trong ${NEW_CLASS_WINDOW_DAYS} ngày gần đây`} />
+        <SecondaryMetric icon={CheckCircle2} tone="bg-success-50 text-success-700" value={kpi.active} label="Đang hoạt động" hint={`${kpi.total - kpi.active} lớp đã kết thúc hoặc hủy`} />
+        <SecondaryMetric icon={Users} tone="bg-info-50 text-info-700" value={kpi.totalStudents} label="Học sinh đang học" hint="Tổng từ các lớp đang hoạt động" />
+        <SecondaryMetric icon={AlertTriangle} tone="bg-warning-50 text-warning-700" value={kpi.incomplete} label="Thiếu dữ liệu" hint="Chưa có lịch hoặc giáo viên" />
+      </section>
     </div>
   );
 }

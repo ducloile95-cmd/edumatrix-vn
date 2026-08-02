@@ -10,7 +10,7 @@ Ngày chuẩn bị: 27/07/2026
   `https://edumatrix-messenger-production.edumatrix-vn.workers.dev/webhook`
 - Các webhook Messenger cần thiết đã được đăng ký, gồm tin nhắn, trạng thái giao/đọc,
   postback, referral và trạng thái template.
-- `pages_messaging` và `pages_utility_messaging` đang ở trạng thái sẵn sàng thử nghiệm,
+- `pages_messaging` và `page_utility_messaging` đang ở trạng thái sẵn sàng thử nghiệm,
   nhưng hồ sơ App Review vẫn chưa gửi.
 - Worker đã có nhánh Utility được bảo vệ bằng feature flag. Production mặc định
   `UTILITY_MESSAGING_ENABLED=false`.
@@ -22,7 +22,7 @@ Chỉ giữ các quyền có thể giải thích trực tiếp bằng luồng Ed
 1. `pages_messaging`
    - Nhận tin nhắn phụ huynh gửi tới Fanpage.
    - Cho Admin/Teacher được phân quyền trả lời trong EduMatrix.
-2. `pages_utility_messaging`
+2. `page_utility_messaging`
    - Gửi template Utility đã được Meta duyệt khi ngoài cửa sổ phản hồi 24 giờ.
 3. `pages_manage_metadata`
    - Đăng ký và vận hành webhook của Page.

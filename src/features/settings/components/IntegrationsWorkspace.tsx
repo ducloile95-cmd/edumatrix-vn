@@ -102,7 +102,7 @@ export function IntegrationsWorkspace() {
     {utilityReconnectRequired && (
       <p role="alert" className="rounded-input border border-warning-200 bg-warning-50 px-4 py-3 text-sm font-semibold leading-6 text-warning-900">
         {utilityPermission === "missing"
-          ? "Fanpage hiện tại chưa cấp quyền pages_utility_messaging."
+          ? "Fanpage hiện tại chưa cấp quyền page_utility_messaging."
           : "Kết nối Fanpage này được tạo trước khi hệ thống kiểm tra quyền Utility Messaging."}{" "}
         Chọn “Kết nối lại Fanpage”, chấp thuận quyền Utility Messaging trên Facebook và chỉ bật tính năng sau khi trạng thái chuyển thành “Đã cấp quyền”.
       </p>

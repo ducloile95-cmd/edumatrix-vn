@@ -11,6 +11,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
           queries: {
             // Danh muc it doi (lop, mon, hoc sinh) - tranh refetch lien tuc (A14).
             staleTime: 60_000,
+            gcTime: 30 * 60_000,
             refetchOnWindowFocus: false,
             retry: 1,
           },
