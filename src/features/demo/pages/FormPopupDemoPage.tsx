@@ -66,6 +66,11 @@ const SIZE_LABELS: Record<DemoSize, string> = {
   workspace: "1.760 px",
   fullscreen: "1.920 × 980",
 };
+const APPROVED_DEMO_IDS = new Set(["lesson-plan", "class"]);
+
+function getDemoSize(demo: PopupDemo): DemoSize {
+  return APPROVED_DEMO_IDS.has(demo.id) ? demo.size : "workspace";
+}
 
 const POPUP_DEMOS: PopupDemo[] = [
   {
@@ -92,7 +97,7 @@ const POPUP_DEMOS: PopupDemo[] = [
     ],
   },
   {
-    id: "class", title: "Tạo / sửa lớp học", description: "Form hai vùng với lịch tháng tương tác", group: "Học vụ", size: "workspace", icon: School, primaryAction: "Lưu lớp học",
+    id: "class", title: "Tạo / sửa lớp học", description: "Form ngang cố định với lịch tháng tương tác", group: "Học vụ", size: "fullscreen", icon: School, primaryAction: "Lưu lớp học",
     sections: [
       { title: "Thông tin lớp", fields: [
         { label: "Tên lớp", placeholder: "HN53 Essentials", required: true },
@@ -260,17 +265,18 @@ function DemoFieldControl({ field, fieldId }: { field: DemoField; fieldId: strin
 
 function StandardDemoForm({ demo, onClose }: { demo: PopupDemo; onClose: () => void }) {
   const formId = useId();
+  const singleSection = demo.sections.length === 1;
   return (
     <form onSubmit={(event) => { event.preventDefault(); onClose(); }} className="flex min-h-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto bg-neutral-50/70 p-4 sm:p-6">
-        <div className={`mx-auto grid gap-4 ${demo.size === "workspace" ? "xl:grid-cols-2" : ""}`}>
+        <div className={`mx-auto flex w-full flex-col gap-4 xl:flex-row ${singleSection ? "max-w-[1280px]" : ""}`}>
           {demo.sections.map((section) => (
-            <section key={section.title} className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-5">
+            <section key={section.title} className="min-w-0 flex-1 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm sm:p-5">
               <div className="mb-4">
                 <h3 className="text-sm font-bold text-neutral-900">{section.title}</h3>
                 {section.description && <p className="mt-1 text-xs leading-5 text-neutral-500">{section.description}</p>}
               </div>
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className={`grid gap-4 md:grid-cols-2 ${singleSection ? "xl:grid-cols-3" : ""}`}>
                 {section.fields.map((field, index) => {
                   const fieldId = `${formId}-${index}-${field.label.replace(/\s+/g, "-")}`;
                   return (
@@ -331,8 +337,9 @@ function DemoDialog({ demo, onClose }: { demo: PopupDemo | null; onClose: () => 
   const modalSize: Record<DemoSize, "sm" | "md" | "lg" | "xl" | "2xl"> = {
     compact: "sm", standard: "md", wide: "lg", workspace: "xl", fullscreen: "2xl",
   };
+  const effectiveSize = getDemoSize(demo);
   return (
-    <Modal open title={demo.title} description={`${demo.description} · ${SIZE_LABELS[demo.size]}`} size={modalSize[demo.size]} onClose={onClose} bodyClassName="flex flex-col p-0">
+    <Modal open title={demo.title} description={`${demo.description} · ${SIZE_LABELS[effectiveSize]}`} size={modalSize[effectiveSize]} onClose={onClose} bodyClassName="flex flex-col p-0">
       {demo.id === "lesson-plan" ? <LessonPlanDemo onClose={onClose} /> : demo.id === "class" ? <ClassFormPopupDemo onClose={onClose} /> : <StandardDemoForm demo={demo} onClose={onClose} />}
     </Modal>
   );
@@ -353,8 +360,8 @@ export default function FormPopupDemoPage() {
       <div className="mx-auto max-w-[1680px] px-4 py-6 sm:px-6 lg:px-8 lg:py-9">
         <header className="overflow-hidden rounded-[24px] border border-neutral-200 bg-white shadow-sm">
           <div className="grid gap-7 p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end lg:p-8">
-            <div><div className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary-100 bg-primary-50 px-3 py-1.5 text-xs font-bold text-primary-700"><SlidersHorizontal size={14} /> Demo trước triển khai</div><h1 className="max-w-4xl text-2xl font-black tracking-[-0.03em] text-neutral-950 sm:text-3xl lg:text-4xl">Hệ thống popup nhập liệu rộng, rõ và không mất thông tin</h1><p className="mt-3 max-w-3xl text-sm leading-6 text-neutral-600 sm:text-base">Bản kiểm tra trực quan cho mọi luồng nhập liệu hiện có. Popup giáo án dùng workspace tối đa 1.920 × 980; các popup còn lại tăng chiều ngang theo độ phức tạp và tự co theo màn hình.</p></div>
-            <div className="grid grid-cols-3 gap-2 text-center"><Metric value={allDemos.length} label="Demo" /><Metric value={fieldCount} label="Trường" /><Metric value="5" label="Cỡ khung" /></div>
+            <div><div className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary-100 bg-primary-50 px-3 py-1.5 text-xs font-bold text-primary-700"><SlidersHorizontal size={14} /> Demo trước triển khai</div><h1 className="max-w-4xl text-2xl font-black tracking-[-0.03em] text-neutral-950 sm:text-3xl lg:text-4xl">Hệ thống popup nhập liệu rộng, rõ và không mất thông tin</h1><p className="mt-3 max-w-3xl text-sm leading-6 text-neutral-600 sm:text-base">Giữ nguyên hai form đã duyệt là Giáo án và Tạo lớp học. Các popup còn lại dùng workspace ngang 1.760 px, tự xếp nhóm thông tin song song và co an toàn theo Web View.</p></div>
+            <div className="grid grid-cols-3 gap-2 text-center"><Metric value={allDemos.length} label="Demo" /><Metric value={fieldCount} label="Trường" /><Metric value="2" label="Cỡ khung" /></div>
           </div>
           <div className="flex flex-col gap-3 border-t border-neutral-200 bg-neutral-50 px-6 py-4 sm:flex-row sm:items-center sm:justify-between lg:px-8">
             <label className="relative block w-full sm:max-w-md"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={17} /><span className="sr-only">Tìm popup demo</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Tìm theo tên hoặc nhóm popup..." className={`${FIELD_CLASS} pl-10`} /></label>
@@ -366,7 +373,8 @@ export default function FormPopupDemoPage() {
           {filtered.map((demo) => {
             const Icon = demo.icon;
             const fields = demo.sections.reduce((total, section) => total + section.fields.length, 0);
-            return <button key={demo.id} type="button" onClick={() => setActive(demo)} className="group flex min-h-48 flex-col rounded-[20px] border border-neutral-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-primary-300"><div className="flex items-start justify-between gap-3"><span className="grid size-11 place-items-center rounded-xl bg-primary-50 text-primary-700"><Icon size={21} /></span><span className="rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-1 text-[10px] font-bold text-neutral-600">{SIZE_LABELS[demo.size]}</span></div><div className="mt-5 flex-1"><p className="text-[11px] font-bold uppercase tracking-[0.12em] text-neutral-400">{demo.group}</p><h2 className="mt-1 text-base font-bold text-neutral-950">{demo.title}</h2><p className="mt-1.5 line-clamp-2 text-sm leading-5 text-neutral-500">{demo.description}</p></div><div className="mt-4 flex items-center justify-between border-t border-neutral-100 pt-3 text-xs"><span className="font-semibold text-neutral-500">{fields ? `${fields} trường / thông tin` : "Workspace chuyên biệt"}</span><span className="flex items-center gap-1 font-bold text-primary-700">Mở demo <ChevronRight className="transition group-hover:translate-x-0.5" size={15} /></span></div></button>;
+            const effectiveSize = getDemoSize(demo);
+            return <button key={demo.id} type="button" onClick={() => setActive(demo)} className="group flex min-h-48 flex-col rounded-[20px] border border-neutral-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-primary-300"><div className="flex items-start justify-between gap-3"><span className="grid size-11 place-items-center rounded-xl bg-primary-50 text-primary-700"><Icon size={21} /></span><span className="rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-1 text-[10px] font-bold text-neutral-600">{SIZE_LABELS[effectiveSize]}</span></div><div className="mt-5 flex-1"><p className="text-[11px] font-bold uppercase tracking-[0.12em] text-neutral-400">{demo.group}</p><h2 className="mt-1 text-base font-bold text-neutral-950">{demo.title}</h2><p className="mt-1.5 line-clamp-2 text-sm leading-5 text-neutral-500">{demo.description}</p></div><div className="mt-4 flex items-center justify-between border-t border-neutral-100 pt-3 text-xs"><span className="font-semibold text-neutral-500">{fields ? `${fields} trường / thông tin` : "Workspace chuyên biệt"}</span><span className="flex items-center gap-1 font-bold text-primary-700">Mở demo <ChevronRight className="transition group-hover:translate-x-0.5" size={15} /></span></div></button>;
           })}
         </section>
         {filtered.length === 0 && <div className="mt-6 rounded-2xl border border-dashed border-neutral-300 bg-white p-12 text-center text-sm text-neutral-500">Không tìm thấy popup phù hợp.</div>}
