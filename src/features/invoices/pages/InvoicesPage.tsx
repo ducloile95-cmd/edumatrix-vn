@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Bar, BarChart, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -19,7 +19,8 @@ import { StatCard } from "@/components/ui/StatCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Tab, Tabs } from "@/components/ui/Tabs";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { createInvoice, listInvoices, listPayments, reconcilePayment } from "@/services/firestore/invoices";
+import { InvoiceCreationForm, type InvoiceCreationValues } from "@/features/invoices/components/InvoiceCreationForm";
+import { createInvoices, listInvoices, listPayments, reconcilePayment } from "@/services/firestore/invoices";
 import { getPaymentSettings } from "@/services/firestore/settings";
 import { listStudents } from "@/services/firestore/students";
 import { listClasses } from "@/services/firestore/classes";
@@ -47,18 +48,6 @@ const TABS: Array<{ value: FinanceTab; label: string }> = [
   { value: "reconcile", label: "Đối soát" },
 ];
 
-const INITIAL_FORM = {
-  studentId: "",
-  classId: "",
-  sessionCount: 1,
-  title: "Học phí",
-  amount: 0,
-  dueAt: "",
-  bankBin: "970436",
-  accountNumber: "",
-  accountName: "EDUMATRIX",
-};
-
 export default function InvoicesPage() {
   const reducedMotion = useReducedMotion();
   const { firebaseUser, role } = useAuth();
@@ -78,53 +67,24 @@ export default function InvoicesPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<InvoiceStatus | "all">("all");
-  const [form, setForm] = useState(INITIAL_FORM);
-  const [amountTouched, setAmountTouched] = useState(false);
 
-  const classById = useMemo(() => new Map((classes.data ?? []).map((klass) => [klass.id, klass])), [classes.data]);
-  const courseById = useMemo(() => new Map((courses.data ?? []).map((course) => [course.id, course])), [courses.data]);
   const studentNameById = useMemo(() => new Map((students.data ?? []).map((student) => [student.id, student.fullName])), [students.data]);
   const invoiceById = useMemo(() => new Map((invoices.data ?? []).map((invoice) => [invoice.id, invoice])), [invoices.data]);
-  const selectedClass = form.classId ? classById.get(form.classId) : undefined;
-  const selectedCourse = selectedClass ? courseById.get(selectedClass.courseId) : undefined;
-  const unitPrice = selectedCourse
-    ? selectedCourse.pricePerSession ?? Math.round(selectedCourse.tuitionFee / selectedCourse.totalSessions)
-    : null;
-  const computedAmount = unitPrice === null ? null : unitPrice * form.sessionCount;
-
-  useEffect(() => {
-    if (computedAmount !== null && !amountTouched) {
-      setForm((current) => ({ ...current, amount: computedAmount }));
-    }
-  }, [computedAmount, amountTouched]);
-
-  useEffect(() => {
-    const payment = paymentSettings.data;
-    if (!payment) return;
-    setForm((current) => ({
-      ...current,
-      bankBin: payment.bankBin,
-      accountNumber: payment.accountNumber,
-      accountName: payment.accountName,
-    }));
-  }, [paymentSettings.data]);
 
   const create = useMutation({
-    mutationFn: () => createInvoice({
-      studentId: form.studentId,
-      courseId: selectedCourse?.id ?? null,
-      title: form.title,
-      amount: Number(form.amount),
-      dueAt: new Date(form.dueAt),
-      bankBin: form.bankBin,
-      accountNumber: form.accountNumber,
-      accountName: form.accountName,
+    mutationFn: (values: InvoiceCreationValues) => createInvoices(values.studentIds.map((studentId) => ({
+      studentId,
+      courseId: values.courseId,
+      title: values.title,
+      amount: values.amount,
+      dueAt: values.dueAt,
+      bankBin: paymentSettings.data?.bankBin ?? "970436",
+      accountNumber: paymentSettings.data?.accountNumber ?? "",
+      accountName: paymentSettings.data?.accountName ?? "EDUMATRIX",
       actorUid: firebaseUser?.uid ?? "unknown",
-    }),
+    }))),
     onSuccess: () => {
       client.invalidateQueries({ queryKey: ["invoices"] });
-      setForm(INITIAL_FORM);
-      setAmountTouched(false);
       setCreateOpen(false);
       setActiveTab("invoices");
     },
@@ -140,9 +100,6 @@ export default function InvoicesPage() {
       client.invalidateQueries({ queryKey: ["invoices"] });
     },
   });
-
-  const setField = (field: keyof typeof form, value: string | number) =>
-    setForm((current) => ({ ...current, [field]: value }));
 
   const filteredInvoices = useMemo(() => {
     const term = search.trim().toLocaleLowerCase("vi");
@@ -332,39 +289,22 @@ export default function InvoicesPage() {
         </DataListPanel>
       )}
 
-      {isAdmin && <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Tạo hóa đơn học phí" description="Chọn học sinh và lớp để hệ thống tính học phí theo số buổi." size="lg">
-        <form onSubmit={(event) => { event.preventDefault(); if (!create.isPending) create.mutate(); }} className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(260px,.8fr)]">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormField label="Học sinh" required><select required value={form.studentId} onChange={(event) => setField("studentId", event.target.value)} className={FIELD_CLASS}><option value="">Chọn học sinh</option>{students.data?.map((student) => <option key={student.id} value={student.id}>{student.fullName}</option>)}</select></FormField>
-            <FormField label="Lớp học"><select value={form.classId} onChange={(event) => { setField("classId", event.target.value); setAmountTouched(false); }} className={FIELD_CLASS}><option value="">Không gắn lớp, nhập tay</option>{classes.data?.map((klass) => <option key={klass.id} value={klass.id}>{klass.name}</option>)}</select></FormField>
-            <FormField label="Nội dung thu" required><input required value={form.title} onChange={(event) => setField("title", event.target.value)} className={FIELD_CLASS} /></FormField>
-            <FormField label="Số buổi" required><input required type="number" min={1} step={1} value={form.sessionCount} onChange={(event) => setField("sessionCount", Number(event.target.value))} className={FIELD_CLASS} /></FormField>
-            <FormField label="Số tiền" required><input required type="number" min={1} value={form.amount || ""} onChange={(event) => { setAmountTouched(true); setField("amount", Number(event.target.value)); }} className={FIELD_CLASS} /></FormField>
-            <FormField label="Hạn thanh toán" required><input required type="date" value={form.dueAt} onChange={(event) => setField("dueAt", event.target.value)} className={FIELD_CLASS} /></FormField>
-            <FormField label="Số tài khoản" required><input required value={form.accountNumber} readOnly className={`${FIELD_CLASS} bg-neutral-100`} /></FormField>
-            <FormField label="Tên tài khoản"><input value={form.accountName} readOnly className={`${FIELD_CLASS} bg-neutral-100`} /></FormField>
-            <FormField label="Mã ngân hàng"><input value={form.bankBin} readOnly className={`${FIELD_CLASS} bg-neutral-100`} /></FormField>
-            <p className="text-xs leading-5 text-neutral-500 sm:col-span-2">Thông tin VietQR được quản lý tại Cài đặt và snapshot vào hóa đơn này.</p>
-          </div>
-          <aside className="flex flex-col rounded-card border border-primary-100 bg-primary-50/70 p-5">
-            <p className="text-xs font-bold uppercase tracking-[0.12em] text-primary-700">Xem trước hóa đơn</p>
-            <p className="mt-5 text-sm text-neutral-500">Học sinh</p><p className="mt-1 font-bold text-neutral-900">{studentNameById.get(form.studentId) ?? "Chưa chọn học sinh"}</p>
-            <p className="mt-4 text-sm text-neutral-500">Khóa học</p><p className="mt-1 font-bold text-neutral-900">{selectedCourse?.name ?? "Nhập thủ công"}</p>
-            {unitPrice !== null && <p className="mt-1 text-xs text-neutral-500">{formatVnd(unitPrice)} × {form.sessionCount} buổi</p>}
-            <div className="my-5 border-t border-primary-100" />
-            <p className="text-sm text-neutral-500">Tổng thanh toán</p><p className="mt-1 text-3xl font-bold tabular-nums text-primary-700">{form.amount ? formatVnd(form.amount) : "0 đ"}</p>
-            <div className="mt-auto pt-6"><Button type="submit" variant="primary" className="w-full" disabled={create.isPending}>{create.isPending ? "Đang tạo..." : "Phát hành hóa đơn"}</Button>{create.isError && <p role="alert" className="mt-3 text-xs font-semibold text-danger-700">Không thể tạo hóa đơn. Dữ liệu vẫn được giữ lại.</p>}</div>
-          </aside>
-        </form>
+      {isAdmin && <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Tạo hóa đơn" description="Tạo học phí theo lớp hoặc học phần cho nhiều học sinh." size="2xl" bodyClassName="flex overflow-hidden p-0">
+        <InvoiceCreationForm
+          students={students.data ?? []}
+          classes={classes.data ?? []}
+          courses={courses.data ?? []}
+          bankBin={paymentSettings.data?.bankBin ?? "970436"}
+          accountNumber={paymentSettings.data?.accountNumber ?? ""}
+          accountName={paymentSettings.data?.accountName ?? "EDUMATRIX"}
+          isPending={create.isPending}
+          isError={create.isError}
+          onCancel={() => setCreateOpen(false)}
+          onSubmit={(values) => create.mutate(values)}
+        />
       </Modal>}
     </>
   );
-}
-
-const FIELD_CLASS = "min-h-touch w-full rounded-input border border-neutral-300 bg-white px-3 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100";
-
-function FormField({ label, required = false, children }: { label: string; required?: boolean; children: React.ReactNode }) {
-  return <label className="block"><span className="mb-1.5 block text-xs font-bold text-neutral-600">{label}{required && <span className="ml-0.5 text-danger-500">*</span>}</span>{children}</label>;
 }
 
 function formatCompactVnd(value: number) {

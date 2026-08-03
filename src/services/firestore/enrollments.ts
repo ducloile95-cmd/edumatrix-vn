@@ -83,3 +83,85 @@ export async function unenrollStudent(classId: string, studentId: string): Promi
     });
   });
 }
+
+/**
+ * Dong bo toan bo lop cua mot hoc sinh trong mot transaction. Chi UI Admin
+ * goi luong nay; khoa hoc va giao vien duoc suy ra tu cac lop da chon.
+ */
+export async function syncStudentEnrollments(studentId: string, nextClassIds: string[]): Promise<void> {
+  await runTransaction(db, async (transaction) => {
+    const studentRef = doc(db, COLLECTIONS.STUDENTS, studentId);
+    const studentSnap = await transaction.get(studentRef);
+    if (!studentSnap.exists()) throw new Error("student_not_found");
+
+    const currentClassIds = [...new Set((studentSnap.data() as StudentDoc).currentClassIds)];
+    const normalizedNextIds = [...new Set(nextClassIds)].filter(Boolean).sort();
+    const allClassIds = [...new Set([...currentClassIds, ...normalizedNextIds])];
+    const classSnaps = await Promise.all(
+      allClassIds.map((classId) => transaction.get(doc(db, COLLECTIONS.CLASSES, classId))),
+    );
+    const classById = new Map(
+      classSnaps.filter((snap) => snap.exists()).map((snap) => [snap.id, snap.data() as ClassDoc]),
+    );
+    if (normalizedNextIds.some((classId) => !classById.has(classId))) throw new Error("class_not_found");
+
+    const addedClassIds = normalizedNextIds.filter((classId) => !currentClassIds.includes(classId));
+    const removedClassIds = currentClassIds.filter((classId) => !normalizedNextIds.includes(classId));
+    const changedClassIds = [...addedClassIds, ...removedClassIds];
+    const enrollmentSnaps = await Promise.all(
+      changedClassIds.map((classId) => transaction.get(doc(db, COLLECTIONS.ENROLLMENTS, enrollmentId(classId, studentId)))),
+    );
+    const enrollmentByClassId = new Map(
+      enrollmentSnaps.map((snap, index) => [changedClassIds[index], snap]),
+    );
+
+    addedClassIds.forEach((classId) => {
+      const klass = classById.get(classId)!;
+      const classRef = doc(db, COLLECTIONS.CLASSES, classId);
+      const enrollmentRef = doc(db, COLLECTIONS.ENROLLMENTS, enrollmentId(classId, studentId));
+      const existingEnrollment = enrollmentByClassId.get(classId);
+      if (existingEnrollment?.exists()) {
+        transaction.update(enrollmentRef, { status: "active", endedAt: null });
+      } else {
+        transaction.set(enrollmentRef, {
+          classId,
+          courseId: klass.courseId,
+          studentId,
+          status: "active",
+          joinedAt: serverTimestamp(),
+          endedAt: null,
+        });
+      }
+      transaction.update(classRef, { studentIds: arrayUnion(studentId), updatedAt: serverTimestamp() });
+    });
+
+    removedClassIds.forEach((classId) => {
+      const klass = classById.get(classId);
+      const classRef = doc(db, COLLECTIONS.CLASSES, classId);
+      const enrollmentRef = doc(db, COLLECTIONS.ENROLLMENTS, enrollmentId(classId, studentId));
+      const existingEnrollment = enrollmentByClassId.get(classId);
+      if (existingEnrollment?.exists()) {
+        transaction.update(enrollmentRef, { status: "ended", endedAt: serverTimestamp() });
+      } else if (klass) {
+        transaction.set(enrollmentRef, {
+          classId,
+          courseId: klass.courseId,
+          studentId,
+          status: "ended",
+          joinedAt: serverTimestamp(),
+          endedAt: serverTimestamp(),
+        });
+      }
+      if (klass) transaction.update(classRef, { studentIds: arrayRemove(studentId), updatedAt: serverTimestamp() });
+    });
+
+    const teacherIds = [...new Set(
+      normalizedNextIds.flatMap((classId) => classById.get(classId)?.teacherIds ?? []),
+    )].sort();
+    transaction.update(studentRef, {
+      currentClassIds: normalizedNextIds,
+      teacherIds,
+      updatedAt: serverTimestamp(),
+    });
+  });
+}

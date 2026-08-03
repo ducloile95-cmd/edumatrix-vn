@@ -18,12 +18,12 @@ interface SubjectsListProps {
   canManage?: boolean;
   onEdit: (subject: SubjectDoc & { id: string }) => void;
   onAdd: () => void;
-  /** Mon dang duoc chon de loc bang khoa hoc ben canh (gop thong tin 2 nhanh). */
+  /** Môn đang được chọn để lọc bảng khóa học bên cạnh. */
   selectedSubjectId: string | null;
   onSelect: (subjectId: string) => void;
 }
 
-/** Chieu cao co dinh, khoa cung CoursesList de 2 bang luon bang nhau (khong lech do so dong khac nhau). */
+/** Chiều cao khóa cùng CoursesList để hai bảng luôn thẳng hàng. */
 export function SubjectsList({ canManage = true, onEdit, onAdd, selectedSubjectId, onSelect }: SubjectsListProps) {
   const [search, setSearch] = useState("");
   const queryClient = useQueryClient();
@@ -31,8 +31,6 @@ export function SubjectsList({ canManage = true, onEdit, onAdd, selectedSubjectI
     queryKey: ["subjects"],
     queryFn: listSubjects,
   });
-  // Tai dung listCourses() (cung queryKey voi CoursesList/CourseForm) de tinh so khoa hoc/mon,
-  // khong phat sinh loai truy van Firestore moi.
   const coursesQuery = useQuery({ queryKey: ["courses"], queryFn: listCourses, staleTime: 60_000 });
 
   const courseCountBySubject = useMemo(() => {
@@ -44,8 +42,7 @@ export function SubjectsList({ canManage = true, onEdit, onAdd, selectedSubjectI
   }, [coursesQuery.data]);
 
   const statusMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: "active" | "archived" }) =>
-      setSubjectStatus(id, status),
+    mutationFn: ({ id, status }: { id: string; status: "active" | "archived" }) => setSubjectStatus(id, status),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["subjects"] }),
   });
 
@@ -54,42 +51,46 @@ export function SubjectsList({ canManage = true, onEdit, onAdd, selectedSubjectI
     const keyword = search.trim().toLowerCase();
     if (!keyword) return subjects;
     return subjects.filter(
-      (s) => s.name.toLowerCase().includes(keyword) || s.code.toLowerCase().includes(keyword),
+      (subject) => subject.name.toLowerCase().includes(keyword) || subject.code.toLowerCase().includes(keyword),
     );
   }, [subjects, search]);
   const { page, pageSize, pageItems, setPage } = usePagination(filtered, 10);
-
   const hasRows = !isLoading && !isError && filtered.length > 0;
+  const tableGridClass = canManage
+    ? "sm:grid-cols-[minmax(0,1fr)_100px_64px_minmax(112px,auto)]"
+    : "sm:grid-cols-[minmax(0,1fr)_100px_64px]";
 
   return (
     <DataListPanel className="rounded-card border border-neutral-200 bg-white">
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-neutral-200 px-4 py-4 sm:px-5">
         <h2 className="text-base font-semibold text-neutral-900">Môn học</h2>
-        {canManage && <button
-          type="button"
-          onClick={onAdd}
-          className="inline-flex min-h-touch items-center gap-1.5 rounded-input border border-neutral-300 px-3 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
-        >
-          <Plus size={14} aria-hidden="true" />
-          Thêm môn học
-        </button>}
+        {canManage && (
+          <button
+            type="button"
+            onClick={onAdd}
+            className="inline-flex min-h-touch items-center gap-1.5 rounded-input border border-neutral-300 px-3 text-xs font-medium text-neutral-700 transition hover:bg-neutral-50 active:scale-[.98]"
+          >
+            <Plus size={14} aria-hidden="true" />
+            Thêm môn học
+          </button>
+        )}
       </div>
 
       <div className="shrink-0 px-4 pt-3 sm:px-5">
         <FilterField label="Tìm kiếm" htmlFor="subject-search">
-        <SearchInput
-          id="subject-search"
-          value={search}
-          onChange={(value) => {
-            setSearch(value);
-            setPage(1);
-          }}
-          placeholder="Tìm theo tên hoặc mã môn học"
-        />
+          <SearchInput
+            id="subject-search"
+            value={search}
+            onChange={(value) => {
+              setSearch(value);
+              setPage(1);
+            }}
+            placeholder="Tìm theo tên hoặc mã môn học"
+          />
         </FilterField>
       </div>
 
-      <div className={`${DATA_LIST_SCROLL} p-4 pt-3 sm:p-5 sm:pt-3`}>
+      <div className={`${DATA_LIST_SCROLL} px-4 pb-4 pt-3 sm:px-5`}>
         {isLoading && <LoadingSkeleton rows={4} />}
         {isError && <ErrorState message="Không tải được danh sách môn học." onRetry={() => refetch()} />}
         {!isLoading && !isError && (!subjects || subjects.length === 0) && (
@@ -100,57 +101,79 @@ export function SubjectsList({ canManage = true, onEdit, onAdd, selectedSubjectI
         )}
 
         {hasRows && (
-          <ul className="-mx-1 divide-y divide-neutral-100">
-            {pageItems.map((subject) => {
-              const isSelected = selectedSubjectId === subject.id;
-              const count = courseCountBySubject.get(subject.id) ?? 0;
-              return (
-                <li key={subject.id} className={isSelected ? "rounded-input bg-primary-50" : ""}>
-                  <div className="flex items-start gap-2 px-1 py-2.5">
-                    <button
-                      type="button"
-                      onClick={() => onSelect(subject.id)}
-                      aria-pressed={isSelected}
-                      className="min-w-0 flex-1 rounded-input px-2 py-1 text-left transition hover:bg-primary-50"
-                    >
-                      <p className="truncate text-sm font-semibold text-neutral-900">{subject.name}</p>
-                      <p className="font-mono text-2xs text-neutral-500">{subject.code}</p>
-                    </button>
-                    <span className="mt-1 shrink-0 rounded-full bg-primary-50 px-2 py-0.5 text-2xs font-bold tabular-nums text-primary-700">
-                      {count} khóa
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 px-2 pb-2.5">
-                    <StatusBadge tone={subject.status === "active" ? "success" : "neutral"}>
-                      {subject.status === "active" ? "Đang dùng" : "Đã lưu trữ"}
-                    </StatusBadge>
-                    {canManage && <div className="ml-auto flex gap-2">
+          <div role="table" aria-label="Danh sách môn học" className="overflow-hidden rounded-input border border-neutral-200">
+            <div role="rowgroup">
+              <div role="row" className={`hidden items-center gap-2 border-b border-neutral-200 bg-neutral-50 px-3 py-2 sm:grid ${tableGridClass}`}>
+                <span role="columnheader" className="text-2xs font-bold text-neutral-500">Môn học</span>
+                <span role="columnheader" className="text-2xs font-bold text-neutral-500">Trạng thái</span>
+                <span role="columnheader" className="text-center text-2xs font-bold text-neutral-500">Khóa học</span>
+                {canManage && <span role="columnheader" className="text-right text-2xs font-bold text-neutral-500">Thao tác</span>}
+              </div>
+            </div>
+
+            <div role="rowgroup">
+              {pageItems.map((subject) => {
+                const isSelected = selectedSubjectId === subject.id;
+                const count = courseCountBySubject.get(subject.id) ?? 0;
+                return (
+                  <div
+                    key={subject.id}
+                    role="row"
+                    className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 border-b border-neutral-100 px-3 py-3 transition-colors last:border-b-0 sm:gap-2 sm:px-0 sm:py-0 ${tableGridClass} ${isSelected ? "bg-primary-50" : "bg-white hover:bg-neutral-50/70"}`}
+                  >
+                    <div role="cell" className="min-w-0 sm:px-3 sm:py-3">
                       <button
                         type="button"
-                        onClick={() => onEdit(subject)}
-                        className="min-h-touch rounded-input border border-neutral-300 px-3 text-xs font-medium text-neutral-600 hover:bg-neutral-50"
+                        onClick={() => onSelect(subject.id)}
+                        aria-pressed={isSelected}
+                        className="block min-h-touch w-full min-w-0 rounded-input text-left outline-none transition focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-1"
                       >
-                        Sửa
+                        <span className="block truncate text-sm font-semibold text-neutral-900">{subject.name}</span>
+                        <span className="mt-0.5 block font-mono text-2xs font-medium text-neutral-500">{subject.code}</span>
                       </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          statusMutation.mutate({
-                            id: subject.id,
-                            status: subject.status === "active" ? "archived" : "active",
-                          })
-                        }
-                        disabled={statusMutation.isPending}
-                        className="min-h-touch rounded-input border border-neutral-300 px-3 text-xs font-medium text-neutral-600 hover:bg-neutral-50 disabled:opacity-40"
-                      >
-                        {subject.status === "active" ? "Lưu trữ" : "Kích hoạt lại"}
-                      </button>
-                    </div>}
+                    </div>
+
+                    <div role="cell" className="col-start-1 row-start-2 mt-2 sm:col-start-auto sm:row-start-auto sm:mt-0 sm:py-3">
+                      <StatusBadge tone={subject.status === "active" ? "success" : "neutral"}>
+                        {subject.status === "active" ? "Đang dùng" : "Đã lưu trữ"}
+                      </StatusBadge>
+                    </div>
+
+                    <div role="cell" className="col-start-2 row-start-1 self-start sm:col-start-auto sm:row-start-auto sm:self-auto sm:text-center">
+                      <span className="inline-flex rounded-full bg-primary-50 px-2 py-0.5 text-2xs font-bold tabular-nums text-primary-700 sm:bg-transparent sm:px-0 sm:text-sm sm:text-neutral-700">
+                        {count}<span className="ml-1 sm:hidden">khóa</span>
+                      </span>
+                    </div>
+
+                    {canManage && (
+                      <div role="cell" className="col-start-2 row-start-2 mt-2 flex justify-end gap-1.5 sm:col-start-auto sm:row-start-auto sm:mt-0 sm:px-3 sm:py-2">
+                        <button
+                          type="button"
+                          onClick={() => onEdit(subject)}
+                          className="min-h-touch whitespace-nowrap rounded-input border border-neutral-300 bg-white px-3 text-xs font-medium text-neutral-700 transition hover:border-primary-300 hover:text-primary-700 active:scale-[.98]"
+                        >
+                          Sửa
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            statusMutation.mutate({
+                              id: subject.id,
+                              status: subject.status === "active" ? "archived" : "active",
+                            })
+                          }
+                          disabled={statusMutation.isPending}
+                          className="min-h-touch whitespace-nowrap rounded-input border border-neutral-300 bg-white px-3 text-xs font-medium text-neutral-700 transition hover:border-primary-300 hover:text-primary-700 active:scale-[.98] disabled:opacity-40"
+                        >
+                          {subject.status === "active" ? "Lưu trữ" : "Kích hoạt lại"}
+                        </button>
+                      </div>
+                    )}
                   </div>
-                </li>
-              );
-            })}
-          </ul>
+                );
+              })}
+            </div>
+          </div>
         )}
       </div>
 

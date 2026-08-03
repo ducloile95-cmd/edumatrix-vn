@@ -93,47 +93,58 @@ export default function SessionsPage() {
   useEffect(() => {
     const classId = searchParams.get("classId");
     if (!classId || classFilter || !classesQuery.data) return;
-    const klass = classesQuery.data.find((item) => item.id === classId);
+    const klass = classesQuery.data.find((item) => item.id === classId && item.status !== "cancelled");
     if (klass) {
       setClassFilter({ id: klass.id, name: klass.name });
-      setSearchParams({}, { replace: true });
     }
+    setSearchParams({}, { replace: true });
   }, [searchParams, classesQuery.data, classFilter, setSearchParams]);
 
   const classById = useMemo(() => new Map((classesQuery.data ?? []).map((c) => [c.id, c])), [classesQuery.data]);
   const courseById = useMemo(() => new Map((coursesQuery.data ?? []).map((c) => [c.id, c])), [coursesQuery.data]);
   const subjectById = useMemo(() => new Map((subjectsQuery.data ?? []).map((s) => [s.id, s])), [subjectsQuery.data]);
   const teacherById = useMemo(() => new Map((teachersQuery.data ?? []).map((t) => [t.uid, t])), [teachersQuery.data]);
+  const schedulableClasses = useMemo(
+    () => (classesQuery.data ?? []).filter((klass) => klass.status === "active"),
+    [classesQuery.data],
+  );
+  const visibleSessions = useMemo(
+    () => (sessionsQuery.data ?? []).filter((session) => {
+      const klass = classById.get(session.classId);
+      return !!klass && klass.status !== "cancelled";
+    }),
+    [sessionsQuery.data, classById],
+  );
 
   const timetableSessions: TimetableSession[] = useMemo(() => {
-    const list = (sessionsQuery.data ?? []).map((session) => {
-      const klass = classById.get(session.classId);
+    const list = visibleSessions.map((session) => {
+      const klass = classById.get(session.classId)!;
       return {
         ...session,
-        className: klass?.name ?? "Lớp đã xóa",
-        classLocation: klass?.location,
-        courseName: courseById.get(klass?.courseId ?? "")?.name,
-        subjectNames: (klass?.subjectIds ?? [])
+        className: klass.name,
+        classLocation: klass.location,
+        courseName: courseById.get(klass.courseId)?.name,
+        subjectNames: klass.subjectIds
           .map((id) => subjectById.get(id)?.name)
           .filter((name): name is string => !!name),
-        teacherNames: (klass?.teacherIds ?? [])
+        teacherNames: klass.teacherIds
           .map((id) => teacherById.get(id)?.displayName)
           .filter((name): name is string => !!name),
-        studentCount: klass?.studentIds.length,
+        studentCount: klass.studentIds.length,
       };
     });
     return classFilter ? list.filter((s) => s.classId === classFilter.id) : list;
-  }, [sessionsQuery.data, classById, courseById, subjectById, teacherById, classFilter]);
+  }, [visibleSessions, classById, courseById, subjectById, teacherById, classFilter]);
 
   const monthSessionCounts = useMemo(() => {
     const map = new Map<string, number>();
-    (sessionsQuery.data ?? []).forEach((session) => {
+    visibleSessions.forEach((session) => {
       if (classFilter && session.classId !== classFilter.id) return;
       const key = format(session.startAt.toDate(), "yyyy-MM-dd");
       map.set(key, (map.get(key) ?? 0) + 1);
     });
     return map;
-  }, [sessionsQuery.data, classFilter]);
+  }, [visibleSessions, classFilter]);
 
   const createMutation = useMutation({
     mutationFn: (input: CreateSessionsInput) => createSessions(input),
@@ -310,8 +321,8 @@ export default function SessionsPage() {
 
       <CreateSessionModal
         open={createOpen}
-        classes={classesQuery.data ?? []}
-        cancelledSessions={(sessionsQuery.data ?? []).filter((item) => item.status === "cancelled")}
+        classes={schedulableClasses}
+        cancelledSessions={visibleSessions.filter((item) => item.status === "cancelled")}
         isPending={createMutation.isPending}
         isError={createMutation.isError}
         onClose={() => { createMutation.reset(); setCreateOpen(false); }}

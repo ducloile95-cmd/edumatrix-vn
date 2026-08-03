@@ -1,12 +1,10 @@
-import { useDeferredValue, useMemo, useState, type ComponentType, type ReactNode } from "react";
+import { useDeferredValue, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { useQueries, useQuery } from "@tanstack/react-query";
-import { addDays, isWithinInterval, subDays } from "date-fns";
-import { AlertTriangle, ArrowUpRight, CalendarDays, CheckCircle2, Pencil, Sparkles, Trash2, Users, type LucideProps } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { AlertTriangle, ArrowUpRight, CalendarDays, Pencil, Trash2 } from "lucide-react";
 import { listClasses } from "@/services/firestore/classes";
 import { listCourses } from "@/services/firestore/courses";
 import { listSubjects } from "@/services/firestore/subjects";
-import { listSessionsByClass } from "@/services/firestore/sessions";
 import { listUsersByRole } from "@/services/firestore/users";
 import { USER_ROLES } from "@/constants/roles";
 import { classDetailPath, sessionsForClassPath } from "@/constants/routes";
@@ -20,8 +18,6 @@ import { Pagination } from "@/components/ui/Pagination";
 import { DataListPanel, DATA_LIST_FOOTER, DATA_LIST_SCROLL_ALWAYS } from "@/components/ui/dataListLayout";
 import { usePagination } from "@/hooks/usePagination";
 import type { ClassDoc, ClassStatus } from "@/types/academic";
-
-const NEW_CLASS_WINDOW_DAYS = 30;
 
 interface ClassesListProps {
   onEdit: (klass: ClassDoc & { id: string }) => void;
@@ -49,25 +45,6 @@ const STATUS_FILTERS: { value: ClassStatus | "all"; label: string }[] = [
 ];
 
 const ROW_ICON_ACTION = "grid size-10 shrink-0 place-items-center rounded-input border border-neutral-200 bg-white text-neutral-500 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700";
-
-function SecondaryMetric({ icon: Icon, value, label, hint, tone }: {
-  icon: ComponentType<LucideProps>;
-  value: number;
-  label: string;
-  hint: string;
-  tone: string;
-}) {
-  return (
-    <div className="flex min-w-0 items-start gap-3 bg-white p-3.5 md:p-4">
-      <span className={`grid size-9 shrink-0 place-items-center rounded-input ${tone}`}><Icon size={17} aria-hidden="true" /></span>
-      <div className="min-w-0">
-        <p className="text-lg font-bold tabular-nums text-neutral-900">{value}</p>
-        <p className="text-xs font-semibold text-neutral-700">{label}</p>
-        <p className="mt-0.5 truncate text-2xs text-neutral-500" title={hint}>{hint}</p>
-      </div>
-    </div>
-  );
-}
 
 export function ClassesList({ onDelete, onEdit, canDelete = false, canEdit = false, primaryAction }: ClassesListProps) {
   const [search, setSearch] = useState("");
@@ -103,29 +80,6 @@ export function ClassesList({ onDelete, onEdit, canDelete = false, canEdit = fal
     [teachersQuery.data],
   );
 
-  // KPI "Lớp mới sắp tới" — gộp từ tab "Danh sách lớp" cũ của Lịch học (đã bỏ tab đó, chỉ còn
-  // Timetable). Lớp active, tạo trong 30 ngày gần đây, còn buổi học chưa diễn ra. Chỉ fan-out
-  // theo recentClasses (một tập nhỏ, có giới hạn) chứ không theo toàn bộ danh sách đã phân trang,
-  // nên không phát sinh N+1 truy vấn theo số lớp hiển thị trên trang.
-  const today = useMemo(() => new Date(), []);
-  const recentClasses = useMemo(() => {
-    const list = classes ?? [];
-    return list.filter(
-      (klass) =>
-        klass.status === "active" &&
-        isWithinInterval(klass.createdAt.toDate(), { start: subDays(today, NEW_CLASS_WINDOW_DAYS), end: today }),
-    );
-  }, [classes, today]);
-  const upcomingForRecentClasses = useQueries({
-    queries: recentClasses.map((klass) => ({
-      queryKey: ["sessions", "by-class-upcoming", klass.id],
-      queryFn: () => listSessionsByClass(klass.id, today, addDays(today, 60)),
-    })),
-  });
-  const newUpcomingClassesCount = recentClasses.filter((_, index) =>
-    (upcomingForRecentClasses[index]?.data ?? []).some((s) => s.status !== "cancelled"),
-  ).length;
-
   const filtered = useMemo(() => {
     if (!classes) return [];
     const keyword = deferredSearch.trim().toLowerCase();
@@ -138,14 +92,6 @@ export function ClassesList({ onDelete, onEdit, canDelete = false, canEdit = fal
     });
   }, [classes, courseById, deferredSearch, statusFilter]);
   const { page, pageSize, pageItems, setPage } = usePagination(filtered);
-
-  const kpi = useMemo(() => {
-    const list = classes ?? [];
-    const active = list.filter((c) => c.status === "active");
-    const totalStudents = active.reduce((sum, c) => sum + c.studentIds.length, 0);
-    const incomplete = active.filter((c) => !c.scheduleText.trim() || c.teacherIds.length === 0).length;
-    return { total: list.length, active: active.length, totalStudents, incomplete };
-  }, [classes]);
 
   const filterToolbar = (
     <section aria-label="Tìm kiếm và lọc lớp học" className="mb-3 rounded-card border border-neutral-200 bg-white p-3 shadow-[var(--shadow-1)] sm:p-4">
@@ -298,8 +244,8 @@ export function ClassesList({ onDelete, onEdit, canDelete = false, canEdit = fal
                                 type="button"
                                 onClick={() => onEdit(klass)}
                                 className={ROW_ICON_ACTION}
-                                aria-label={`Sửa lớp ${klass.name}`}
-                                title="Sửa lớp"
+                                aria-label={`Chỉnh sửa lớp học ${klass.name}`}
+                                title="Chỉnh sửa lớp học"
                               >
                                 <Pencil size={16} aria-hidden="true" />
                               </button>
@@ -336,12 +282,6 @@ export function ClassesList({ onDelete, onEdit, canDelete = false, canEdit = fal
         )}
       </DataListPanel>
 
-      <section aria-label="Tóm tắt lớp học" className="mt-3 grid grid-cols-2 gap-px overflow-hidden rounded-card border border-neutral-200 bg-neutral-100 md:grid-cols-4">
-        <SecondaryMetric icon={Sparkles} tone="bg-accent-50 text-accent-700" value={newUpcomingClassesCount} label="Lớp mới sắp tới" hint={`Tạo trong ${NEW_CLASS_WINDOW_DAYS} ngày gần đây`} />
-        <SecondaryMetric icon={CheckCircle2} tone="bg-success-50 text-success-700" value={kpi.active} label="Đang hoạt động" hint={`${kpi.total - kpi.active} lớp đã kết thúc hoặc hủy`} />
-        <SecondaryMetric icon={Users} tone="bg-info-50 text-info-700" value={kpi.totalStudents} label="Học sinh đang học" hint="Tổng từ các lớp đang hoạt động" />
-        <SecondaryMetric icon={AlertTriangle} tone="bg-warning-50 text-warning-700" value={kpi.incomplete} label="Thiếu dữ liệu" hint="Chưa có lịch hoặc giáo viên" />
-      </section>
     </div>
   );
 }

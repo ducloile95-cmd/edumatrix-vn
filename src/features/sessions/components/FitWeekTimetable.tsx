@@ -45,14 +45,6 @@ function bandFor(date: Date): DayBand {
   return "evening";
 }
 
-function rangesOverlap(a: TimetableSession, b: TimetableSession): boolean {
-  return a.startAt.toMillis() < b.endAt.toMillis() && b.startAt.toMillis() < a.endAt.toMillis();
-}
-
-function hasOverlap(sessions: TimetableSession[]): boolean {
-  return sessions.some((session, index) => sessions.slice(index + 1).some((next) => rangesOverlap(session, next)));
-}
-
 function compactList(items: string[] | undefined, fallback: string): string {
   if (!items || items.length === 0) return fallback;
   if (items.length <= 2) return items.join(", ");
@@ -146,7 +138,7 @@ export function FitWeekTimetable({ days, sessions, today, onSessionClick, onSess
               >
                 {BANDS.map((band) => {
                   const bandSessions = sessionsByBand[band];
-                  const overlapped = hasOverlap(bandSessions);
+                  const columnCount = bandSessions.length >= 3 ? 2 : 1;
                   return (
                     <div
                       key={band}
@@ -170,7 +162,10 @@ export function FitWeekTimetable({ days, sessions, today, onSessionClick, onSess
                           Trống
                         </div>
                       ) : (
-                        <div className={`grid content-start gap-1.5 ${overlapped ? "grid-cols-2" : "grid-cols-1"}`}>
+                        <div
+                          data-columns={columnCount}
+                          className={`grid content-start gap-1.5 ${columnCount === 2 ? "grid-cols-2" : "grid-cols-1"}`}
+                        >
                           {bandSessions.map((session) => {
                             const tone = STATUS_TONE[session.status];
                             const canDrag = !!onSessionDrop && session.status !== "completed" && session.status !== "cancelled";
@@ -184,7 +179,7 @@ export function FitWeekTimetable({ days, sessions, today, onSessionClick, onSess
                                 draggable={canDrag}
                                 onDragStart={(event) => handleDragStart(event, session)}
                                 onClick={() => onSessionClick(session)}
-                                className={`min-h-[78px] overflow-hidden rounded-input border border-l-4 px-2 py-1.5 text-left shadow-[0_1px_2px_rgba(28,26,21,.05)] transition hover:brightness-95 ${
+                                className={`min-h-[78px] overflow-hidden rounded-input border border-l-4 px-2 py-1.5 text-left shadow-[0_1px_2px_rgba(28,26,21,.05)] transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-1 ${
                                   canDrag ? "cursor-grab active:cursor-grabbing" : ""
                                 } ${tone.border} ${tone.bg}`}
                               >

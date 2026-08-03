@@ -43,9 +43,9 @@ export default function ClassesPage() {
         ) : undefined}
       />
 
-      <Modal open={open} onClose={() => setOpen(false)} size="xl" bodyClassName="flex flex-col p-0"
-        title={editingClass ? `Sửa lớp ${editingClass.name}` : "Tạo lớp học"}
-        description={editingClass ? undefined : "Điền thông tin lớp và phân công giáo viên."}>
+      <Modal open={open} onClose={() => setOpen(false)} size="2xl" bodyClassName="flex flex-col p-0"
+        title={editingClass ? `Chỉnh sửa lớp học · ${editingClass.name}` : "Tạo lớp học"}
+        description={editingClass ? "Cập nhật thông tin lớp; lịch thông minh hiện tại được giữ nguyên." : "Lịch học thông minh được bật mặc định và hiển thị trực tiếp trong popup."}>
         <ClassForm editingClass={editingClass} onDone={() => setOpen(false)} />
       </Modal>
 

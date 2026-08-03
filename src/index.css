@@ -119,12 +119,8 @@
   }
   [role="dialog"] :is(input, textarea)::placeholder { @apply text-neutral-400; }
   [role="dialog"] button[type="submit"] {
-    background-image: linear-gradient(135deg, #3366F0, #1D39AC);
-    border-color: transparent;
-    @apply text-white shadow-[0_8px_20px_rgba(35,72,214,.22)];
+    @apply text-white;
   }
-  [role="dialog"] button[type="submit"]:hover { filter: brightness(1.06); }
-  [role="dialog"] button[type="submit"]:active { transform: scale(.98); }
   [role="dialog"] button[type="submit"]:disabled { opacity: .55; }
   main tbody > tr { transition: background-color var(--motion-fast) var(--ease-standard); }
 }

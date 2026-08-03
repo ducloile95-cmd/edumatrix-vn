@@ -91,6 +91,11 @@ service cloud.firestore {
       return isAdmin() || isAssignedTeacherForClass(classId);
     }
 
+    function classIsSchedulable(classId) {
+      return exists(/databases/$(database)/documents/classes/$(classId)) &&
+        get(/databases/$(database)/documents/classes/$(classId)).data.get('status', 'active') == 'active';
+    }
+
     function isAssignedTeacherForCourse(courseId) {
       return isTeacher() &&
         exists(/databases/$(database)/documents/courses/$(courseId)) &&
@@ -839,10 +844,18 @@ service cloud.firestore {
           .hasAny(currentUser().studentIds)
       );
       allow create: if canManageClass(request.resource.data.classId) &&
+        classIsSchedulable(request.resource.data.classId) &&
         validSessionData(request.resource.data);
       allow update: if canManageClass(resource.data.classId) &&
         validSessionData(request.resource.data) &&
-        keepsImmutable(['classId', 'createdAt']);
+        keepsImmutable(['classId', 'createdAt']) &&
+        (
+          classIsSchedulable(resource.data.classId) ||
+          (
+            request.resource.data.status == 'cancelled' &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'note', 'updatedAt'])
+          )
+        );
       allow delete: if false;
     }
 

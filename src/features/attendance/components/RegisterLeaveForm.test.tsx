@@ -55,16 +55,20 @@ describe("RegisterLeaveForm multi-class student", () => {
   test("requires the operator to choose the correct class before the session", async () => {
     renderWithQueryClient(<RegisterLeaveForm />);
 
+    expect(screen.getByRole("heading", { name: "Học sinh và buổi nghỉ" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Nội dung đăng ký" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Có phép" }).getAttribute("aria-pressed")).toBe("true");
+
     await screen.findByRole("option", { name: /Nguy/ });
-    const studentSelect = await screen.findByLabelText(/^Học sinh/);
+    const studentSelect = await screen.findByRole("combobox", { name: /^Học sinh/ });
     fireEvent.change(studentSelect, { target: { value: "student-1" } });
     expect((studentSelect as HTMLSelectElement).value).toBe("student-1");
-    const classSelect = await screen.findByLabelText(/^Lớp học/);
+    const classSelect = await screen.findByRole("combobox", { name: /^Lớp học/ });
     await waitFor(() => expect(classSelect.querySelector('option[value="class-2"]')).not.toBeNull());
     expect((classSelect as HTMLSelectElement).value).toBe("");
 
     fireEvent.change(classSelect, { target: { value: "class-2" } });
-    const sessionSelect = screen.getByLabelText(/Buổi học/);
+    const sessionSelect = screen.getByRole("combobox", { name: /Buổi học/ });
     await waitFor(() => expect(sessionSelect.querySelector('option[value="session-2"]')).not.toBeNull());
     fireEvent.change(sessionSelect, { target: { value: "session-2" } });
     fireEvent.click(screen.getByRole("button", { name: "Lưu đăng ký" }));

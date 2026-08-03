@@ -6,7 +6,6 @@ import {
   limit,
   query,
   serverTimestamp,
-  setDoc,
   where,
   writeBatch,
 } from "firebase/firestore";
@@ -31,10 +30,20 @@ export interface CreateInvoiceInput {
 }
 
 export async function createInvoice(input: CreateInvoiceInput): Promise<void> {
+  await createInvoices([input]);
+}
+
+/** Phát hành nhiều hóa đơn trong một batch để tránh chỉ tạo được một phần danh sách. */
+export async function createInvoices(inputs: CreateInvoiceInput[]): Promise<void> {
+  if (inputs.length === 0) return;
+  if (inputs.length > 500) throw new Error("invoice_batch_limit");
+
+  const batch = writeBatch(db);
+  inputs.forEach((input) => {
   const invoiceRef = doc(collection(db, COLLECTIONS.INVOICES));
   const invoiceCode = createInvoiceCode(input.studentId, invoiceRef.id);
 
-  await setDoc(invoiceRef, {
+    batch.set(invoiceRef, {
     ...input,
     invoiceCode,
     paymentContent: createPaymentContent(invoiceCode),
@@ -44,6 +53,8 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<void> {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+  });
+  await batch.commit();
 }
 
 export async function listInvoices(): Promise<(InvoiceDoc & { id: string })[]> {

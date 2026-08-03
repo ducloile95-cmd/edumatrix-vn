@@ -12,7 +12,6 @@ import {
 } from "date-fns";
 import {
   BookOpen,
-  CalendarDays,
   Check,
   ChevronDown,
   ChevronLeft,
@@ -96,7 +95,7 @@ function MultiSelect({ id, label, options }: { id: string; label: string; option
         </span>
       </button>
       {open && (
-        <div role="listbox" aria-multiselectable="true" aria-labelledby={labelId} className="absolute inset-x-0 top-full z-30 mt-1 overflow-hidden rounded-xl border border-neutral-200 bg-white p-1.5 shadow-xl">
+        <div role="listbox" aria-multiselectable="true" aria-labelledby={labelId} className="absolute bottom-full inset-x-0 z-30 mb-1 max-h-52 overflow-y-auto rounded-xl border border-neutral-200 bg-white p-1.5 shadow-xl">
           {options.map((option) => {
             const active = selected.includes(option);
             return (
@@ -123,8 +122,6 @@ function MultiSelect({ id, label, options }: { id: string; label: string; option
 export function ClassFormPopupDemo({ onClose }: { onClose: () => void }) {
   const today = useMemo(() => new Date(), []);
   const initialDate = format(today, "yyyy-MM-dd");
-  const [smartSchedule, setSmartSchedule] = useState(true);
-  const [manualSchedule, setManualSchedule] = useState("Thứ 3 và Thứ 5, 18:00-19:30");
   const [schedule, setSchedule] = useState<ScheduleState>({
     startDate: initialDate,
     daysOfWeek: [2, 4],
@@ -135,7 +132,7 @@ export function ClassFormPopupDemo({ onClose }: { onClose: () => void }) {
   const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(today));
 
   const preview = useMemo(() => {
-    if (!smartSchedule || !schedule.startDate || !schedule.startTime || !schedule.endTime || schedule.daysOfWeek.length === 0 || schedule.sessionCount < 1) return null;
+    if (!schedule.startDate || !schedule.startTime || !schedule.endTime || schedule.daysOfWeek.length === 0 || schedule.sessionCount < 1) return null;
     return generateRecurringSessions({
       startDate: new Date(`${schedule.startDate}T00:00:00`),
       daysOfWeek: schedule.daysOfWeek,
@@ -143,7 +140,7 @@ export function ClassFormPopupDemo({ onClose }: { onClose: () => void }) {
       endTime: schedule.endTime,
       sessionCount: schedule.sessionCount,
     });
-  }, [schedule, smartSchedule]);
+  }, [schedule]);
 
   const sessionsByDate = useMemo(() => new Map(
     (preview?.sessions ?? []).map((session, index) => [format(session.startAt, "yyyy-MM-dd"), index + 1]),
@@ -178,40 +175,17 @@ export function ClassFormPopupDemo({ onClose }: { onClose: () => void }) {
 
   return (
     <form onSubmit={(event: FormEvent) => { event.preventDefault(); onClose(); }} className="flex min-h-0 flex-1 flex-col">
-      <div data-testid="class-popup-layout" className="grid min-h-0 flex-1 overflow-y-auto bg-neutral-50/80 xl:grid-cols-[minmax(520px,590px)_minmax(0,1fr)] xl:overflow-hidden">
-        <div className="space-y-3 border-b border-neutral-200 p-4 xl:border-b-0 xl:border-r">
-          <Section icon={<BookOpen size={18} />} title="Thông tin lớp" description="Thông tin nhận diện và trạng thái vận hành của lớp.">
-            <div className="grid gap-3 lg:grid-cols-3">
-              <div><FieldLabel htmlFor="demo-class-name" required>Tên lớp</FieldLabel><input id="demo-class-name" className={FIELD_CLASS} defaultValue="IELTS Foundation 08" /></div>
-              <div><FieldLabel htmlFor="demo-class-course" required>Khóa học</FieldLabel><select id="demo-class-course" className={FIELD_CLASS} defaultValue="ielts"><option value="">Chọn khóa học</option><option value="ielts">IELTS Foundation</option><option value="toeic">TOEIC Essentials</option></select></div>
-              <div><FieldLabel htmlFor="demo-class-status">Trạng thái</FieldLabel><select id="demo-class-status" className={FIELD_CLASS}><option>Đang hoạt động</option><option>Đã kết thúc</option><option>Đã hủy</option></select></div>
+      <div data-testid="class-popup-layout" className="grid min-h-0 flex-1 overflow-y-auto bg-neutral-50/80 xl:grid-cols-[minmax(0,1.2fr)_minmax(520px,.8fr)] xl:overflow-hidden">
+        <div className="border-b border-neutral-200 p-3 xl:min-h-0 xl:border-b-0 xl:border-r">
+          <section className="flex h-full min-h-0 flex-col rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary-50 text-primary-700"><Sparkles size={18} /></span>
+                <div><h3 className="text-sm font-bold text-neutral-950">Lịch học thông minh</h3><p className="mt-0.5 text-xs leading-5 text-neutral-500">Tự động sinh buổi học theo tuần và kiểm tra trực tiếp trên lịch tháng.</p></div>
+              </div>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-success-100 bg-success-50 px-3 py-2 text-xs font-bold text-success-800"><Check size={14} /> Mặc định bật</span>
             </div>
-          </Section>
-          <Section icon={<UsersRound size={18} />} title="Phân công" description="Chọn môn học và giáo viên phụ trách lớp.">
-            <div className="grid gap-3 lg:grid-cols-2">
-              <MultiSelect id="demo-class-subjects" label="Chọn môn học *" options={["Tiếng Anh", "IELTS", "Giao tiếp"]} />
-              <MultiSelect id="demo-class-teachers" label="Giáo viên phụ trách" options={["Cô An", "Thầy Bình", "Cô Mai"]} />
-              <p className="rounded-xl bg-neutral-50 px-3 py-2 text-xs leading-5 text-neutral-500 lg:col-span-2">Cả hai danh sách đều hỗ trợ chọn nhiều lựa chọn. Quyền phân công hiện tại được giữ nguyên khi triển khai.</p>
-            </div>
-          </Section>
-        </div>
-
-        <div className="space-y-3 p-4">
-          <Section icon={<MapPin size={18} />} title="Lịch và địa điểm" description="Mô tả lịch được đồng bộ từ lịch thông minh hoặc nhập thủ công.">
-            <div className="grid gap-4 md:grid-cols-[minmax(0,1.4fr)_minmax(240px,.6fr)]">
-              <div><FieldLabel htmlFor="demo-class-schedule">Lịch học (mô tả)</FieldLabel><input id="demo-class-schedule" className={FIELD_CLASS} value={smartSchedule ? scheduleText : manualSchedule} onChange={(event) => setManualSchedule(event.target.value)} readOnly={smartSchedule} /></div>
-              <div><FieldLabel htmlFor="demo-class-location">Địa điểm</FieldLabel><input id="demo-class-location" className={FIELD_CLASS} defaultValue="Phòng 201" /></div>
-            </div>
-          </Section>
-
-          <Section icon={<Sparkles size={18} />} title="Lịch học thông minh" description="Chọn quy tắc một lần, hệ thống tự sinh các buổi học và hiển thị ngay trên lịch tháng.">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary-100 bg-primary-50 px-3 py-2">
-              <div className="flex items-center gap-2 text-xs font-semibold text-primary-800"><CalendarDays size={16} /> Tự động sinh buổi học lặp theo tuần</div>
-              <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-bold text-neutral-700"><input type="checkbox" checked={smartSchedule} onChange={(event) => setSmartSchedule(event.target.checked)} className="size-4 accent-primary-600" />Đang bật</label>
-            </div>
-
-            {smartSchedule ? (
-              <div className="grid gap-3 xl:grid-cols-[250px_minmax(0,1fr)]">
+              <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[250px_minmax(0,1fr)]">
                 <div className="space-y-3 rounded-xl border border-neutral-200 bg-neutral-50 p-3">
                   <div><FieldLabel htmlFor="demo-recurrence-start" required>Ngày bắt đầu</FieldLabel><input id="demo-recurrence-start" type="date" className={FIELD_CLASS} value={schedule.startDate} onChange={(event) => updateStartDate(event.target.value)} /></div>
                   <div>
@@ -223,12 +197,12 @@ export function ClassFormPopupDemo({ onClose }: { onClose: () => void }) {
                       })}
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3"><div><FieldLabel htmlFor="demo-start-time" required>Bắt đầu</FieldLabel><input id="demo-start-time" type="time" className={FIELD_CLASS} value={schedule.startTime} onChange={(event) => setSchedule((current) => ({ ...current, startTime: event.target.value }))} /></div><div><FieldLabel htmlFor="demo-end-time" required>Kết thúc</FieldLabel><input id="demo-end-time" type="time" className={FIELD_CLASS} value={schedule.endTime} onChange={(event) => setSchedule((current) => ({ ...current, endTime: event.target.value }))} /></div></div>
+                  <div className="grid gap-3 2xl:grid-cols-2"><div><FieldLabel htmlFor="demo-start-time" required>Bắt đầu</FieldLabel><input id="demo-start-time" type="time" className={FIELD_CLASS} value={schedule.startTime} onChange={(event) => setSchedule((current) => ({ ...current, startTime: event.target.value }))} /></div><div><FieldLabel htmlFor="demo-end-time" required>Kết thúc</FieldLabel><input id="demo-end-time" type="time" className={FIELD_CLASS} value={schedule.endTime} onChange={(event) => setSchedule((current) => ({ ...current, endTime: event.target.value }))} /></div></div>
                   <div><FieldLabel htmlFor="demo-session-count" required>Tổng số buổi</FieldLabel><input id="demo-session-count" type="number" min={1} max={120} className={FIELD_CLASS} value={schedule.sessionCount} onChange={(event) => setSchedule((current) => ({ ...current, sessionCount: Number(event.target.value) }))} /></div>
                   <div className="rounded-xl border border-success-100 bg-success-50 p-2.5 text-xs leading-5 text-success-900"><strong className="block text-sm">{preview?.sessions.length ?? 0} buổi dự kiến</strong>{preview ? `Buổi đầu ${format(preview.sessions[0].startAt, "dd/MM/yyyy")}, bế giảng ${format(preview.endDate, "dd/MM/yyyy")}.` : "Hãy điền đủ điều kiện để xem trước."}</div>
                 </div>
 
-                <div className="min-w-0 rounded-xl border border-neutral-200 bg-white p-3 sm:p-4">
+                <div className="min-w-0 rounded-xl border border-neutral-200 bg-white p-3">
                   <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                     <div><p className="text-xs font-semibold text-neutral-500">Lịch tháng tương tác</p><h4 className="text-base font-black capitalize text-neutral-950">Tháng {format(visibleMonth, "MM / yyyy")}</h4></div>
                     <div className="flex items-center gap-1.5">
@@ -255,9 +229,29 @@ export function ClassFormPopupDemo({ onClose }: { onClose: () => void }) {
                   <p className="mt-2 text-xs leading-5 text-neutral-500">Bấm ngày để đặt lại ngày bắt đầu. Hệ thống tự thêm thứ tương ứng vào quy tắc.</p>
                 </div>
               </div>
-            ) : (
-              <div className="rounded-xl border border-dashed border-neutral-300 bg-neutral-50 p-8 text-center text-sm text-neutral-500">Lịch thông minh đang tắt. Trường mô tả lịch học phía trên vẫn có thể nhập thủ công.</div>
-            )}
+          </section>
+        </div>
+
+        <div className="grid content-start gap-3 p-3 xl:min-h-0 xl:overflow-hidden">
+          <Section icon={<BookOpen size={18} />} title="Thông tin lớp học" description="Thông tin nhận diện và trạng thái vận hành của lớp.">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="sm:col-span-2"><FieldLabel htmlFor="demo-class-name" required>Tên lớp</FieldLabel><input id="demo-class-name" className={FIELD_CLASS} defaultValue="IELTS Foundation 08" /></div>
+              <div><FieldLabel htmlFor="demo-class-course" required>Khóa học</FieldLabel><select id="demo-class-course" className={FIELD_CLASS} defaultValue="ielts"><option value="">Chọn khóa học</option><option value="ielts">IELTS Foundation</option><option value="toeic">TOEIC Essentials</option></select></div>
+              <div><FieldLabel htmlFor="demo-class-status">Trạng thái</FieldLabel><select id="demo-class-status" className={FIELD_CLASS}><option>Đang hoạt động</option><option>Đã kết thúc</option><option>Đã hủy</option></select></div>
+            </div>
+          </Section>
+          <Section icon={<MapPin size={18} />} title="Lịch và địa điểm" description="Lịch học được đồng bộ trực tiếp từ bảng bên trái.">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div><FieldLabel htmlFor="demo-class-schedule">Lịch học</FieldLabel><input id="demo-class-schedule" className={FIELD_CLASS} value={scheduleText} readOnly /></div>
+              <div><FieldLabel htmlFor="demo-class-location">Địa điểm</FieldLabel><input id="demo-class-location" className={FIELD_CLASS} defaultValue="Phòng 201" /></div>
+            </div>
+          </Section>
+          <Section icon={<UsersRound size={18} />} title="Môn học & Phân công" description="Các danh sách hỗ trợ chọn nhiều lựa chọn trong cùng một dropdown.">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <MultiSelect id="demo-class-subjects" label="Môn học *" options={["Tiếng Anh", "IELTS", "Giao tiếp"]} />
+              <MultiSelect id="demo-class-teachers" label="Giáo viên phụ trách" options={["Cô An", "Thầy Bình", "Cô Mai"]} />
+            </div>
+            <p className="mt-2 text-xs leading-5 text-neutral-500">Có thể chọn nhiều môn học và nhiều giáo viên phụ trách.</p>
           </Section>
         </div>
       </div>

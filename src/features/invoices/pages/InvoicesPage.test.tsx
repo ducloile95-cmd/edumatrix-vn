@@ -14,7 +14,7 @@ const authState = vi.hoisted(() => ({
 }));
 
 const serviceMocks = vi.hoisted(() => ({
-  createInvoice: vi.fn(),
+  createInvoices: vi.fn(),
   getPaymentSettings: vi.fn(),
   listClasses: vi.fn(),
   listCourses: vi.fn(),
@@ -48,7 +48,7 @@ vi.mock("recharts", () => ({
 }));
 
 vi.mock("@/services/firestore/invoices", () => ({
-  createInvoice: serviceMocks.createInvoice,
+  createInvoices: serviceMocks.createInvoices,
   listInvoices: serviceMocks.listInvoices,
   listPayments: serviceMocks.listPayments,
   reconcilePayment: serviceMocks.reconcilePayment,
@@ -74,14 +74,9 @@ async function openAndFillInvoiceForm() {
   fireEvent.click(
     await screen.findByRole("button", { name: "Tạo hóa đơn" }),
   );
-  await screen.findByRole("option", { name: "Nguyễn An" });
-
-  fireEvent.change(screen.getByLabelText(/Học sinh/), {
-    target: { value: "student-1" },
-  });
-  fireEvent.change(screen.getByLabelText(/Lớp học/), {
-    target: { value: "class-1" },
-  });
+  await screen.findByText("Lớp A1");
+  fireEvent.click(screen.getByRole("button", { name: "Chọn lớp học Lớp A1" }));
+  fireEvent.click(screen.getByLabelText(/Nguyễn An/));
   fireEvent.change(screen.getByLabelText(/Hạn thanh toán/), {
     target: { value: "2026-08-15" },
   });
@@ -99,7 +94,7 @@ describe("InvoicesPage", () => {
     serviceMocks.listInvoices.mockResolvedValue([]);
     serviceMocks.listPayments.mockResolvedValue([]);
     serviceMocks.listClasses.mockResolvedValue([
-      { id: "class-1", name: "Lớp A1", courseId: "course-1" },
+      { id: "class-1", name: "Lớp A1", courseId: "course-1", studentIds: ["student-1"] },
     ]);
     serviceMocks.listCourses.mockResolvedValue([
       {
@@ -115,7 +110,7 @@ describe("InvoicesPage", () => {
       accountNumber: "123456789",
       accountName: "EDUMATRIX",
     });
-    serviceMocks.createInvoice.mockResolvedValue({ id: "invoice-1" });
+    serviceMocks.createInvoices.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -127,15 +122,13 @@ describe("InvoicesPage", () => {
     renderWithQueryClient(<InvoicesPage />);
     await openAndFillInvoiceForm();
 
-    await waitFor(() => {
-      expect(screen.getByLabelText(/Số tiền/)).toHaveProperty("value", "100000");
-    });
+    expect(screen.getAllByText("100.000 đ").length).toBeGreaterThan(0);
     fireEvent.click(
-      screen.getByRole("button", { name: "Phát hành hóa đơn" }),
+      screen.getByRole("button", { name: "Tạo 1 hóa đơn" }),
     );
 
     await waitFor(() => {
-      expect(serviceMocks.createInvoice).toHaveBeenCalledWith(
+      expect(serviceMocks.createInvoices).toHaveBeenCalledWith([
         expect.objectContaining({
           studentId: "student-1",
           courseId: "course-1",
@@ -143,17 +136,17 @@ describe("InvoicesPage", () => {
           actorUid: "admin-1",
           accountNumber: "123456789",
         }),
-      );
+      ]);
     });
   });
 
   test("keeps invoice input and reports a service failure", async () => {
-    serviceMocks.createInvoice.mockRejectedValueOnce(new Error("offline"));
+    serviceMocks.createInvoices.mockRejectedValueOnce(new Error("offline"));
     renderWithQueryClient(<InvoicesPage />);
     await openAndFillInvoiceForm();
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Phát hành hóa đơn" }),
+      screen.getByRole("button", { name: "Tạo 1 hóa đơn" }),
     );
 
     await waitFor(() => {
@@ -161,10 +154,26 @@ describe("InvoicesPage", () => {
         "Không thể tạo hóa đơn",
       );
     });
-    expect(screen.getByLabelText(/Học sinh/)).toHaveProperty(
-      "value",
-      "student-1",
-    );
+    expect(screen.getByLabelText(/Nguyễn An/)).toHaveProperty("checked", true);
+  });
+
+  test("creates a flat-fee module invoice for enrolled students", async () => {
+    renderWithQueryClient(<InvoicesPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Tạo hóa đơn" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Hóa đơn học phần" }));
+    fireEvent.click(screen.getByRole("button", { name: "Chọn học phần English Foundation" }));
+    fireEvent.click(screen.getByLabelText(/Nguyễn An/));
+    fireEvent.change(screen.getByLabelText(/Hạn thanh toán/), { target: { value: "2026-08-15" } });
+
+    expect(screen.queryByLabelText(/Số buổi/)).toBeNull();
+    expect(screen.getByLabelText(/Mức thu học phần/)).toHaveProperty("value", "1.000.000 đ");
+    fireEvent.click(screen.getByRole("button", { name: "Tạo 1 hóa đơn" }));
+
+    await waitFor(() => {
+      expect(serviceMocks.createInvoices).toHaveBeenCalledWith([
+        expect.objectContaining({ studentId: "student-1", courseId: "course-1", amount: 1_000_000 }),
+      ]);
+    });
   });
 
   test("does not expose invoice creation or reconciliation to a teacher", async () => {

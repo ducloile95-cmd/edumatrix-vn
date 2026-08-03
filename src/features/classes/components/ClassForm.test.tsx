@@ -2,8 +2,10 @@
 
 import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { Timestamp } from "firebase/firestore";
 import { ClassForm } from "@/features/classes/components/ClassForm";
 import { renderWithQueryClient } from "@/test/renderWithQueryClient";
+import type { ClassDoc } from "@/types/academic";
 
 const authState = vi.hoisted(() => ({
   value: {
@@ -51,9 +53,8 @@ async function fillValidClassForm() {
   fireEvent.change(screen.getByLabelText(/Khóa học/), {
     target: { value: "course-1" },
   });
-  fireEvent.click(
-    await screen.findByRole("button", { name: "Tiếng Anh" }),
-  );
+  fireEvent.click(screen.getByRole("button", { name: "Môn học *" }));
+  fireEvent.click(await screen.findByRole("option", { name: "Tiếng Anh" }));
 }
 
 describe("ClassForm", () => {
@@ -145,10 +146,10 @@ describe("ClassForm", () => {
     renderWithQueryClient(<ClassForm />);
     await fillValidClassForm();
 
-    fireEvent.click(screen.getByLabelText("Tự động sinh lịch"));
+    expect(screen.queryByLabelText("Tự động sinh lịch")).toBeNull();
+    expect(screen.getByText("Mặc định bật")).toBeTruthy();
+    expect(screen.getByTestId("class-form-layout").className).toContain("xl:overflow-hidden");
     fireEvent.change(screen.getByLabelText(/Ngày bắt đầu/), { target: { value: "2026-08-03" } });
-    fireEvent.click(screen.getByRole("button", { name: "Thứ 2" }));
-    fireEvent.click(screen.getByRole("button", { name: "Thứ 4" }));
     fireEvent.change(screen.getByLabelText(/^Bắt đầu/), { target: { value: "18:00" } });
     fireEvent.change(screen.getByLabelText(/^Kết thúc/), { target: { value: "19:30" } });
     fireEvent.change(screen.getByLabelText(/Tổng số buổi/), { target: { value: "12" } });
@@ -158,7 +159,7 @@ describe("ClassForm", () => {
       expect(serviceMocks.createClassWithSchedule).toHaveBeenCalledWith(expect.objectContaining({
         name: "Lớp A1",
         recurrence: expect.objectContaining({
-          daysOfWeek: [1, 3],
+          daysOfWeek: [2, 4],
           startTime: "18:00",
           endTime: "19:30",
           sessionCount: 12,
@@ -166,5 +167,50 @@ describe("ClassForm", () => {
       }));
     });
     expect(serviceMocks.createClass).not.toHaveBeenCalled();
+  });
+
+  test("uses the same fixed layout for editing and displays the saved smart schedule", async () => {
+    authState.value = {
+      firebaseUser: { uid: "admin-1" },
+      role: "admin",
+    };
+    const editingClass: ClassDoc & { id: string } = {
+      id: "class-1",
+      name: "Lớp A1",
+      courseId: "course-1",
+      subjectIds: ["subject-1"],
+      teacherIds: ["teacher-1"],
+      studentIds: [],
+      scheduleText: "Thứ 3, Thứ 5 · 18:00-19:30",
+      location: "Phòng 201",
+      status: "active",
+      recurrence: {
+        startDate: Timestamp.fromDate(new Date("2026-07-01T00:00:00")),
+        endDate: Timestamp.fromDate(new Date("2026-08-08T00:00:00")),
+        daysOfWeek: [2, 4],
+        startTime: "18:00",
+        endTime: "19:30",
+        sessionCount: 12,
+      },
+      createdAt: Timestamp.fromDate(new Date("2026-06-01T00:00:00")),
+      updatedAt: Timestamp.fromDate(new Date("2026-06-01T00:00:00")),
+    };
+
+    renderWithQueryClient(<ClassForm editingClass={editingClass} />);
+    await screen.findByRole("option", { name: "English Foundation" });
+
+    expect(screen.getByTestId("class-form-layout").className).toContain("xl:overflow-hidden");
+    expect(screen.getByLabelText(/Ngày bắt đầu/)).toHaveProperty("value", "2026-07-01");
+    expect(screen.getByLabelText(/Ngày bắt đầu/)).toHaveProperty("disabled", true);
+    expect(screen.queryByLabelText("Tự động sinh lịch")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Lưu thay đổi" }));
+    await waitFor(() => {
+      expect(serviceMocks.updateClass).toHaveBeenCalledWith("class-1", expect.objectContaining({
+        name: "Lớp A1",
+        subjectIds: ["subject-1"],
+        teacherIds: ["teacher-1"],
+      }));
+    });
   });
 });

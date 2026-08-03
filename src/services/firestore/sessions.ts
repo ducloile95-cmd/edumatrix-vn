@@ -15,7 +15,7 @@ import { db } from "@/services/firebase/firestoreClient";
 import { COLLECTIONS } from "@/constants/collections";
 import { getCurrentUserDoc, isAdminUser, isTeacherUser } from "@/services/firestore/authz";
 import { listClasses } from "@/services/firestore/classes";
-import type { SessionDoc, SessionStatus } from "@/types/academic";
+import type { ClassDoc, SessionDoc, SessionStatus } from "@/types/academic";
 
 export interface CreateSessionsInput {
   classId: string;
@@ -28,6 +28,10 @@ export interface CreateSessionsInput {
 
 export async function createSessions(input: CreateSessionsInput): Promise<void> {
   if (input.occurrences.length < 1 || input.occurrences.length > 200) throw new Error("INVALID_SESSION_COUNT");
+  const classSnapshot = await getDoc(doc(db, COLLECTIONS.CLASSES, input.classId));
+  const classData = classSnapshot.exists() ? (classSnapshot.data() as ClassDoc) : null;
+  if (!classData || classData.status !== "active") throw new Error("CLASS_NOT_SCHEDULABLE");
+
   const batch = writeBatch(db);
   input.occurrences.forEach((occurrence) => {
     const ref = doc(collection(db, COLLECTIONS.SESSIONS));
@@ -53,7 +57,8 @@ export async function listSessions(from: Date, to: Date): Promise<(SessionDoc & 
 
   if (isTeacherUser(currentUser)) {
     const classes = await listClasses();
-    const groups = await Promise.all(classes.map((klass) => listSessionsByClass(klass.id, from, to, 100)));
+    const visibleClasses = classes.filter((klass) => klass.status !== "cancelled");
+    const groups = await Promise.all(visibleClasses.map((klass) => listSessionsByClass(klass.id, from, to, 100)));
     return groups.flat().sort((a, b) => a.startAt.toMillis() - b.startAt.toMillis()).slice(0, 300);
   }
 

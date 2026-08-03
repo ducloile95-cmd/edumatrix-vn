@@ -58,6 +58,7 @@ describe("createSessions", () => {
   beforeEach(() => {
     batchCommit.mockReset().mockResolvedValue(undefined);
     batchSet.mockReset();
+    getDoc.mockReset().mockResolvedValue({ exists: () => true, data: () => ({ status: "active" }) });
     writeBatch.mockReset().mockReturnValue({ set: batchSet, update: batchUpdate, commit: batchCommit });
   });
 
@@ -81,5 +82,22 @@ describe("createSessions", () => {
     expect(batchSet.mock.calls[0][1]).toMatchObject({ classId: "class-1", startAt: firstStart });
     expect(batchSet.mock.calls[1][1]).toMatchObject({ classId: "class-1", startAt: secondStart });
     expect(batchCommit).toHaveBeenCalledTimes(1);
+  });
+
+  test("rejects sessions for a cancelled class", async () => {
+    getDoc.mockResolvedValue({ exists: () => true, data: () => ({ status: "cancelled" }) });
+
+    await expect(createSessions({
+      classId: "class-1",
+      title: "Buổi học",
+      occurrences: [{
+        startAt: new Date("2026-07-21T12:45:00.000Z"),
+        endAt: new Date("2026-07-21T14:00:00.000Z"),
+      }],
+      location: "Phòng 201",
+      note: "",
+      makeUpForSessionId: null,
+    })).rejects.toThrow("CLASS_NOT_SCHEDULABLE");
+    expect(writeBatch).not.toHaveBeenCalled();
   });
 });

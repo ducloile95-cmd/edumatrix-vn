@@ -19,7 +19,7 @@ interface StudentFormProps {
 const inputClass =
   "min-h-touch w-full rounded-input border border-neutral-300 px-3 text-sm text-neutral-900 outline-none transition placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:bg-neutral-100 disabled:text-neutral-400";
 
-const sectionClass = "overflow-hidden rounded-card border border-neutral-200 bg-white shadow-[0_1px_2px_rgba(28,51,137,.04)]";
+const sectionClass = "flex h-full min-w-0 flex-col overflow-hidden rounded-card border border-neutral-200 bg-white shadow-[0_1px_2px_rgba(28,51,137,.04)]";
 
 export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
   const queryClient = useQueryClient();
@@ -158,12 +158,18 @@ export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
   });
 
   const partialWarnings = mutation.data ?? [];
+  const formLayoutClass = isAdmin
+    ? "lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1.15fr)_minmax(260px,.7fr)]"
+    : "lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,.65fr)]";
 
   return (
-    <form onSubmit={handleSubmit((values) => mutation.mutate(values))} className="grid gap-4">
+    <form
+      onSubmit={handleSubmit((values) => mutation.mutate(values))}
+      className={`grid items-stretch gap-4 ${formLayoutClass}`}
+    >
       <section className={sectionClass}>
         <SectionHeader title="Thông tin cơ bản" description="Thông tin định danh của học sinh trong hệ thống." />
-        <div className="grid gap-3 p-4 md:grid-cols-3">
+        <div className="grid flex-1 gap-3 p-4 sm:grid-cols-2">
           <Field error={errors.studentCode?.message} label="Mã học sinh">
             <input
               type="text"
@@ -182,7 +188,7 @@ export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
           <Field error={errors.dateOfBirth?.message} label="Ngày sinh">
             <input type="date" className={inputClass} {...register("dateOfBirth")} />
           </Field>
-          <div className="md:col-span-3">
+          <div className="sm:col-span-2">
             <Field error={errors.staffNote?.message} label="Ghi chú giáo viên/Admin">
               <textarea
                 placeholder="Ghi chú nội bộ về tình hình học tập, trao đổi phụ huynh, lưu ý trong lớp..."
@@ -196,7 +202,7 @@ export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
 
       {isAdmin && <section className={sectionClass}>
         <SectionHeader title="Thông tin phụ huynh" description="Nhập email để liên kết tài khoản phụ huynh đã có trong hệ thống." />
-        <div className="grid gap-3 p-4 md:grid-cols-2">
+        <div className="grid flex-1 gap-3 p-4 sm:grid-cols-2">
           <Field error={errors.parentName?.message} label="Tên phụ huynh">
             <input type="text" placeholder="Nguyễn Văn A" className={inputClass} {...register("parentName")} />
           </Field>
@@ -209,7 +215,7 @@ export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
           <Field error={errors.parentFacebookUrl?.message} label="Link Facebook liên kết">
             <input type="url" placeholder="https://facebook.com/..." className={inputClass} {...register("parentFacebookUrl")} />
           </Field>
-          <div className="md:col-span-2">
+          <div className="sm:col-span-2">
             <Field error={errors.parentAddress?.message} label="Địa chỉ">
               <input
                 type="text"
@@ -224,7 +230,7 @@ export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
 
       <section className={sectionClass}>
         <SectionHeader title="Đăng ký lớp học" description="Có thể chọn lớp ngay khi tạo hồ sơ hoặc bỏ trống để đăng ký sau." />
-        <div className="grid gap-3 p-4 md:grid-cols-[1fr_1fr]">
+        <div className="grid content-start gap-3 p-4">
           <Field error={errors.classId?.message} label="Lớp học">
             <select className={inputClass} disabled={classes.isLoading || isEditing} {...register("classId")}>
               <option value="">Chưa đăng ký lớp</option>
@@ -242,13 +248,13 @@ export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
       </section>
 
       {mutation.isError && (
-        <p role="alert" className="rounded-input bg-danger-50 px-3 py-2 text-sm text-danger-700">
+        <p role="alert" className="rounded-input bg-danger-50 px-3 py-2 text-sm text-danger-700 lg:col-span-full">
           {getMutationErrorMessage(mutation.error)}
         </p>
       )}
 
       {partialWarnings.length > 0 && (
-        <div role="alert" className="rounded-input border border-warning-300 bg-warning-50 px-3 py-2 text-sm leading-6 text-warning-900">
+        <div role="alert" className="rounded-input border border-warning-300 bg-warning-50 px-3 py-2 text-sm leading-6 text-warning-900 lg:col-span-full">
           <p className="font-semibold">Đã tạo hồ sơ học sinh, nhưng các bước sau chưa hoàn tất:</p>
           <ul className="mt-1 list-disc pl-5">
             {partialWarnings.map((warning) => (
@@ -259,7 +265,7 @@ export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
         </div>
       )}
 
-      <div className="flex justify-end gap-2 border-t border-neutral-200 pt-4">
+      <div className="flex justify-end gap-2 border-t border-neutral-200 pt-4 lg:col-span-full">
         <button
           type="button"
           onClick={() => onDone?.()}

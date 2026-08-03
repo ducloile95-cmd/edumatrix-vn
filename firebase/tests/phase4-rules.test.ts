@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, test } from "vitest";
 import { assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment } from "@firebase/rules-unit-testing";
-import { doc, getDoc, setDoc, Timestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, Timestamp, updateDoc } from "firebase/firestore";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -27,4 +27,18 @@ describe("Phase 4 session ownership", () => {
   test("unlinked viewer cannot read a session", async () => assertFails(getDoc(doc(env.authenticatedContext("other").firestore(), "sessions", "session-1"))));
   test("viewer cannot create a session", async () => assertFails(setDoc(doc(env.authenticatedContext("viewer").firestore(), "sessions", "session-2"), session)));
   test("staff cannot create a session ending before it starts", async () => assertFails(setDoc(doc(env.authenticatedContext("admin").firestore(), "sessions", "session-2"), { ...session, startAt: Timestamp.fromMillis(Date.now()), endAt: Timestamp.fromMillis(Date.now() - 60_000) })));
+  test("staff cannot create a session for a cancelled class", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "classes", "class-1"), { studentIds: ["student-1"], status: "cancelled" });
+    });
+    await assertFails(setDoc(doc(env.authenticatedContext("admin").firestore(), "sessions", "session-2"), session));
+  });
+  test("staff can only cancel an existing session after its class is cancelled", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "classes", "class-1"), { studentIds: ["student-1"], status: "cancelled" });
+    });
+    const sessionRef = doc(env.authenticatedContext("admin").firestore(), "sessions", "session-1");
+    await assertFails(updateDoc(sessionRef, { location: "P2", updatedAt: Timestamp.now() }));
+    await assertSucceeds(updateDoc(sessionRef, { status: "cancelled", note: "Lớp đã hủy", updatedAt: Timestamp.now() }));
+  });
 });
