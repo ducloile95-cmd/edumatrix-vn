@@ -15,7 +15,7 @@ import { stableDocumentId } from "@/utils/idempotency";
 import { createInvoiceCode, createPaymentContent } from "@/utils/payment";
 import { getCurrentUserDoc, isAdminUser, isTeacherUser } from "@/services/firestore/authz";
 import { listStudents } from "@/services/firestore/students";
-import type { InvoiceDoc, PaymentDoc, PaymentStatus } from "@/types/academic";
+import type { InvoiceDoc, InvoiceSourceType, PaymentDoc, PaymentStatus } from "@/types/academic";
 
 export interface CreateInvoiceInput {
   studentId: string;
@@ -27,6 +27,14 @@ export interface CreateInvoiceInput {
   accountNumber: string;
   accountName: string;
   actorUid: string;
+  sourceType: InvoiceSourceType;
+  sourceId: string;
+  classId: string | null;
+  subjectId: string | null;
+  billingItemId: string | null;
+  itemNameSnapshot: string;
+  unitPriceSnapshot: number;
+  quantity: number;
 }
 
 export async function createInvoice(input: CreateInvoiceInput): Promise<void> {
@@ -40,19 +48,20 @@ export async function createInvoices(inputs: CreateInvoiceInput[]): Promise<void
 
   const batch = writeBatch(db);
   inputs.forEach((input) => {
-  const invoiceRef = doc(collection(db, COLLECTIONS.INVOICES));
-  const invoiceCode = createInvoiceCode(input.studentId, invoiceRef.id);
+    const invoiceRef = doc(collection(db, COLLECTIONS.INVOICES));
+    const invoiceCode = createInvoiceCode(input.studentId, invoiceRef.id);
+    const { actorUid, ...invoiceData } = input;
 
     batch.set(invoiceRef, {
-    ...input,
-    invoiceCode,
-    paymentContent: createPaymentContent(invoiceCode),
-    dueAt: Timestamp.fromDate(input.dueAt),
-    status: "unpaid",
-    createdBy: input.actorUid,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
+      ...invoiceData,
+      invoiceCode,
+      paymentContent: createPaymentContent(invoiceCode),
+      dueAt: Timestamp.fromDate(input.dueAt),
+      status: "unpaid",
+      createdBy: actorUid,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
   });
   await batch.commit();
 }

@@ -105,19 +105,19 @@ describe("FormPopupDemoPage popup widths", () => {
     expect(within(dialog).getByRole("button", { name: "Tạo 2 hóa đơn" })).toBeTruthy();
   });
 
-  test("integrates flat-fee module billing into the create invoice dialog", () => {
+  test("integrates learning-supply billing into the create invoice dialog", () => {
     render(<FormPopupDemoPage />);
     fireEvent.click(screen.getByRole("button", { name: /Tạo hóa đơn/ }));
 
     const dialog = screen.getByRole("dialog", { name: "Tạo hóa đơn" });
-    fireEvent.click(within(dialog).getByRole("tab", { name: "Hóa đơn học phần" }));
+    fireEvent.click(within(dialog).getByRole("tab", { name: "Đồ dùng học tập" }));
 
-    expect(within(dialog).getByRole("heading", { name: "Chọn học phần" })).toBeTruthy();
-    fireEvent.click(within(dialog).getByRole("button", { name: "Chọn học phần IELTS Writing Foundation" }));
+    expect(within(dialog).getByRole("heading", { name: "Chọn đồ dùng học tập" })).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Chọn đồ dùng Bộ giáo trình IELTS Foundation" }));
     fireEvent.click(within(dialog).getByRole("checkbox", { name: "Chọn tất cả (3)" }));
 
     expect(within(dialog).queryByRole("spinbutton", { name: /Số buổi/ })).toBeNull();
-    expect(within(dialog).getByLabelText(/Mức thu học phần/)).toHaveProperty("value", "2.400.000 đ");
+    expect(within(dialog).getByLabelText(/Đơn giá đồ dùng/)).toHaveProperty("value", "480.000 đ");
     expect(within(dialog).getByRole("button", { name: "Tạo 3 hóa đơn" })).toBeTruthy();
   });
 });

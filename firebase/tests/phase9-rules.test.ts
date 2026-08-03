@@ -28,6 +28,16 @@ const invoice = {
   updatedAt: Timestamp.now(),
 };
 
+const billingItem = {
+  name: "Giao trinh English Foundation",
+  courseId: "course-1",
+  subjectId: "subject-1",
+  unitPrice: 250000,
+  status: "active",
+  createdAt: Timestamp.now(),
+  updatedAt: Timestamp.now(),
+};
+
 beforeAll(async () => {
   env = await initializeTestEnvironment({
     projectId: "phase9-rules",
@@ -65,6 +75,13 @@ beforeEach(async () => {
       status: "active",
       studentIds: [],
     });
+    await setDoc(doc(db, "subjects", "subject-1"), { name: "English", code: "subject-1", status: "active" });
+    await setDoc(doc(db, "subjects", "subject-2"), { name: "Math", code: "subject-2", status: "active" });
+    await setDoc(doc(db, "courses", "course-1"), { subjectIds: ["subject-1"], teacherIds: ["teacher"] });
+    await setDoc(doc(db, "students", "student-1"), { studentCode: "student-1", teacherIds: ["teacher"] });
+    await setDoc(doc(db, "students", "student-2"), { studentCode: "student-2", teacherIds: [] });
+    await setDoc(doc(db, "classes", "class-1"), { courseId: "course-1", subjectIds: ["subject-1"], studentIds: ["student-1"], teacherIds: ["teacher"] });
+    await setDoc(doc(db, "billing_items", "item-1"), billingItem);
     await setDoc(doc(db, "invoices", "invoice-1"), invoice);
     await setDoc(doc(db, "invoices", "invoice-other"), {
       ...invoice,
@@ -219,4 +236,40 @@ describe("Phase 9 payment", () => {
         verifiedBy: "admin",
       }),
     ));
+});
+
+describe("Billing item integrity", () => {
+  test("admin manages a billing item linked to the selected course subject", async () =>
+    assertSucceeds(setDoc(doc(env.authenticatedContext("admin").firestore(), "billing_items", "item-new"), billingItem)));
+
+  test("teacher cannot create a billing item", async () =>
+    assertFails(setDoc(doc(env.authenticatedContext("teacher").firestore(), "billing_items", "item-new"), billingItem)));
+
+  test("rejects a billing item whose subject is outside the course", async () =>
+    assertFails(setDoc(doc(env.authenticatedContext("admin").firestore(), "billing_items", "item-new"), {
+      ...billingItem,
+      subjectId: "subject-2",
+    })));
+
+  test("creates an invoice with an immutable billing-item snapshot", async () =>
+    assertSucceeds(setDoc(doc(env.authenticatedContext("admin").firestore(), "invoices", "invoice-item"), {
+      ...invoice,
+      courseId: "course-1",
+      title: "Do dung hoc tap: Giao trinh English Foundation",
+      amount: 250000,
+      sourceType: "billing_item",
+      sourceId: "item-1",
+      classId: null,
+      subjectId: "subject-1",
+      billingItemId: "item-1",
+      itemNameSnapshot: "Giao trinh English Foundation",
+      unitPriceSnapshot: 250000,
+      quantity: 1,
+    })));
+
+  test("rejects an invoice for a missing course", async () =>
+    assertFails(setDoc(doc(env.authenticatedContext("admin").firestore(), "invoices", "invoice-orphan"), {
+      ...invoice,
+      courseId: "missing-course",
+    })));
 });

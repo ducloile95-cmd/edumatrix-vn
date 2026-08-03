@@ -282,6 +282,19 @@ service cloud.firestore {
         hasTimestamps(data);
     }
 
+    function validBillingItemData(data) {
+      return data.keys().hasAll(['name', 'courseId', 'subjectId', 'unitPrice', 'status', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['name', 'courseId', 'subjectId', 'unitPrice', 'status', 'createdAt', 'updatedAt']) &&
+        data.name is string && data.name.size() > 0 && data.name.size() <= 160 &&
+        data.courseId is string && data.subjectId is string &&
+        data.unitPrice is int && data.unitPrice > 0 &&
+        data.status in ['active', 'archived'] &&
+        hasTimestamps(data) &&
+        exists(/databases/$(database)/documents/courses/$(data.courseId)) &&
+        exists(/databases/$(database)/documents/subjects/$(data.subjectId)) &&
+        data.subjectId in get(/databases/$(database)/documents/courses/$(data.courseId)).data.subjectIds;
+    }
+
     function validStudentData(studentId, data) {
       return data.keys().hasAll(['studentCode', 'fullName', 'dateOfBirth', 'parentUids', 'currentClassIds', 'teacherIds', 'status', 'createdAt', 'updatedAt']) &&
         data.keys().hasOnly(['studentCode', 'fullName', 'nickname', 'dateOfBirth', 'parentUids', 'currentClassIds', 'teacherIds', 'staffNote', 'status', 'createdAt', 'updatedAt']) &&
@@ -555,6 +568,53 @@ service cloud.firestore {
         data.updatedAt is timestamp;
     }
 
+    function validInvoiceData(data) {
+      return data.keys().hasAll([
+          'invoiceCode', 'studentId', 'courseId', 'title', 'amount', 'dueAt',
+          'paymentContent', 'bankBin', 'accountNumber', 'accountName', 'status',
+          'createdBy', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'invoiceCode', 'studentId', 'courseId', 'title', 'amount', 'dueAt',
+          'paymentContent', 'bankBin', 'accountNumber', 'accountName', 'status',
+          'createdBy', 'createdAt', 'updatedAt', 'sourceType', 'sourceId', 'classId',
+          'subjectId', 'billingItemId', 'itemNameSnapshot', 'unitPriceSnapshot', 'quantity'
+        ]) &&
+        data.invoiceCode is string && data.studentId is string &&
+        (data.courseId == null || data.courseId is string) &&
+        data.title is string && data.title.size() > 0 && data.title.size() <= 240 &&
+        data.amount is int && data.amount > 0 && data.dueAt is timestamp &&
+        data.paymentContent is string && data.bankBin is string &&
+        data.accountNumber is string && data.accountName is string &&
+        data.status in ['unpaid', 'pending', 'paid', 'overdue', 'rejected'] &&
+        data.createdBy is string && hasTimestamps(data) &&
+        (data.courseId == null || exists(/databases/$(database)/documents/courses/$(data.courseId))) &&
+        (
+          !data.keys().hasAny(['sourceType']) ||
+          (
+            data.keys().hasAll(['sourceId', 'classId', 'subjectId', 'billingItemId', 'itemNameSnapshot', 'unitPriceSnapshot', 'quantity']) &&
+            data.sourceType == 'class' && data.sourceId == data.classId &&
+            data.classId is string && data.subjectId == null && data.billingItemId == null &&
+            data.itemNameSnapshot is string && data.unitPriceSnapshot is int && data.unitPriceSnapshot > 0 &&
+            data.quantity is int && data.quantity > 0 && data.amount == data.unitPriceSnapshot * data.quantity &&
+            exists(/databases/$(database)/documents/classes/$(data.classId)) &&
+            get(/databases/$(database)/documents/classes/$(data.classId)).data.courseId == data.courseId &&
+            data.studentId in get(/databases/$(database)/documents/classes/$(data.classId)).data.studentIds
+          ) ||
+          (
+            data.keys().hasAll(['sourceId', 'classId', 'subjectId', 'billingItemId', 'itemNameSnapshot', 'unitPriceSnapshot', 'quantity']) &&
+            data.sourceType == 'billing_item' && data.sourceId == data.billingItemId &&
+            data.classId == null && data.billingItemId is string && data.subjectId is string &&
+            data.itemNameSnapshot is string && data.unitPriceSnapshot is int && data.unitPriceSnapshot > 0 &&
+            data.quantity is int && data.quantity > 0 && data.amount == data.unitPriceSnapshot * data.quantity &&
+            exists(/databases/$(database)/documents/billing_items/$(data.billingItemId)) &&
+            get(/databases/$(database)/documents/billing_items/$(data.billingItemId)).data.courseId == data.courseId &&
+            get(/databases/$(database)/documents/billing_items/$(data.billingItemId)).data.subjectId == data.subjectId &&
+            get(/databases/$(database)/documents/billing_items/$(data.billingItemId)).data.unitPrice == data.unitPriceSnapshot
+          )
+        );
+    }
+
     // ---------- users/{uid} ----------
     // Chi Admin duoc doi role/studentIds/status. Tao ho so lan dau (claim invite)
     // phai khop dung role/studentIds lay tu invite - nguoi dung khong tu chon (A16.4).
@@ -723,6 +783,21 @@ service cloud.firestore {
         validCourseData(request.resource.data);
       allow update: if isStaff() &&
         validCourseData(request.resource.data) &&
+        keepsImmutable(['createdAt']);
+      allow delete: if false;
+    }
+
+    // ---------- billing_items/{billingItemId} ----------
+    // Do dung hoc tap la danh muc tai chinh. Moi tai khoan active duoc doc de
+    // hien thi ten khoan thu, chi Admin duoc quan ly.
+
+    match /billing_items/{billingItemId} {
+      allow read: if isActive();
+      allow create: if isAdmin() &&
+        request.resource.data.status == 'active' &&
+        validBillingItemData(request.resource.data);
+      allow update: if isAdmin() &&
+        validBillingItemData(request.resource.data) &&
         keepsImmutable(['createdAt']);
       allow delete: if false;
     }
@@ -1112,9 +1187,9 @@ service cloud.firestore {
       allow create: if isAdmin() &&
         request.resource.data.createdBy == request.auth.uid &&
         request.resource.data.status == 'unpaid' &&
-        request.resource.data.amount > 0;
+        validInvoiceData(request.resource.data);
       allow update: if keepsImmutable(
-        ['invoiceCode', 'studentId', 'courseId', 'amount', 'paymentContent', 'bankBin', 'accountNumber', 'accountName', 'createdBy', 'createdAt']
+        ['invoiceCode', 'studentId', 'courseId', 'amount', 'paymentContent', 'bankBin', 'accountNumber', 'accountName', 'createdBy', 'createdAt', 'sourceType', 'sourceId', 'classId', 'subjectId', 'billingItemId', 'itemNameSnapshot', 'unitPriceSnapshot', 'quantity']
       ) && (
         isAdmin() || (
           ownsStudent(resource.data.studentId) && resource.data.status in ['unpaid', 'rejected'] &&

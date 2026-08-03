@@ -25,6 +25,8 @@ import { getPaymentSettings } from "@/services/firestore/settings";
 import { listStudents } from "@/services/firestore/students";
 import { listClasses } from "@/services/firestore/classes";
 import { listCourses } from "@/services/firestore/courses";
+import { listSubjects } from "@/services/firestore/subjects";
+import { listBillingItems } from "@/services/firestore/billingItems";
 import { formatVnd } from "@/utils/currency";
 import type { InvoiceStatus } from "@/types/academic";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
@@ -58,6 +60,8 @@ export default function InvoicesPage() {
   const payments = useQuery({ queryKey: ["payments", role, firebaseUser?.uid], queryFn: listPayments });
   const classes = useQuery({ queryKey: ["classes", role, firebaseUser?.uid], queryFn: listClasses });
   const courses = useQuery({ queryKey: ["courses"], queryFn: listCourses });
+  const subjects = useQuery({ queryKey: ["subjects"], queryFn: listSubjects });
+  const billingItems = useQuery({ queryKey: ["billing-items"], queryFn: listBillingItems });
   const paymentSettings = useQuery({
     queryKey: ["settings", "payment"],
     queryFn: getPaymentSettings,
@@ -82,6 +86,14 @@ export default function InvoicesPage() {
       accountNumber: paymentSettings.data?.accountNumber ?? "",
       accountName: paymentSettings.data?.accountName ?? "EDUMATRIX",
       actorUid: firebaseUser?.uid ?? "unknown",
+      sourceType: values.sourceType,
+      sourceId: values.sourceId,
+      classId: values.classId,
+      subjectId: values.subjectId,
+      billingItemId: values.billingItemId,
+      itemNameSnapshot: values.itemNameSnapshot,
+      unitPriceSnapshot: values.unitPriceSnapshot,
+      quantity: values.quantity,
     }))),
     onSuccess: () => {
       client.invalidateQueries({ queryKey: ["invoices"] });
@@ -250,7 +262,7 @@ export default function InvoicesPage() {
                 <tbody className="divide-y divide-neutral-100">
                   {filteredInvoices.map((invoice) => (
                     <tr key={invoice.id} className="transition hover:bg-neutral-50/80">
-                      <td className="px-5 py-4"><p className="font-bold text-neutral-900">{invoice.invoiceCode}</p><p className="mt-0.5 text-xs text-neutral-500">{invoice.title}</p></td>
+                      <td className="px-5 py-4"><p className="font-bold text-neutral-900">{invoice.invoiceCode}</p><p className="mt-0.5 text-xs text-neutral-500">{invoice.title}</p>{invoice.sourceType && <p className="mt-1 text-2xs font-semibold text-primary-700">{invoice.sourceType === "billing_item" ? "Đồ dùng học tập" : "Lớp học"} / {invoice.itemNameSnapshot}</p>}</td>
                       <td className="px-4 py-4 font-medium text-neutral-700">{studentNameById.get(invoice.studentId) ?? invoice.studentId}</td>
                       <td className="px-4 py-4"><p className="tabular-nums text-neutral-700">{format(invoice.dueAt.toDate(), "dd/MM/yyyy")}</p>{invoice.status === "overdue" && <p className="mt-0.5 text-xs font-semibold text-danger-700">Đã quá hạn</p>}</td>
                       <td className="px-4 py-4 text-right font-bold tabular-nums text-neutral-900">{formatVnd(invoice.amount)}</td>
@@ -289,11 +301,13 @@ export default function InvoicesPage() {
         </DataListPanel>
       )}
 
-      {isAdmin && <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Tạo hóa đơn" description="Tạo học phí theo lớp hoặc học phần cho nhiều học sinh." size="2xl" bodyClassName="flex overflow-hidden p-0">
+      {isAdmin && <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Tạo hóa đơn" description="Tạo học phí theo lớp hoặc khoản thu đồ dùng học tập." size="2xl" bodyClassName="flex overflow-hidden p-0">
         <InvoiceCreationForm
           students={students.data ?? []}
           classes={classes.data ?? []}
           courses={courses.data ?? []}
+          subjects={subjects.data ?? []}
+          billingItems={billingItems.data ?? []}
           bankBin={paymentSettings.data?.bankBin ?? "970436"}
           accountNumber={paymentSettings.data?.accountNumber ?? ""}
           accountName={paymentSettings.data?.accountName ?? "EDUMATRIX"}

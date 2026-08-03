@@ -16,11 +16,13 @@ const authState = vi.hoisted(() => ({
 const serviceMocks = vi.hoisted(() => ({
   createInvoices: vi.fn(),
   getPaymentSettings: vi.fn(),
+  listBillingItems: vi.fn(),
   listClasses: vi.fn(),
   listCourses: vi.fn(),
   listInvoices: vi.fn(),
   listPayments: vi.fn(),
   listStudents: vi.fn(),
+  listSubjects: vi.fn(),
   reconcilePayment: vi.fn(),
 }));
 
@@ -70,6 +72,14 @@ vi.mock("@/services/firestore/courses", () => ({
   listCourses: serviceMocks.listCourses,
 }));
 
+vi.mock("@/services/firestore/subjects", () => ({
+  listSubjects: serviceMocks.listSubjects,
+}));
+
+vi.mock("@/services/firestore/billingItems", () => ({
+  listBillingItems: serviceMocks.listBillingItems,
+}));
+
 async function openAndFillInvoiceForm() {
   fireEvent.click(
     await screen.findByRole("button", { name: "Tạo hóa đơn" }),
@@ -94,7 +104,7 @@ describe("InvoicesPage", () => {
     serviceMocks.listInvoices.mockResolvedValue([]);
     serviceMocks.listPayments.mockResolvedValue([]);
     serviceMocks.listClasses.mockResolvedValue([
-      { id: "class-1", name: "Lớp A1", courseId: "course-1", studentIds: ["student-1"] },
+      { id: "class-1", name: "Lớp A1", courseId: "course-1", subjectIds: ["subject-1"], studentIds: ["student-1"], status: "active" },
     ]);
     serviceMocks.listCourses.mockResolvedValue([
       {
@@ -110,6 +120,15 @@ describe("InvoicesPage", () => {
       accountNumber: "123456789",
       accountName: "EDUMATRIX",
     });
+    serviceMocks.listSubjects.mockResolvedValue([{ id: "subject-1", name: "English", status: "active" }]);
+    serviceMocks.listBillingItems.mockResolvedValue([{
+      id: "item-1",
+      name: "Giáo trình English Foundation",
+      courseId: "course-1",
+      subjectId: "subject-1",
+      unitPrice: 250_000,
+      status: "active",
+    }]);
     serviceMocks.createInvoices.mockResolvedValue(undefined);
   });
 
@@ -133,6 +152,8 @@ describe("InvoicesPage", () => {
           studentId: "student-1",
           courseId: "course-1",
           amount: 100_000,
+          sourceType: "class",
+          sourceId: "class-1",
           actorUid: "admin-1",
           accountNumber: "123456789",
         }),
@@ -157,21 +178,28 @@ describe("InvoicesPage", () => {
     expect(screen.getByLabelText(/Nguyễn An/)).toHaveProperty("checked", true);
   });
 
-  test("creates a flat-fee module invoice for enrolled students", async () => {
+  test("creates a learning-supply invoice for eligible students", async () => {
     renderWithQueryClient(<InvoicesPage />);
     fireEvent.click(await screen.findByRole("button", { name: "Tạo hóa đơn" }));
-    fireEvent.click(screen.getByRole("tab", { name: "Hóa đơn học phần" }));
-    fireEvent.click(screen.getByRole("button", { name: "Chọn học phần English Foundation" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Đồ dùng học tập" }));
+    fireEvent.click(screen.getByRole("button", { name: "Chọn đồ dùng học tập Giáo trình English Foundation" }));
     fireEvent.click(screen.getByLabelText(/Nguyễn An/));
     fireEvent.change(screen.getByLabelText(/Hạn thanh toán/), { target: { value: "2026-08-15" } });
 
     expect(screen.queryByLabelText(/Số buổi/)).toBeNull();
-    expect(screen.getByLabelText(/Mức thu học phần/)).toHaveProperty("value", "1.000.000 đ");
+    expect(screen.getByLabelText(/Đơn giá đồ dùng/)).toHaveProperty("value", "250.000 đ");
     fireEvent.click(screen.getByRole("button", { name: "Tạo 1 hóa đơn" }));
 
     await waitFor(() => {
       expect(serviceMocks.createInvoices).toHaveBeenCalledWith([
-        expect.objectContaining({ studentId: "student-1", courseId: "course-1", amount: 1_000_000 }),
+        expect.objectContaining({
+          studentId: "student-1",
+          courseId: "course-1",
+          subjectId: "subject-1",
+          billingItemId: "item-1",
+          sourceType: "billing_item",
+          amount: 250_000,
+        }),
       ]);
     });
   });

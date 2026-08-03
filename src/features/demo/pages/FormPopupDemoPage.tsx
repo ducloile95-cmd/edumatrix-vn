@@ -233,7 +233,7 @@ const POPUP_DEMOS: PopupDemo[] = [
     ] }],
   },
   {
-    id: "invoice", title: "Tạo hóa đơn", description: "Tạo học phí theo lớp hoặc học phần cho nhiều học sinh", group: "Tài chính", size: "wide", icon: ReceiptText, primaryAction: "Phát hành hóa đơn",
+    id: "invoice", title: "Tạo hóa đơn", description: "Tạo học phí theo lớp hoặc khoản thu đồ dùng học tập", group: "Tài chính", size: "wide", icon: ReceiptText, primaryAction: "Phát hành hóa đơn",
     sections: [
       { title: "Khoản thu", fields: [
         { label: "Học sinh", type: "select", options: ["Chọn học sinh", "Nguyễn Minh Anh"], required: true },

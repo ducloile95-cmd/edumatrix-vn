@@ -15,6 +15,7 @@ export const queryKeys = {
   classes: () => ["classes"] as const,
   courses: () => ["courses"] as const,
   subjects: () => ["subjects"] as const,
+  billingItems: () => ["billing-items"] as const,
   users: (role?: string) => (role ? (["users", role] as const) : (["users"] as const)),
   invites: () => ["invites"] as const,
   assignments: () => ["assignments"] as const,

@@ -29,13 +29,21 @@ import { createInvoices } from "@/services/firestore/invoices";
 
 const baseInput = {
   courseId: "course-1",
-  title: "Học phí học phần",
+  title: "Đồ dùng học tập",
   amount: 1_000_000,
   dueAt: new Date("2026-08-15T00:00:00"),
   bankBin: "970436",
   accountNumber: "123456789",
   accountName: "EDUMATRIX",
   actorUid: "admin-1",
+  sourceType: "billing_item" as const,
+  sourceId: "item-1",
+  classId: null,
+  subjectId: "subject-1",
+  billingItemId: "item-1",
+  itemNameSnapshot: "Giáo trình",
+  unitPriceSnapshot: 1_000_000,
+  quantity: 1,
 };
 
 describe("createInvoices", () => {
@@ -58,7 +66,9 @@ describe("createInvoices", () => {
       amount: 1_000_000,
       status: "unpaid",
       createdBy: "admin-1",
+      sourceType: "billing_item",
     }));
+    expect(firestore.batchSet.mock.calls[0][1]).not.toHaveProperty("actorUid");
     expect(firestore.batchCommit).toHaveBeenCalledTimes(1);
   });
 

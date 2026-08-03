@@ -33,6 +33,11 @@ const COURSES = {
   "course-anh-2026": { name: "Tiếng Anh thiếu niên 2026", subjectIds: ["ANH"], tuitionFee: 1500000, totalSessions: 24, startDate: day(-20), endDate: day(100) },
 };
 
+const BILLING_ITEMS = [
+  { id: "item-toan-workbook", name: "Vở bài tập Toán", courseId: "course-toan-2026", subjectId: "TOAN", unitPrice: 120000 },
+  { id: "item-anh-workbook", name: "Giáo trình Tiếng Anh", courseId: "course-anh-2026", subjectId: "ANH", unitPrice: 180000 },
+];
+
 // slug dung de sinh id ngan gon cho session/lesson/assignment/score cua tung lop
 const CLASSES = [
   { id: "class-toan-a", slug: "toan-a", name: "Toán A", subjectId: "TOAN", courseId: "course-toan-2026", teacherKey: "teacherA", scheduleText: "Thứ 3, 18:00", location: "Phòng 201" },
@@ -126,6 +131,9 @@ await env.withSecurityRulesDisabled(async (context) => {
       CLASSES.filter((cls) => cls.courseId === courseId).map((cls) => uid[cls.teacherKey]),
     )];
     put("courses", courseId, { ...course, teacherIds, status: "active", createdAt: now, updatedAt: now });
+  }
+  for (const item of BILLING_ITEMS) {
+    put("billing_items", item.id, { ...item, status: "active", createdAt: now, updatedAt: now });
   }
 
   // ----- Lop hoc (3 lop, 10 hoc sinh) -----
@@ -260,6 +268,14 @@ await env.withSecurityRulesDisabled(async (context) => {
       invoiceCode: `HP-${inv.studentId}-202607`,
       studentId: inv.studentId,
       courseId: inv.courseId,
+      sourceType: "class",
+      sourceId: inv.classId,
+      classId: inv.classId,
+      subjectId: null,
+      billingItemId: null,
+      itemNameSnapshot: classById(inv.classId).name,
+      unitPriceSnapshot: Math.round(COURSES[inv.courseId].tuitionFee / COURSES[inv.courseId].totalSessions),
+      quantity: COURSES[inv.courseId].totalSessions,
       title: "Học phí tháng 07/2026",
       amount: inv.amount,
       dueAt: day(inv.status === "overdue" ? -3 : 10),

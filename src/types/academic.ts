@@ -32,6 +32,19 @@ export interface CourseDoc {
   updatedAt: Timestamp;
 }
 
+export type BillingItemStatus = "active" | "archived";
+
+/** billing_items/{billingItemId} - do dung hoc tap co muc thu rieng, gan voi mot khoa hoc va mon hoc. */
+export interface BillingItemDoc {
+  name: string;
+  courseId: string;
+  subjectId: string;
+  unitPrice: number;
+  status: BillingItemStatus;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
 /** classes/{classId} - ID auto (A13, Section 10.4). */
 export type ClassStatus = "active" | "completed" | "cancelled";
 
@@ -209,7 +222,8 @@ export type AssessmentType = "quiz" | "midterm" | "final" | "assignment";
 export type ScoreSource = "manual" | "assignment";
 export interface ScoreDoc { studentId: string; classId: string; subjectId: string; assessmentName: string; assessmentType: AssessmentType; score: number; maxScore: number; teacherComment: string; source?: ScoreSource; assignmentId?: string | null; submissionId?: string | null; published?: boolean; createdBy: string; createdAt: Timestamp; updatedAt: Timestamp; }
 export type InvoiceStatus = "unpaid" | "pending" | "paid" | "overdue" | "rejected";
-export interface InvoiceDoc { invoiceCode:string;studentId:string;courseId:string|null;title:string;amount:number;dueAt:Timestamp;paymentContent:string;bankBin:string;accountNumber:string;accountName:string;status:InvoiceStatus;createdBy:string;createdAt:Timestamp;updatedAt:Timestamp; }
+export type InvoiceSourceType = "class" | "billing_item";
+export interface InvoiceDoc { invoiceCode:string;studentId:string;courseId:string|null;title:string;amount:number;dueAt:Timestamp;paymentContent:string;bankBin:string;accountNumber:string;accountName:string;status:InvoiceStatus;createdBy:string;createdAt:Timestamp;updatedAt:Timestamp;sourceType?:InvoiceSourceType;sourceId?:string;classId?:string|null;subjectId?:string|null;billingItemId?:string|null;itemNameSnapshot?:string;unitPriceSnapshot?:number;quantity?:number; }
 export type PaymentStatus = "reported" | "verified" | "rejected";
 export interface PaymentDoc { invoiceId:string;studentId:string;amount:number;transactionReference:string;note:string;status:PaymentStatus;reportedBy:string;verifiedBy:string|null;reportedAt:Timestamp;verifiedAt:Timestamp|null;updatedAt:Timestamp; }
 

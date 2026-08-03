@@ -7,13 +7,17 @@ import { SubjectsList } from "@/features/catalog/components/SubjectsList";
 import { CourseForm } from "@/features/catalog/components/CourseForm";
 import { CoursesList } from "@/features/catalog/components/CoursesList";
 import { CatalogDashboard } from "@/features/catalog/components/CatalogDashboard";
-import type { CourseDoc, SubjectDoc } from "@/types/academic";
+import { BillingItemForm } from "@/features/catalog/components/BillingItemForm";
+import { BillingItemsList } from "@/features/catalog/components/BillingItemsList";
+import type { BillingItemDoc, CourseDoc, SubjectDoc } from "@/types/academic";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { USER_ROLES } from "@/constants/roles";
 
-type CatalogTab = "dashboard" | "catalog";
+type CatalogTab = "dashboard" | "catalog" | "billing-items";
 
 export default function CatalogPage() {
-  const { isStaff } = useAuth();
+  const { isStaff, role } = useAuth();
+  const isAdmin = role === USER_ROLES.ADMIN;
   const initialCreate = new URLSearchParams(window.location.search).get("create");
   const [tab, setTab] = useState<CatalogTab>(initialCreate ? "catalog" : "dashboard");
 
@@ -25,6 +29,8 @@ export default function CatalogPage() {
   const [editingSubject, setEditingSubject] = useState<(SubjectDoc & { id: string }) | null>(null);
 
   const [subjectFilter, setSubjectFilter] = useState<string | null>(null);
+  const [billingItemModalOpen, setBillingItemModalOpen] = useState(false);
+  const [editingBillingItem, setEditingBillingItem] = useState<(BillingItemDoc & { id: string }) | null>(null);
 
   function openCreateCourse(forSubjectId?: string) {
     setEditingCourse(null);
@@ -64,6 +70,21 @@ export default function CatalogPage() {
     setSubjectFilter((current) => (current === subjectId ? null : subjectId));
   }
 
+  function openCreateBillingItem() {
+    setEditingBillingItem(null);
+    setBillingItemModalOpen(true);
+  }
+
+  function openEditBillingItem(item: BillingItemDoc & { id: string }) {
+    setEditingBillingItem(item);
+    setBillingItemModalOpen(true);
+  }
+
+  function closeBillingItemModal() {
+    setBillingItemModalOpen(false);
+    setEditingBillingItem(null);
+  }
+
   return (
     <>
       <Tabs label="Chuyển tab Môn học & khóa học" className="mb-5">
@@ -73,12 +94,15 @@ export default function CatalogPage() {
         <Tab active={tab === "catalog"} onClick={() => setTab("catalog")}>
           Danh mục
         </Tab>
+        <Tab active={tab === "billing-items"} onClick={() => setTab("billing-items")}>
+          Đồ dùng học tập
+        </Tab>
       </Tabs>
 
       <MotionTabPanel motionKey={tab}>
         {tab === "dashboard" ? (
           <CatalogDashboard onCreateCourseForSubject={handleCreateCourseForSubject} />
-        ) : (
+        ) : tab === "catalog" ? (
           <div className="grid items-start gap-4 lg:grid-cols-[1.6fr_1fr]">
           <CoursesList
             canManage={isStaff}
@@ -95,7 +119,7 @@ export default function CatalogPage() {
             onSelect={handleSelectSubject}
           />
           </div>
-        )}
+        ) : <BillingItemsList canManage={isAdmin} onAdd={openCreateBillingItem} onEdit={openEditBillingItem} />}
       </MotionTabPanel>
 
       {isStaff && <Modal
@@ -105,6 +129,15 @@ export default function CatalogPage() {
         description={editingSubject ? editingSubject.name : "Tạo môn học mới cho danh mục."}
       >
         <SubjectForm editingSubject={editingSubject} onDone={closeSubjectModal} />
+      </Modal>}
+      {isAdmin && <Modal
+        open={billingItemModalOpen}
+        onClose={closeBillingItemModal}
+        size="lg"
+        title={editingBillingItem ? "Sửa đồ dùng học tập" : "Thêm đồ dùng học tập"}
+        description={editingBillingItem ? editingBillingItem.name : "Thiết lập khoản thu theo khóa học và môn học."}
+      >
+        <BillingItemForm editingItem={editingBillingItem} onDone={closeBillingItemModal} />
       </Modal>}
       {isStaff && <Modal
         open={courseModalOpen}
