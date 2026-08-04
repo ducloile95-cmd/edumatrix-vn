@@ -1,5 +1,5 @@
 import { Suspense, lazy } from "react";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import { RequireAuth } from "@/app/guards/RequireAuth";
 import { RequireRole } from "@/app/guards/RequireRole";
 import { RoleRedirect } from "@/app/RoleRedirect";
@@ -81,6 +81,9 @@ export function AppRouter() {
           {FormPopupDemoPage && (
             <Route path={ROUTES.FORM_POPUP_DEMO} element={<PublicPageMotion><FormPopupDemoPage /></PublicPageMotion>} />
           )}
+          {ChatDemoPage && (
+            <Route path={ROUTES.STAFF_CHAT_DEMO} element={<PublicPageMotion><ChatDemoPage /></PublicPageMotion>} />
+          )}
 
           {/*
             Layout route Staff: AppShell dat o day nen Sidebar/Topbar/dong ho chi mount 1 lan
@@ -109,9 +112,6 @@ export function AppRouter() {
             <Route path={ROUTES.STAFF_LEARNING} element={<LearningPage />} />
             <Route path={ROUTES.STAFF_INVOICES} element={<InvoicesPage />} />
             <Route path={ROUTES.STAFF_CHAT} element={<ChatPage />} />
-            {ChatDemoPage && (
-              <Route path={ROUTES.STAFF_CHAT_DEMO} element={<ChatDemoPage />} />
-            )}
             <Route path={ROUTES.STAFF_SETTINGS} element={<SettingsPage />} />
 
             {/* Rieng module Nguoi dung va Marketing chi danh cho Admin - guard long them ben trong shell. */}

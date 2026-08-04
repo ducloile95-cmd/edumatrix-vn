@@ -9,7 +9,7 @@ import {
   Search,
   X,
 } from "lucide-react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation } from "react-router";
 import { signOut } from "firebase/auth";
 import { prefetchRoute } from "@/app/routePrefetch";
 import { auth } from "@/services/firebase/authClient";

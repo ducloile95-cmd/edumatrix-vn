@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import { format } from "date-fns";
 import { BookOpen, BookOpenCheck, ClipboardCheck, Eye, MessageSquareText, Save } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { Button } from "@/components/ui/Button";
 import { ROUTES } from "@/constants/routes";

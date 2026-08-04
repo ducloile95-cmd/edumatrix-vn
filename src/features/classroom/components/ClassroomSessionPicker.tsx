@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { endOfDay, format, startOfDay } from "date-fns";
 import { vi } from "date-fns/locale";
@@ -221,4 +221,3 @@ const CLASS_STATUS_META: Record<ClassStatus, { label: string; tone: "success" | 
   completed: { label: "Đã kết thúc", tone: "neutral" },
   cancelled: { label: "Đã hủy", tone: "danger" },
 };
-

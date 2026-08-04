@@ -119,6 +119,26 @@ describe("ChatPage messaging", () => {
     expect(composer).toHaveProperty("value", "");
   });
 
+  test("does not load the hidden send log", async () => {
+    renderWithQueryClient(<ChatPage />);
+
+    await screen.findByLabelText("Soạn tin nhắn");
+    expect(screen.queryByText("Nhật ký gửi")).toBeNull();
+    expect(serviceMocks.listMessageOutbox).not.toHaveBeenCalled();
+  });
+
+  test("keeps Zalo personal as a UI-only plan", async () => {
+    renderWithQueryClient(<ChatPage />);
+
+    await screen.findByLabelText("Soạn tin nhắn");
+    fireEvent.click(screen.getByRole("button", { name: "Zalo cá nhân" }));
+
+    expect(screen.getByLabelText("Kế hoạch kết nối Zalo cá nhân")).toBeTruthy();
+    expect(screen.getByText("Kênh này chưa kết nối với hệ thống")).toBeTruthy();
+    expect(screen.queryByLabelText("Soạn tin nhắn")).toBeNull();
+    expect(serviceMocks.sendMessenger).not.toHaveBeenCalled();
+  });
+
   test("shows the Messenger error and keeps the draft for retry", async () => {
     serviceMocks.sendMessenger.mockRejectedValueOnce(
       new Error("Meta unavailable"),

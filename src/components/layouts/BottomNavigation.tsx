@@ -1,5 +1,5 @@
 import { MoreHorizontal } from "lucide-react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation } from "react-router";
 import { prefetchRoute } from "@/app/routePrefetch";
 import { MOBILE_NAVIGATION_BY_ROLE } from "@/constants/navigation";
 import { useAuth } from "@/features/auth/hooks/useAuth";

@@ -197,6 +197,7 @@ describe("InvoicesPage", () => {
           courseId: "course-1",
           subjectId: "subject-1",
           billingItemId: "item-1",
+          classId: "class-1",
           sourceType: "billing_item",
           amount: 250_000,
         }),

@@ -6,7 +6,6 @@ import {
 } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/services/firebase/authClient";
-import { COLLECTIONS } from "@/constants/collections";
 import type { UserDoc } from "@/types/user";
 import { AuthContext, type AuthContextValue } from "@/features/auth/context/auth-context-value";
 
@@ -52,21 +51,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     let unsubscribe: (() => void) | undefined;
 
-    Promise.all([import("firebase/firestore"), import("@/services/firebase/firestoreClient"), import("@/services/firestore/authz")])
-      .then(([{ doc, onSnapshot }, { db }, { setCachedUserDoc }]) => {
+    import("@/features/auth/services/userProfileSubscription")
+      .then(({ subscribeToUserProfile }) => {
         if (cancelled) return;
-        unsubscribe = onSnapshot(
-          doc(db, COLLECTIONS.USERS, firebaseUser.uid),
-          (snapshot) => {
-            const data = snapshot.exists() ? (snapshot.data() as UserDoc) : null;
-            setUserDoc(data);
-            setCachedUserDoc(data ? { uid: firebaseUser.uid, ...data } : null);
+        unsubscribe = subscribeToUserProfile(
+          firebaseUser.uid,
+          (profile) => {
+            setUserDoc(profile);
             setProfileError(false);
             setProfileResolved(true);
           },
           () => {
             setUserDoc(null);
-            setCachedUserDoc(null);
             setProfileError(true);
             setProfileResolved(true);
           },

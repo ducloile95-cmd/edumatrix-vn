@@ -63,6 +63,17 @@ describe("Modal", () => {
     expect(dialog.style.maxHeight).toBe("980px");
   });
 
+  test("reserves the mobile bottom safe area for custom body layouts", () => {
+    render(
+      <Modal open onClose={() => undefined} title="Custom layout" bodyClassName="flex overflow-hidden p-0">
+        Nội dung
+      </Modal>,
+    );
+
+    const dialog = screen.getByRole("dialog", { name: "Custom layout" });
+    expect(dialog.className).toContain("pb-[env(safe-area-inset-bottom)]");
+  });
+
   test("closes with Escape and returns focus to the trigger", async () => {
     render(<ModalHarness />);
     const trigger = screen.getByRole("button", { name: "Mở hộp thoại" });

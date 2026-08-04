@@ -161,7 +161,7 @@ service cloud.firestore {
         request.auth.uid in get(/databases/$(database)/documents/students/$(studentId)).data.teacherIds;
     }
 
-    function isTeacherEnrollmentClassUpdate(classId) {
+    function isTeacherEnrollmentClassUpdate() {
       let addedStudentIds = request.resource.data.studentIds.removeAll(resource.data.studentIds);
       return isTeacher() && request.auth.uid in resource.data.teacherIds &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['studentIds', 'updatedAt']) &&
@@ -171,7 +171,7 @@ service cloud.firestore {
         addedStudentIds.size() == 1;
     }
 
-    function isTeacherUnenrollmentClassUpdate(classId) {
+    function isTeacherUnenrollmentClassUpdate() {
       let removedStudentIds = resource.data.studentIds.removeAll(request.resource.data.studentIds);
       return isTeacher() && request.auth.uid in resource.data.teacherIds &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['studentIds', 'updatedAt']) &&
@@ -181,7 +181,7 @@ service cloud.firestore {
         removedStudentIds.size() == 1;
     }
 
-    function isTeacherEnrollmentStudentUpdate(studentId) {
+    function isTeacherEnrollmentStudentUpdate() {
       let addedClassIds = request.resource.data.currentClassIds.removeAll(resource.data.currentClassIds);
       let classData = get(/databases/$(database)/documents/classes/$(addedClassIds[0])).data;
       return isTeacher() &&
@@ -195,7 +195,7 @@ service cloud.firestore {
         request.resource.data.teacherIds.removeAll(resource.data.teacherIds).hasOnly(classData.teacherIds);
     }
 
-    function isTeacherUnenrollmentStudentUpdate(studentId) {
+    function isTeacherUnenrollmentStudentUpdate() {
       let removedClassIds = resource.data.currentClassIds.removeAll(request.resource.data.currentClassIds);
       let classData = get(/databases/$(database)/documents/classes/$(removedClassIds[0])).data;
       return isTeacher() &&
@@ -604,13 +604,19 @@ service cloud.firestore {
           (
             data.keys().hasAll(['sourceId', 'classId', 'subjectId', 'billingItemId', 'itemNameSnapshot', 'unitPriceSnapshot', 'quantity']) &&
             data.sourceType == 'billing_item' && data.sourceId == data.billingItemId &&
-            data.classId == null && data.billingItemId is string && data.subjectId is string &&
+            data.classId is string && data.billingItemId is string && data.subjectId is string &&
             data.itemNameSnapshot is string && data.unitPriceSnapshot is int && data.unitPriceSnapshot > 0 &&
             data.quantity is int && data.quantity > 0 && data.amount == data.unitPriceSnapshot * data.quantity &&
             exists(/databases/$(database)/documents/billing_items/$(data.billingItemId)) &&
+            get(/databases/$(database)/documents/billing_items/$(data.billingItemId)).data.status == 'active' &&
             get(/databases/$(database)/documents/billing_items/$(data.billingItemId)).data.courseId == data.courseId &&
             get(/databases/$(database)/documents/billing_items/$(data.billingItemId)).data.subjectId == data.subjectId &&
-            get(/databases/$(database)/documents/billing_items/$(data.billingItemId)).data.unitPrice == data.unitPriceSnapshot
+            get(/databases/$(database)/documents/billing_items/$(data.billingItemId)).data.unitPrice == data.unitPriceSnapshot &&
+            exists(/databases/$(database)/documents/classes/$(data.classId)) &&
+            get(/databases/$(database)/documents/classes/$(data.classId)).data.status == 'active' &&
+            get(/databases/$(database)/documents/classes/$(data.classId)).data.courseId == data.courseId &&
+            data.subjectId in get(/databases/$(database)/documents/classes/$(data.classId)).data.subjectIds &&
+            data.studentId in get(/databases/$(database)/documents/classes/$(data.classId)).data.studentIds
           )
         );
     }
@@ -825,7 +831,7 @@ service cloud.firestore {
         (
           isAdmin() || (
             request.resource.data.diff(resource.data).affectedKeys().hasAny(['currentClassIds', 'teacherIds']) &&
-            (isTeacherEnrollmentStudentUpdate(studentId) || isTeacherUnenrollmentStudentUpdate(studentId))
+            (isTeacherEnrollmentStudentUpdate() || isTeacherUnenrollmentStudentUpdate())
           ) || (
           isTeacher() &&
             request.auth.uid in resource.data.teacherIds &&
@@ -872,7 +878,7 @@ service cloud.firestore {
           isAdmin() ||
           (
             request.resource.data.diff(resource.data).affectedKeys().hasAny(['studentIds']) &&
-            (isTeacherEnrollmentClassUpdate(classId) || isTeacherUnenrollmentClassUpdate(classId))
+            (isTeacherEnrollmentClassUpdate() || isTeacherUnenrollmentClassUpdate())
           ) ||
           (
             isAssignedTeacherForClass(classId) &&
@@ -1192,7 +1198,7 @@ service cloud.firestore {
         ['invoiceCode', 'studentId', 'courseId', 'amount', 'paymentContent', 'bankBin', 'accountNumber', 'accountName', 'createdBy', 'createdAt', 'sourceType', 'sourceId', 'classId', 'subjectId', 'billingItemId', 'itemNameSnapshot', 'unitPriceSnapshot', 'quantity']
       ) && (
         isAdmin() || (
-          ownsStudent(resource.data.studentId) && resource.data.status in ['unpaid', 'rejected'] &&
+          ownsStudent(resource.data.studentId) && resource.data.status in ['unpaid', 'overdue', 'rejected'] &&
           request.resource.data.status == 'pending' &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
         )
@@ -1207,8 +1213,9 @@ service cloud.firestore {
         request.resource.data.reportedBy == request.auth.uid &&
         request.resource.data.verifiedBy == null &&
         validPaymentData(request.resource.data) &&
-        get(/databases/$(database)/documents/invoices/$(request.resource.data.invoiceId)).data.amount == request.resource.data.amount &&
-        get(/databases/$(database)/documents/invoices/$(request.resource.data.invoiceId)).data.studentId == request.resource.data.studentId;
+        getAfter(/databases/$(database)/documents/invoices/$(request.resource.data.invoiceId)).data.status == 'pending' &&
+        getAfter(/databases/$(database)/documents/invoices/$(request.resource.data.invoiceId)).data.amount == request.resource.data.amount &&
+        getAfter(/databases/$(database)/documents/invoices/$(request.resource.data.invoiceId)).data.studentId == request.resource.data.studentId;
       allow update: if validPaymentData(request.resource.data) && ((isAdmin() &&
         request.resource.data.status in ['verified', 'rejected'] &&
         keepsImmutable(['invoiceId', 'studentId', 'amount', 'reportedBy', 'reportedAt'])
@@ -1223,6 +1230,7 @@ service cloud.firestore {
         request.resource.data.amount == resource.data.amount &&
         request.resource.data.verifiedBy == null &&
         request.resource.data.verifiedAt == null &&
+        getAfter(/databases/$(database)/documents/invoices/$(request.resource.data.invoiceId)).data.status == 'pending' &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(
           ['transactionReference', 'note', 'status', 'verifiedBy', 'verifiedAt', 'reportedAt', 'updatedAt']
         )

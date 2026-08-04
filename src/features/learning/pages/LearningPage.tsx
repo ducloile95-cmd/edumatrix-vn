@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import AssignmentsPage from "@/features/assignments/pages/AssignmentsPage";
 import ScoresPage from "@/features/scores/pages/ScoresPage";
 import { LearningOverview } from "@/features/learning/components/LearningOverview";

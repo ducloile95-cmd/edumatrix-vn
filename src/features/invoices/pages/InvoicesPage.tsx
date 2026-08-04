@@ -88,7 +88,7 @@ export default function InvoicesPage() {
       actorUid: firebaseUser?.uid ?? "unknown",
       sourceType: values.sourceType,
       sourceId: values.sourceId,
-      classId: values.classId,
+      classId: values.sourceType === "billing_item" ? values.studentClassIds[studentId] ?? null : values.classId,
       subjectId: values.subjectId,
       billingItemId: values.billingItemId,
       itemNameSnapshot: values.itemNameSnapshot,

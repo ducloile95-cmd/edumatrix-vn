@@ -5,7 +5,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { doc, getDoc, setDoc, Timestamp, updateDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, Timestamp, updateDoc, writeBatch } from "firebase/firestore";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -36,6 +36,21 @@ const billingItem = {
   status: "active",
   createdAt: Timestamp.now(),
   updatedAt: Timestamp.now(),
+};
+
+const billingItemInvoice = {
+  ...invoice,
+  courseId: "course-1",
+  title: "Do dung hoc tap: Giao trinh English Foundation",
+  amount: 250000,
+  sourceType: "billing_item",
+  sourceId: "item-1",
+  classId: "class-1",
+  subjectId: "subject-1",
+  billingItemId: "item-1",
+  itemNameSnapshot: "Giao trinh English Foundation",
+  unitPriceSnapshot: 250000,
+  quantity: 1,
 };
 
 beforeAll(async () => {
@@ -80,7 +95,7 @@ beforeEach(async () => {
     await setDoc(doc(db, "courses", "course-1"), { subjectIds: ["subject-1"], teacherIds: ["teacher"] });
     await setDoc(doc(db, "students", "student-1"), { studentCode: "student-1", teacherIds: ["teacher"] });
     await setDoc(doc(db, "students", "student-2"), { studentCode: "student-2", teacherIds: [] });
-    await setDoc(doc(db, "classes", "class-1"), { courseId: "course-1", subjectIds: ["subject-1"], studentIds: ["student-1"], teacherIds: ["teacher"] });
+    await setDoc(doc(db, "classes", "class-1"), { courseId: "course-1", subjectIds: ["subject-1"], studentIds: ["student-1"], teacherIds: ["teacher"], status: "active" });
     await setDoc(doc(db, "billing_items", "item-1"), billingItem);
     await setDoc(doc(db, "invoices", "invoice-1"), invoice);
     await setDoc(doc(db, "invoices", "invoice-other"), {
@@ -143,9 +158,32 @@ describe("Phase 9 payment", () => {
       }),
     ));
 
-  test("viewer reports payment", async () =>
-    assertSucceeds(
-      setDoc(doc(env.authenticatedContext("viewer").firestore(), "payments", "new"), {
+  test("viewer reports payment and moves its invoice to pending atomically", async () => {
+    const db = env.authenticatedContext("viewer").firestore();
+    const batch = writeBatch(db);
+    batch.set(doc(db, "payments", "new"), {
+      invoiceId: "invoice-1",
+      studentId: "student-1",
+      amount: 1000000,
+      transactionReference: "",
+      note: "",
+      status: "reported",
+      reportedBy: "viewer",
+      verifiedBy: null,
+      reportedAt: Timestamp.now(),
+      verifiedAt: null,
+      updatedAt: Timestamp.now(),
+    });
+    batch.update(doc(db, "invoices", "invoice-1"), {
+      status: "pending",
+      updatedAt: Timestamp.now(),
+    });
+    await assertSucceeds(batch.commit());
+  });
+
+  test("viewer cannot create a standalone payment without moving its invoice to pending", async () =>
+    assertFails(
+      setDoc(doc(env.authenticatedContext("viewer").firestore(), "payments", "standalone"), {
         invoiceId: "invoice-1",
         studentId: "student-1",
         amount: 1000000,
@@ -159,6 +197,35 @@ describe("Phase 9 payment", () => {
         updatedAt: Timestamp.now(),
       }),
     ));
+
+  test("viewer reports an overdue invoice atomically", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), "invoices", "invoice-1"), {
+        status: "overdue",
+        updatedAt: Timestamp.now(),
+      });
+    });
+    const db = env.authenticatedContext("viewer").firestore();
+    const batch = writeBatch(db);
+    batch.set(doc(db, "payments", "overdue"), {
+      invoiceId: "invoice-1",
+      studentId: "student-1",
+      amount: 1000000,
+      transactionReference: "TX-OVERDUE",
+      note: "",
+      status: "reported",
+      reportedBy: "viewer",
+      verifiedBy: null,
+      reportedAt: Timestamp.now(),
+      verifiedAt: null,
+      updatedAt: Timestamp.now(),
+    });
+    batch.update(doc(db, "invoices", "invoice-1"), {
+      status: "pending",
+      updatedAt: Timestamp.now(),
+    });
+    await assertSucceeds(batch.commit());
+  });
 
   test("viewer cannot report payment against another student's invoice", async () =>
     assertFails(
@@ -208,25 +275,30 @@ describe("Phase 9 payment", () => {
       });
     });
 
-    await assertSucceeds(
-      setDoc(
-        doc(env.authenticatedContext("viewer").firestore(), "payments", "payment-1"),
-        {
-          invoiceId: "invoice-1",
-          studentId: "student-1",
-          amount: 1000000,
-          transactionReference: "TX2",
-          note: "retry",
-          status: "reported",
-          reportedBy: "viewer",
-          verifiedBy: null,
-          reportedAt: Timestamp.now(),
-          verifiedAt: null,
-          updatedAt: Timestamp.now(),
-        },
-        { merge: true },
-      ),
+    const db = env.authenticatedContext("viewer").firestore();
+    const batch = writeBatch(db);
+    batch.set(
+      doc(db, "payments", "payment-1"),
+      {
+        invoiceId: "invoice-1",
+        studentId: "student-1",
+        amount: 1000000,
+        transactionReference: "TX2",
+        note: "retry",
+        status: "reported",
+        reportedBy: "viewer",
+        verifiedBy: null,
+        reportedAt: Timestamp.now(),
+        verifiedAt: null,
+        updatedAt: Timestamp.now(),
+      },
+      { merge: true },
     );
+    batch.update(doc(db, "invoices", "invoice-1"), {
+      status: "pending",
+      updatedAt: Timestamp.now(),
+    });
+    await assertSucceeds(batch.commit());
   });
 
   test("staff verifies payment", async () =>
@@ -253,19 +325,35 @@ describe("Billing item integrity", () => {
 
   test("creates an invoice with an immutable billing-item snapshot", async () =>
     assertSucceeds(setDoc(doc(env.authenticatedContext("admin").firestore(), "invoices", "invoice-item"), {
-      ...invoice,
-      courseId: "course-1",
-      title: "Do dung hoc tap: Giao trinh English Foundation",
-      amount: 250000,
-      sourceType: "billing_item",
-      sourceId: "item-1",
-      classId: null,
-      subjectId: "subject-1",
-      billingItemId: "item-1",
-      itemNameSnapshot: "Giao trinh English Foundation",
-      unitPriceSnapshot: 250000,
-      quantity: 1,
+      ...billingItemInvoice,
     })));
+
+  test("rejects a billing-item invoice for a student outside the eligible class", async () =>
+    assertFails(setDoc(doc(env.authenticatedContext("admin").firestore(), "invoices", "invoice-wrong-student"), {
+      ...billingItemInvoice,
+      studentId: "student-2",
+    })));
+
+  test("rejects an invoice for an archived billing item", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), "billing_items", "item-1"), { status: "archived" });
+    });
+    await assertFails(setDoc(doc(env.authenticatedContext("admin").firestore(), "invoices", "invoice-archived-item"), billingItemInvoice));
+  });
+
+  test("rejects a billing-item invoice backed by an inactive class", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), "classes", "class-1"), { status: "completed" });
+    });
+    await assertFails(setDoc(doc(env.authenticatedContext("admin").firestore(), "invoices", "invoice-inactive-class"), billingItemInvoice));
+  });
+
+  test("rejects a billing-item invoice when the class does not teach the item subject", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), "classes", "class-1"), { subjectIds: ["subject-2"] });
+    });
+    await assertFails(setDoc(doc(env.authenticatedContext("admin").firestore(), "invoices", "invoice-wrong-subject"), billingItemInvoice));
+  });
 
   test("rejects an invoice for a missing course", async () =>
     assertFails(setDoc(doc(env.authenticatedContext("admin").firestore(), "invoices", "invoice-orphan"), {

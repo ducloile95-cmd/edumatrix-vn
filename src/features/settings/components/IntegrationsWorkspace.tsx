@@ -1,13 +1,12 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { CheckCircle2, Cloud, CreditCard, ExternalLink, Facebook, PlugZap, RefreshCw, Unplug } from "lucide-react";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { getIntegrationSettings, getPaymentSettings, updateIntegrationSettings, type IntegrationSettingsInput } from "@/services/firestore/settings";
-import { listMessageOutbox } from "@/services/firestore/chat";
 import { connectGoogleDrive, disconnectGoogleDrive, driveErrorMessage, isGoogleDriveConfigured, isGoogleDriveConnected } from "@/services/integrations/googleDrive";
 import { MetaPageConnectDialog } from "@/features/settings/components/MetaPageConnectDialog";
 
@@ -26,19 +25,10 @@ function IntegrationCard({ icon, title, description, configured, detail, childre
 }
 
 export function IntegrationsWorkspace() {
-  const { firebaseUser, userDoc } = useAuth();
+  const { firebaseUser } = useAuth();
   const queryClient = useQueryClient();
   const settings = useQuery({ queryKey: ["settings", "integrations"], queryFn: getIntegrationSettings });
   const payment = useQuery({ queryKey: ["settings", "payment"], queryFn: getPaymentSettings });
-  // Canh bao chu dong khi Meta token loi/het han - dua tren 50 ban ghi gui gan nhat (message_outbox do Worker ghi).
-  const outbox = useQuery({
-    queryKey: ["messenger-outbox-health"],
-    queryFn: () => listMessageOutbox(userDoc?.role ?? "viewer", firebaseUser?.uid ?? ""),
-    enabled: Boolean(firebaseUser && userDoc && userDoc.role !== "viewer"),
-  });
-  const failedSends = (outbox.data ?? []).filter((item) => item.status === "failed");
-  const tokenIssue = failedSends.some((item) => (item.error ?? "").includes('"code":190'));
-  const messengerUnhealthy = tokenIssue || failedSends.length >= 3;
   const [form, setForm] = useState(EMPTY);
   const [driveConnected, setDriveConnected] = useState(isGoogleDriveConnected());
   const [metaConnectOpen, setMetaConnectOpen] = useState(false);
@@ -105,14 +95,6 @@ export function IntegrationsWorkspace() {
           ? "Fanpage hiện tại chưa cấp quyền page_utility_messaging."
           : "Kết nối Fanpage này được tạo trước khi hệ thống kiểm tra quyền Utility Messaging."}{" "}
         Chọn “Kết nối lại Fanpage”, chấp thuận quyền Utility Messaging trên Facebook và chỉ bật tính năng sau khi trạng thái chuyển thành “Đã cấp quyền”.
-      </p>
-    )}
-
-    {messengerUnhealthy && (
-      <p role="alert" className="rounded-input border border-danger-100 bg-danger-50 px-4 py-3 text-sm font-semibold text-danger-700">
-        {tokenIssue
-          ? "Messenger: Page Access Token có thể đã hết hạn hoặc không hợp lệ (Meta code 190). Tạo token System User mới và cập nhật secret của Worker (wrangler secret put META_PAGE_ACCESS_TOKEN)."
-          : `Messenger: ${failedSends.length}/${outbox.data?.length ?? 0} lượt gửi gần nhất thất bại. Kiểm tra Worker, quyền Meta và nhật ký gửi trong module Chat.`}
       </p>
     )}
 

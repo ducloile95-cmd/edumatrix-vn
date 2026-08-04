@@ -829,14 +829,15 @@ async function handleSend(request: Request, env: Env): Promise<Response> {
     try {
       const result = await sendGraph({ ...body, text: content }, env);
       const occurredAt = new Date();
-      await writeDocument("message_outbox", id, { type: body.type ?? "manual", studentId: null, recipientPsid: body.recipientPsid, content, status: "sent", deliveryMode, messageTag: body.tag ?? null, metaMessageId: result.message_id ?? null, actorUid: claims.sub, createdAt: occurredAt }, serviceToken, env);
       await writeDocument(`chat_threads/${directThreadId}/messages`, result.message_id ?? id, { direction: "outbound", text: content, actorUid: claims.sub, status: "sent", metaMessageId: result.message_id ?? null, errorCode: null, createdAt: occurredAt, updatedAt: occurredAt }, serviceToken, env);
       await updateDocumentFields("chat_threads", directThreadId, { lastMessagePreview: content.slice(0, 160), lastMessageDirection: "outbound", lastMessageAt: occurredAt, unreadStaffCount: 0, updatedAt: occurredAt }, serviceToken, env);
       return new Response(JSON.stringify({ id, status: "sent", sent: 1, total: 1 }), { headers: corsHeaders(env, request) });
     } catch (error) {
       const code = (error instanceof Error ? error.message : String(error)).slice(0, 240);
       const responseCode = publicErrorCode(error);
-      await writeDocument("message_outbox", id, { type: body.type ?? "manual", studentId: null, recipientPsid: body.recipientPsid, content, status: "failed", deliveryMode, messageTag: body.tag ?? null, metaMessageId: null, error: code, actorUid: claims.sub, createdAt: new Date() }, serviceToken, env);
+      const occurredAt = new Date();
+      await writeDocument(`chat_threads/${directThreadId}/messages`, id, { direction: "outbound", text: content, actorUid: claims.sub, status: "failed", metaMessageId: null, errorCode: code, createdAt: occurredAt, updatedAt: occurredAt }, serviceToken, env);
+      await updateDocumentFields("chat_threads", directThreadId, { lastMessagePreview: content.slice(0, 160), lastMessageDirection: "outbound", lastMessageAt: occurredAt, unreadStaffCount: 0, updatedAt: occurredAt }, serviceToken, env);
       return new Response(JSON.stringify({ id, status: "failed", sent: 0, total: 1, error: responseCode }), { status: 502, headers: corsHeaders(env, request) });
     }
   }
@@ -850,12 +851,10 @@ async function handleSend(request: Request, env: Env): Promise<Response> {
     const id = crypto.randomUUID();
     try {
       const result = await sendGraph({ ...body, text: content, recipientPsid: recipient.psid }, env);
-      await writeDocument("message_outbox", id, { type: body.type ?? "general", studentId: body.studentId, recipientPsid: recipient.psid, content, status: "sent", deliveryMode, templateKey: body.templateKey ?? null, templateName: template?.metaName ?? null, templateLanguage: template?.language ?? null, templateParameters: body.parameters ?? null, templateVersion: deliveryMode === "utility" ? 2 : null, messageTag: body.tag ?? null, metaMessageId: result.message_id ?? null, actorUid: claims.sub, createdAt: new Date() }, serviceToken, env);
       if (context) await writeChatEvent({ context, parentUid: recipient.parentUid, direction: "outbound", text: content, status: "sent", actorUid: claims.sub, metaMessageId: result.message_id ?? null, errorCode: null, occurredAt: new Date(), threadId: recipient.threadId }, serviceToken, env);
       results.push({ id, status: "sent" });
     } catch (error) {
       const code = (error instanceof Error ? error.message : String(error)).slice(0, 240);
-      await writeDocument("message_outbox", id, { type: body.type ?? "general", studentId: body.studentId, recipientPsid: recipient.psid, content, status: "failed", deliveryMode, templateKey: body.templateKey ?? null, templateName: template?.metaName ?? null, templateLanguage: template?.language ?? null, templateParameters: body.parameters ?? null, templateVersion: deliveryMode === "utility" ? 2 : null, messageTag: body.tag ?? null, metaMessageId: null, error: code, metaErrorCode: publicErrorCode(error), actorUid: claims.sub, createdAt: new Date() }, serviceToken, env);
       if (context) await writeChatEvent({ context, parentUid: recipient.parentUid, direction: "outbound", text: content, status: "failed", actorUid: claims.sub, metaMessageId: null, errorCode: code, occurredAt: new Date(), threadId: recipient.threadId }, serviceToken, env);
       results.push({ id, status: "failed", error: publicErrorCode(error) });
     }
@@ -937,37 +936,37 @@ export async function postGraph(body: PostBody, env: Env): Promise<{ id?: string
 
 async function handlePost(request: Request, env: Env): Promise<Response> {
   const idToken = extractBearer(request.headers.get("authorization"));
-  if (!idToken) return new Response(JSON.stringify({ error: "missing_bearer_token" }), { status: 401, headers: corsHeaders(env) });
+  if (!idToken) return new Response(JSON.stringify({ error: "missing_bearer_token" }), { status: 401, headers: corsHeaders(env, request) });
   const claims = await verifyFirebaseToken(idToken, env);
   const profile = await requireStaff(claims.sub, idToken, env);
-  if (profile.role !== "admin") return new Response(JSON.stringify({ error: "admin_required" }), { status: 403, headers: corsHeaders(env) });
+  if (profile.role !== "admin") return new Response(JSON.stringify({ error: "admin_required" }), { status: 403, headers: corsHeaders(env, request) });
   const body = await request.json<PostBody>();
-  if (!body.message?.trim() || body.message.length > 5000) return new Response(JSON.stringify({ error: "invalid_post" }), { status: 400, headers: corsHeaders(env) });
-  if (!validPostImages(body.imageUrls)) return new Response(JSON.stringify({ error: "invalid_post_images" }), { status: 400, headers: corsHeaders(env) });
+  if (!body.message?.trim() || body.message.length > 5000) return new Response(JSON.stringify({ error: "invalid_post" }), { status: 400, headers: corsHeaders(env, request) });
+  if (!validPostImages(body.imageUrls)) return new Response(JSON.stringify({ error: "invalid_post_images" }), { status: 400, headers: corsHeaders(env, request) });
   const serviceToken = await serviceAccessToken(env);
   const id = crypto.randomUUID();
   try {
     const result = await postGraph(body, env);
     await writeDocument("message_outbox", id, { type: "page_post", studentId: null, recipientPsid: "page", content: body.message, status: "sent", metaMessageId: result.id ?? null, actorUid: claims.sub, createdAt: new Date() }, serviceToken, env);
-    return new Response(JSON.stringify({ id, status: "sent", postId: result.id }), { headers: corsHeaders(env) });
+    return new Response(JSON.stringify({ id, status: "sent", postId: result.id }), { headers: corsHeaders(env, request) });
   } catch (error) {
     await writeDocument("message_outbox", id, { type: "page_post", studentId: null, recipientPsid: "page", content: body.message, status: "failed", error: String(error).slice(0, 240), actorUid: claims.sub, createdAt: new Date() }, serviceToken, env);
-    return new Response(JSON.stringify({ id, status: "failed", error: publicErrorCode(error) }), { status: 502, headers: corsHeaders(env) });
+    return new Response(JSON.stringify({ id, status: "failed", error: publicErrorCode(error) }), { status: 502, headers: corsHeaders(env, request) });
   }
 }
 
 async function handleCreateReferral(request: Request, env: Env): Promise<Response> {
   const idToken = extractBearer(request.headers.get("authorization"));
-  if (!idToken) return new Response(JSON.stringify({ error: "missing_bearer_token" }), { status: 401, headers: corsHeaders(env) });
+  if (!idToken) return new Response(JSON.stringify({ error: "missing_bearer_token" }), { status: 401, headers: corsHeaders(env, request) });
   const claims = await verifyFirebaseToken(idToken, env);
   const profile = await requireStaff(claims.sub, idToken, env);
   const body = await request.json<{ parentUid?: string; studentId?: string }>();
-  if (!body.parentUid || !/^[A-Za-z0-9_-]{1,128}$/.test(body.parentUid) || !body.studentId || !/^[A-Za-z0-9_-]{1,128}$/.test(body.studentId)) return new Response(JSON.stringify({ error: "invalid_referral_target" }), { status: 400, headers: corsHeaders(env) });
+  if (!body.parentUid || !/^[A-Za-z0-9_-]{1,128}$/.test(body.parentUid) || !body.studentId || !/^[A-Za-z0-9_-]{1,128}$/.test(body.studentId)) return new Response(JSON.stringify({ error: "invalid_referral_target" }), { status: 400, headers: corsHeaders(env, request) });
   const serviceToken = await serviceAccessToken(env);
   const parent = await readDocument("users", body.parentUid, serviceToken, env);
-  if (fieldString(parent, "role") !== "viewer" || fieldString(parent, "status") !== "active") return new Response(JSON.stringify({ error: "parent_not_found" }), { status: 404, headers: corsHeaders(env) });
+  if (fieldString(parent, "role") !== "viewer" || fieldString(parent, "status") !== "active") return new Response(JSON.stringify({ error: "parent_not_found" }), { status: 404, headers: corsHeaders(env, request) });
   const context = await threadContext(body.studentId, serviceToken, env);
-  if (!referralTargetAllowed(profile, claims.sub, fieldStringArray(parent, "studentIds"), body.studentId, context)) return new Response(JSON.stringify({ error: "parent_scope_denied" }), { status: 403, headers: corsHeaders(env) });
+  if (!referralTargetAllowed(profile, claims.sub, fieldStringArray(parent, "studentIds"), body.studentId, context)) return new Response(JSON.stringify({ error: "parent_scope_denied" }), { status: 403, headers: corsHeaders(env, request) });
   const nonce = randomNonce();
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
   await writeDocument("messenger_link_nonces", nonce, {
@@ -978,7 +977,7 @@ async function handleCreateReferral(request: Request, env: Env): Promise<Respons
     expiresAt,
     usedAt: null,
   }, serviceToken, env);
-  return new Response(JSON.stringify({ nonce, expiresAt: expiresAt.toISOString() }), { headers: corsHeaders(env) });
+  return new Response(JSON.stringify({ nonce, expiresAt: expiresAt.toISOString() }), { headers: corsHeaders(env, request) });
 }
 
 async function requireAdminRequest(request: Request, env: Env): Promise<FirebaseClaims> {

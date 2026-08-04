@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useRef, useState, type ReactNode } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation } from "react-router";
 import { BottomNavigation } from "@/components/layouts/BottomNavigation";
 import { Topbar } from "@/components/layouts/Topbar";
 import { Sidebar } from "@/components/layouts/Sidebar";

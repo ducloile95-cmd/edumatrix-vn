@@ -175,6 +175,12 @@ test("webhook challenge",async()=>expect(await(await worker.fetch(new Request("h
 test("rejects wrong verify token",async()=>expect((await worker.fetch(new Request("https://worker/webhook?hub.mode=subscribe&hub.verify_token=wrong&hub.challenge=123"),env)).status).toBe(403));
 test("send requires auth",async()=>expect((await worker.fetch(new Request("https://worker/api/messenger/send",{method:"POST"}),env)).status).toBe(401));
 test("post requires auth",async()=>expect((await worker.fetch(new Request("https://worker/api/messenger/post",{method:"POST"}),env)).status).toBe(401));
+test.each(["/api/messenger/post","/api/messenger/referral"])("returns the matching secondary production origin for %s",async(path)=>{
+  const productionEnv={...env,ALLOWED_ORIGIN:"https://edumatrix-vn-576b1.web.app,https://edumatrix.id.vn"}satisfies Env;
+  const response=await worker.fetch(new Request(`https://worker${path}`,{method:"POST",headers:{origin:"https://edumatrix.id.vn"}}),productionEnv);
+  expect(response.status).toBe(401);
+  expect(response.headers.get("access-control-allow-origin")).toBe("https://edumatrix.id.vn");
+});
 test("validates post image urls",()=>{expect(validPostImages(undefined)).toBe(true);expect(validPostImages(["https://a/1.jpg","http://b/2.png"])).toBe(true);expect(validPostImages(["ftp://a/1.jpg"])).toBe(false);expect(validPostImages(["https://a/1.jpg","https://a/2.jpg","https://a/3.jpg","https://a/4.jpg","https://a/5.jpg"])).toBe(false);expect(validPostImages("https://a/1.jpg")).toBe(false)});
 test("builds plain feed payload with link",()=>expect(buildFeedPayload({message:"Hi",link:"https://x.vn"},[])).toEqual({message:"Hi",link:"https://x.vn"}));
 test("builds feed payload with attached media and folds link into message",()=>expect(buildFeedPayload({message:"Hi",link:"https://x.vn",imageUrls:["https://a/1.jpg","https://a/2.jpg"]},["ph1","ph2"])).toEqual({message:"Hi\nhttps://x.vn",attached_media:[{media_fbid:"ph1"},{media_fbid:"ph2"}]}));

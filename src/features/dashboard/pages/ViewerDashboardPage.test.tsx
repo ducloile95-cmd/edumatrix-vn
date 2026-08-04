@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { cleanup, fireEvent, screen, within } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import ViewerDashboardPage from "@/features/dashboard/pages/ViewerDashboardPage";
 import { renderWithQueryClient } from "@/test/renderWithQueryClient";

@@ -17,7 +17,7 @@ interface LessonPlanDriveSectionProps {
   driveConfigured: boolean;
   driveFolderId: string;
   driveError: string | null;
-  driveInputRef: RefObject<HTMLInputElement>;
+  driveInputRef: RefObject<HTMLInputElement | null>;
   pickDriveFile: () => void;
   uploadDriveFile: (file: File) => void;
   register: UseFormRegister<LessonPlanFormValues>;

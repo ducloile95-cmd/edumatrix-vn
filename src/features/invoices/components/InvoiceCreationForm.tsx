@@ -9,6 +9,7 @@ type BillingMode = "class" | "item";
 
 export interface InvoiceCreationValues {
   studentIds: string[];
+  studentClassIds: Record<string, string>;
   courseId: string;
   title: string;
   amount: number;
@@ -72,13 +73,21 @@ export function InvoiceCreationForm({
   const selectedCourse = selectedClass
     ? courseById.get(selectedClass.courseId)
     : selectedBillingItem ? courseById.get(selectedBillingItem.courseId) : undefined;
-  const eligibleStudentIds = useMemo(() => {
-    if (billingMode === "class") return selectedClass?.studentIds ?? [];
-    if (!selectedBillingItem) return [];
-    return [...new Set(activeClasses
+  const eligibleStudentClassIds = useMemo(() => {
+    const entries = new Map<string, string>();
+    if (billingMode === "class" && selectedClass) {
+      selectedClass.studentIds.forEach((studentId) => entries.set(studentId, selectedClass.id));
+      return entries;
+    }
+    if (!selectedBillingItem) return entries;
+    activeClasses
       .filter((item) => item.courseId === selectedBillingItem.courseId && item.subjectIds.includes(selectedBillingItem.subjectId))
-      .flatMap((item) => item.studentIds))];
+      .forEach((item) => item.studentIds.forEach((studentId) => {
+        if (!entries.has(studentId)) entries.set(studentId, item.id);
+      }));
+    return entries;
   }, [activeClasses, billingMode, selectedBillingItem, selectedClass]);
+  const eligibleStudentIds = [...eligibleStudentClassIds.keys()];
   const eligibleStudents = eligibleStudentIds.map((id) => studentById.get(id)).filter((student): student is StudentDoc & { id: string } => !!student);
   const selectedStudents = eligibleStudents.filter((student) => selectedStudentIds.includes(student.id));
   const unitPrice = selectedBillingItem?.unitPrice ?? (selectedCourse
@@ -128,6 +137,7 @@ export function InvoiceCreationForm({
         if (!sourceId || !itemNameSnapshot) return;
         onSubmit({
           studentIds: selectedStudents.map((student) => student.id),
+          studentClassIds: Object.fromEntries(selectedStudents.map((student) => [student.id, eligibleStudentClassIds.get(student.id)!])),
           courseId: selectedCourse.id,
           title: title.trim(),
           amount: amountPerStudent,

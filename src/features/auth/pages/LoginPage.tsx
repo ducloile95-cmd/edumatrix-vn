@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { Link, Navigate } from "react-router";
 import { Eye, EyeOff, GraduationCap, Users } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { ROUTES } from "@/constants/routes";

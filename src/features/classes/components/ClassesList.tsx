@@ -1,5 +1,5 @@
 import { useDeferredValue, useMemo, useState, type ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, ArrowUpRight, CalendarDays, Pencil, Trash2 } from "lucide-react";
 import { listClasses } from "@/services/firestore/classes";

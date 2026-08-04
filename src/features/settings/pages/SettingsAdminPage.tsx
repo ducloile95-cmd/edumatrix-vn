@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import {
   Banknote, Bell, Building2, Cloud, Database, ExternalLink, Gauge, GraduationCap,
   LockKeyhole, Palette, Plug, QrCode, ShieldCheck, Trash2,

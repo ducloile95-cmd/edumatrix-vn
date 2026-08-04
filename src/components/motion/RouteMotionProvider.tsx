@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { canUseViewTransition, runViewTransition } from "@/utils/viewTransition";
 
 /** Kích hoạt View Transition cho mọi liên kết nội bộ, không phụ thuộc page hay role. */

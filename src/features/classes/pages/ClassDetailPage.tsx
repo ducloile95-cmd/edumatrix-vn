@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { getClass } from "@/services/firestore/classes";
 import { listCourses } from "@/services/firestore/courses";
