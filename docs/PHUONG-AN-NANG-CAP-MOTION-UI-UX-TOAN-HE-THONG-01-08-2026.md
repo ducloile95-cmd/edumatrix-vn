@@ -127,3 +127,11 @@ Easing vào dùng ease-out, easing ra dùng ease-in. Không dùng animation tuy�
 - FPS cuộn bảng dài: mục tiêu từ 55 FPS trên cấu hình test 4× CPU slowdown.
 - Không remount Sidebar/Topbar khi đổi route.
 - Không có layout shift do loading fallback hoặc motion.
+
+## 8. Kế hoạch chuyên biệt cho Module Giáo án
+
+Thiết kế lại Module Giáo án có thay đổi kiến trúc thông tin và hợp đồng nghiệp vụ, nên được quản lý trong tài liệu riêng:
+
+- `docs/KE-HOACH-NANG-CAP-HOAN-CHINH-MODULE-GIAO-AN-05-08-2026.md`
+
+Tài liệu chuyên biệt giữ nguyên các nguyên tắc motion, accessibility, shell, token và component dùng chung của kế hoạch này; đồng thời bổ sung Chương trình khóa, Thư viện bài học, Buổi dạy, versioning, migration và giới hạn Firebase Spark Plan.

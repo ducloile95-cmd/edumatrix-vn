@@ -1,5 +1,7 @@
 # Kế hoạch nâng cấp Module Giáo án — 16/07/2026
 
+> Tài liệu lịch sử. Kế hoạch nguồn sự thật hiện tại: `docs/KE-HOACH-NANG-CAP-HOAN-CHINH-MODULE-GIAO-AN-05-08-2026.md`.
+
 > Trạng thái: **CHỜ DUYỆT**. Chưa đụng tới code thật (`src/`, `firebase/firestore.rules`). Đi kèm 1 file demo tĩnh: `docs/edumatrix-ui-lessonplans-demo-16-07-2026.html`.
 
 ## 0. Giả định (Assumptions — theo karpathy-guidelines, nêu rõ trước khi code)
