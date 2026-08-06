@@ -35,4 +35,11 @@ export const queryKeys = {
   student: (id: string) => ["student", id] as const,
   viewerDashboard: (studentIds: string[]) => ["viewer-dashboard", studentIds] as const,
   viewerInvoices: (studentIds: string[]) => ["viewer-invoices", studentIds] as const,
+  courseCurricula: (courseId: string) => ["course-curricula", courseId] as const,
+  courseCurriculum: (courseId: string, version: number) => ["course-curriculum", courseId, version] as const,
+  courseCurriculumItems: (courseId: string, version: number) => ["course-curriculum-items", courseId, version] as const,
+  standardLessons: (filters?: Record<string, any>, cursor?: string) => ["standard-lessons", filters || {}, cursor || ""] as const,
+  standardLesson: (id: string) => ["standard-lesson", id] as const,
+  teachingSessions: (classIds: string[], from?: string, to?: string) => ["teaching-sessions", classIds, from || "", to || ""] as const,
+  sessionLessonPlan: (sessionId: string) => ["session-lesson-plan", sessionId] as const,
 };

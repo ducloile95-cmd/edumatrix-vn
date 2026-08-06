@@ -11,6 +11,7 @@ import { LessonPlanDriveSection } from "@/features/lesson-plans/components/Lesso
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { listClasses } from "@/services/firestore/classes";
 import { listSessionsByClass } from "@/services/firestore/sessions";
+import { listSubjects } from "@/services/firestore/subjects";
 import {
   createLessonPlan,
   createLessonPlanTemplate,
@@ -33,6 +34,7 @@ interface LessonPlanFormProps {
   /** Neu co gia tri => form o che do sua. */
   editingPlan?: (LessonPlanDoc & { id: string }) | null;
   onDone?: () => void;
+  initialValues?: Partial<LessonPlanFormValues>;
 }
 
 const DEFAULT_VALUES: LessonPlanFormValues = {
@@ -55,6 +57,7 @@ const DEFAULT_VALUES: LessonPlanFormValues = {
   attachmentLabel: "",
   publicSummary: "",
   status: "draft",
+  isStandardLesson: false,
 };
 
 const TEXTAREA = "min-h-20 w-full rounded-input border border-neutral-300 p-3 text-sm focus:border-primary-500";
@@ -74,7 +77,7 @@ function driveAttachmentFromPlan(plan?: LessonPlanDoc | null): LessonPlanDriveAt
   };
 }
 
-export function LessonPlanForm({ editingPlan, onDone }: LessonPlanFormProps) {
+export function LessonPlanForm({ editingPlan, onDone, initialValues }: LessonPlanFormProps) {
   const { firebaseUser } = useAuth();
   const queryClient = useQueryClient();
   const isEditing = !!editingPlan;
@@ -84,6 +87,7 @@ export function LessonPlanForm({ editingPlan, onDone }: LessonPlanFormProps) {
   const [driveError, setDriveError] = useState<string | null>(null);
 
   const { data: classes } = useQuery({ queryKey: ["classes"], queryFn: listClasses });
+  const { data: subjects = [] } = useQuery({ queryKey: ["subjects"], queryFn: listSubjects });
   const { data: templates } = useQuery({ queryKey: ["lesson-plan-templates"], queryFn: listLessonPlanTemplates });
   const integrations = useQuery({ queryKey: ["settings", "integrations"], queryFn: getIntegrationSettings });
   const driveFolderId = integrations.data?.driveFolderId?.trim() ?? "";
@@ -97,12 +101,41 @@ export function LessonPlanForm({ editingPlan, onDone }: LessonPlanFormProps) {
     watch,
     setValue,
     getValues,
-    formState: { errors },
+    formState,
   } = useForm<LessonPlanFormValues>({
     resolver: zodResolver(lessonPlanFormSchema),
-    defaultValues: DEFAULT_VALUES,
+    defaultValues: { ...DEFAULT_VALUES, ...initialValues },
   });
+  const { errors } = formState;
   const activities = useFieldArray({ control, name: "activities" });
+
+  const watchedValues = watch();
+  const isStandardLesson = watchedValues.isStandardLesson;
+
+  // Debounced Auto-Save Draft
+  useEffect(() => {
+    if (isEditing) return;
+    const timer = setTimeout(() => {
+      localStorage.setItem("lp_editor_draft", JSON.stringify(watchedValues));
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [watchedValues, isEditing]);
+
+  // Load Auto-Saved Draft on mount
+  useEffect(() => {
+    if (isEditing) return;
+    const saved = localStorage.getItem("lp_editor_draft");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed && confirm("Phát hiện bản nháp tự động lưu chưa được lưu lại. Bạn có muốn phục hồi không?")) {
+          reset(parsed);
+        }
+      } catch (e) {
+        console.error("Failed to recover draft", e);
+      }
+    }
+  }, [isEditing, reset]);
 
   useEffect(() => {
     setDriveAttachment(driveAttachmentFromPlan(editingPlan));
@@ -123,11 +156,12 @@ export function LessonPlanForm({ editingPlan, onDone }: LessonPlanFormProps) {
         attachmentLabel: editingPlan.attachmentLabel,
         publicSummary: editingPlan.publicSummary,
         status: editingPlan.status,
+        isStandardLesson: !editingPlan.classId,
       });
     } else {
-      reset(DEFAULT_VALUES);
+      reset({ ...DEFAULT_VALUES, ...initialValues });
     }
-  }, [editingPlan, reset]);
+  }, [editingPlan, initialValues, reset]);
 
   const classId = watch("classId");
   const selectedClass = classes?.find((item) => item.id === classId) ?? null;
@@ -152,6 +186,7 @@ export function LessonPlanForm({ editingPlan, onDone }: LessonPlanFormProps) {
       else await createLessonPlan(values, firebaseUser?.uid ?? "unknown", driveAttachment);
     },
     onSuccess: () => {
+      localStorage.removeItem("lp_editor_draft");
       reset(DEFAULT_VALUES);
       queryClient.invalidateQueries({ queryKey: ["lesson-plans"] });
       onDone?.();
@@ -227,6 +262,8 @@ export function LessonPlanForm({ editingPlan, onDone }: LessonPlanFormProps) {
             selectedClass={selectedClass}
             sessionDurationMinutes={sessionDurationMinutes}
             sessions={sessions}
+            isStandardLesson={isStandardLesson}
+            subjects={subjects}
           />
 
           <LessonPlanDriveSection
@@ -280,12 +317,14 @@ export function LessonPlanForm({ editingPlan, onDone }: LessonPlanFormProps) {
                 <label htmlFor="lp-homework" className={LABEL}>Bài tập về nhà</label>
                 <textarea id="lp-homework" className={TEXTAREA} {...register("homework")} />
               </div>
-              <div>
-                <label htmlFor="lp-notes" className={LABEL}>
-                  Ghi chú sau buổi dạy <span className="text-xs font-normal text-neutral-500">điền sau khi dạy xong</span>
-                </label>
-                <textarea id="lp-notes" className={TEXTAREA} {...register("notesAfterTeaching")} />
-              </div>
+              {!isStandardLesson && (
+                <div>
+                  <label htmlFor="lp-notes" className={LABEL}>
+                    Ghi chú sau buổi dạy <span className="text-xs font-normal text-neutral-500">điền sau khi dạy xong</span>
+                  </label>
+                  <textarea id="lp-notes" className={TEXTAREA} {...register("notesAfterTeaching")} />
+                </div>
+              )}
             </div>
           </div>
 
@@ -304,7 +343,18 @@ export function LessonPlanForm({ editingPlan, onDone }: LessonPlanFormProps) {
           <Button type="button" onClick={() => templateMutation.mutate()} disabled={templateMutation.isPending}>
             Lưu thành mẫu
           </Button>
-          <Button type="button" onClick={() => onDone?.()}>
+          <Button
+            type="button"
+            onClick={() => {
+              if (formState.isDirty) {
+                if (!confirm("Bạn có các thay đổi chưa lưu. Bạn thực sự muốn thoát?")) {
+                  return;
+                }
+              }
+              localStorage.removeItem("lp_editor_draft");
+              onDone?.();
+            }}
+          >
             Hủy
           </Button>
           <Button type="submit" variant="primary" disabled={saveMutation.isPending} icon={<Save size={16} />}>

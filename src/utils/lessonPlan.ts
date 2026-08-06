@@ -55,6 +55,8 @@ export function normalizeLessonPlan(raw: LessonPlanRawDoc): LessonPlanDoc {
     driveMimeType: raw.driveMimeType ?? null,
     driveWebViewLink: raw.driveWebViewLink ?? null,
     driveModifiedTime: raw.driveModifiedTime ?? null,
+    readinessStatus: raw.readinessStatus ?? (raw.status === "published" ? "ready" : "draft"),
+    curriculumItemId: raw.curriculumItemId ?? null,
   };
 }
 

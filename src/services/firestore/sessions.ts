@@ -32,6 +32,20 @@ export async function createSessions(input: CreateSessionsInput): Promise<void> 
   const classData = classSnapshot.exists() ? (classSnapshot.data() as ClassDoc) : null;
   if (!classData || classData.status !== "active") throw new Error("CLASS_NOT_SCHEDULABLE");
 
+  let sequenceNumber: number | null = null;
+  let curriculumVersion: number | null = (classData as any).curriculumVersion || null;
+  let curriculumItemId: string | null = null;
+
+  if (input.makeUpForSessionId) {
+    const origSnap = await getDoc(doc(db, COLLECTIONS.SESSIONS, input.makeUpForSessionId));
+    if (origSnap.exists()) {
+      const origData = origSnap.data() as SessionDoc;
+      sequenceNumber = origData.sequenceNumber || null;
+      curriculumVersion = origData.curriculumVersion || null;
+      curriculumItemId = origData.curriculumItemId || null;
+    }
+  }
+
   const batch = writeBatch(db);
   input.occurrences.forEach((occurrence) => {
     const ref = doc(collection(db, COLLECTIONS.SESSIONS));
@@ -44,6 +58,10 @@ export async function createSessions(input: CreateSessionsInput): Promise<void> 
       status: "scheduled",
       note: input.note,
       makeUpForSessionId: input.makeUpForSessionId,
+      sequenceNumber,
+      curriculumVersion,
+      curriculumItemId,
+      lessonPlanId: null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });

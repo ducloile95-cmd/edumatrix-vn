@@ -34,12 +34,13 @@ export const lessonPlanFormSchema = z
     attachmentLabel: z.string().trim().default(""),
     publicSummary: z.string().trim().default(""),
     status: z.enum(["draft", "published", "archived"]),
+    isStandardLesson: z.boolean().optional().default(false),
   })
   .refine((value) => !value.attachmentUrl || value.attachmentUrl.startsWith("https://"), {
     message: "Link phải bắt đầu bằng https://",
     path: ["attachmentUrl"],
   })
-  .refine((value) => !!value.classId, {
+  .refine((value) => value.isStandardLesson || !!value.classId, {
     message: "Chọn lớp học trước khi lưu giáo án",
     path: ["classId"],
   });
