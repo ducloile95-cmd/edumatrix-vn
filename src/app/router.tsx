@@ -13,6 +13,7 @@ import { RouteMotionProvider } from "@/components/motion/RouteMotionProvider";
 import { useDelayedPending } from "@/hooks/useDelayedPending";
 
 // Lazy load tung page de tach bundle theo route (React.lazy + Suspense).
+const LandingPage = lazy(() => import("@/features/landing/pages/LandingPage"));
 const LoginPage = lazy(() => import("@/features/auth/pages/LoginPage"));
 const PrivacyPolicyPage = lazy(() => import("@/features/legal/pages/PrivacyPolicyPage"));
 const DataDeletionPage = lazy(() => import("@/features/legal/pages/DataDeletionPage"));
@@ -67,7 +68,8 @@ export function AppRouter() {
       <RouteMotionProvider>
         <Suspense fallback={<RouteFallback />}>
           <Routes>
-          <Route path={ROUTES.LOGIN} element={<PublicPageMotion><LoginPage /></PublicPageMotion>} />
+            <Route path={ROUTES.LANDING} element={<PublicPageMotion><LandingPage /></PublicPageMotion>} />
+            <Route path={ROUTES.LOGIN} element={<PublicPageMotion><LoginPage /></PublicPageMotion>} />
           <Route path={ROUTES.PRIVACY_POLICY} element={<PublicPageMotion><PrivacyPolicyPage /></PublicPageMotion>} />
           <Route path={ROUTES.DATA_DELETION} element={<PublicPageMotion><DataDeletionPage /></PublicPageMotion>} />
           <Route path={ROUTES.ACCESS_DENIED} element={<PublicPageMotion><AccessDeniedPage /></PublicPageMotion>} />

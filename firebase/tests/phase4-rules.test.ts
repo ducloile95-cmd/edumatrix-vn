@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, test } from "vitest";
 import { assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment } from "@firebase/rules-unit-testing";
-import { doc, getDoc, setDoc, Timestamp, updateDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, Timestamp, updateDoc, writeBatch } from "firebase/firestore";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -23,6 +23,24 @@ beforeEach(async () => {
 
 describe("Phase 4 session ownership", () => {
   test("staff creates a session", async () => assertSucceeds(setDoc(doc(env.authenticatedContext("admin").firestore(), "sessions", "session-2"), session)));
+  test("admin creates an active class with its first session atomically", async () => {
+    const db = env.authenticatedContext("admin").firestore();
+    const batch = writeBatch(db);
+    batch.set(doc(db, "classes", "class-batch"), {
+      name: "Lop batch",
+      courseId: "course-1",
+      subjectIds: [],
+      teacherIds: [],
+      studentIds: [],
+      scheduleText: "",
+      location: "P1",
+      status: "active",
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    batch.set(doc(db, "sessions", "session-batch"), { ...session, classId: "class-batch" });
+    await assertSucceeds(batch.commit());
+  });
   test("linked viewer reads a session", async () => assertSucceeds(getDoc(doc(env.authenticatedContext("viewer").firestore(), "sessions", "session-1"))));
   test("unlinked viewer cannot read a session", async () => assertFails(getDoc(doc(env.authenticatedContext("other").firestore(), "sessions", "session-1"))));
   test("viewer cannot create a session", async () => assertFails(setDoc(doc(env.authenticatedContext("viewer").firestore(), "sessions", "session-2"), session)));

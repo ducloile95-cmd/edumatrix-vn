@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edumatrix-vn — Nền Tảng Quản Lý Lớp Học & Kết Nối Phụ Huynh</title>
+    <meta name="description" content="Phần mềm quản lý lớp học Edumatrix-vn chuẩn tone giáo dục, tích hợp hiệu ứng chuyển động mượt mà và tối ưu chi phí trên Google Firebase Spark Plan.">
+    
+    <!-- Google Fonts: Newsreader (Editorial Serif), Be Vietnam Pro (Sans), JetBrains Mono (Monospace) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Be Vietnam Pro"', 'sans-serif'],
+                        serif: ['Newsreader', 'Georgia', 'serif'],
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                    },
+                    colors: {
+                        // System Educational Palette (Edumatrix-vn tailwind tokens)
+                        edu: {
+                            canvas: '#FAFAF9',       // neutral.50 Warm Off-white
+                            surface: '#FFFFFF',      // neutral.0 White
+                            border: '#E7E5E2',       // neutral.200 Crisp divider
+                            text: '#1C1A15',         // neutral.900 Off-black
+                            muted: '#57534D',        // neutral.600 Warm gray
+                            subtle: '#78746D',       // neutral.500 Muted gray
+                            
+                            primary: '#3366F0',      // primary.500 Primary Blue
+                            'primary-hover': '#2348D6',
+                            'primary-light': '#EFF4FF', // primary.50 Pale Blue
+                            
+                            success: '#16A34A',      // success.500 Green
+                            'success-light': '#ECFDF3',// success.50 Pale Green
+                            
+                            warning: '#F59E0B',      // warning.500 Amber
+                            'warning-light': '#FFFBEB',// warning.50 Pale Amber
+                            
+                            danger: '#E4453A',       // danger.500 Red
+                            'danger-light': '#FEF2F2',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Be Vietnam Pro', sans-serif;
+            background-color: #FAFAF9;
+            color: #1C1A15;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+        }
+
+        .font-editorial {
+            font-family: 'Newsreader', Georgia, serif;
+            letter-spacing: -0.02em;
+        }
+
+        .font-code {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Minimalist Borders & Motion Cards */
+        .card-minimal {
+            background-color: #FFFFFF;
+            border: 1px solid #E7E5E2;
+            border-radius: 12px;
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), 
+                        box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+                        border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            will-change: transform;
+        }
+
+        .card-minimal:hover {
+            border-color: #3366F0;
+            box-shadow: 0 12px 32px -8px rgba(51, 102, 240, 0.12);
+            transform: translateY(-4px);
+        }
+
+        /* Motion Physics & Animations */
+        .magnetic-btn {
+            transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s ease;
+            will-change: transform;
+        }
+        .magnetic-btn:active {
+            transform: scale(0.96);
+        }
+
+        /* Reveal on Scroll Elements */
+        .reveal-on-scroll {
+            opacity: 0;
+            transform: translateY(28px);
+            transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+            will-change: opacity, transform;
+        }
+
+        .reveal-on-scroll.is-visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Infinite Live Status Pulse */
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #16A34A;
+            box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.4);
+            animation: pulse-ring 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+        }
+
+        @keyframes pulse-ring {
+            0% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.6); }
+            70% { box-shadow: 0 0 0 8px rgba(22, 163, 74, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+        }
+
+        /* Floating Animation */
+        @keyframes float-subtle {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-6px); }
+        }
+
+        .animate-float {
+            animation: float-subtle 4s ease-in-out infinite;
+        }
+
+        /* Faux-OS Window Chrome */
+        .faux-window {
+            background: #FFFFFF;
+            border: 1px solid #E7E5E2;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 16px 40px -12px rgba(0,0,0,0.06);
+        }
+
+        .faux-window-bar {
+            background: #F4F3F1;
+            border-bottom: 1px solid #E7E5E2;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #FAFAF9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #D3D0CB;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #A6A29C;
+        }
+    </style>
+</head>
+<body class="bg-edu-canvas text-edu-text antialiased selection:bg-edu-primary-light selection:text-edu-primary">
+
+    <!-- Header / Navbar -->
+    <header class="sticky top-0 z-50 bg-edu-canvas/90 backdrop-blur-md border-b border-edu-border px-6 py-4 transition-all">
+        <div class="max-w-6xl mx-auto flex items-center justify-between">
+            <a href="#" class="flex items-center gap-3 group">
+                <div class="w-9 h-9 rounded-lg bg-edu-text text-white flex items-center justify-center font-bold text-lg group-hover:scale-105 transition-transform">
+                    E
+                </div>
+                <div>
+                    <span class="text-lg font-bold tracking-tight text-edu-text">Edumatrix<span class="text-edu-primary">-vn</span></span>
+                    <span class="text-[10px] block text-edu-subtle font-mono uppercase tracking-wider">Firebase Spark Edition</span>
+                </div>
+            </a>
+
+            <nav class="hidden md:flex items-center gap-8 text-xs font-semibold text-edu-muted">
+                <a href="#tinh-nang" class="hover:text-edu-primary transition-colors">Tính Năng</a>
+                <a href="#kien-truc" class="hover:text-edu-primary transition-colors">Kiến Trúc Cloud</a>
+                <a href="#portal" class="hover:text-edu-primary transition-colors">Portal Phụ Huynh</a>
+                <a href="#demo-diem-danh" class="hover:text-edu-primary transition-colors">Thử Nghiệm Tương Tác</a>
+                <a href="#tiet-kiem" class="hover:text-edu-primary transition-colors">Bảng Chi Phí</a>
+            </nav>
+
+            <div class="flex items-center gap-3">
+                <button onclick="openModal()" class="hidden sm:inline-flex px-3.5 py-2 text-xs font-semibold text-edu-muted hover:text-edu-text transition-colors">
+                    Đăng Nhập
+                </button>
+                <button onclick="openModal()" class="magnetic-btn px-4 py-2 rounded-lg bg-edu-text hover:bg-edu-muted text-white font-semibold text-xs shadow-sm">
+                    Dùng Thử Miễn Phí
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Stream -->
+    <main class="relative z-10">
+
+        <!-- SECTION 1: HERO VIEWPORT (MOTION + ASYMMETRIC) -->
+        <section class="pt-16 pb-24 px-6 max-w-6xl mx-auto reveal-on-scroll">
+            <div class="grid lg:grid-cols-12 gap-12 items-center">
+                <div class="lg:col-span-7 space-y-6 text-left">
+                    <div class="inline-flex items-center gap-2.5 px-3 py-1 rounded-full bg-edu-primary-light border border-edu-primary/20 text-edu-primary text-xs font-mono font-medium">
+                        <span class="live-dot"></span> LIVE DEMO · FIREBASE SPARK ~0Đ/THÁNG
+                    </div>
+                    
+                    <h1 class="font-editorial text-4xl sm:text-5xl lg:text-6xl font-normal text-edu-text leading-[1.12]">
+                        Nền tảng quản lý lớp học & kết nối phụ huynh <em class="italic text-edu-primary font-normal">thế hệ mới.</em>
+                    </h1>
+
+                    <p class="text-edu-muted text-base leading-relaxed max-w-xl">
+                        Giải pháp chuẩn hóa quy trình quản lý cho trung tâm & trường học. Kết nối liền mạch Admin, Giáo viên và Phụ huynh trên hạ tầng đám mây Google Firebase tối ưu chi phí.
+                    </p>
+
+                    <div class="flex flex-wrap items-center gap-4 pt-2">
+                        <button onclick="scrollToDemo()" class="magnetic-btn px-6 py-3.5 rounded-lg bg-edu-primary hover:bg-edu-primary-hover text-white font-semibold text-xs shadow-md shadow-blue-500/15 flex items-center gap-2">
+                            <i class="fa-solid fa-play text-[10px]"></i> Thử Điểm Danh Demo
+                        </button>
+                        <button onclick="openModal()" class="magnetic-btn px-6 py-3.5 rounded-lg bg-white border border-edu-border hover:bg-edu-canvas text-edu-text font-semibold text-xs border">
+                            Xem Tài Liệu Khởi Tạo
+                        </button>
+                    </div>
+
+                    <!-- Micro-Metadata Bar -->
+                    <div class="pt-8 border-t border-edu-border grid grid-cols-3 gap-6">
+                        <div>
+                            <span class="font-mono text-2xl font-bold text-edu-text">99.9%</span>
+                            <span class="text-xs text-edu-subtle block mt-0.5">Firestore Realtime</span>
+                        </div>
+                        <div>
+                            <span class="font-mono text-2xl font-bold text-edu-success">~0 VNĐ</span>
+                            <span class="text-xs text-edu-subtle block mt-0.5">Chi phí máy chủ</span>
+                        </div>
+                        <div>
+                            <span class="font-mono text-2xl font-bold text-edu-text">4 Roles</span>
+                            <span class="text-xs text-edu-subtle block mt-0.5">Phân quyền chặt chẽ</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hero Faux-OS Window Display -->
+                <div class="lg:col-span-5">
+                    <div class="faux-window animate-float">
+                        <div class="faux-window-bar">
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full bg-[#E4453A]/80"></span>
+                                <span class="w-3 h-3 rounded-full bg-[#F59E0B]/80"></span>
+                                <span class="w-3 h-3 rounded-full bg-[#16A34A]/80"></span>
+                            </div>
+                            <span class="text-[11px] font-mono text-edu-subtle">edumatrix.app/dashboard</span>
+                        </div>
+
+                        <div class="p-6 space-y-4 bg-white">
+                            <div class="flex items-center justify-between pb-3 border-b border-edu-border">
+                                <div>
+                                    <span class="text-xs font-bold text-edu-text">Lớp Toán Nâng Cao 12A</span>
+                                    <span class="text-[11px] text-edu-subtle block">GV: Nguyễn Văn Minh</span>
+                                </div>
+                                <span class="px-2.5 py-1 rounded-md bg-edu-primary-light text-edu-primary text-[11px] font-mono font-semibold">14:00 - 15:30</span>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="p-3.5 rounded-lg bg-edu-canvas border border-edu-border">
+                                    <span class="text-[11px] text-edu-subtle block">Điểm danh hôm nay</span>
+                                    <span class="font-mono text-xl font-bold text-edu-success">23 / 24</span>
+                                </div>
+                                <div class="p-3.5 rounded-lg bg-edu-canvas border border-edu-border">
+                                    <span class="text-[11px] text-edu-subtle block">Bài tập đã nộp</span>
+                                    <span class="font-mono text-xl font-bold text-edu-primary">22 / 24</span>
+                                </div>
+                            </div>
+
+                            <!-- Animated Live Feed Message -->
+                            <div class="p-3.5 rounded-lg bg-edu-canvas border border-edu-border space-y-1.5">
+                                <div class="flex items-center justify-between text-[11px]">
+                                    <span class="font-semibold text-edu-text">Messenger Outbox</span>
+                                    <span class="text-edu-success font-mono font-bold flex items-center gap-1">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-edu-success animate-ping"></span> Live Sync
+                                    </span>
+                                </div>
+                                <div class="text-[11px] text-edu-muted font-mono bg-white p-2.5 rounded border border-edu-border flex items-center justify-between">
+                                    <span class="truncate">[Thông báo] Báo điểm môn Toán HS Nguyễn Văn A...</span>
+                                    <span class="text-[10px] text-edu-success font-bold font-sans">Đã gửi</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- SECTION 2: SERVERLESS CLOUD ARCHITECTURE (BENTO GRID) -->
+        <section id="kien-truc" class="py-24 px-6 max-w-6xl mx-auto border-t border-edu-border reveal-on-scroll">
+            <div class="max-w-2xl mb-16 space-y-3">
+                <span class="px-2.5 py-1 rounded bg-edu-primary-light text-edu-primary text-xs font-mono font-semibold">01 / ARCHITECTURE</span>
+                <h2 class="font-editorial text-3xl sm:text-4xl text-edu-text">Kiến trúc đám mây tối ưu chi phí vận hành</h2>
+                <p class="text-edu-muted text-sm leading-relaxed">
+                    Sử dụng mô hình Serverless trên Google Firebase. Hệ thống bảo mật cao cấp với quy tắc Firestore Rules Deny-by-Default và App Check reCAPTCHA v3.
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-6">
+                <!-- Bento 1 -->
+                <div class="card-minimal p-6 flex flex-col justify-between group">
+                    <div>
+                        <div class="w-11 h-11 rounded-lg bg-edu-canvas text-edu-text flex items-center justify-center text-lg mb-4 border border-edu-border group-hover:bg-edu-primary-light group-hover:text-edu-primary transition-colors">
+                            <i class="fa-solid fa-shield-halved"></i>
+                        </div>
+                        <h3 class="text-base font-bold text-edu-text mb-2">Firebase Auth & Security Rules</h3>
+                        <p class="text-xs text-edu-muted leading-relaxed mb-4">
+                            Xác thực Google Sign-in. Khóa toàn bộ bộ sưu tập dữ liệu theo mặc định, chỉ cấp quyền truy cập theo từng vai trò đã được Admin mời.
+                        </p>
+                    </div>
+                    <div class="p-2.5 rounded bg-edu-canvas border border-edu-border text-[11px] font-mono text-edu-primary">
+                        match /invites/{email} { allow read; }
+                    </div>
+                </div>
+
+                <!-- Bento 2 -->
+                <div class="card-minimal p-6 flex flex-col justify-between group">
+                    <div>
+                        <div class="w-11 h-11 rounded-lg bg-edu-success-light text-edu-success flex items-center justify-center text-lg mb-4 border border-edu-success/20 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-bolt"></i>
+                        </div>
+                        <h3 class="text-base font-bold text-edu-text mb-2">Firestore Realtime Database</h3>
+                        <p class="text-xs text-edu-muted leading-relaxed mb-4">
+                            Đồng bộ dữ liệu thời gian thực giữa ứng dụng Giáo viên và Phụ huynh. Điểm số và thông tin điểm danh cập nhật ngay lập tức.
+                        </p>
+                    </div>
+                    <div class="flex items-center justify-between text-xs font-mono p-2.5 rounded bg-edu-canvas border border-edu-border text-edu-muted">
+                        <span>Độ trễ đồng bộ:</span>
+                        <span class="font-bold text-edu-success">&lt; 150ms</span>
+                    </div>
+                </div>
+
+                <!-- Bento 3 -->
+                <div class="card-minimal p-6 flex flex-col justify-between group">
+                    <div>
+                        <div class="w-11 h-11 rounded-lg bg-edu-warning-light text-edu-warning flex items-center justify-center text-lg mb-4 border border-edu-warning/20 group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-lock"></i>
+                        </div>
+                        <h3 class="text-base font-bold text-edu-text mb-2">App Check & reCAPTCHA v3</h3>
+                        <p class="text-xs text-edu-muted leading-relaxed mb-4">
+                            Xác minh nguồn gốc truy cập từ ứng dụng hợp lệ. Ngăn chặn bot độc hại tác động vào tài nguyên Firestore.
+                        </p>
+                    </div>
+                    <div class="p-2.5 rounded bg-edu-warning-light text-edu-warning text-[11px] font-mono font-semibold">
+                        Google App Check Verified
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- SECTION 3: CORE MODULES & INTERACTIVE DEMO -->
+        <section id="tinh-nang" class="py-24 px-6 max-w-6xl mx-auto border-t border-edu-border reveal-on-scroll">
+            <div class="max-w-2xl mb-16 space-y-3">
+                <span class="px-2.5 py-1 rounded bg-edu-success-light text-edu-success text-xs font-mono font-semibold">02 / CORE MODULES</span>
+                <h2 class="font-editorial text-3xl sm:text-4xl text-edu-text">Bộ công cụ quản lý lớp học toàn diện</h2>
+                <p class="text-edu-muted text-sm leading-relaxed">
+                    Tích hợp đầy đủ các chức năng nghiệp vụ cần thiết cho lớp học trong một giao diện tối giản, tập trung.
+                </p>
+            </div>
+
+            <!-- Feature Columns -->
+            <div class="grid md:grid-cols-3 gap-6 mb-16">
+                <div class="card-minimal p-6">
+                    <span class="text-xs font-mono text-edu-subtle block mb-2">MODULE 01</span>
+                    <h3 class="text-base font-bold text-edu-text mb-2">Điểm Danh & Giáo Án Buổi Học</h3>
+                    <p class="text-xs text-edu-muted leading-relaxed">
+                        Giáo viên thao tác điểm danh nhanh từng học sinh. Đính kèm liên kết giáo án và ghi chú nội dung buổi học trực tiếp.
+                    </p>
+                </div>
+
+                <div class="card-minimal p-6">
+                    <span class="text-xs font-mono text-edu-subtle block mb-2">MODULE 02</span>
+                    <h3 class="text-base font-bold text-edu-text mb-2">Bài Tập & Bảng Điểm Matrix</h3>
+                    <p class="text-xs text-edu-muted leading-relaxed">
+                        Quản lý danh sách bài tập về nhà, nhập điểm bài thi theo ma trận chuẩn và tự động tổng hợp kết quả học tập.
+                    </p>
+                </div>
+
+                <div class="card-minimal p-6">
+                    <span class="text-xs font-mono text-edu-subtle block mb-2">MODULE 03</span>
+                    <h3 class="text-base font-bold text-edu-text mb-2">Học Phí & Messenger Outbox</h3>
+                    <p class="text-xs text-edu-muted leading-relaxed">
+                        Theo dõi đợt thu học phí, xem lịch sử đóng tiền và tự động hóa hàng chờ tin nhắn thông báo gửi tới phụ huynh.
+                    </p>
+                </div>
+            </div>
+
+
+            <!-- INTERACTIVE DEMO TOOL: LIVE ATTENDANCE CHECKER -->
+            <div id="demo-diem-danh" class="card-minimal p-8 border-edu-primary/30">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 mb-6 border-b border-edu-border">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="px-2.5 py-0.5 rounded bg-edu-primary-light text-edu-primary text-[11px] font-mono font-semibold">INTERACTIVE DEMO</span>
+                            <span class="text-xs text-edu-subtle font-mono">FIRESTORE REALTIME TICKER</span>
+                        </div>
+                        <h3 class="font-editorial text-2xl text-edu-text mt-1">Thử nghiệm công cụ điểm danh</h3>
+                    </div>
+
+                    <div class="flex items-center gap-2 font-mono text-xs">
+                        <span id="stat-present" class="px-3 py-1 rounded bg-edu-success-light text-edu-success font-semibold transition-all">Có mặt: 3</span>
+                        <span id="stat-absent" class="px-3 py-1 rounded bg-edu-danger-light text-edu-danger font-semibold transition-all">Vắng: 0</span>
+                        <span id="stat-permission" class="px-3 py-1 rounded bg-edu-warning-light text-edu-warning font-semibold transition-all">Phép: 0</span>
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-3 gap-4" id="student-list">
+                    <!-- Student 1 -->
+                    <div class="p-4 rounded-lg bg-edu-canvas border border-edu-border flex items-center justify-between transition-all hover:border-edu-primary/40">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded bg-edu-text text-white font-mono text-xs flex items-center justify-center font-bold">A</div>
+                            <div>
+                                <div class="text-xs font-bold text-edu-text">Nguyễn Văn A</div>
+                                <div class="text-[10px] text-edu-subtle font-mono">Mã: HS001</div>
+                            </div>
+                        </div>
+                        <select onchange="updateAttendance()" class="attendance-select bg-white text-edu-success text-xs font-bold border border-edu-border rounded px-2.5 py-1.5 focus:outline-none focus:border-edu-primary transition-colors cursor-pointer">
+                            <option value="present" selected>Có mặt</option>
+                            <option value="absent">Vắng mặt</option>
+                            <option value="permission">Có phép</option>
+                        </select>
+                    </div>
+
+                    <!-- Student 2 -->
+                    <div class="p-4 rounded-lg bg-edu-canvas border border-edu-border flex items-center justify-between transition-all hover:border-edu-primary/40">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded bg-edu-text text-white font-mono text-xs flex items-center justify-center font-bold">B</div>
+                            <div>
+                                <div class="text-xs font-bold text-edu-text">Trần Thị B</div>
+                                <div class="text-[10px] text-edu-subtle font-mono">Mã: HS002</div>
+                            </div>
+                        </div>
+                        <select onchange="updateAttendance()" class="attendance-select bg-white text-edu-success text-xs font-bold border border-edu-border rounded px-2.5 py-1.5 focus:outline-none focus:border-edu-primary transition-colors cursor-pointer">
+                            <option value="present" selected>Có mặt</option>
+                            <option value="absent">Vắng mặt</option>
+                            <option value="permission">Có phép</option>
+                        </select>
+                    </div>
+
+                    <!-- Student 3 -->
+                    <div class="p-4 rounded-lg bg-edu-canvas border border-edu-border flex items-center justify-between transition-all hover:border-edu-primary/40">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded bg-edu-text text-white font-mono text-xs flex items-center justify-center font-bold">C</div>
+                            <div>
+                                <div class="text-xs font-bold text-edu-text">Lê Hoàng C</div>
+                                <div class="text-[10px] text-edu-subtle font-mono">Mã: HS003</div>
+                            </div>
+                        </div>
+                        <select onchange="updateAttendance()" class="attendance-select bg-white text-edu-success text-xs font-bold border border-edu-border rounded px-2.5 py-1.5 focus:outline-none focus:border-edu-primary transition-colors cursor-pointer">
+                            <option value="present" selected>Có mặt</option>
+                            <option value="absent">Vắng mặt</option>
+                            <option value="permission">Có phép</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mt-6 pt-4 border-t border-edu-border flex items-center justify-between text-xs text-edu-subtle">
+                    <span id="attendance-status-log" class="font-mono text-[11px]"><i class="fa-solid fa-circle-check text-edu-success"></i> Đã đồng bộ trạng thái điểm danh lên Firestore Emulator.</span>
+                    <button onclick="resetAttendanceDemo()" class="text-edu-primary hover:underline font-mono text-[11px] flex items-center gap-1"><i class="fa-solid fa-rotate-left"></i> Đặt lại</button>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- SECTION 4: PARENT & STUDENT PORTAL SHOWCASE -->
+        <section id="portal" class="py-24 px-6 max-w-6xl mx-auto border-t border-edu-border reveal-on-scroll">
+            <div class="grid lg:grid-cols-12 gap-12 items-center">
+                <div class="lg:col-span-6 space-y-6">
+                    <span class="px-2.5 py-1 rounded bg-edu-primary-light text-edu-primary text-xs font-mono font-semibold">03 / PORTAL</span>
+                    <h2 class="font-editorial text-3xl sm:text-4xl text-edu-text">Cổng thông tin phụ huynh & học sinh</h2>
+                    <p class="text-edu-muted text-sm leading-relaxed">
+                        Cho phép phụ huynh chủ động tra cứu tình hình học tập của con em. Đăng nhập an toàn qua tài khoản Google đã xác thực lời mời từ Admin.
+                    </p>
+
+                    <div class="space-y-4 pt-2">
+                        <div class="p-4 rounded-lg bg-white border border-edu-border flex items-start gap-4 hover:border-edu-primary/40 transition-colors">
+                            <div class="w-8 h-8 rounded bg-edu-canvas text-edu-primary flex items-center justify-center flex-shrink-0 font-bold">
+                                <i class="fa-solid fa-chart-line"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-xs font-bold text-edu-text">Theo dõi điểm số tức thì</h4>
+                                <p class="text-xs text-edu-muted mt-0.5">Cập nhật bảng điểm các môn, nhận xét buổi học và xếp loại từ giáo viên.</p>
+                            </div>
+                        </div>
+
+                        <div class="p-4 rounded-lg bg-white border border-edu-border flex items-start gap-4 hover:border-edu-success/40 transition-colors">
+                            <div class="w-8 h-8 rounded bg-edu-canvas text-edu-success flex items-center justify-center flex-shrink-0 font-bold">
+                                <i class="fa-solid fa-calendar"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-xs font-bold text-edu-text">Thời khóa biểu & Lịch học</h4>
+                                <p class="text-xs text-edu-muted mt-0.5">Xem lịch dạy, thông tin phòng học và nhận thông báo khi có lịch nghỉ đột xuất.</p>
+                            </div>
+                        </div>
+
+                        <div class="p-4 rounded-lg bg-white border border-edu-border flex items-start gap-4 hover:border-edu-warning/40 transition-colors">
+                            <div class="w-8 h-8 rounded bg-edu-canvas text-edu-warning flex items-center justify-center flex-shrink-0 font-bold">
+                                <i class="fa-solid fa-receipt"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-xs font-bold text-edu-text">Phiếu báo học phí minh bạch</h4>
+                                <p class="text-xs text-edu-muted mt-0.5">Tra cứu trạng thái học phí từng tháng, xem chi tiết khoản thu và biên nhận.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Minimalist Phone Frame Mockup -->
+                <div class="lg:col-span-6 flex justify-center">
+                    <div class="w-72 sm:w-80 bg-white rounded-2xl p-4 border border-edu-border shadow-md animate-float">
+                        <div class="border-b border-edu-border pb-3 mb-3 flex items-center justify-between">
+                            <div>
+                                <span class="text-[10px] text-edu-subtle block font-mono">PARENT PORTAL</span>
+                                <span class="text-xs font-bold text-edu-text">Phụ huynh: Nguyễn Thu Hà</span>
+                            </div>
+                            <span class="live-dot"></span>
+                        </div>
+
+                        <div class="p-3 rounded-lg bg-edu-canvas border border-edu-border mb-3">
+                            <span class="text-[10px] text-edu-subtle font-mono block">HỌC SINH LIÊN KẾT</span>
+                            <span class="text-xs font-bold text-edu-text">HS001 — Nguyễn Văn A</span>
+                            <span class="text-[11px] text-edu-muted block">Lớp 12A · THPT Chuyên</span>
+                        </div>
+
+                        <div class="space-y-2 mb-3">
+                            <span class="text-[11px] text-edu-subtle font-mono block">BÀI KIỂM TRA MỚI NHẤT</span>
+                            <div class="p-2.5 rounded bg-white border border-edu-border flex items-center justify-between text-xs">
+                                <span>Toán Đại Số 12</span>
+                                <span class="font-mono font-bold text-edu-success">9.5</span>
+                            </div>
+                            <div class="p-2.5 rounded bg-white border border-edu-border flex items-center justify-between text-xs">
+                                <span>Tiếng Anh Unit 5</span>
+                                <span class="font-mono font-bold text-edu-primary">8.8</span>
+                            </div>
+                        </div>
+
+                        <div class="p-3 rounded bg-edu-warning-light border border-edu-warning/20 text-xs">
+                            <div class="font-bold text-edu-warning flex items-center justify-between">
+                                <span>Học phí Tháng 8/2026</span>
+                                <span class="font-mono">1.200.000đ</span>
+                            </div>
+                            <span class="text-[10px] text-edu-muted block mt-1">Trạng thái: <strong class="text-edu-warning">Chờ đóng</strong></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- SECTION 5: COST SAVINGS CALCULATOR -->
+        <section id="tiet-kiem" class="py-24 px-6 max-w-6xl mx-auto border-t border-edu-border reveal-on-scroll">
+            <div class="card-minimal p-8 sm:p-12">
+                <div class="grid lg:grid-cols-12 gap-8 items-center">
+                    <div class="lg:col-span-6 space-y-4">
+                        <span class="px-2.5 py-1 rounded bg-edu-success-light text-edu-success text-xs font-mono font-semibold">04 / COST OPTIMIZATION</span>
+                        <h2 class="font-editorial text-3xl text-edu-text">Bảng tính toán tiết kiệm chi phí server</h2>
+                        <p class="text-edu-muted text-sm leading-relaxed">
+                            Nhờ tận dụng gói **Firebase Spark Plan** hạn mức miễn phí cao từ Google, trường học tiết kiệm 100% chi phí duy trì máy chủ hàng tháng.
+                        </p>
+
+                        <!-- Slider -->
+                        <div class="pt-2 space-y-2">
+                            <div class="flex justify-between text-xs font-mono">
+                                <span class="text-edu-subtle">Quy mô học sinh:</span>
+                                <span id="student-count-label" class="font-bold text-edu-primary text-sm">300 Học sinh</span>
+                            </div>
+                            <input type="range" id="student-slider" min="50" max="1500" value="300" step="50" oninput="calculateSavings()" class="w-full h-2 bg-edu-canvas border border-edu-border rounded-lg appearance-none cursor-pointer accent-edu-primary">
+                        </div>
+                    </div>
+
+                    <!-- Calculator Output Card -->
+                    <div class="lg:col-span-6">
+                        <div class="bg-edu-canvas rounded-xl p-6 border border-edu-border space-y-4">
+                            <div class="flex items-center justify-between text-xs pb-3 border-b border-edu-border">
+                                <span class="text-edu-muted">Phần mềm truyền thống khác:</span>
+                                <span id="traditional-cost" class="font-mono font-bold text-edu-danger">18.000.000 VNĐ / năm</span>
+                            </div>
+                            <div class="flex items-center justify-between text-xs pb-3 border-b border-edu-border">
+                                <span class="text-edu-muted">Edumatrix-vn (Firebase Spark):</span>
+                                <span class="font-mono font-bold text-edu-success">0 VNĐ / năm</span>
+                            </div>
+                            <div class="p-4 rounded-lg bg-edu-success-light border border-edu-success/20 text-center">
+                                <span class="text-[11px] font-mono text-edu-success font-semibold uppercase block">Tổng chi phí bạn tiết kiệm được</span>
+                                <span id="saved-amount" class="font-mono text-2xl sm:text-3xl font-extrabold text-edu-success mt-1 block transition-all">18.000.000 VNĐ</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- SECTION 6: CLOSING EDITORIAL CTA -->
+        <section class="py-24 px-6 max-w-6xl mx-auto text-center reveal-on-scroll">
+            <div class="rounded-2xl p-12 sm:p-16 bg-edu-text text-white space-y-6 shadow-xl">
+                <h2 class="font-editorial text-3xl sm:text-5xl font-normal leading-tight">
+                    Sẵn sàng chuẩn hóa lớp học với <em class="italic text-edu-primary-light font-normal">Edumatrix-vn?</em>
+                </h2>
+                <p class="text-slate-400 text-sm max-w-xl mx-auto">
+                    Khởi tạo dễ dàng trong 5 phút trên Firebase Emulator hoặc môi trường Production.
+                </p>
+                <div class="flex flex-wrap justify-center gap-4 pt-2">
+                    <button onclick="openModal()" class="magnetic-btn px-7 py-3.5 rounded-lg bg-edu-primary hover:bg-edu-primary-hover text-white font-semibold text-xs shadow-lg shadow-blue-500/20">
+                        Khởi Tạo Hệ Thống Ngay
+                    </button>
+                    <button onclick="openModal()" class="magnetic-btn px-7 py-3.5 rounded-lg bg-white/10 hover:bg-white/20 text-white font-semibold text-xs border border-white/10">
+                        Liên Hệ Hỗ Trợ
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-edu-border py-12 px-6 bg-white text-xs text-edu-subtle">
+        <div class="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
+            <div class="flex items-center gap-3">
+                <div class="w-7 h-7 rounded bg-edu-text text-white flex items-center justify-center font-bold text-xs">E</div>
+                <span class="font-bold text-edu-text">Edumatrix-vn</span>
+                <span>© 2026 Edumatrix-vn. Powered by Google Firebase Spark.</span>
+            </div>
+            <div class="flex items-center gap-6 font-mono text-[11px]">
+                <a href="#" class="hover:text-edu-text transition-colors">Điều khoản</a>
+                <a href="#" class="hover:text-edu-text transition-colors">Bảo mật Firestore</a>
+                <a href="#" class="hover:text-edu-text transition-colors">Hướng dẫn Admin</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Demo Modal Form -->
+    <div id="demo-modal" class="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm hidden flex items-center justify-center p-4 transition-opacity">
+        <div class="bg-white rounded-xl max-w-md w-full p-6 border border-edu-border relative space-y-4 shadow-2xl transform transition-transform scale-95" id="modal-container">
+            <button onclick="closeModal()" class="absolute top-4 right-4 text-edu-subtle hover:text-edu-text text-base">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            
+            <div>
+                <span class="text-[10px] font-mono text-edu-primary uppercase block">REGISTRATION</span>
+                <h3 class="font-editorial text-2xl text-edu-text">Đăng ký khởi tạo Edumatrix-vn</h3>
+                <p class="text-xs text-edu-muted mt-1">Nhập thông tin để nhận tài khoản Admin bootstrap đầu tiên.</p>
+            </div>
+
+            <form onsubmit="submitForm(event)" class="space-y-3 pt-2">
+                <div>
+                    <label class="text-xs font-bold text-edu-text block mb-1">Họ và tên</label>
+                    <input type="text" required placeholder="Nguyễn Văn A" class="w-full bg-edu-canvas text-edu-text text-xs p-2.5 rounded border border-edu-border focus:outline-none focus:border-edu-primary">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-edu-text block mb-1">Email Google (Dùng claim Invite)</label>
+                    <input type="email" required placeholder="admin@gmail.com" class="w-full bg-edu-canvas text-edu-text text-xs p-2.5 rounded border border-edu-border focus:outline-none focus:border-edu-primary">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-edu-text block mb-1">Tên Trung Tâm / Trường Học</label>
+                    <input type="text" required placeholder="Trung tâm Bồi dưỡng Văn hóa A" class="w-full bg-edu-canvas text-edu-text text-xs p-2.5 rounded border border-edu-border focus:outline-none focus:border-edu-primary">
+                </div>
+                <button type="submit" class="magnetic-btn w-full py-2.5 bg-edu-primary hover:bg-edu-primary-hover text-white font-bold text-xs rounded shadow-md">
+                    Gửi Đăng Ký Khởi Tạo
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- JavaScript Motion & Interactive Logic -->
+    <script>
+        // 1. Scroll Reveal Observer (Staggered Motion Reveal)
+        document.addEventListener('DOMContentLoaded', () => {
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('is-visible');
+                    }
+                });
+            }, { threshold: 0.1 });
+
+            document.querySelectorAll('.reveal-on-scroll').forEach((el) => {
+                observer.observe(el);
+            });
+        });
+
+        // 2. Interactive Attendance Demo Logic
+        function updateAttendance() {
+            const selects = document.querySelectorAll('.attendance-select');
+            let present = 0, absent = 0, permission = 0;
+
+            selects.forEach(select => {
+                if (select.value === 'present') present++;
+                else if (select.value === 'absent') absent++;
+                else if (select.value === 'permission') permission++;
+            });
+
+            document.getElementById('stat-present').innerText = `Có mặt: ${present}`;
+            document.getElementById('stat-absent').innerText = `Vắng: ${absent}`;
+            document.getElementById('stat-permission').innerText = `Phép: ${permission}`;
+
+            const log = document.getElementById('attendance-status-log');
+            log.innerHTML = `<i class="fa-solid fa-arrows-rotate text-edu-primary animate-spin"></i> Đang đồng bộ Firestore Emulator (Có mặt: ${present}, Vắng: ${absent}, Phép: ${permission})...`;
+            
+            setTimeout(() => {
+                log.innerHTML = `<i class="fa-solid fa-circle-check text-edu-success"></i> Đã đồng bộ thành công lên Firestore Emulator!`;
+            }, 300);
+        }
+
+        function resetAttendanceDemo() {
+            const selects = document.querySelectorAll('.attendance-select');
+            selects.forEach(select => select.value = 'present');
+            updateAttendance();
+        }
+
+        // 3. Interactive Cost Savings Calculator
+        function calculateSavings() {
+            const students = parseInt(document.getElementById('student-slider').value);
+            document.getElementById('student-count-label').innerText = `${students} Học sinh`;
+
+            const traditionalCostVal = students * 60000;
+            const formattedCost = new Intl.NumberFormat('vi-VN').format(traditionalCostVal) + ' VNĐ / năm';
+            const formattedSaved = new Intl.NumberFormat('vi-VN').format(traditionalCostVal) + ' VNĐ';
+
+            document.getElementById('traditional-cost').innerText = formattedCost;
+            document.getElementById('saved-amount').innerText = formattedSaved;
+        }
+
+        // 4. Modal Functions with Smooth Motion Scale
+        function openModal() {
+            const modal = document.getElementById('demo-modal');
+            const container = document.getElementById('modal-container');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                container.classList.remove('scale-95');
+                container.classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('demo-modal');
+            const container = document.getElementById('modal-container');
+            container.classList.remove('scale-100');
+            container.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 150);
+        }
+
+        function submitForm(e) {
+            e.preventDefault();
+            alert('🎉 Đăng ký thành công! Yêu cầu khởi tạo tài khoản Admin đã được ghi nhận.');
+            closeModal();
+        }
+
+        function scrollToDemo() {
+            document.getElementById('demo-diem-danh').scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>

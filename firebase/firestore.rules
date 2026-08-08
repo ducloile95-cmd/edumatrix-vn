@@ -92,8 +92,8 @@ service cloud.firestore {
     }
 
     function classIsSchedulable(classId) {
-      return exists(/databases/$(database)/documents/classes/$(classId)) &&
-        get(/databases/$(database)/documents/classes/$(classId)).data.get('status', 'active') == 'active';
+      return existsAfter(/databases/$(database)/documents/classes/$(classId)) &&
+        getAfter(/databases/$(database)/documents/classes/$(classId)).data.get('status', 'active') == 'active';
     }
 
     function isAssignedTeacherForCourse(courseId) {

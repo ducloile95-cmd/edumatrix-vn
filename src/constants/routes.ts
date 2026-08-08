@@ -1,5 +1,7 @@
 /** Duong dan route tap trung - tranh hardcode string rai rac. */
 export const ROUTES = {
+  HOME: "/",
+  LANDING: "/landing",
   LOGIN: "/login",
   PRIVACY_POLICY: "/privacy",
   DATA_DELETION: "/data-deletion",
