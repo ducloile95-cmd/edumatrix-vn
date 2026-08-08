@@ -38,6 +38,12 @@ export async function createLessonPlan(input: LessonPlanFormValues, actorUid: st
   if (input.status === "published" && input.classId) {
     batch.set(doc(db, COLLECTIONS.LESSON_PLAN_PUBLIC, ref.id), publicSummary(ref.id, input));
   }
+  if (input.sessionId) {
+    batch.update(doc(db, COLLECTIONS.SESSIONS, input.sessionId), {
+      lessonPlanId: ref.id,
+      updatedAt: serverTimestamp(),
+    });
+  }
   await batch.commit();
   return ref.id;
 }
@@ -57,6 +63,12 @@ export async function updateLessonPlan(id: string, input: LessonPlanFormValues, 
   const summaryRef = doc(db, COLLECTIONS.LESSON_PLAN_PUBLIC, id);
   if (input.status === "published" && input.classId) batch.set(summaryRef, publicSummary(id, input));
   else batch.delete(summaryRef);
+  if (input.sessionId) {
+    batch.update(doc(db, COLLECTIONS.SESSIONS, input.sessionId), {
+      lessonPlanId: id,
+      updatedAt: serverTimestamp(),
+    });
+  }
   await batch.commit();
 }
 
@@ -111,6 +123,16 @@ export async function getLessonPlanBySession(
   classId: string,
   sessionId: string,
 ): Promise<(LessonPlanDoc & { id: string }) | null> {
+  const sessionSnap = await getDoc(doc(db, COLLECTIONS.SESSIONS, sessionId));
+  if (sessionSnap.exists()) {
+    const sessionData = sessionSnap.data() as SessionDoc;
+    if (sessionData.lessonPlanId) {
+      const planSnap = await getDoc(doc(db, COLLECTIONS.LESSON_PLANS, sessionData.lessonPlanId));
+      if (planSnap.exists()) {
+        return { id: planSnap.id, ...normalizeLessonPlan(planSnap.data() as LessonPlanDoc) };
+      }
+    }
+  }
   const snapshot = await getDocs(query(
     collection(db, COLLECTIONS.LESSON_PLANS),
     where("classId", "==", classId),

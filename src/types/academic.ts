@@ -109,6 +109,10 @@ export interface SessionDoc {
   status: SessionStatus;
   note: string;
   makeUpForSessionId: string | null;
+  sequenceNumber?: number | null;
+  curriculumVersion?: number | null;
+  curriculumItemId?: string | null;
+  lessonPlanId?: string | null;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -126,6 +130,8 @@ export interface LessonPlanDriveAttachment {
   driveWebViewLink: string;
   driveModifiedTime: string;
 }
+export type LessonPlanReadinessStatus = "draft" | "ready" | "taught";
+
 export interface LessonPlanDoc {
   title: string;
   classId: string | null;
@@ -148,10 +154,16 @@ export interface LessonPlanDoc {
   driveModifiedTime?: string | null;
   publicSummary: string;
   status: LessonPlanStatus;
+  sourceStandardLessonId?: string | null;
+  curriculumItemId?: string | null;
+  readinessStatus?: LessonPlanReadinessStatus | null;
   createdBy: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
+
+export type LessonPlanTemplateScope = "personal" | "shared";
+export type LessonPlanTemplateGovernanceStatus = "active" | "archived";
 
 export interface LessonPlanTemplateDoc {
   name: string;
@@ -159,6 +171,58 @@ export interface LessonPlanTemplateDoc {
   preparation: LessonPlanPreparation;
   activities: LessonPlanActivity[];
   homework: string;
+  ownerUid?: string;
+  scope?: LessonPlanTemplateScope;
+  subjectId?: string | null;
+  durationMinutes?: number | null;
+  status?: LessonPlanTemplateGovernanceStatus;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export type StandardLessonApprovalStatus = "draft" | "pending" | "approved" | "archived";
+
+export interface StandardLessonDoc {
+  title: string;
+  subjectId: string;
+  durationMinutes: number;
+  objectives: LessonPlanObjectives;
+  preparation: LessonPlanPreparation;
+  activities: LessonPlanActivity[];
+  homework: string;
+  approvalStatus: StandardLessonApprovalStatus;
+  revision: number;
+  createdBy: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export type CourseCurriculumStatus = "draft" | "published" | "superseded" | "archived";
+
+export interface CourseCurriculumDoc {
+  courseId: string;
+  version: number;
+  title: string;
+  itemIds: string[];
+  itemCount: number;
+  totalDurationMinutes: number;
+  status: CourseCurriculumStatus;
+  publishedBy: string | null;
+  publishedAt: Timestamp | null;
+  revision: number;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface CourseCurriculumItemDoc {
+  courseId: string;
+  curriculumVersion: number;
+  sequenceNumber: number;
+  subjectId: string;
+  title: string;
+  standardLessonId: string | null;
+  durationMinutes: number;
+  status: "draft" | "ready";
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

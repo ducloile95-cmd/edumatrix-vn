@@ -387,7 +387,7 @@ service cloud.firestore {
 
     function validLessonPlanData(data) {
       return data.keys().hasAll(['title', 'classId', 'courseId', 'subjectId', 'sessionId', 'objectives', 'preparation', 'activities', 'homework', 'notesAfterTeaching', 'attachmentUrl', 'attachmentLabel', 'publicSummary', 'status', 'createdBy', 'createdAt', 'updatedAt']) &&
-        data.keys().hasOnly(['title', 'classId', 'courseId', 'subjectId', 'sessionId', 'objectives', 'preparation', 'activities', 'homework', 'notesAfterTeaching', 'attachmentUrl', 'attachmentLabel', 'driveFileId', 'driveFileName', 'driveMimeType', 'driveWebViewLink', 'driveModifiedTime', 'publicSummary', 'status', 'createdBy', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['title', 'classId', 'courseId', 'subjectId', 'sessionId', 'objectives', 'preparation', 'activities', 'homework', 'notesAfterTeaching', 'attachmentUrl', 'attachmentLabel', 'driveFileId', 'driveFileName', 'driveMimeType', 'driveWebViewLink', 'driveModifiedTime', 'publicSummary', 'status', 'sourceStandardLessonId', 'curriculumItemId', 'readinessStatus', 'createdBy', 'createdAt', 'updatedAt']) &&
         data.title is string &&
         (data.classId == null || data.classId is string) &&
         (data.courseId == null || data.courseId is string) &&
@@ -403,17 +403,71 @@ service cloud.firestore {
         validLessonPlanDriveAttachment(data) &&
         data.publicSummary is string &&
         data.status in ['draft', 'published', 'archived'] &&
+        (!data.keys().hasAny(['sourceStandardLessonId']) || data.sourceStandardLessonId == null || data.sourceStandardLessonId is string) &&
+        (!data.keys().hasAny(['curriculumItemId']) || data.curriculumItemId == null || data.curriculumItemId is string) &&
+        (!data.keys().hasAny(['readinessStatus']) || data.readinessStatus == null || data.readinessStatus in ['draft', 'ready', 'taught']) &&
         hasTimestamps(data);
     }
 
     function validLessonPlanTemplateData(data) {
       return data.keys().hasAll(['name', 'objectives', 'preparation', 'activities', 'homework', 'createdAt', 'updatedAt']) &&
-        data.keys().hasOnly(['name', 'objectives', 'preparation', 'activities', 'homework', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['name', 'objectives', 'preparation', 'activities', 'homework', 'ownerUid', 'scope', 'subjectId', 'durationMinutes', 'status', 'createdAt', 'updatedAt']) &&
         data.name is string &&
         validLessonPlanObjectives(data.objectives) &&
         validLessonPlanPreparation(data.preparation) &&
         data.activities is list &&
         data.homework is string &&
+        (!data.keys().hasAny(['ownerUid']) || data.ownerUid is string) &&
+        (!data.keys().hasAny(['scope']) || data.scope in ['personal', 'shared']) &&
+        (!data.keys().hasAny(['subjectId']) || data.subjectId == null || data.subjectId is string) &&
+        (!data.keys().hasAny(['durationMinutes']) || data.durationMinutes == null || data.durationMinutes is number) &&
+        (!data.keys().hasAny(['status']) || data.status in ['active', 'archived']) &&
+        hasTimestamps(data);
+    }
+
+    function validStandardLessonData(data) {
+      return data.keys().hasAll(['title', 'subjectId', 'durationMinutes', 'objectives', 'preparation', 'activities', 'homework', 'approvalStatus', 'revision', 'createdBy', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['title', 'subjectId', 'durationMinutes', 'objectives', 'preparation', 'activities', 'homework', 'approvalStatus', 'revision', 'createdBy', 'createdAt', 'updatedAt']) &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 160 &&
+        data.subjectId is string &&
+        data.durationMinutes is number && data.durationMinutes >= 1 && data.durationMinutes <= 600 &&
+        validLessonPlanObjectives(data.objectives) &&
+        validLessonPlanPreparation(data.preparation) &&
+        data.activities is list &&
+        data.homework is string && data.homework.size() <= 10000 &&
+        data.approvalStatus in ['draft', 'pending', 'approved', 'archived'] &&
+        data.revision is number &&
+        data.createdBy is string &&
+        hasTimestamps(data);
+    }
+
+    function validCourseCurriculumData(data) {
+      return data.keys().hasAll(['courseId', 'version', 'title', 'itemIds', 'itemCount', 'totalDurationMinutes', 'status', 'publishedBy', 'publishedAt', 'revision', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['courseId', 'version', 'title', 'itemIds', 'itemCount', 'totalDurationMinutes', 'status', 'publishedBy', 'publishedAt', 'revision', 'createdAt', 'updatedAt']) &&
+        data.courseId is string &&
+        data.version is number &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 160 &&
+        data.itemIds is list &&
+        data.itemCount is number &&
+        data.totalDurationMinutes is number &&
+        data.status in ['draft', 'published', 'superseded', 'archived'] &&
+        (data.publishedBy == null || data.publishedBy is string) &&
+        (data.publishedAt == null || data.publishedAt is timestamp) &&
+        data.revision is number &&
+        hasTimestamps(data);
+    }
+
+    function validCourseCurriculumItemData(data) {
+      return data.keys().hasAll(['courseId', 'curriculumVersion', 'sequenceNumber', 'subjectId', 'title', 'standardLessonId', 'durationMinutes', 'status', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['courseId', 'curriculumVersion', 'sequenceNumber', 'subjectId', 'title', 'standardLessonId', 'durationMinutes', 'status', 'createdAt', 'updatedAt']) &&
+        data.courseId is string &&
+        data.curriculumVersion is number &&
+        data.sequenceNumber is number && data.sequenceNumber >= 1 &&
+        data.subjectId is string &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 160 &&
+        (data.standardLessonId == null || data.standardLessonId is string) &&
+        data.durationMinutes is number && data.durationMinutes >= 1 &&
+        data.status in ['draft', 'ready'] &&
         hasTimestamps(data);
     }
 
@@ -1058,6 +1112,27 @@ service cloud.firestore {
       allow read: if isStaff();
       allow create: if isStaff() && validLessonPlanTemplateData(request.resource.data);
       allow update: if isStaff() && validLessonPlanTemplateData(request.resource.data) && keepsImmutable(['createdAt']);
+      allow delete: if false;
+    }
+
+    match /standard_lessons/{lessonId} {
+      allow read: if isStaff();
+      allow create: if isStaff() && request.resource.data.createdBy == request.auth.uid && validStandardLessonData(request.resource.data);
+      allow update: if isStaff() && validStandardLessonData(request.resource.data) && keepsImmutable(['createdBy', 'createdAt']);
+      allow delete: if false;
+    }
+
+    match /course_curricula/{curriculumId} {
+      allow read: if isStaff();
+      allow create: if isStaff() && validCourseCurriculumData(request.resource.data);
+      allow update: if isStaff() && validCourseCurriculumData(request.resource.data) && keepsImmutable(['courseId', 'version', 'createdAt']);
+      allow delete: if false;
+    }
+
+    match /course_curriculum_items/{itemId} {
+      allow read: if isStaff();
+      allow create: if isStaff() && validCourseCurriculumItemData(request.resource.data);
+      allow update: if isStaff() && validCourseCurriculumItemData(request.resource.data) && keepsImmutable(['courseId', 'curriculumVersion', 'sequenceNumber', 'createdAt']);
       allow delete: if false;
     }
 

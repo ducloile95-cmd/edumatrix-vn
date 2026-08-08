@@ -31,6 +31,11 @@ export interface UpsertClassInput {
 
 /** ID auto - khong co ma lop nghiep vu rieng (A13). */
 export async function createClass(input: UpsertClassInput): Promise<string> {
+  const courseSnap = await getDoc(doc(db, COLLECTIONS.COURSES, input.courseId));
+  const courseData = courseSnap.exists() ? courseSnap.data() : null;
+  const activeCurriculumId = courseData?.activeCurriculumId || null;
+  const activeCurriculumVersion = courseData?.activeCurriculumVersion || null;
+
   const ref = await addDoc(collection(db, COLLECTIONS.CLASSES), {
     name: input.name,
     courseId: input.courseId,
@@ -40,6 +45,8 @@ export async function createClass(input: UpsertClassInput): Promise<string> {
     scheduleText: input.scheduleText,
     location: input.location,
     status: input.status,
+    curriculumId: activeCurriculumId,
+    curriculumVersion: activeCurriculumVersion,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
@@ -69,6 +76,24 @@ function buildScheduleText(recurrence: ClassScheduleRecurrenceInput): string {
 export async function createClassWithSchedule(
   input: UpsertClassInput & { recurrence: ClassScheduleRecurrenceInput },
 ): Promise<string> {
+  const courseSnap = await getDoc(doc(db, COLLECTIONS.COURSES, input.courseId));
+  const courseData = courseSnap.exists() ? courseSnap.data() : null;
+  const activeCurriculumId = courseData?.activeCurriculumId || null;
+  const activeCurriculumVersion = courseData?.activeCurriculumVersion || null;
+
+  let curriculumItems: any[] = [];
+  if (activeCurriculumId && activeCurriculumVersion) {
+    const itemsSnap = await getDocs(
+      query(
+        collection(db, COLLECTIONS.COURSE_CURRICULUM_ITEMS),
+        where("courseId", "==", input.courseId),
+        where("curriculumVersion", "==", activeCurriculumVersion),
+        orderBy("sequenceNumber", "asc")
+      )
+    );
+    curriculumItems = itemsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  }
+
   const { sessions, endDate } = generateRecurringSessions({
     startDate: input.recurrence.startDate,
     daysOfWeek: input.recurrence.daysOfWeek,
@@ -88,6 +113,8 @@ export async function createClassWithSchedule(
     scheduleText: buildScheduleText(input.recurrence),
     location: input.location,
     status: input.status,
+    curriculumId: activeCurriculumId,
+    curriculumVersion: activeCurriculumVersion,
     recurrence: {
       daysOfWeek: input.recurrence.daysOfWeek,
       startTime: input.recurrence.startTime,
@@ -100,8 +127,9 @@ export async function createClassWithSchedule(
     updatedAt: serverTimestamp(),
   });
 
-  sessions.forEach((session) => {
+  sessions.forEach((session, index) => {
     const sessionRef = doc(collection(db, COLLECTIONS.SESSIONS));
+    const currItem = curriculumItems[index] || null;
     batch.set(sessionRef, {
       classId: classRef.id,
       title: input.name,
@@ -111,6 +139,10 @@ export async function createClassWithSchedule(
       status: "scheduled",
       note: "",
       makeUpForSessionId: null,
+      sequenceNumber: index + 1,
+      curriculumVersion: activeCurriculumVersion,
+      curriculumItemId: currItem ? currItem.id : null,
+      lessonPlanId: null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });

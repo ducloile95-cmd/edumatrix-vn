@@ -213,7 +213,7 @@ Giữ một mục điều hướng `Giáo án`. Bên trong dùng ba tab cấp ca
 | Vai trò | Tab mặc định | Khả năng chính |
 |---|---|---|
 | Admin | Chương trình khóa | Tạo, duyệt, xuất bản và quản lý phiên bản chương trình |
-| Giáo viên | Buổi dạy | Chuẩn bị buổi sắp tới, ghi nhật ký và đề xuất bài học chuẩn |
+| Giáo viên | Buổi dạy | Tạo/sửa & xuất bản chương trình khóa, soạn & duyệt bài học chuẩn, soạn giáo án buổi dạy & ghi nhật ký |
 | Viewer | Không vào workspace staff | Chỉ xem tóm tắt công khai qua portal hiện có |
 
 Tab có thể bị ẩn theo quyền nhưng route và cấu trúc dữ liệu không thay đổi theo vai trò.
@@ -709,7 +709,7 @@ Không dùng horizontal table làm UI chính ở 375px. Không đặt fixed heig
 6. Buổi bù dùng lại nội dung của buổi gốc.
 7. Bản nháp hoặc lưu trữ không được tính là giáo án sẵn sàng.
 8. Phụ huynh chỉ đọc tóm tắt công khai, không nhận metadata Drive riêng tư.
-9. Giáo viên không xuất bản chương trình toàn khóa nếu không có quyền.
+9. Giáo viên và Admin đều có quyền thực hiện xuất bản chương trình toàn khóa và quản lý bài chuẩn theo ma trận phân quyền.
 10. Chương trình đã xuất bản được bảo toàn bằng version.
 
 ## 17. Tiêu chí nghiệm thu frontend
@@ -803,25 +803,26 @@ Quyết định khuyến nghị:
 
 ## 21. Ma trận quyền chi tiết
 
-Quyền dưới đây là hợp đồng nghiệp vụ mục tiêu. UI, service và Firestore Rules phải dùng cùng một ma trận.
+Quyền dưới đây là hợp đồng nghiệp vụ mục tiêu (`true` = Cấp quyền, `false` = Không cấp quyền). UI, service và Firestore Rules phải dùng cùng một ma trận.
 
-| Hành động | Admin | Giáo viên | Viewer |
-|---|---|---|---|
-| Xem mọi chương trình khóa | Có | Không | Không |
-| Xem chương trình của lớp được phân công | Có | Có | Không |
-| Tạo/sửa chương trình khóa nháp | Có | Không | Không |
-| Xuất bản hoặc ngừng áp dụng chương trình | Có | Không | Không |
-| Tạo bài học chuẩn nháp | Có | Có | Không |
-| Sửa bài học chuẩn của mình khi còn nháp | Có | Có | Không |
-| Sửa bài đã duyệt | Có, bằng revision mới | Không, tạo revision đề xuất | Không |
-| Gửi bài học chờ duyệt | Có | Có | Không |
-| Duyệt hoặc trả bài | Có | Không | Không |
-| Tạo/sửa giáo án buổi dạy | Có | Có, nếu thuộc lớp được phân công | Không |
-| Đánh dấu sẵn sàng/đã dạy | Có | Có, nếu thuộc lớp được phân công | Không |
-| Công khai tóm tắt | Có | Có, nếu thuộc lớp được phân công | Chỉ đọc |
-| Tạo mẫu cá nhân | Có | Có | Không |
-| Tạo/sửa mẫu dùng chung | Có | Không | Không |
-| Xem audit log | Có | Không | Không |
+| Hành động / Quyền hạn | Admin | Giáo viên | Viewer |
+|---|:---:|:---:|:---:|
+| Xem mọi chương trình khóa | true | true | false |
+| Xem chương trình của lớp được phân công | true | true | false |
+| Tạo / sửa chương trình khóa nháp | true | true | false |
+| Xuất bản (Publish) hoặc ngừng áp dụng chương trình | true | true | false |
+| Soạn / Tạo bài học chuẩn nháp | true | true | false |
+| Sửa bài học chuẩn của mình khi còn nháp | true | true | false |
+| Sửa bài học chuẩn đã duyệt | true (bằng revision mới) | true (bằng revision mới) | false |
+| Gửi bài học chuẩn chờ duyệt | true | true | false |
+| Duyệt hoặc trả bài học chuẩn | true | true | false |
+| Soạn / Tạo / Sửa giáo án buổi dạy | true | true | false |
+| Đánh dấu sẵn sàng / đã dạy | true | true | false |
+| Ghi nhật ký sau dạy | true | true | false |
+| Công khai tóm tắt cho phụ huynh | true | true | false (chỉ đọc) |
+| Tạo mẫu cá nhân | true | true | false |
+| Tạo / sửa mẫu dùng chung | true | true | false |
+| Xem audit log | true | false | false |
 
 Nếu một Giáo viên bị gỡ khỏi lớp trong lúc đang mở Editor, lần lưu tiếp theo phải bị Rules từ chối. UI giữ nội dung local để người dùng sao chép, không tự thử ghi sang lớp khác.
 
