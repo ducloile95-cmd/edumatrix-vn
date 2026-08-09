@@ -1,9 +1,14 @@
 import {
+  collection,
   doc,
+  getDocs,
+  limit,
   orderBy,
+  query,
   serverTimestamp,
   setDoc,
   updateDoc,
+  where,
 } from "firebase/firestore";
 import type { User } from "firebase/auth";
 import { db } from "@/services/firebase/firestoreClient";
@@ -26,6 +31,12 @@ export interface CreateInviteInput {
  */
 export async function createInvite(actor: User, input: CreateInviteInput): Promise<void> {
   const email = normalizeEmail(input.email);
+  const existingUsers = await getDocs(query(
+    collection(db, COLLECTIONS.USERS),
+    where("email", "==", email),
+    limit(1),
+  ));
+  if (!existingUsers.empty) throw new Error("ACCOUNT_ALREADY_EXISTS");
   const ref = doc(db, COLLECTIONS.INVITES, email);
 
   await setDoc(ref, {

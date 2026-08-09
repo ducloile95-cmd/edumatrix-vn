@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, subDays } from "date-fns";
 import {
-  Activity, BadgeCheck, CalendarClock, ChevronRight, CircleGauge, Clock3,
+  BadgeCheck, ChevronRight, CircleGauge, Clock3,
   Edit3, Eye, HeartPulse, MailCheck, ShieldCheck, UserCheck, UserPlus,
   UsersRound,
 } from "lucide-react";
@@ -53,6 +53,11 @@ function accountCode(uid: string) {
 
 function initials(name: string) {
   return name.trim().split(/\s+/).slice(-2).map((part) => part[0]).join("").toUpperCase();
+}
+
+function queryErrorCode(error: unknown): string | null {
+  if (!error || typeof error !== "object" || !("code" in error)) return null;
+  return typeof error.code === "string" ? error.code.replace(/^firestore\//, "") : null;
 }
 
 function timestampText(value: UserDoc["createdAt"] | undefined, pattern = "dd/MM/yyyy") {
@@ -190,28 +195,32 @@ export default function UsersAdminPage() {
   });
 
   const loading = usersQuery.isLoading || invitesQuery.isLoading || studentsQuery.isLoading;
-  const failed = usersQuery.isError || invitesQuery.isError || studentsQuery.isError;
+  const failedQuery = usersQuery.isError
+    ? { label: "danh sách tài khoản", error: usersQuery.error }
+    : invitesQuery.isError
+      ? { label: "danh sách lời mời", error: invitesQuery.error }
+      : studentsQuery.isError
+        ? { label: "danh sách học sinh", error: studentsQuery.error }
+        : null;
+  const failed = Boolean(failedQuery);
+  const failedCode = queryErrorCode(failedQuery?.error);
   const users = usersQuery.data ?? [];
   const invites = invitesQuery.data ?? [];
   const students = studentsQuery.data ?? [];
-  const studentById = new Map(students.map((student) => [student.id, student]));
 
-  return <><PageHeader actions={<Button variant="primary" icon={<UserPlus size={17} />} onClick={() => setInviteOpen(true)}>Mời tài khoản</Button>} /><TabBar value={tab} onChange={setTab} />{loading && tab !== "permissions" && <div className="rounded-card border border-neutral-200 bg-white p-5"><LoadingSkeleton rows={7} /></div>}{failed && tab !== "permissions" && <ErrorState message="Không tải được dữ liệu module Người dùng." onRetry={() => { usersQuery.refetch(); invitesQuery.refetch(); studentsQuery.refetch(); }} />}{tab === "permissions" && <RolesPermissionsPanel />}{!loading && !failed && tab === "overview" && <Overview users={users} invites={invites} onOpenStaff={() => setTab("staff")} />}{!loading && !failed && tab === "staff" && <StaffTable users={users} onEdit={setSelectedUser} />}{!loading && !failed && tab === "families" && <FamilyTable users={users} invites={invites} students={students} onView={setSelectedUser} onRevoke={(email) => revokeMutation.mutate(email)} />}{!loading && !failed && tab === "linkRequests" && <LinkRequestsPanel students={students} />}
+  return <><PageHeader actions={<Button variant="primary" icon={<UserPlus size={17} />} onClick={() => setInviteOpen(true)}>Mời tài khoản</Button>} /><TabBar value={tab} onChange={setTab} />{loading && tab !== "permissions" && <div className="rounded-card border border-neutral-200 bg-white p-5"><LoadingSkeleton rows={7} /></div>}{failedQuery && tab !== "permissions" && <ErrorState message={`Không tải được ${failedQuery.label}.${failedCode ? ` Mã lỗi: ${failedCode}.` : ""}`} onRetry={() => { usersQuery.refetch(); invitesQuery.refetch(); studentsQuery.refetch(); }} />}{tab === "permissions" && <RolesPermissionsPanel />}{!loading && !failed && tab === "overview" && <Overview users={users} invites={invites} onOpenStaff={() => setTab("staff")} />}{!loading && !failed && tab === "staff" && <StaffTable users={users} onEdit={setSelectedUser} />}{!loading && !failed && tab === "families" && <FamilyTable users={users} invites={invites} students={students} onView={setSelectedUser} onRevoke={(email) => revokeMutation.mutate(email)} />}{!loading && !failed && tab === "linkRequests" && <LinkRequestsPanel students={students} />}
 
-    <Modal open={inviteOpen} onClose={() => setInviteOpen(false)} title="Mời tài khoản mới" description="Chọn đúng vai trò và học sinh liên kết trước khi gửi." size="lg"><InviteForm students={students} pending={inviteMutation.isPending} onSubmit={(input) => inviteMutation.mutate(input)} onClose={() => setInviteOpen(false)} />{inviteMutation.isError && <p role="alert" className="mt-3 text-sm font-semibold text-danger-700">Không thể gửi lời mời. Kiểm tra email và thử lại.</p>}</Modal>
+    <Modal open={inviteOpen} onClose={() => setInviteOpen(false)} title="Mời tài khoản mới" description="Chọn đúng vai trò và học sinh liên kết trước khi gửi." size="lg"><InviteForm students={students} pending={inviteMutation.isPending} onSubmit={(input) => inviteMutation.mutate(input)} onClose={() => setInviteOpen(false)} />{inviteMutation.isError && <p role="alert" className="mt-3 text-sm font-semibold text-danger-700">{inviteMutation.error instanceof Error && inviteMutation.error.message === "ACCOUNT_ALREADY_EXISTS" ? "Email này đã có tài khoản. Hãy chỉnh vai trò trong danh sách tài khoản." : "Không thể gửi lời mời. Kiểm tra email và thử lại."}</p>}</Modal>
 
-    <Modal open={Boolean(selectedUser)} onClose={() => setSelectedUser(null)} title={selectedUser?.role === USER_ROLES.VIEWER ? "Thông tin phụ huynh và học sinh" : "Chỉnh sửa tài khoản Staff"} description={selectedUser?.displayName} size="md">{selectedUser?.role === USER_ROLES.VIEWER ? <div><div className="flex items-center gap-3"><Avatar name={selectedUser.displayName} /><div><p className="font-bold text-neutral-900">{selectedUser.displayName}</p><p className="text-sm text-neutral-500">{selectedUser.email}</p></div></div><div className="mt-5 rounded-card border border-neutral-200 bg-white p-4"><h3 className="text-sm font-bold text-neutral-900">Học sinh được liên kết</h3><ul className="mt-2 divide-y divide-neutral-100">{selectedUser.studentIds.map((studentId) => { const student = studentById.get(studentId); return <li key={studentId} className="py-3"><p className="text-sm font-semibold text-neutral-800">{student?.fullName ?? studentId}</p><p className="mt-1 text-xs text-neutral-500">Mã học sinh: {student?.studentCode ?? studentId}</p><p className="mt-1 text-xs text-neutral-500">Ngày sinh: {student?.dateOfBirth || "Chưa cập nhật"}</p><p className="mt-1 text-xs text-neutral-500">Lớp đang học: {student?.currentClassIds.length ?? 0}</p></li>; })}</ul></div><div className="mt-4 grid grid-cols-2 gap-3"><InfoBox icon={<Activity size={17} />} label="Lần sử dụng cuối" value={lastSeenText(selectedUser)} /><InfoBox icon={<CalendarClock size={17} />} label="Trạng thái" value={selectedUser.status === "active" ? "Đang hoạt động" : "Đã khóa"} /></div></div> : selectedUser ? <StaffEditForm user={selectedUser} selfUid={firebaseUser?.uid} pending={updateMutation.isPending} onCancel={() => setSelectedUser(null)} onSave={(input) => updateMutation.mutate({ uid: selectedUser.uid, input })} /> : null}</Modal>
+    <Modal open={Boolean(selectedUser)} onClose={() => setSelectedUser(null)} title="Chỉnh sửa tài khoản" description={selectedUser?.displayName} size="md">{selectedUser ? <AccountEditForm user={selectedUser} selfUid={firebaseUser?.uid} pending={updateMutation.isPending} onCancel={() => setSelectedUser(null)} onSave={(input) => updateMutation.mutate({ uid: selectedUser.uid, input })} /> : null}</Modal>
   </>;
 }
 
-function StaffEditForm({ user, selfUid, pending, onCancel, onSave }: { user: UserRecord; selfUid?: string; pending: boolean; onCancel: () => void; onSave: (input: { displayName: string; role: UserRole; status: UserStatus; studentIds: string[] }) => void }) {
+function AccountEditForm({ user, selfUid, pending, onCancel, onSave }: { user: UserRecord; selfUid?: string; pending: boolean; onCancel: () => void; onSave: (input: { displayName: string; role: UserRole; status: UserStatus; studentIds: string[] }) => void }) {
   const [displayName, setDisplayName] = useState(user.displayName);
   const [role, setRole] = useState<UserRole>(user.role);
   const [status, setStatus] = useState<UserStatus>(user.status);
   const isSelf = user.uid === selfUid;
-  return <form onSubmit={(event) => { event.preventDefault(); onSave({ displayName, role, status, studentIds: user.studentIds }); }} className="space-y-4"><Field label="Tên tài khoản" required><input required value={displayName} onChange={(event) => setDisplayName(event.target.value)} className={FIELD_CLASS} /></Field><Field label="Email đăng nhập"><input value={user.email} disabled className={`${FIELD_CLASS} bg-neutral-100 text-neutral-500`} /><p className="mt-1.5 text-xs text-neutral-500">Email định danh không thay đổi tại màn hình quản trị.</p></Field><div className="grid grid-cols-2 gap-3"><Field label="Vai trò"><select value={role} onChange={(event) => setRole(event.target.value as UserRole)} disabled={isSelf} className={FIELD_CLASS}><option value={USER_ROLES.ADMIN}>Admin</option><option value={USER_ROLES.TEACHER}>Giáo viên</option></select></Field><Field label="Trạng thái"><select value={status} onChange={(event) => setStatus(event.target.value as UserStatus)} disabled={isSelf} className={FIELD_CLASS}><option value="active">Đang hoạt động</option><option value="disabled">Đã khóa</option></select></Field></div>{isSelf && <p className="rounded-input border border-warning-100 bg-warning-50 px-3 py-2 text-xs font-semibold text-warning-700">Không thể tự thay đổi vai trò hoặc khóa tài khoản của chính mình.</p>}<div className="flex justify-end gap-2 pt-2"><Button variant="secondary" onClick={onCancel}>Hủy</Button><Button type="submit" variant="primary" disabled={pending}>{pending ? "Đang lưu..." : "Lưu thay đổi"}</Button></div></form>;
-}
-
-function InfoBox({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
-  return <div className="rounded-input border border-neutral-200 bg-white p-3"><span className="text-primary-600">{icon}</span><p className="mt-2 text-xs text-neutral-500">{label}</p><p className="mt-0.5 text-sm font-bold text-neutral-800">{value}</p></div>;
+  const removesParentLinks = user.role === USER_ROLES.VIEWER && role !== USER_ROLES.VIEWER && user.studentIds.length > 0;
+  return <form onSubmit={(event) => { event.preventDefault(); onSave({ displayName, role, status, studentIds: role === USER_ROLES.VIEWER ? user.studentIds : [] }); }} className="space-y-4"><Field label="Tên tài khoản" required><input required value={displayName} onChange={(event) => setDisplayName(event.target.value)} className={FIELD_CLASS} /></Field><Field label="Email đăng nhập"><input value={user.email} disabled className={`${FIELD_CLASS} bg-neutral-100 text-neutral-500`} /><p className="mt-1.5 text-xs text-neutral-500">Email định danh không thay đổi tại màn hình quản trị.</p></Field><div className="grid grid-cols-2 gap-3"><Field label="Vai trò"><select value={role} onChange={(event) => setRole(event.target.value as UserRole)} disabled={isSelf} className={FIELD_CLASS}><option value={USER_ROLES.ADMIN}>Admin</option><option value={USER_ROLES.TEACHER}>Giáo viên</option><option value={USER_ROLES.VIEWER}>Phụ huynh/Học sinh</option></select></Field><Field label="Trạng thái"><select value={status} onChange={(event) => setStatus(event.target.value as UserStatus)} disabled={isSelf} className={FIELD_CLASS}><option value="active">Đang hoạt động</option><option value="disabled">Đã khóa</option></select></Field></div>{removesParentLinks && <p role="alert" className="rounded-input border border-warning-200 bg-warning-50 px-3 py-2 text-xs font-semibold text-warning-800">Chuyển sang Staff sẽ gỡ tài khoản này khỏi {user.studentIds.length} học sinh đang liên kết.</p>}{isSelf && <p className="rounded-input border border-warning-100 bg-warning-50 px-3 py-2 text-xs font-semibold text-warning-700">Không thể tự thay đổi vai trò hoặc khóa tài khoản của chính mình.</p>}<div className="flex justify-end gap-2 pt-2"><Button variant="secondary" onClick={onCancel}>Hủy</Button><Button type="submit" variant="primary" disabled={pending}>{pending ? "Đang lưu..." : "Lưu thay đổi"}</Button></div></form>;
 }

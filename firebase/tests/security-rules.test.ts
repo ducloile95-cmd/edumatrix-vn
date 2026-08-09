@@ -286,6 +286,80 @@ describe("phan quyen Admin/Teacher", () => {
     );
   });
 
+  test("Admin chuyen Viewer thanh Admin va go lien ket hoc sinh trong mot batch", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "users", VIEWER_UID), {
+        email: VIEWER_EMAIL,
+        displayName: "Parent",
+        photoURL: null,
+        role: "viewer",
+        studentIds: ["student_001"],
+        status: "active",
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      });
+      await setDoc(doc(ctx.firestore(), "students", "student_001"), {
+        studentCode: "student_001",
+        fullName: "Student",
+        nickname: "",
+        dateOfBirth: "2015-01-01",
+        parentUids: [VIEWER_UID],
+        currentClassIds: [],
+        teacherIds: [],
+        staffNote: "",
+        status: "active",
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      });
+    });
+    const db = asAdmin();
+    const batch = writeBatch(db);
+    batch.update(doc(db, "users", VIEWER_UID), {
+      role: "admin",
+      studentIds: [],
+      updatedAt: serverTimestamp(),
+    });
+    batch.update(doc(db, "students", "student_001"), {
+      parentUids: [],
+      updatedAt: serverTimestamp(),
+    });
+    await assertSucceeds(batch.commit());
+  });
+
+  test("Admin khong the gan studentIds cho tai khoan Staff", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "users", VIEWER_UID), {
+        email: VIEWER_EMAIL,
+        displayName: "Parent",
+        photoURL: null,
+        role: "viewer",
+        studentIds: [],
+        status: "active",
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      });
+    });
+    await assertFails(updateDoc(doc(asAdmin(), "users", VIEWER_UID), {
+      role: "admin",
+      studentIds: ["student_001"],
+      updatedAt: serverTimestamp(),
+    }));
+  });
+
+  test("Admin khong the tao user email sai hoac invite rong", async () => {
+    await assertFails(setDoc(doc(asAdmin(), "users", VIEWER_UID), {
+      email: "parent@gmail.co,",
+      displayName: "Parent",
+      photoURL: null,
+      role: "viewer",
+      studentIds: [],
+      status: "active",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }));
+    await assertFails(setDoc(doc(asAdmin(), "invites", VIEWER_EMAIL), {}));
+  });
+
   test("Tai khoan Admin bi disabled thi mat quyen admin", async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await updateDoc(doc(ctx.firestore(), "users", ADMIN_UID), { status: "disabled" });

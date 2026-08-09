@@ -16,7 +16,17 @@ const COLLECTIONS = [
   "billing_items", "invoices", "payments", "assignments", "submissions",
   "assignment_summaries", "scores", "student_score_summaries",
   "lesson_plan_public", "lesson_plan_templates", "invites", "link_requests",
+  "imvites",
 ];
+
+const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$/;
+
+function gmailMailbox(email) {
+  if (typeof email !== "string") return null;
+  const normalized = email.trim().toLowerCase();
+  const [local, domain] = normalized.split("@");
+  return domain === "gmail.com" && local ? `${local.replaceAll(".", "")}@gmail.com` : null;
+}
 
 function asArray(value) {
   return Array.isArray(value) ? value : [];
@@ -39,6 +49,8 @@ export function auditCollections(collections) {
   for (const user of collections.users ?? []) {
     if (!Array.isArray(user.studentIds)) add("USER_STUDENT_IDS_INVALID_TYPE", "users", user.id);
     if (hasDuplicates(user.studentIds)) add("USER_STUDENT_IDS_DUPLICATE", "users", user.id);
+    if (typeof user.email !== "string" || !EMAIL_PATTERN.test(user.email)) add("USER_EMAIL_INVALID", "users", user.id, user.email ?? "");
+    if (user.role !== "viewer" && asArray(user.studentIds).length > 0) add("STAFF_HAS_STUDENT_LINKS", "users", user.id);
     for (const studentId of asArray(user.studentIds)) {
       const student = byId.students.get(studentId);
       if (!student) add("USER_STUDENT_MISSING", "users", user.id, studentId);
@@ -46,6 +58,28 @@ export function auditCollections(collections) {
         add("USER_STUDENT_REVERSE_MISSING", "users", user.id, studentId);
       }
     }
+  }
+
+  const usersByEmail = new Map((collections.users ?? [])
+    .filter((user) => typeof user.email === "string")
+    .map((user) => [user.email.trim().toLowerCase(), user]));
+  const usersByGmailMailbox = new Map((collections.users ?? [])
+    .map((user) => [gmailMailbox(user.email), user])
+    .filter(([mailbox]) => mailbox));
+  for (const invite of collections.invites ?? []) {
+    const validShape = typeof invite.email === "string" && EMAIL_PATTERN.test(invite.email) &&
+      invite.id === invite.email && ["admin", "teacher", "viewer"].includes(invite.role) &&
+      Array.isArray(invite.studentIds) && ["active", "claimed", "revoked"].includes(invite.status) &&
+      typeof invite.createdBy === "string" && typeof invite.createdAt === "string";
+    if (!validShape) add("INVITE_SCHEMA_INVALID", "invites", invite.id);
+    if (invite.status === "active" && usersByEmail.has(invite.id)) {
+      add("ACTIVE_INVITE_FOR_EXISTING_USER", "invites", invite.id, usersByEmail.get(invite.id).id);
+    } else if (invite.status === "active" && gmailMailbox(invite.id) && usersByGmailMailbox.has(gmailMailbox(invite.id))) {
+      add("ACTIVE_INVITE_FOR_GMAIL_ALIAS", "invites", invite.id, usersByGmailMailbox.get(gmailMailbox(invite.id)).id);
+    }
+  }
+  for (const invite of collections.imvites ?? []) {
+    add("LEGACY_IMVITES_DOCUMENT", "imvites", invite.id);
   }
 
   for (const course of collections.courses ?? []) {
@@ -335,7 +369,23 @@ function selfCheck() {
   const decoded = decodeFirestoreValue({ arrayValue: { values: [{ stringValue: "A" }, { integerValue: "2" }] } });
   if (JSON.stringify(decoded) !== '["A",2]') throw new Error("SELF-CHECK FAIL: decode array");
   const issues = auditCollections({ users: [{ id: "u", studentIds: "bad" }] });
-  if (issues[0]?.code !== "USER_STUDENT_IDS_INVALID_TYPE") throw new Error("SELF-CHECK FAIL: audit invalid user");
+  if (!issues.some((issue) => issue.code === "USER_STUDENT_IDS_INVALID_TYPE")) throw new Error("SELF-CHECK FAIL: audit invalid user");
+  const identityCodes = auditCollections({
+    users: [
+      { id: "staff", email: "broken@example.co,", role: "admin", studentIds: ["student-1"] },
+      { id: "viewer", email: "viewer@example.com", role: "viewer", studentIds: [] },
+      { id: "gmail-viewer", email: "viewer@gmail.com", role: "viewer", studentIds: [] },
+    ],
+    invites: [
+      { id: "viewer@example.com", email: "viewer@example.com", role: "viewer", studentIds: [], status: "active", createdBy: "staff", createdAt: new Date().toISOString() },
+      { id: "empty" },
+      { id: "view.er@gmail.com", email: "view.er@gmail.com", role: "viewer", studentIds: [], status: "active", createdBy: "staff", createdAt: new Date().toISOString() },
+    ],
+    imvites: [{ id: "legacy" }],
+  }).map((issue) => issue.code);
+  for (const expected of ["USER_EMAIL_INVALID", "STAFF_HAS_STUDENT_LINKS", "ACTIVE_INVITE_FOR_EXISTING_USER", "ACTIVE_INVITE_FOR_GMAIL_ALIAS", "INVITE_SCHEMA_INVALID", "LEGACY_IMVITES_DOCUMENT"]) {
+    if (!identityCodes.includes(expected)) throw new Error(`SELF-CHECK FAIL: missing ${expected}`);
+  }
   const falsePositiveCodes = auditCollections({
     courses: [{ id: "course-1", classRevision: 0, subjectIds: ["subject-1"], teacherIds: [], totalSessions: 1, status: "active" }],
     subjects: [{ id: "subject-1", status: "active" }],

@@ -39,9 +39,12 @@ async function main() {
   if (plan.mode !== "DRY_RUN_ONLY" || !Array.isArray(plan.operations)) throw new Error("Invalid repair plan.");
   if (plan.operations.length > 500) throw new Error("Repair plan exceeds Firestore's 500-write atomic limit.");
   for (const operation of plan.operations) {
+    const action = operation?.action ?? "update";
     if (!operation || typeof operation.collection !== "string" || !/^[a-z][a-z0-9_]*$/.test(operation.collection) ||
         typeof operation.id !== "string" || !operation.id || typeof operation.before !== "object" || operation.before === null ||
-        typeof operation.after !== "object" || operation.after === null || Object.keys(operation.after).length === 0) {
+        !["update", "delete"].includes(action) ||
+        (operation.beforeKeys !== undefined && (!Array.isArray(operation.beforeKeys) || operation.beforeKeys.some((field) => typeof field !== "string"))) ||
+        (action === "update" && (typeof operation.after !== "object" || operation.after === null || Object.keys(operation.after).length === 0))) {
       throw new Error("Repair plan contains an invalid operation.");
     }
   }
@@ -69,24 +72,31 @@ async function main() {
   for (const operation of plan.operations) {
     const current = await getDocument(operation.collection, operation.id);
     const decoded = decodeFirestoreFields(current.fields ?? {});
+    if (operation.beforeKeys && !equal(Object.keys(decoded).sort(), [...operation.beforeKeys].sort())) {
+      throw new Error(`Concurrent schema change detected: ${operation.collection}/${operation.id}`);
+    }
     for (const [field, expected] of Object.entries(operation.before)) {
       if (!equal(decoded[field] ?? null, expected)) {
         throw new Error(`Concurrent change detected: ${operation.collection}/${operation.id}.${field}`);
       }
     }
-    const after = Object.fromEntries(Object.entries(operation.after).map(([field, value]) => [
-      field,
-      value === "SERVER_TIMESTAMP" ? now : value,
-    ]));
     before.push(current);
-    writes.push({
-      update: {
-        name: current.name,
-        fields: Object.fromEntries(Object.entries(after).map(([field, value]) => [field, encodeValue(value)])),
-      },
-      updateMask: { fieldPaths: Object.keys(after) },
-      currentDocument: { updateTime: current.updateTime },
-    });
+    if ((operation.action ?? "update") === "delete") {
+      writes.push({ delete: current.name, currentDocument: { updateTime: current.updateTime } });
+    } else {
+      const after = Object.fromEntries(Object.entries(operation.after).map(([field, value]) => [
+        field,
+        value === "SERVER_TIMESTAMP" ? now : value,
+      ]));
+      writes.push({
+        update: {
+          name: current.name,
+          fields: Object.fromEntries(Object.entries(after).map(([field, value]) => [field, encodeValue(value)])),
+        },
+        updateMask: { fieldPaths: Object.keys(after) },
+        currentDocument: { updateTime: current.updateTime },
+      });
+    }
   }
 
   const journal = {

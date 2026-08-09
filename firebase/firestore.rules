@@ -277,8 +277,12 @@ service cloud.firestore {
         data.keys().hasOnly(['email', 'displayName', 'photoURL', 'role', 'studentIds', 'status', 'createdAt', 'updatedAt', 'lastLoginAt', 'notificationPrefs', 'phone', 'address', 'facebookUrl']) &&
         isValidRole(data.role) &&
         data.studentIds is list &&
+        (data.role == 'viewer' || data.studentIds.size() == 0) &&
         data.status in ['active', 'disabled'] &&
-        (!data.keys().hasAny(['email']) || data.email is string) &&
+        (!data.keys().hasAny(['email']) || (
+          data.email is string &&
+          data.email.matches('^[^@ ]+@[^@ ]+\\.[A-Za-z]{2,}$')
+        )) &&
         (!data.keys().hasAny(['displayName']) || data.displayName is string) &&
         (!data.keys().hasAny(['photoURL']) || data.photoURL == null || data.photoURL is string) &&
         (!data.keys().hasAny(['phone']) || data.phone is string) &&
@@ -288,6 +292,21 @@ service cloud.firestore {
         (!data.keys().hasAny(['updatedAt']) || data.updatedAt is timestamp) &&
         (!data.keys().hasAny(['lastLoginAt']) || data.lastLoginAt is timestamp) &&
         (!data.keys().hasAny(['notificationPrefs']) || data.notificationPrefs is map);
+    }
+
+    function validInviteData(email, data) {
+      return data.keys().hasAll(['email', 'role', 'studentIds', 'status', 'createdBy', 'createdAt']) &&
+        data.keys().hasOnly(['email', 'role', 'studentIds', 'status', 'createdBy', 'createdAt', 'claimedAt']) &&
+        data.email == email &&
+        data.email is string &&
+        data.email.matches('^[^@ ]+@[^@ ]+\\.[A-Za-z]{2,}$') &&
+        isValidRole(data.role) &&
+        data.studentIds is list &&
+        (data.role == 'viewer' || data.studentIds.size() == 0) &&
+        data.status in ['active', 'claimed', 'revoked'] &&
+        data.createdBy is string &&
+        data.createdAt is timestamp &&
+        (!data.keys().hasAny(['claimedAt']) || data.claimedAt is timestamp);
     }
 
     function validSubjectData(subjectId, data) {
@@ -870,7 +889,9 @@ service cloud.firestore {
         )
       ));
 
-      allow update: if validUserData(request.resource.data) && (isAdmin() || (
+      allow update: if validUserData(request.resource.data) && ((
+        isAdmin() && keepsImmutable(['email', 'createdAt'])
+      ) || (
         request.auth.uid == uid &&
         request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['displayName', 'photoURL', 'lastLoginAt', 'notificationPrefs', 'phone', 'address', 'facebookUrl', 'updatedAt']) &&
@@ -893,17 +914,16 @@ service cloud.firestore {
       );
 
       allow create: if isAdmin() &&
-        request.resource.data.email == email &&
-        isValidRole(request.resource.data.role) &&
+        validInviteData(email, request.resource.data) &&
         request.resource.data.status == 'active';
 
-      allow update: if isAdmin() || (
+      allow update: if validInviteData(email, request.resource.data) && (isAdmin() || (
         hasVerifiedEmail() &&
         requesterEmail() == email &&
         resource.data.status == 'active' &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'claimedAt']) &&
         request.resource.data.status == 'claimed'
-      );
+      ));
 
       allow delete: if isAdmin();
     }

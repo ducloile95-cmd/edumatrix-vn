@@ -49,4 +49,23 @@ describe("updateUserAccount", () => {
     })).rejects.toThrow("NON_VIEWER_CANNOT_LINK_STUDENTS");
     expect(mocks.runTransaction).not.toHaveBeenCalled();
   });
+
+  test("promotes a viewer to admin and removes reverse parent links", async () => {
+    mocks.transactionGet
+      .mockResolvedValueOnce(snapshot("parent-1", { role: "viewer", studentIds: ["HS001"] }))
+      .mockResolvedValueOnce(snapshot("HS001", { parentUids: ["parent-1"] }));
+
+    await updateUserAccount({ uid: "admin-1" } as never, "parent-1", {
+      displayName: "Administrator", role: "admin", status: "active", studentIds: [],
+    });
+
+    expect(mocks.transactionUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ path: "users/parent-1" }),
+      expect.objectContaining({ role: "admin", studentIds: [] }),
+    );
+    expect(mocks.transactionUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ path: "students/HS001" }),
+      expect.objectContaining({ parentUids: [] }),
+    );
+  });
 });
