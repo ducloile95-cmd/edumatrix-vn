@@ -2,10 +2,8 @@ import {
   Timestamp,
   collection,
   doc,
-  documentId,
   getDocs,
   limit,
-  orderBy,
   query,
   runTransaction,
   serverTimestamp,
@@ -81,7 +79,6 @@ async function listAllDocuments(collectionName: string, baseConstraints: QueryCo
     const snapshot: QuerySnapshot<DocumentData, DocumentData> = await getDocs(query(
       collection(db, collectionName),
       ...baseConstraints,
-      orderBy(documentId()),
       ...(cursor ? [startAfter(cursor)] : []),
       limit(pageSize),
     ));

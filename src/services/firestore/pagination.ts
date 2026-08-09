@@ -8,7 +8,7 @@ import {
 import type { DocumentData, QueryConstraint, QueryDocumentSnapshot } from "firebase/firestore";
 import { db } from "@/services/firebase/firestoreClient";
 
-/** Load every page of a query whose constraints include a stable orderBy. */
+/** Load every page; Firestore adds a stable implicit __name__ order when needed. */
 export async function listAllQueryDocuments(
   collectionName: string,
   constraints: QueryConstraint[],
