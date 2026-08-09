@@ -9,23 +9,36 @@ import {
   query,
   runTransaction,
   serverTimestamp,
+  startAfter,
   updateDoc,
   where,
   writeBatch,
+  type DocumentData,
+  type QueryConstraint,
+  type QueryDocumentSnapshot,
+  type QuerySnapshot,
 } from "firebase/firestore";
 import { db } from "@/services/firebase/firestoreClient";
 import { COLLECTIONS } from "@/constants/collections";
 import { getCurrentUserDoc } from "@/services/firestore/authz";
 import { normalizeEmail } from "@/utils/email";
-import type { StudentDoc, StudentStatus } from "@/types/academic";
+import type { ClassDoc, StudentDoc, StudentStatus } from "@/types/academic";
 import type { UserDoc } from "@/types/user";
 import type { ParentProfileInput } from "@/services/firestore/users";
+import { decodeStudentDoc } from "@/services/firestore/decoders";
 
 export interface CreateStudentInput {
   studentCode: string;
   fullName: string;
   nickname?: string;
   dateOfBirth: string;
+}
+
+export interface CreateStudentWithRelationsInput extends CreateStudentInput {
+  staffNote?: string;
+  classId?: string;
+  parentEmail?: string;
+  parentProfile?: ParentProfileInput;
 }
 
 export interface UpdateStudentInput {
@@ -40,27 +53,74 @@ export function normalizeStudentCode(code: string): string {
   return code.trim().toUpperCase();
 }
 
-export async function createStudent(input: CreateStudentInput): Promise<void> {
+export async function createStudentWithRelations(input: CreateStudentWithRelationsInput): Promise<void> {
   const id = normalizeStudentCode(input.studentCode);
-  const currentUser = await getCurrentUserDoc();
-  const ref = doc(db, COLLECTIONS.STUDENTS, id);
+  const actor = await getCurrentUserDoc();
+  if (!actor) throw new Error("AUTH_REQUIRED");
+  const email = input.parentEmail ? normalizeEmail(input.parentEmail) : "";
+  const parentQuery = email
+    ? await getDocs(query(collection(db, COLLECTIONS.USERS), where("email", "==", email), limit(1)))
+    : null;
+  if (email && parentQuery?.empty) throw new Error("PARENT_NOT_FOUND");
+  const parentRef = parentQuery?.docs[0]?.ref ?? null;
+
   await runTransaction(db, async (transaction) => {
-    const existing = await transaction.get(ref);
-    if (existing.exists()) throw new Error("student_code_exists");
-    transaction.set(ref, {
+    const studentRef = doc(db, COLLECTIONS.STUDENTS, id);
+    const classRef = input.classId ? doc(db, COLLECTIONS.CLASSES, input.classId) : null;
+    const [studentSnap, classSnap, parentSnap] = await Promise.all([
+      transaction.get(studentRef),
+      classRef ? transaction.get(classRef) : Promise.resolve(null),
+      parentRef ? transaction.get(parentRef) : Promise.resolve(null),
+    ]);
+    if (studentSnap.exists()) throw new Error("student_code_exists");
+    const klass = classSnap?.exists() ? classSnap.data() as ClassDoc : null;
+    if (classRef && !klass) throw new Error("CLASS_NOT_FOUND");
+    if (klass && klass.status !== "active") throw new Error("CLASS_NOT_ACTIVE");
+    if (actor.role === "teacher" && !klass) throw new Error("TEACHER_CLASS_REQUIRED");
+    if (actor.role === "teacher" && klass && !klass.teacherIds.includes(actor.uid)) {
+      throw new Error("TEACHER_CLASS_FORBIDDEN");
+    }
+    const parent = parentSnap?.exists() ? parentSnap.data() as UserDoc : null;
+    if (parentRef && !parent) throw new Error("PARENT_NOT_FOUND");
+    if (parent && parent.role !== "viewer") throw new Error("PARENT_NOT_VIEWER");
+    if (parent && parent.status !== "active") throw new Error("PARENT_NOT_ACTIVE");
+    if (parent && parent.email.toLowerCase() !== email) throw new Error("PARENT_EMAIL_CHANGED");
+
+    transaction.set(studentRef, {
       studentCode: id,
       fullName: input.fullName,
-      // Ghi "" thay vi bo trong, giong staffNote - de moi doc co cung tap key.
       nickname: input.nickname ?? "",
       dateOfBirth: input.dateOfBirth,
-      parentUids: [],
-      currentClassIds: [],
-      teacherIds: currentUser?.role === "teacher" ? [currentUser.uid] : [],
-      staffNote: "",
+      parentUids: parentRef ? [parentRef.id] : [],
+      currentClassIds: classRef ? [classRef.id] : [],
+      teacherIds: klass?.teacherIds ?? (actor.role === "teacher" ? [actor.uid] : []),
+      staffNote: input.staffNote ?? "",
       status: "active",
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
+    if (classRef && klass) {
+      transaction.set(doc(db, COLLECTIONS.ENROLLMENTS, `${classRef.id}_${id}`), {
+        classId: classRef.id,
+        courseId: klass.courseId,
+        studentId: id,
+        status: "active",
+        joinedAt: serverTimestamp(),
+        endedAt: null,
+      });
+      transaction.update(classRef, { studentIds: arrayUnion(id), updatedAt: serverTimestamp() });
+    }
+    if (parentRef) {
+      const profile = input.parentProfile;
+      transaction.update(parentRef, {
+        studentIds: arrayUnion(id),
+        ...(profile?.displayName !== undefined ? { displayName: profile.displayName } : {}),
+        ...(profile?.address !== undefined ? { address: profile.address } : {}),
+        ...(profile?.phone !== undefined ? { phone: profile.phone } : {}),
+        ...(profile?.facebookUrl !== undefined ? { facebookUrl: profile.facebookUrl } : {}),
+        updatedAt: serverTimestamp(),
+      });
+    }
   });
 }
 
@@ -75,42 +135,60 @@ export async function updateStudent(studentDocId: string, input: UpdateStudentIn
 }
 
 export async function setStudentStatus(studentDocId: string, status: StudentStatus): Promise<void> {
-  await updateDoc(doc(db, COLLECTIONS.STUDENTS, studentDocId), {
-    status,
-    updatedAt: serverTimestamp(),
+  await runTransaction(db, async (transaction) => {
+    const studentRef = doc(db, COLLECTIONS.STUDENTS, studentDocId);
+    const studentSnap = await transaction.get(studentRef);
+    if (!studentSnap.exists()) throw new Error("STUDENT_NOT_FOUND");
+    const student = studentSnap.data() as StudentDoc;
+    if (status === "inactive" && student.currentClassIds.length > 0) throw new Error("STUDENT_HAS_ACTIVE_CLASSES");
+    transaction.update(studentRef, {
+      status,
+      ...(status === "inactive" ? { teacherIds: [] } : {}),
+      updatedAt: serverTimestamp(),
+    });
   });
 }
 
-/** Danh sach hoc sinh (<50 theo quy mo du an) - khong can pagination that su (A14). */
+async function listStudentPages(baseConstraints: QueryConstraint[]): Promise<(StudentDoc & { id: string })[]> {
+  const documents: QueryDocumentSnapshot<DocumentData, DocumentData>[] = [];
+  let cursor: QueryDocumentSnapshot<DocumentData, DocumentData> | null = null;
+  do {
+    const snapshot: QuerySnapshot<DocumentData, DocumentData> = await getDocs(query(
+      collection(db, COLLECTIONS.STUDENTS),
+      ...baseConstraints,
+      ...(cursor ? [startAfter(cursor)] : []),
+      limit(200),
+    ));
+    documents.push(...snapshot.docs);
+    cursor = snapshot.docs.length ? snapshot.docs[snapshot.docs.length - 1] : null;
+    if (snapshot.size < 200) break;
+  } while (cursor);
+  return documents.map((item) => ({
+    id: item.id,
+    ...decodeStudentDoc(item.data(), `${COLLECTIONS.STUDENTS}/${item.id}`),
+  }));
+}
+
 export async function listStudents(): Promise<(StudentDoc & { id: string })[]> {
   const currentUser = await getCurrentUserDoc();
-  let q = query(collection(db, COLLECTIONS.STUDENTS), orderBy("fullName"), limit(200));
-
-  if (currentUser?.role === "teacher") {
-    q = query(
-      collection(db, COLLECTIONS.STUDENTS),
-      where("teacherIds", "array-contains", currentUser.uid),
-      limit(200),
-    );
-  }
-
-  const snap = await getDocs(q);
-  return snap.docs
-    .map((d) => ({ id: d.id, ...(d.data() as StudentDoc) }))
+  const students = await listStudentPages(currentUser?.role === "teacher"
+    ? [where("teacherIds", "array-contains", currentUser.uid)]
+    : [orderBy("fullName")]);
+  return students
     .sort((a, b) => a.fullName.localeCompare(b.fullName, "vi"));
 }
 
 /** Danh bạ dùng riêng cho ghi danh. Rules vẫn giới hạn quyền ghi theo lớp phụ trách. */
 export async function listEnrollmentCandidates(): Promise<(StudentDoc & { id: string })[]> {
-  const snap = await getDocs(
-    query(collection(db, COLLECTIONS.STUDENTS), orderBy("fullName"), limit(200)),
-  );
-  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as StudentDoc) }));
+  return listStudentPages([orderBy("fullName")]);
 }
 
 export async function getStudent(studentId: string): Promise<(StudentDoc & { id: string }) | null> {
   const snapshot = await getDoc(doc(db, COLLECTIONS.STUDENTS, studentId));
-  return snapshot.exists() ? { id: snapshot.id, ...(snapshot.data() as StudentDoc) } : null;
+  return snapshot.exists() ? {
+    id: snapshot.id,
+    ...decodeStudentDoc(snapshot.data(), `${COLLECTIONS.STUDENTS}/${snapshot.id}`),
+  } : null;
 }
 
 export type LinkParentFailureReason = "not_found" | "not_viewer" | "error";

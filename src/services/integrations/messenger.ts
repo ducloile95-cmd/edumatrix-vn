@@ -154,6 +154,11 @@ export async function linkMessengerConversation(psid: string, studentId: string)
   await workerRequest("/api/messenger/link", { psid, studentId });
 }
 
+export async function syncMessengerThreadContexts(): Promise<number> {
+  const response = await workerRequest<{ updated: number }>("/api/messenger/sync-contexts", {});
+  return response.updated;
+}
+
 export async function sendMessenger(input: SendMessengerInput): Promise<SendMessengerResult> {
   try {
     const data = await workerRequest<MessengerResponse>("/api/messenger/send", input);

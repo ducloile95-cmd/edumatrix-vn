@@ -41,6 +41,7 @@ export const COLLECTIONS = {
   MESSAGE_OUTBOX: "message_outbox",
   MESSENGER_CONNECTIONS: "messenger_connections",
   CHAT_THREADS: "chat_threads",
+  CHAT_TAGS: "chat_tags",
   FANPAGE_POSTS: "fanpage_posts",
 
   AUDIT_LOGS: "audit_logs",

@@ -1,9 +1,10 @@
-import { addDoc, collection, doc, getDoc, getDocs, limit, orderBy, query, serverTimestamp, updateDoc, where, writeBatch } from "firebase/firestore";
+import { addDoc, collection, doc, getDoc, getDocs, limit, orderBy, query, runTransaction, serverTimestamp, updateDoc, where } from "firebase/firestore";
 import { db } from "@/services/firebase/firestoreClient";
 import { COLLECTIONS } from "@/constants/collections";
 import { listSessionsByClass } from "@/services/firestore/sessions";
 import { getCurrentUserDoc, isAdminUser, isTeacherUser } from "@/services/firestore/authz";
 import { listClasses } from "@/services/firestore/classes";
+import { listAllQueryDocuments } from "@/services/firestore/pagination";
 import { normalizeLessonPlan, normalizeLessonPlanTemplate } from "@/utils/lessonPlan";
 import type { LessonPlanDoc, LessonPlanDriveAttachment, LessonPlanTemplateDoc, SessionDoc } from "@/types/academic";
 import type { LessonPlanFormValues } from "@/schemas/lessonPlan";
@@ -22,54 +23,80 @@ function driveFields(metadata?: LessonPlanDriveAttachment | null) {
 
 export async function createLessonPlan(input: LessonPlanFormValues, actorUid: string, driveAttachment?: LessonPlanDriveAttachment | null): Promise<string> {
   const ref = doc(collection(db, COLLECTIONS.LESSON_PLANS));
-  const batch = writeBatch(db);
-  batch.set(ref, {
-    ...input,
-    classId: nullable(input.classId),
-    courseId: nullable(input.courseId),
-    subjectId: nullable(input.subjectId),
-    sessionId: nullable(input.sessionId),
-    attachmentUrl: nullable(input.attachmentUrl),
-    ...driveFields(driveAttachment),
-    createdBy: actorUid,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
-  if (input.status === "published" && input.classId) {
-    batch.set(doc(db, COLLECTIONS.LESSON_PLAN_PUBLIC, ref.id), publicSummary(ref.id, input));
-  }
-  if (input.sessionId) {
-    batch.update(doc(db, COLLECTIONS.SESSIONS, input.sessionId), {
+  await runTransaction(db, async (transaction) => {
+    const sessionRef = input.sessionId ? doc(db, COLLECTIONS.SESSIONS, input.sessionId) : null;
+    const sessionSnap = sessionRef ? await transaction.get(sessionRef) : null;
+    if (sessionRef && !sessionSnap?.exists()) throw new Error("SESSION_NOT_FOUND");
+    if (sessionSnap?.exists()) {
+      const session = sessionSnap.data() as SessionDoc;
+      if (session.classId !== input.classId) throw new Error("LESSON_PLAN_SESSION_MISMATCH");
+      if (session.lessonPlanId) throw new Error("SESSION_ALREADY_HAS_LESSON_PLAN");
+    }
+
+    transaction.set(ref, {
+      ...input,
+      classId: nullable(input.classId),
+      courseId: nullable(input.courseId),
+      subjectId: nullable(input.subjectId),
+      sessionId: nullable(input.sessionId),
+      attachmentUrl: nullable(input.attachmentUrl),
+      ...driveFields(driveAttachment),
+      createdBy: actorUid,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    if (input.status === "published" && input.classId) {
+      transaction.set(doc(db, COLLECTIONS.LESSON_PLAN_PUBLIC, ref.id), publicSummary(ref.id, input));
+    }
+    if (sessionRef) transaction.update(sessionRef, {
       lessonPlanId: ref.id,
       updatedAt: serverTimestamp(),
     });
-  }
-  await batch.commit();
+  });
   return ref.id;
 }
 
 export async function updateLessonPlan(id: string, input: LessonPlanFormValues, driveAttachment?: LessonPlanDriveAttachment | null): Promise<void> {
-  const batch = writeBatch(db);
-  batch.update(doc(db, COLLECTIONS.LESSON_PLANS, id), {
-    ...input,
-    classId: nullable(input.classId),
-    courseId: nullable(input.courseId),
-    subjectId: nullable(input.subjectId),
-    sessionId: nullable(input.sessionId),
-    attachmentUrl: nullable(input.attachmentUrl),
-    ...(driveAttachment === undefined ? {} : driveFields(driveAttachment)),
-    updatedAt: serverTimestamp(),
-  });
-  const summaryRef = doc(db, COLLECTIONS.LESSON_PLAN_PUBLIC, id);
-  if (input.status === "published" && input.classId) batch.set(summaryRef, publicSummary(id, input));
-  else batch.delete(summaryRef);
-  if (input.sessionId) {
-    batch.update(doc(db, COLLECTIONS.SESSIONS, input.sessionId), {
+  await runTransaction(db, async (transaction) => {
+    const planRef = doc(db, COLLECTIONS.LESSON_PLANS, id);
+    const planSnap = await transaction.get(planRef);
+    if (!planSnap.exists()) throw new Error("LESSON_PLAN_NOT_FOUND");
+    const current = planSnap.data() as LessonPlanDoc;
+    const sessionIds = [...new Set([current.sessionId, input.sessionId].filter((value): value is string => !!value))];
+    const sessionSnaps = await Promise.all(sessionIds.map((sessionId) => transaction.get(doc(db, COLLECTIONS.SESSIONS, sessionId))));
+    const sessionById = new Map(sessionSnaps.map((snapshot) => [snapshot.id, snapshot]));
+    const nextSessionSnap = input.sessionId ? sessionById.get(input.sessionId) : null;
+    if (input.sessionId && !nextSessionSnap?.exists()) throw new Error("SESSION_NOT_FOUND");
+    if (nextSessionSnap?.exists()) {
+      const session = nextSessionSnap.data() as SessionDoc;
+      if (session.classId !== input.classId) throw new Error("LESSON_PLAN_SESSION_MISMATCH");
+      if (session.lessonPlanId && session.lessonPlanId !== id) throw new Error("SESSION_ALREADY_HAS_LESSON_PLAN");
+    }
+
+    transaction.update(planRef, {
+      ...input,
+      classId: nullable(input.classId),
+      courseId: nullable(input.courseId),
+      subjectId: nullable(input.subjectId),
+      sessionId: nullable(input.sessionId),
+      attachmentUrl: nullable(input.attachmentUrl),
+      ...(driveAttachment === undefined ? {} : driveFields(driveAttachment)),
+      updatedAt: serverTimestamp(),
+    });
+    const summaryRef = doc(db, COLLECTIONS.LESSON_PLAN_PUBLIC, id);
+    if (input.status === "published" && input.classId) transaction.set(summaryRef, publicSummary(id, input));
+    else transaction.delete(summaryRef);
+    if (current.sessionId && current.sessionId !== input.sessionId) {
+      const previousSession = sessionById.get(current.sessionId);
+      if (previousSession?.exists() && (previousSession.data() as SessionDoc).lessonPlanId === id) {
+        transaction.update(previousSession.ref, { lessonPlanId: null, updatedAt: serverTimestamp() });
+      }
+    }
+    if (input.sessionId) transaction.update(doc(db, COLLECTIONS.SESSIONS, input.sessionId), {
       lessonPlanId: id,
       updatedAt: serverTimestamp(),
     });
-  }
-  await batch.commit();
+  });
 }
 
 export async function updateLessonPlanDriveAttachment(id: string, metadata: LessonPlanDriveAttachment | null): Promise<void> {
@@ -101,19 +128,29 @@ export async function listLessonPlans(): Promise<(LessonPlanDoc & { id: string }
   if (!currentUser || (!isAdminUser(currentUser) && !isTeacherUser(currentUser))) return [];
 
   if (isAdminUser(currentUser)) {
-    const snapshot = await getDocs(query(collection(db, COLLECTIONS.LESSON_PLANS), orderBy("updatedAt", "desc"), limit(200)));
-    return snapshot.docs.map((item) => ({ id: item.id, ...normalizeLessonPlan(item.data() as LessonPlanDoc) }));
+    const documents = await listAllQueryDocuments(
+      COLLECTIONS.LESSON_PLANS,
+      [orderBy("updatedAt", "desc")],
+      200,
+    );
+    return documents.map((item) => ({ id: item.id, ...normalizeLessonPlan(item.data() as LessonPlanDoc) }));
   }
 
   const classes = await listClasses();
-  const snapshots = await Promise.all([
-    getDocs(query(collection(db, COLLECTIONS.LESSON_PLANS), where("createdBy", "==", currentUser.uid), limit(200))),
-    ...classes.map((klass) => getDocs(
-      query(collection(db, COLLECTIONS.LESSON_PLANS), where("classId", "==", klass.id), limit(200)),
+  const groups = await Promise.all([
+    listAllQueryDocuments(
+      COLLECTIONS.LESSON_PLANS,
+      [where("createdBy", "==", currentUser.uid)],
+      200,
+    ),
+    ...classes.map((klass) => listAllQueryDocuments(
+      COLLECTIONS.LESSON_PLANS,
+      [where("classId", "==", klass.id)],
+      200,
     )),
   ]);
   const plans = new Map<string, LessonPlanDoc & { id: string }>();
-  snapshots.forEach((snapshot) => snapshot.docs.forEach((item) => {
+  groups.forEach((documents) => documents.forEach((item) => {
     plans.set(item.id, { id: item.id, ...normalizeLessonPlan(item.data() as LessonPlanDoc) });
   }));
   return [...plans.values()].sort((a, b) => b.updatedAt.toMillis() - a.updatedAt.toMillis());
@@ -163,8 +200,12 @@ export async function copyLessonPlan(id: string, actorUid: string): Promise<void
 }
 
 export async function listLessonPlanTemplates(): Promise<(LessonPlanTemplateDoc & { id: string })[]> {
-  const snapshot = await getDocs(query(collection(db, COLLECTIONS.LESSON_PLAN_TEMPLATES), orderBy("name"), limit(100)));
-  return snapshot.docs.map((item) => ({ id: item.id, ...normalizeLessonPlanTemplate(item.data() as LessonPlanTemplateDoc) }));
+  const documents = await listAllQueryDocuments(
+    COLLECTIONS.LESSON_PLAN_TEMPLATES,
+    [orderBy("name")],
+    100,
+  );
+  return documents.map((item) => ({ id: item.id, ...normalizeLessonPlanTemplate(item.data() as LessonPlanTemplateDoc) }));
 }
 
 export async function createLessonPlanTemplate(
@@ -180,8 +221,12 @@ export async function createLessonPlanTemplate(
 }
 
 export async function listPublicLessonPlansByClass(classId: string, pageSize = 100): Promise<Record<string, unknown>[]> {
-  const snapshot = await getDocs(query(collection(db, COLLECTIONS.LESSON_PLAN_PUBLIC), where("classId", "==", classId), limit(pageSize)));
-  return snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+  const documents = await listAllQueryDocuments(
+    COLLECTIONS.LESSON_PLAN_PUBLIC,
+    [where("classId", "==", classId)],
+    pageSize,
+  );
+  return documents.map((item) => ({ id: item.id, ...item.data() }));
 }
 
 /** Buoi hoc sap toi (trong `days` ngay) cua cac lop da cho, chua co giao an nao gan sessionId tuong ung. */

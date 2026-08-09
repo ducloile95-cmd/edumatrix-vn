@@ -202,6 +202,7 @@ export function publicErrorCode(error: unknown): string {
   const known = new Set([
     "admin_required",
     "firebase_keys_unavailable",
+    "firestore_write_failed",
     "invalid_message",
     "invalid_message_tag",
     "utility_disabled",
@@ -447,6 +448,46 @@ async function readDocument(collectionId: string, id: string, token: string, env
   return response.ok ? response.json() : null;
 }
 
+function firestoreDocumentId(document: unknown): string | null {
+  const name = (document as { name?: unknown } | null)?.name;
+  if (typeof name !== "string") return null;
+  return name.split("/").pop() || null;
+}
+
+async function queryDocuments(
+  collectionId: string,
+  token: string,
+  env: Env,
+  filter?: { fieldPath: string; op: "EQUAL" | "ARRAY_CONTAINS"; value: string },
+): Promise<unknown[]> {
+  const baseQuery: Record<string, unknown> = {
+    from: [{ collectionId }],
+    limit: 200,
+  };
+  if (filter) {
+    baseQuery.where = {
+      fieldFilter: {
+        field: { fieldPath: filter.fieldPath },
+        op: filter.op,
+        value: { stringValue: filter.value },
+      },
+    };
+  }
+  const documents: unknown[] = [];
+  for (let offset = 0; ; offset += 200) {
+    const response = await fetch(`https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:runQuery`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ structuredQuery: { ...baseQuery, offset } }),
+    });
+    if (!response.ok) throw new Error("firestore_query_failed");
+    const rows = await response.json<Array<{ document?: unknown }>>();
+    const page = rows.flatMap((row) => row.document ? [row.document] : []);
+    documents.push(...page);
+    if (page.length < 200) return documents;
+  }
+}
+
 function firestoreValue(value: unknown): Record<string, unknown> {
   if (value === null || value === undefined) return { nullValue: null };
   if (value instanceof Date) return { timestampValue: value.toISOString() };
@@ -576,8 +617,16 @@ async function requireStaff(uid: string, idToken: string, env: Env): Promise<Sta
 async function threadContext(studentId: string, serviceToken: string, env: Env): Promise<ThreadContext | null> {
   const student = await readDocument("students", studentId, serviceToken, env);
   if (!student) return null;
-  const classId = fieldStringArray(student, "currentClassIds")[0] ?? "";
-  const classDoc = classId ? await readDocument("classes", classId, serviceToken, env) : null;
+  let classId = "";
+  let classDoc: unknown | null = null;
+  for (const candidateId of fieldStringArray(student, "currentClassIds")) {
+    const candidate = await readDocument("classes", candidateId, serviceToken, env);
+    if (candidate) {
+      classId = candidateId;
+      classDoc = candidate;
+      break;
+    }
+  }
   return {
     studentId,
     studentName: fieldString(student, "fullName") ?? studentId,
@@ -585,6 +634,53 @@ async function threadContext(studentId: string, serviceToken: string, env: Env):
     className: fieldString(classDoc, "name") ?? "Chưa xếp lớp",
     assignedTeacherIds: fieldStringArray(student, "teacherIds"),
   };
+}
+
+async function syncThreadContexts(profile: StaffProfile, uid: string, serviceToken: string, env: Env): Promise<number> {
+  const threadDocuments = profile.role === "admin"
+    ? await queryDocuments("chat_threads", serviceToken, env)
+    : (await Promise.all(
+        (await queryDocuments("students", serviceToken, env, {
+          fieldPath: "teacherIds",
+          op: "ARRAY_CONTAINS",
+          value: uid,
+        })).map(async (student) => {
+          const studentId = firestoreDocumentId(student);
+          return studentId
+            ? queryDocuments("chat_threads", serviceToken, env, { fieldPath: "studentId", op: "EQUAL", value: studentId })
+            : [];
+        }),
+      )).flat();
+  const uniqueThreads = new Map(threadDocuments.flatMap((thread) => {
+    const id = firestoreDocumentId(thread);
+    return id ? [[id, thread] as const] : [];
+  }));
+  let updated = 0;
+  for (const [id, thread] of uniqueThreads) {
+    const studentId = fieldString(thread, "studentId");
+    if (!studentId) continue;
+    const context = await threadContext(studentId, serviceToken, env);
+    if (!context) continue;
+    await updateDocumentFields("chat_threads", id, {
+      studentName: context.studentName,
+      classId: context.classId,
+      className: context.className,
+      assignedTeacherIds: context.assignedTeacherIds,
+      updatedAt: new Date(),
+    }, serviceToken, env);
+    updated += 1;
+  }
+  return updated;
+}
+
+async function handleSyncConversationContexts(request: Request, env: Env): Promise<Response> {
+  const idToken = extractBearer(request.headers.get("authorization"));
+  if (!idToken) return new Response(JSON.stringify({ error: "missing_bearer_token" }), { status: 401, headers: corsHeaders(env, request) });
+  const claims = await verifyFirebaseToken(idToken, env);
+  const profile = await requireStaff(claims.sub, idToken, env);
+  const serviceToken = await serviceAccessToken(env);
+  const updated = await syncThreadContexts(profile, claims.sub, serviceToken, env);
+  return new Response(JSON.stringify({ ok: true, updated }), { headers: corsHeaders(env, request) });
 }
 
 export async function assertStudentScope(profile: StaffProfile, uid: string, context: ThreadContext | null): Promise<void> {
@@ -1230,6 +1326,7 @@ export default {
       else if (path === "/api/messenger/post" && request.method === "POST") response = await handlePost(request, env);
       else if (path === "/api/messenger/referral" && request.method === "POST") response = await handleCreateReferral(request, env);
       else if (path === "/api/messenger/link" && request.method === "POST") response = await handleLinkConversation(request, env);
+      else if (path === "/api/messenger/sync-contexts" && request.method === "POST") response = await handleSyncConversationContexts(request, env);
       else if (path === "/api/meta/connect/start" && request.method === "POST") response = await handleMetaConnectStart(request, env);
       else if (path === "/api/meta/connect/callback" && request.method === "GET") response = await handleMetaConnectCallback(request, env);
       else if (path === "/api/meta/connect/status" && request.method === "POST") response = await handleMetaConnectStatus(request, env);

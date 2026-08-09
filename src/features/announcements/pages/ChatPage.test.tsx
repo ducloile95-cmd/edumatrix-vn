@@ -1,16 +1,22 @@
 // @vitest-environment jsdom
 
 import type { ReactNode } from "react";
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import ChatPage from "@/features/announcements/pages/ChatPage";
 import { renderWithQueryClient } from "@/test/renderWithQueryClient";
 
 const serviceMocks = vi.hoisted(() => ({
   listChatThreads: vi.fn(),
+  listChatTags: vi.fn(),
   listMessageOutbox: vi.fn(),
+  createChatTag: vi.fn(),
+  deleteChatTag: vi.fn(),
+  setChatThreadTags: vi.fn(),
   listStudents: vi.fn(),
+  listUsersByIds: vi.fn(),
   sendMessenger: vi.fn(),
+  syncMessengerThreadContexts: vi.fn(),
   subscribeChatMessages: vi.fn(),
 }));
 
@@ -28,12 +34,20 @@ vi.mock("@/components/ui/Modal", () => ({
 
 vi.mock("@/services/firestore/chat", () => ({
   listChatThreads: serviceMocks.listChatThreads,
+  listChatTags: serviceMocks.listChatTags,
   listMessageOutbox: serviceMocks.listMessageOutbox,
+  createChatTag: serviceMocks.createChatTag,
+  deleteChatTag: serviceMocks.deleteChatTag,
+  setChatThreadTags: serviceMocks.setChatThreadTags,
   subscribeChatMessages: serviceMocks.subscribeChatMessages,
 }));
 
 vi.mock("@/services/firestore/students", () => ({
   listStudents: serviceMocks.listStudents,
+}));
+
+vi.mock("@/services/firestore/users", () => ({
+  listUsersByIds: serviceMocks.listUsersByIds,
 }));
 
 vi.mock("@/services/integrations/messenger", () => {
@@ -53,6 +67,7 @@ vi.mock("@/services/integrations/messenger", () => {
     MessengerSendError,
     messengerPageUrl: () => null,
     sendMessenger: serviceMocks.sendMessenger,
+    syncMessengerThreadContexts: serviceMocks.syncMessengerThreadContexts,
   };
 });
 
@@ -78,8 +93,13 @@ describe("ChatPage messaging", () => {
     window.history.replaceState({}, "", "/app/chat");
     vi.stubEnv("VITE_MESSENGER_WORKER_URL", "https://worker.example");
     serviceMocks.listChatThreads.mockResolvedValue([thread]);
+    serviceMocks.listChatTags.mockResolvedValue([]);
+    serviceMocks.createChatTag.mockResolvedValue(undefined);
+    serviceMocks.deleteChatTag.mockResolvedValue(undefined);
+    serviceMocks.setChatThreadTags.mockResolvedValue(undefined);
     serviceMocks.listMessageOutbox.mockResolvedValue([]);
     serviceMocks.listStudents.mockResolvedValue([]);
+    serviceMocks.listUsersByIds.mockResolvedValue([{ uid: "parent-1", displayName: "Phụ huynh An", email: "phuhuynhan@example.com", phone: "0901234567" }]);
     serviceMocks.subscribeChatMessages.mockImplementation(
       (_threadId, onItems) => {
         onItems([]);
@@ -127,16 +147,25 @@ describe("ChatPage messaging", () => {
     expect(serviceMocks.listMessageOutbox).not.toHaveBeenCalled();
   });
 
-  test("keeps Zalo personal as a UI-only plan", async () => {
+  test("persists a Composer tag assignment to Firestore", async () => {
+    serviceMocks.listChatTags.mockResolvedValue([{ id: "tag-green", label: "Đã mua", color: "green", createdBy: "admin-1", createdAt: null, updatedAt: null }]);
     renderWithQueryClient(<ChatPage />);
 
-    await screen.findByLabelText("Soạn tin nhắn");
-    fireEvent.click(screen.getByRole("button", { name: "Zalo cá nhân" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Gắn tag Đã mua" }));
 
-    expect(screen.getByLabelText("Kế hoạch kết nối Zalo cá nhân")).toBeTruthy();
-    expect(screen.getByText("Kênh này chưa kết nối với hệ thống")).toBeTruthy();
-    expect(screen.queryByLabelText("Soạn tin nhắn")).toBeNull();
-    expect(serviceMocks.sendMessenger).not.toHaveBeenCalled();
+    await waitFor(() => expect(serviceMocks.setChatThreadTags).toHaveBeenCalledWith("thread-1", ["tag-green"]));
+  });
+
+  test("uses the final demo hierarchy and removes Zalo", async () => {
+    renderWithQueryClient(<ChatPage />);
+
+    const composer = await screen.findByLabelText("Soạn tin nhắn");
+    expect(composer.getAttribute("placeholder")).toBe("Aa");
+    expect(screen.queryByText("Zalo cá nhân")).toBeNull();
+    expect(within(screen.getByLabelText("Danh sách hội thoại")).queryByText("Nguyễn An")).toBeNull();
+    expect(within(screen.getByLabelText("Hội thoại với Facebook An")).queryByText("Nguyễn An")).toBeNull();
+    expect(screen.getByText("Thông tin phụ huynh")).toBeTruthy();
+    expect(await screen.findByText("phuhuynhan@example.com")).toBeTruthy();
   });
 
   test("shows the Messenger error and keeps the draft for retry", async () => {
@@ -195,8 +224,13 @@ describe("ChatPage utility templates", () => {
     vi.stubEnv("VITE_MESSENGER_WORKER_URL", "https://worker.example");
     vi.stubEnv("VITE_UTILITY_MESSAGING_ENABLED", "true");
     serviceMocks.listChatThreads.mockResolvedValue([]);
+    serviceMocks.listChatTags.mockResolvedValue([]);
+    serviceMocks.createChatTag.mockResolvedValue(undefined);
+    serviceMocks.deleteChatTag.mockResolvedValue(undefined);
+    serviceMocks.setChatThreadTags.mockResolvedValue(undefined);
     serviceMocks.listMessageOutbox.mockResolvedValue([]);
     serviceMocks.listStudents.mockResolvedValue([student]);
+    serviceMocks.listUsersByIds.mockResolvedValue([]);
     serviceMocks.subscribeChatMessages.mockImplementation((_id, onItems) => { onItems([]); return vi.fn(); });
     serviceMocks.sendMessenger.mockResolvedValue({ sent: true, status: "sent" });
   });

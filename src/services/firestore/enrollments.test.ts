@@ -17,11 +17,14 @@ vi.mock("firebase/firestore", () => ({
 
 vi.mock("@/services/firebase/firestoreClient", () => ({ db: {} }));
 
-import { syncStudentEnrollments } from "@/services/firestore/enrollments";
+import { enrollStudent, syncStudentEnrollments } from "@/services/firestore/enrollments";
 
 describe("syncStudentEnrollments", () => {
+  let studentCurrentClassIds: string[];
+
   beforeEach(() => {
     vi.clearAllMocks();
+    studentCurrentClassIds = ["class-old"];
     mocks.runTransaction.mockImplementation(async (_db, callback) => callback({
       get: mocks.transactionGet,
       set: mocks.transactionSet,
@@ -29,9 +32,9 @@ describe("syncStudentEnrollments", () => {
     }));
     mocks.transactionGet.mockImplementation(async (ref: string) => {
       const records: Record<string, unknown> = {
-        "students/student-1": { currentClassIds: ["class-old"], teacherIds: ["teacher-old"] },
-        "classes/class-old": { courseId: "course-old", teacherIds: ["teacher-old"] },
-        "classes/class-new": { courseId: "course-new", teacherIds: ["teacher-new"] },
+        "students/student-1": { currentClassIds: studentCurrentClassIds, teacherIds: ["teacher-old"], status: "active" },
+        "classes/class-old": { courseId: "course-old", teacherIds: ["teacher-old"], status: "active" },
+        "classes/class-new": { courseId: "course-new", teacherIds: ["teacher-new"], status: "active" },
       };
       const data = records[ref];
       return {
@@ -68,5 +71,51 @@ describe("syncStudentEnrollments", () => {
       .rejects.toThrow("class_not_found");
     expect(mocks.transactionSet).not.toHaveBeenCalled();
     expect(mocks.transactionUpdate).not.toHaveBeenCalled();
+  });
+
+  test("removes stale current class ids while applying a valid class change", async () => {
+    studentCurrentClassIds = ["class-old", "class-deleted"];
+
+    await syncStudentEnrollments("student-1", ["class-new", "class-deleted"]);
+
+    expect(mocks.transactionUpdate).toHaveBeenCalledWith("students/student-1", {
+      currentClassIds: ["class-new"],
+      teacherIds: ["teacher-new"],
+      updatedAt: "server-time",
+    });
+  });
+
+  test("reactivates an enrollment without replacing its original joinedAt", async () => {
+    const joinedAt = { seconds: 123 };
+    mocks.transactionGet.mockImplementation(async (ref: string) => {
+      const records: Record<string, unknown> = {
+        "students/student-1": { currentClassIds: [], teacherIds: [], status: "active" },
+        "classes/class-new": { courseId: "course-new", teacherIds: ["teacher-new"], status: "active" },
+        "enrollments/class-new_student-1": { status: "ended", joinedAt },
+      };
+      const data = records[ref];
+      return { exists: () => data !== undefined, data: () => data };
+    });
+
+    await enrollStudent("class-new", "student-1");
+
+    expect(mocks.transactionSet).toHaveBeenCalledWith(
+      "enrollments/class-new_student-1",
+      expect.objectContaining({ joinedAt, status: "active", endedAt: null }),
+    );
+  });
+
+  test("does not enroll an inactive student", async () => {
+    mocks.transactionGet.mockImplementation(async (ref: string) => {
+      const records: Record<string, unknown> = {
+        "students/student-1": { currentClassIds: [], teacherIds: [], status: "inactive" },
+        "classes/class-new": { courseId: "course-new", teacherIds: ["teacher-new"], status: "active" },
+      };
+      const data = records[ref];
+      return { exists: () => data !== undefined, data: () => data };
+    });
+
+    await expect(enrollStudent("class-new", "student-1")).rejects.toThrow("student_not_active");
+    expect(mocks.transactionSet).not.toHaveBeenCalled();
   });
 });

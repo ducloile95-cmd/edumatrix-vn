@@ -1,14 +1,15 @@
 import {
-  addDoc,
   collection,
   doc,
   getDoc,
   getDocs,
+  increment,
   limit,
   orderBy,
   query,
   runTransaction,
   serverTimestamp,
+  startAfter,
   Timestamp,
   where,
   writeBatch,
@@ -17,7 +18,9 @@ import { db } from "@/services/firebase/firestoreClient";
 import { COLLECTIONS } from "@/constants/collections";
 import { getCurrentUserDoc, isAdminUser, isTeacherUser } from "@/services/firestore/authz";
 import { generateRecurringSessions } from "@/utils/recurrence";
-import type { ClassDoc, ClassStatus, StudentDoc } from "@/types/academic";
+import type { ClassDoc, ClassStatus, CourseCurriculumDoc, CourseCurriculumItemDoc, CourseDoc, SessionDoc, StudentDoc } from "@/types/academic";
+import type { DocumentData, QueryConstraint, QueryDocumentSnapshot, QuerySnapshot } from "firebase/firestore";
+import { decodeClassDoc } from "@/services/firestore/decoders";
 
 export interface UpsertClassInput {
   name: string;
@@ -31,24 +34,26 @@ export interface UpsertClassInput {
 
 /** ID auto - khong co ma lop nghiep vu rieng (A13). */
 export async function createClass(input: UpsertClassInput): Promise<string> {
-  const courseSnap = await getDoc(doc(db, COLLECTIONS.COURSES, input.courseId));
-  const courseData = courseSnap.exists() ? courseSnap.data() : null;
-  const activeCurriculumId = courseData?.activeCurriculumId || null;
-  const activeCurriculumVersion = courseData?.activeCurriculumVersion || null;
-
-  const ref = await addDoc(collection(db, COLLECTIONS.CLASSES), {
-    name: input.name,
-    courseId: input.courseId,
-    subjectIds: input.subjectIds,
-    teacherIds: input.teacherIds,
-    studentIds: [],
-    scheduleText: input.scheduleText,
-    location: input.location,
-    status: input.status,
-    curriculumId: activeCurriculumId,
-    curriculumVersion: activeCurriculumVersion,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
+  const ref = doc(collection(db, COLLECTIONS.CLASSES));
+  await runTransaction(db, async (transaction) => {
+    const courseSnap = await transaction.get(doc(db, COLLECTIONS.COURSES, input.courseId));
+    const courseData = courseSnap.exists() ? courseSnap.data() as CourseDoc : null;
+    validateClassAgainstCourse(input, courseData);
+    transaction.set(ref, {
+      name: input.name,
+      courseId: input.courseId,
+      subjectIds: input.subjectIds,
+      teacherIds: input.teacherIds,
+      studentIds: [],
+      scheduleText: input.scheduleText,
+      location: input.location,
+      status: input.status,
+      curriculumId: courseData.activeCurriculumId || null,
+      curriculumVersion: courseData.activeCurriculumVersion || null,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    transaction.update(courseSnap.ref, { classRevision: nextClassRevision(courseData) });
   });
   return ref.id;
 }
@@ -59,6 +64,25 @@ export interface ClassScheduleRecurrenceInput {
   endTime: string;
   startDate: Date;
   sessionCount: number;
+}
+
+function validateClassAgainstCourse(input: UpsertClassInput, course: CourseDoc | null): asserts course is CourseDoc {
+  if (!course) throw new Error("COURSE_NOT_FOUND");
+  if (course.status !== "active") throw new Error("COURSE_NOT_ACTIVE");
+  if (input.subjectIds.length === 0) throw new Error("CLASS_SUBJECT_REQUIRED");
+  if (new Set(input.subjectIds).size !== input.subjectIds.length || new Set(input.teacherIds).size !== input.teacherIds.length) {
+    throw new Error("CLASS_REFERENCE_DUPLICATE");
+  }
+  if (input.subjectIds.some((subjectId) => !course.subjectIds.includes(subjectId))) {
+    throw new Error("CLASS_SUBJECT_NOT_IN_COURSE");
+  }
+  if (input.teacherIds.some((teacherId) => !course.teacherIds.includes(teacherId))) {
+    throw new Error("CLASS_TEACHER_NOT_IN_COURSE");
+  }
+}
+
+function nextClassRevision(course: CourseDoc): number {
+  return (course.classRevision ?? 0) + 1;
 }
 
 const FULL_DOW_LABEL = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
@@ -76,24 +100,18 @@ function buildScheduleText(recurrence: ClassScheduleRecurrenceInput): string {
 export async function createClassWithSchedule(
   input: UpsertClassInput & { recurrence: ClassScheduleRecurrenceInput },
 ): Promise<string> {
-  const courseSnap = await getDoc(doc(db, COLLECTIONS.COURSES, input.courseId));
-  const courseData = courseSnap.exists() ? courseSnap.data() : null;
-  const activeCurriculumId = courseData?.activeCurriculumId || null;
-  const activeCurriculumVersion = courseData?.activeCurriculumVersion || null;
-
-  let curriculumItems: any[] = [];
-  if (activeCurriculumId && activeCurriculumVersion) {
-    const itemsSnap = await getDocs(
-      query(
-        collection(db, COLLECTIONS.COURSE_CURRICULUM_ITEMS),
-        where("courseId", "==", input.courseId),
-        where("curriculumVersion", "==", activeCurriculumVersion),
-        orderBy("sequenceNumber", "asc")
-      )
-    );
-    curriculumItems = itemsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  if (input.recurrence.sessionCount < 1 || input.recurrence.sessionCount > 200) {
+    throw new Error("CLASS_SESSION_LIMIT");
   }
-
+  const daysOfWeek = [...new Set(input.recurrence.daysOfWeek)];
+  if (daysOfWeek.length < 1 || daysOfWeek.some((day) => !Number.isInteger(day) || day < 0 || day > 6)) {
+    throw new Error("INVALID_RECURRENCE_DAYS");
+  }
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(input.recurrence.startTime) ||
+      !/^([01]\d|2[0-3]):[0-5]\d$/.test(input.recurrence.endTime) ||
+      input.recurrence.endTime <= input.recurrence.startTime) {
+    throw new Error("INVALID_RECURRENCE_TIME");
+  }
   const { sessions, endDate } = generateRecurringSessions({
     startDate: input.recurrence.startDate,
     daysOfWeek: input.recurrence.daysOfWeek,
@@ -102,53 +120,84 @@ export async function createClassWithSchedule(
     sessionCount: input.recurrence.sessionCount,
   });
 
-  const batch = writeBatch(db);
   const classRef = doc(collection(db, COLLECTIONS.CLASSES));
-  batch.set(classRef, {
-    name: input.name,
-    courseId: input.courseId,
-    subjectIds: input.subjectIds,
-    teacherIds: input.teacherIds,
-    studentIds: [],
-    scheduleText: buildScheduleText(input.recurrence),
-    location: input.location,
-    status: input.status,
-    curriculumId: activeCurriculumId,
-    curriculumVersion: activeCurriculumVersion,
-    recurrence: {
-      daysOfWeek: input.recurrence.daysOfWeek,
-      startTime: input.recurrence.startTime,
-      endTime: input.recurrence.endTime,
-      startDate: Timestamp.fromDate(input.recurrence.startDate),
-      endDate: Timestamp.fromDate(endDate),
-      sessionCount: sessions.length,
-    },
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
+  await runTransaction(db, async (transaction) => {
+    const courseSnap = await transaction.get(doc(db, COLLECTIONS.COURSES, input.courseId));
+    const courseData = courseSnap.exists() ? courseSnap.data() as CourseDoc : null;
+    validateClassAgainstCourse(input, courseData);
+    if (input.recurrence.sessionCount !== courseData.totalSessions) {
+      throw new Error("CLASS_COURSE_SESSION_MISMATCH");
+    }
+    const activeCurriculumId = courseData.activeCurriculumId || null;
+    const activeCurriculumVersion = courseData.activeCurriculumVersion || null;
+    let curriculumItems: Array<CourseCurriculumItemDoc & { id: string }> = [];
+    if (activeCurriculumId && activeCurriculumVersion) {
+      const curriculumSnap = await transaction.get(doc(db, COLLECTIONS.COURSE_CURRICULA, activeCurriculumId));
+      if (!curriculumSnap.exists()) throw new Error("CURRICULUM_NOT_FOUND");
+      const curriculum = curriculumSnap.data() as CourseCurriculumDoc;
+      if (curriculum.status !== "published" || curriculum.courseId !== input.courseId || curriculum.version !== activeCurriculumVersion) {
+        throw new Error("CURRICULUM_POINTER_INVALID");
+      }
+      if (curriculum.itemCount !== input.recurrence.sessionCount || curriculum.itemIds.length !== curriculum.itemCount) {
+        throw new Error("CURRICULUM_ITEM_COUNT_MISMATCH");
+      }
+      const itemSnaps = await Promise.all(curriculum.itemIds.map((itemId) => (
+        transaction.get(doc(db, COLLECTIONS.COURSE_CURRICULUM_ITEMS, itemId))
+      )));
+      if (itemSnaps.some((itemSnap) => !itemSnap.exists())) throw new Error("CURRICULUM_ITEM_MISSING");
+      curriculumItems = itemSnaps.map((itemSnap) => ({ id: itemSnap.id, ...(itemSnap.data() as CourseCurriculumItemDoc) }));
+      curriculumItems.forEach((item, index) => {
+        if (item.courseId !== input.courseId || item.curriculumVersion !== activeCurriculumVersion ||
+            item.sequenceNumber !== index + 1 || item.status !== "ready" || !item.standardLessonId ||
+            !courseData.subjectIds.includes(item.subjectId)) {
+          throw new Error("CURRICULUM_ITEM_INVALID");
+        }
+      });
+    }
 
-  sessions.forEach((session, index) => {
-    const sessionRef = doc(collection(db, COLLECTIONS.SESSIONS));
-    const currItem = curriculumItems[index] || null;
-    batch.set(sessionRef, {
-      classId: classRef.id,
-      title: input.name,
-      startAt: Timestamp.fromDate(session.startAt),
-      endAt: Timestamp.fromDate(session.endAt),
+    transaction.set(classRef, {
+      name: input.name,
+      courseId: input.courseId,
+      subjectIds: input.subjectIds,
+      teacherIds: input.teacherIds,
+      studentIds: [],
+      scheduleText: buildScheduleText(input.recurrence),
       location: input.location,
-      status: "scheduled",
-      note: "",
-      makeUpForSessionId: null,
-      sequenceNumber: index + 1,
+      status: input.status,
+      curriculumId: activeCurriculumId,
       curriculumVersion: activeCurriculumVersion,
-      curriculumItemId: currItem ? currItem.id : null,
-      lessonPlanId: null,
+      recurrence: {
+        daysOfWeek: input.recurrence.daysOfWeek,
+        startTime: input.recurrence.startTime,
+        endTime: input.recurrence.endTime,
+        startDate: Timestamp.fromDate(input.recurrence.startDate),
+        endDate: Timestamp.fromDate(endDate),
+        sessionCount: sessions.length,
+      },
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
+    sessions.forEach((session, index) => {
+      const currItem = curriculumItems[index] || null;
+      transaction.set(doc(collection(db, COLLECTIONS.SESSIONS)), {
+        classId: classRef.id,
+        title: input.name,
+        startAt: Timestamp.fromDate(session.startAt),
+        endAt: Timestamp.fromDate(session.endAt),
+        location: input.location,
+        status: "scheduled",
+        note: "",
+        makeUpForSessionId: null,
+        sequenceNumber: index + 1,
+        curriculumVersion: activeCurriculumVersion,
+        curriculumItemId: currItem ? currItem.id : null,
+        lessonPlanId: null,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    });
+    transaction.update(courseSnap.ref, { classRevision: nextClassRevision(courseData) });
   });
-
-  await batch.commit();
   return classRef.id;
 }
 
@@ -158,6 +207,10 @@ export async function createClassWithSchedule(
  * lop trong cung transaction de student scope va Messenger khong bi lech.
  */
 export async function updateClass(classId: string, input: UpsertClassInput): Promise<void> {
+  if (input.status === "cancelled") {
+    await deleteClass(classId);
+    return;
+  }
   const actor = await getCurrentUserDoc();
   const shouldSyncStudents = isAdminUser(actor);
   await runTransaction(db, async (transaction) => {
@@ -166,6 +219,10 @@ export async function updateClass(classId: string, input: UpsertClassInput): Pro
     if (!classSnap.exists()) throw new Error("class_not_found");
 
     const currentClass = classSnap.data() as ClassDoc;
+    if (input.courseId !== currentClass.courseId) throw new Error("CLASS_COURSE_IMMUTABLE");
+    const courseSnap = await transaction.get(doc(db, COLLECTIONS.COURSES, currentClass.courseId));
+    const courseData = courseSnap.exists() ? courseSnap.data() as CourseDoc : null;
+    validateClassAgainstCourse(input, courseData);
     const nextTeacherIds = [...new Set(input.teacherIds)].sort();
 
     const studentRefs = shouldSyncStudents
@@ -197,6 +254,7 @@ export async function updateClass(classId: string, input: UpsertClassInput): Pro
       status: input.status,
       updatedAt: serverTimestamp(),
     });
+    transaction.update(courseSnap.ref, { classRevision: nextClassRevision(courseData) });
 
     students.forEach(({ ref, data }) => {
       const teacherIds = [...new Set([
@@ -216,32 +274,41 @@ export async function updateClass(classId: string, input: UpsertClassInput): Pro
  */
 export async function deleteClass(classId: string): Promise<void> {
   const now = new Date();
-  const batch = writeBatch(db);
-
-  batch.update(doc(db, COLLECTIONS.CLASSES, classId), {
-    status: "cancelled",
-    updatedAt: serverTimestamp(),
-  });
-
-  const sessionsSnap = await getDocs(
-    query(
-      collection(db, COLLECTIONS.SESSIONS),
+  const classRef = doc(db, COLLECTIONS.CLASSES, classId);
+  const classSnap = await getDoc(classRef);
+  if (!classSnap.exists()) throw new Error("class_not_found");
+  const courseId = (classSnap.data() as ClassDoc).courseId;
+  let cursor: QueryDocumentSnapshot<DocumentData> | null = null;
+  let firstBatch = true;
+  while (true) {
+    const constraints: QueryConstraint[] = [
       where("classId", "==", classId),
       where("startAt", ">=", Timestamp.fromDate(now)),
       orderBy("startAt"),
-      limit(300),
-    ),
-  );
-
-  sessionsSnap.docs.forEach((sessionDoc) => {
-    batch.update(sessionDoc.ref, {
-      status: "cancelled",
-      note: "Lop hoc da duoc xoa mem.",
-      updatedAt: serverTimestamp(),
+      limit(498),
+    ];
+    if (cursor) constraints.splice(3, 0, startAfter(cursor));
+    const sessionsSnap = await getDocs(query(
+      collection(db, COLLECTIONS.SESSIONS),
+      ...constraints,
+    ));
+    const batch = writeBatch(db);
+    if (firstBatch) {
+      batch.update(classRef, { status: "cancelled", updatedAt: serverTimestamp() });
+      batch.update(doc(db, COLLECTIONS.COURSES, courseId), { classRevision: increment(1) });
+    }
+    sessionsSnap.docs.forEach((sessionDoc) => {
+      if ((sessionDoc.data() as SessionDoc).status !== "cancelled") batch.update(sessionDoc.ref, {
+        status: "cancelled",
+        note: "Lớp học đã được xóa mềm.",
+        updatedAt: serverTimestamp(),
+      });
     });
-  });
-
-  await batch.commit();
+    if (firstBatch || sessionsSnap.docs.some((item) => (item.data() as SessionDoc).status !== "cancelled")) await batch.commit();
+    firstBatch = false;
+    if (sessionsSnap.size < 498) break;
+    cursor = sessionsSnap.docs[sessionsSnap.docs.length - 1];
+  }
 }
 
 /** Danh sach lop - Admin xem tat ca, Teacher chi xem lop duoc phan cong. */
@@ -251,19 +318,31 @@ export async function listClasses(): Promise<(ClassDoc & { id: string })[]> {
 
   if (!isAdminUser(currentUser) && !isTeacherUser(currentUser)) return [];
 
-  const q = isTeacherUser(currentUser)
-    ? query(collection(db, COLLECTIONS.CLASSES), where("teacherIds", "array-contains", currentUser.uid), limit(200))
-    : query(collection(db, COLLECTIONS.CLASSES), orderBy("name"), limit(200));
-  const snap = await getDocs(q);
-  return snap.docs
-    .map((d) => ({ id: d.id, ...(d.data() as ClassDoc) }))
+  const documents: QueryDocumentSnapshot<DocumentData, DocumentData>[] = [];
+  let cursor: QueryDocumentSnapshot<DocumentData, DocumentData> | null = null;
+  do {
+    const constraints: QueryConstraint[] = isTeacherUser(currentUser)
+      ? [where("teacherIds", "array-contains", currentUser.uid)]
+      : [orderBy("name")];
+    if (cursor) constraints.push(startAfter(cursor));
+    constraints.push(limit(200));
+    const snapshot: QuerySnapshot<DocumentData, DocumentData> = await getDocs(query(
+      collection(db, COLLECTIONS.CLASSES),
+      ...constraints,
+    ));
+    documents.push(...snapshot.docs);
+    cursor = snapshot.docs.length ? snapshot.docs[snapshot.docs.length - 1] : null;
+    if (snapshot.size < 200) break;
+  } while (cursor);
+  return documents
+    .map((d) => ({ id: d.id, ...decodeClassDoc(d.data(), `${COLLECTIONS.CLASSES}/${d.id}`) }))
     .sort((a, b) => a.name.localeCompare(b.name, "vi"));
 }
 
 export async function getClass(classId: string): Promise<(ClassDoc & { id: string }) | null> {
   const snap = await getDoc(doc(db, COLLECTIONS.CLASSES, classId));
   if (!snap.exists()) return null;
-  return { id: snap.id, ...(snap.data() as ClassDoc) };
+  return { id: snap.id, ...decodeClassDoc(snap.data(), `${COLLECTIONS.CLASSES}/${snap.id}`) };
 }
 
 function isUnavailableClass(error: unknown): boolean {

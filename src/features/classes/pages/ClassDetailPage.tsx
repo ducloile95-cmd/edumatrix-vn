@@ -107,7 +107,6 @@ export default function ClassDetailPage() {
               </p>
               <EnrollmentManager
                 classId={klass.id}
-                courseId={klass.courseId}
                 enrolledStudentIds={klass.studentIds}
                 canUnenroll={canUnenroll}
               />

@@ -5,7 +5,9 @@ import { LessonPlanForm } from "@/features/lesson-plans/components/LessonPlanFor
 import { CourseCurriculumWorkspace } from "@/features/lesson-plans/components/CourseCurriculumWorkspace";
 import { StandardLessonLibrary } from "@/features/lesson-plans/components/StandardLessonLibrary";
 import { TeachingSessionWorkspace } from "@/features/lesson-plans/components/TeachingSessionWorkspace";
-import type { LessonPlanDoc } from "@/types/academic";
+import type { LessonPlanDoc, SessionDoc, StandardLessonDoc } from "@/types/academic";
+
+type InitialSession = SessionDoc & { id: string; courseId?: string };
 
 export default function LessonPlansPage() {
   const [searchParams, setSearchParams] = useState(() => new URLSearchParams(window.location.search));
@@ -13,7 +15,7 @@ export default function LessonPlansPage() {
 
   const [formOpen, setFormOpen] = useState(() => searchParams.get("create") === "lesson-plan");
   const [editingPlan, setEditingPlan] = useState<(LessonPlanDoc & { id: string }) | null>(null);
-  const [initialSession, setInitialSession] = useState<any>(null);
+  const [initialSession, setInitialSession] = useState<InitialSession | null>(null);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -36,7 +38,7 @@ export default function LessonPlansPage() {
     setFormOpen(true);
   }
 
-  function openCreateForSession(session: any) {
+  function openCreateForSession(session: InitialSession) {
     setEditingPlan(null);
     setInitialSession(session);
     setFormOpen(true);
@@ -46,6 +48,20 @@ export default function LessonPlansPage() {
     setEditingPlan(plan);
     setInitialSession(null);
     setFormOpen(true);
+  }
+
+  function openEditStandard(lesson: StandardLessonDoc & { id: string }) {
+    openEdit({
+      ...lesson,
+      classId: null,
+      courseId: null,
+      sessionId: null,
+      notesAfterTeaching: "",
+      attachmentUrl: null,
+      attachmentLabel: "",
+      publicSummary: "",
+      status: "draft",
+    });
   }
 
   function handleDone() {
@@ -96,7 +112,7 @@ export default function LessonPlansPage() {
         )}
         {activeWorkspace === "library" && (
           <StandardLessonLibrary
-            onEdit={openEdit}
+            onEdit={openEditStandard}
             onCreateNew={openCreate}
           />
         )}

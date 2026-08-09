@@ -4,10 +4,10 @@ import {
   documentId,
   getDoc,
   getDocs,
-  limit,
   onSnapshot,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   updateDoc,
   where,
@@ -20,6 +20,9 @@ import { normalizeEmail } from "@/utils/email";
 import { writeAuditLog } from "@/services/firestore/auditLog";
 import { getCurrentUserDoc, isAdminUser, isTeacherUser } from "@/services/firestore/authz";
 import type { InviteDoc, UserDoc, UserRole, UserStatus } from "@/types/user";
+import type { StudentDoc } from "@/types/academic";
+import { decodeUserDoc } from "@/services/firestore/decoders";
+import { listAllQueryDocuments } from "@/services/firestore/pagination";
 
 export type ClaimFailureReason = "email_not_verified" | "no_invite" | "error";
 
@@ -93,11 +96,16 @@ export async function attemptClaimInvite(firebaseUser: User): Promise<ClaimResul
   }
 }
 
-/** Danh sach tai khoan cho man hinh Admin - khong realtime, co limit (A14). */
 export async function listUsers(): Promise<(UserDoc & { uid: string })[]> {
-  const q = query(collection(db, COLLECTIONS.USERS), orderBy("createdAt", "desc"), limit(100));
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ uid: d.id, ...(d.data() as UserDoc) }));
+  const documents = await listAllQueryDocuments(
+    COLLECTIONS.USERS,
+    [orderBy("createdAt", "desc"), orderBy(documentId())],
+    100,
+  );
+  return documents.map((d) => ({
+    uid: d.id,
+    ...decodeUserDoc(d.data(), `${COLLECTIONS.USERS}/${d.id}`),
+  }));
 }
 
 export async function listUsersByIds(uids: string[]): Promise<(UserDoc & { uid: string })[]> {
@@ -108,7 +116,10 @@ export async function listUsersByIds(uids: string[]): Promise<(UserDoc & { uid: 
     const chunk = uniqueIds.slice(offset, offset + 30);
     if (chunk.length === 0) continue;
     const snap = await getDocs(query(collection(db, COLLECTIONS.USERS), where(documentId(), "in", chunk)));
-    groups.push(snap.docs.map((d) => ({ uid: d.id, ...(d.data() as UserDoc) })));
+    groups.push(snap.docs.map((d) => ({
+      uid: d.id,
+      ...decodeUserDoc(d.data(), `${COLLECTIONS.USERS}/${d.id}`),
+    })));
   }
 
   return groups.flat();
@@ -129,19 +140,47 @@ export function subscribeUsers(
   onData: (users: (UserDoc & { uid: string })[]) => void,
   onError?: (error: Error) => void,
 ): () => void {
-  const q = query(collection(db, COLLECTIONS.USERS), orderBy("createdAt", "desc"), limit(100));
+  const q = query(collection(db, COLLECTIONS.USERS), orderBy("createdAt", "desc"));
   return onSnapshot(q, (snap) => {
-    onData(snap.docs.map((entry) => ({ uid: entry.id, ...(entry.data() as UserDoc) })));
+    onData(snap.docs.map((entry) => ({
+      uid: entry.id,
+      ...decodeUserDoc(entry.data(), `${COLLECTIONS.USERS}/${entry.id}`),
+    })));
   }, (error) => onError?.(error));
 }
 
 export async function updateUserAccount(actor: User, uid: string, input: UpdateUserAccountInput): Promise<void> {
-  await updateDoc(doc(db, COLLECTIONS.USERS, uid), {
-    displayName: input.displayName.trim(),
-    role: input.role,
-    status: input.status,
-    studentIds: [...new Set(input.studentIds)],
-    updatedAt: serverTimestamp(),
+  const nextStudentIds = [...new Set(input.studentIds)].filter(Boolean).sort();
+  if (input.role !== "viewer" && nextStudentIds.length > 0) throw new Error("NON_VIEWER_CANNOT_LINK_STUDENTS");
+
+  await runTransaction(db, async (transaction) => {
+    const userRef = doc(db, COLLECTIONS.USERS, uid);
+    const userSnap = await transaction.get(userRef);
+    if (!userSnap.exists()) throw new Error("USER_NOT_FOUND");
+    const currentUser = userSnap.data() as UserDoc;
+    const affectedStudentIds = [...new Set([...currentUser.studentIds, ...nextStudentIds])];
+    const studentSnaps = await Promise.all(
+      affectedStudentIds.map((studentId) => transaction.get(doc(db, COLLECTIONS.STUDENTS, studentId))),
+    );
+    if (studentSnaps.some((studentSnap) => !studentSnap.exists() && nextStudentIds.includes(studentSnap.id))) {
+      throw new Error("STUDENT_NOT_FOUND");
+    }
+
+    transaction.update(userRef, {
+      displayName: input.displayName.trim(),
+      role: input.role,
+      status: input.status,
+      studentIds: nextStudentIds,
+      updatedAt: serverTimestamp(),
+    });
+    studentSnaps.forEach((studentSnap) => {
+      if (!studentSnap.exists()) return;
+      const student = studentSnap.data() as StudentDoc;
+      const parentUids = nextStudentIds.includes(studentSnap.id)
+        ? [...new Set([...student.parentUids, uid])]
+        : student.parentUids.filter((parentUid) => parentUid !== uid);
+      transaction.update(studentSnap.ref, { parentUids, updatedAt: serverTimestamp() });
+    });
   });
   await writeAuditLog(actor, "user_account_updated", "user", uid, {
     role: input.role,
@@ -182,12 +221,13 @@ export async function listUsersByRole(role: UserRole): Promise<(UserDoc & { uid:
 
   if (!isAdminUser(currentUser) && (!isTeacherUser(currentUser) || role === "admin")) return [];
 
-  const q = query(
-    collection(db, COLLECTIONS.USERS),
-    where("role", "==", role),
-    where("status", "==", "active"),
-    limit(50),
+  const documents = await listAllQueryDocuments(
+    COLLECTIONS.USERS,
+    [where("role", "==", role), where("status", "==", "active"), orderBy(documentId())],
+    50,
   );
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ uid: d.id, ...(d.data() as UserDoc) }));
+  return documents.map((d) => ({
+    uid: d.id,
+    ...decodeUserDoc(d.data(), `${COLLECTIONS.USERS}/${d.id}`),
+  }));
 }

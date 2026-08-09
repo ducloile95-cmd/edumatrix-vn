@@ -19,6 +19,17 @@ export interface ChatThreadDoc {
   messengerPsid?: string;
   facebookName?: string | null;
   facebookAvatarUrl?: string | null;
+  tagIds?: string[];
+  updatedAt: Timestamp;
+}
+
+export type ChatTagColor = "red" | "pink" | "amber" | "green" | "blue";
+
+export interface ChatTagDoc {
+  label: string;
+  color: ChatTagColor;
+  createdBy: string;
+  createdAt: Timestamp;
   updatedAt: Timestamp;
 }
 

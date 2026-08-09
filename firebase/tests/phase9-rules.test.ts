@@ -301,13 +301,18 @@ describe("Phase 9 payment", () => {
     await assertSucceeds(batch.commit());
   });
 
-  test("staff verifies payment", async () =>
-    assertSucceeds(
-      updateDoc(doc(env.authenticatedContext("admin").firestore(), "payments", "payment-1"), {
-        status: "verified",
-        verifiedBy: "admin",
-      }),
-    ));
+  test("staff verifies payment and its invoice atomically", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), "invoices", "invoice-1"), { status: "pending" });
+    });
+    const db = env.authenticatedContext("admin").firestore();
+    const batch = writeBatch(db);
+    batch.update(doc(db, "payments", "payment-1"), {
+      status: "verified", verifiedBy: "admin", verifiedAt: Timestamp.now(), updatedAt: Timestamp.now(),
+    });
+    batch.update(doc(db, "invoices", "invoice-1"), { status: "paid", updatedAt: Timestamp.now() });
+    await assertSucceeds(batch.commit());
+  });
 });
 
 describe("Billing item integrity", () => {

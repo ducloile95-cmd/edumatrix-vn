@@ -7,7 +7,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { doc, setDoc, Timestamp, updateDoc } from "firebase/firestore";
+import { doc, setDoc, Timestamp, updateDoc, writeBatch } from "firebase/firestore";
 
 const PROJECT_ID = "immutable-rules";
 let env: RulesTestEnvironment;
@@ -38,6 +38,7 @@ beforeEach(async () => {
     await setDoc(doc(db, "users", admin), { role: "admin", status: "active", studentIds: [] });
     await setDoc(doc(db, "users", teacher), { role: "teacher", status: "active", studentIds: [] });
     await setDoc(doc(db, "users", viewer), { role: "viewer", status: "active", studentIds: ["student-1"] });
+    await setDoc(doc(db, "courses", "course-1"), { status: "active", subjectIds: ["subject-1"], teacherIds: [teacher], totalSessions: 1 });
     await setDoc(doc(db, "classes", "class-1"), {
       courseId: "course-1",
       subjectIds: ["subject-1"],
@@ -169,7 +170,7 @@ beforeEach(async () => {
       bankBin: "970000",
       accountNumber: "123",
       accountName: "EduMatrix",
-      status: "unpaid",
+      status: "pending",
       createdBy: admin,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
@@ -226,7 +227,13 @@ describe("immutable Firestore fields", () => {
 
   test("valid status-only updates still pass", async () => {
     await assertSucceeds(updateDoc(doc(asTeacher(), "sessions", "session-1"), { status: "completed" }));
-    await assertSucceeds(updateDoc(doc(asAdmin(), "payments", "payment-1"), { status: "verified", verifiedBy: admin }));
+    const db = asAdmin();
+    const batch = writeBatch(db);
+    batch.update(doc(db, "payments", "payment-1"), {
+      status: "verified", verifiedBy: admin, verifiedAt: Timestamp.now(), updatedAt: Timestamp.now(),
+    });
+    batch.update(doc(db, "invoices", "invoice-1"), { status: "paid", updatedAt: Timestamp.now() });
+    await assertSucceeds(batch.commit());
   });
 });
 

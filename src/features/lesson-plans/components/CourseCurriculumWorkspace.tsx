@@ -12,24 +12,25 @@ import {
   listCourseCurriculumItems,
   createCourseCurriculumDraft,
   updateCourseCurriculumItem,
+  swapCourseCurriculumItems,
   publishCourseCurriculum,
 } from "@/services/firestore/courseCurricula";
-import { listStandardLessons } from "@/services/firestore/standardLessons";
-import { doc, writeBatch } from "firebase/firestore";
-import { db } from "@/services/firebase/firestoreClient";
-import { COLLECTIONS } from "@/constants/collections";
+import { listAllStandardLessons } from "@/services/firestore/standardLessons";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import type { CourseCurriculumItemDoc } from "@/types/academic";
+import type { CourseCurriculumItemDoc, CourseDoc, StandardLessonDoc } from "@/types/academic";
+
+type CurriculumEditableField = "title" | "standardLessonId" | "durationMinutes" | "subjectId" | "status";
+type CurriculumEditableValue = string | number | null;
 
 interface CurriculumItemRowProps {
   item: CourseCurriculumItemDoc & { id: string };
   idx: number;
   totalItemsCount: number;
   status: string;
-  standardLessons: any[];
-  selectedCourse: any;
+  standardLessons: Array<StandardLessonDoc & { id: string }>;
+  selectedCourse?: CourseDoc & { id: string };
   handleSwap: (idxA: number, idxB: number) => void;
-  handleUpdateItem: (itemId: string, field: string, value: any) => void;
+  handleUpdateItem: (itemId: string, field: CurriculumEditableField, value: CurriculumEditableValue) => void;
 }
 
 function CurriculumItemRow({
@@ -136,7 +137,7 @@ function CurriculumItemRow({
           >
             <option value="">-- Chọn bài học chuẩn --</option>
             {standardLessons
-              .filter((sl) => !selectedCourse?.subjectIds || selectedCourse.subjectIds.includes(sl.subjectId))
+              .filter((sl) => sl.approvalStatus === "approved" && (!selectedCourse?.subjectIds || selectedCourse.subjectIds.includes(sl.subjectId)))
               .map((sl) => (
                 <option key={sl.id} value={sl.id}>
                   {sl.title} ({sl.approvalStatus === "approved" ? "đã duyệt" : sl.approvalStatus === "pending" ? "chờ duyệt" : "nháp"})
@@ -185,11 +186,10 @@ export function CourseCurriculumWorkspace() {
     enabled: !!selectedCourseId && !!activeCurriculum,
   });
 
-  const { data: standardLessonsData } = useQuery({
-    queryKey: ["standard-lessons-all"],
-    queryFn: () => listStandardLessons({}, 100),
+  const { data: standardLessons = [] } = useQuery({
+    queryKey: ["standard-lessons-all", "approved"],
+    queryFn: () => listAllStandardLessons({ approvalStatus: "approved" }),
   });
-  const standardLessons = standardLessonsData?.lessons || [];
 
   // Mutations
   const createDraftMutation = useMutation({
@@ -211,10 +211,10 @@ export function CourseCurriculumWorkspace() {
       setDraftTitle("");
       setDraftModalOpen(false);
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
       showToast({
         title: "Lỗi tạo bản nháp",
-        description: err.message || "Không thể khởi tạo bản nháp mới.",
+        description: err instanceof Error ? err.message : "Không thể khởi tạo bản nháp mới.",
         tone: "error",
       });
     },
@@ -234,41 +234,27 @@ export function CourseCurriculumWorkspace() {
         tone: "success",
       });
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
       showToast({
         title: "Lỗi xuất bản",
-        description: err.message || "Kiểm tra lại xem các buổi học đã được gán bài chuẩn chưa.",
+        description: err instanceof Error ? err.message : "Kiểm tra lại xem các buổi học đã được gán bài chuẩn chưa.",
         tone: "error",
       });
     },
   });
 
-  // Reorder logic inside batch
   const handleSwap = async (idxA: number, idxB: number) => {
     if (idxA < 0 || idxA >= curriculumItems.length || idxB < 0 || idxB >= curriculumItems.length) return;
     const itemA = curriculumItems[idxA];
     const itemB = curriculumItems[idxB];
 
-    const batch = writeBatch(db);
-    batch.update(doc(db, COLLECTIONS.COURSE_CURRICULUM_ITEMS, itemA.id), {
-      sequenceNumber: itemB.sequenceNumber,
-    });
-    batch.update(doc(db, COLLECTIONS.COURSE_CURRICULUM_ITEMS, itemB.id), {
-      sequenceNumber: itemA.sequenceNumber,
-    });
-
-    // Update parent Header revision
-    const curriculumId = `${selectedCourseId}_v${activeCurriculum.version}`;
-    batch.update(doc(db, COLLECTIONS.COURSE_CURRICULA, curriculumId), {
-      revision: (activeCurriculum.revision || 0) + 1,
-    });
-
-    await batch.commit();
+    await swapCourseCurriculumItems(itemA.id, itemB.id);
     refetchItems();
   };
 
-  const handleUpdateItem = async (itemId: string, field: string, value: any) => {
-    await updateCourseCurriculumItem(itemId, { [field]: value });
+  const handleUpdateItem = async (itemId: string, field: CurriculumEditableField, value: CurriculumEditableValue) => {
+    const changes = { [field]: value } as Partial<Pick<CourseCurriculumItemDoc, CurriculumEditableField>>;
+    await updateCourseCurriculumItem(itemId, changes);
     refetchItems();
   };
 

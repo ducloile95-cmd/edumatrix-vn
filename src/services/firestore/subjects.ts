@@ -1,17 +1,14 @@
 import {
-  collection,
   doc,
-  getDocs,
-  limit,
   orderBy,
-  query,
+  runTransaction,
   serverTimestamp,
-  setDoc,
   updateDoc,
 } from "firebase/firestore";
 import { db } from "@/services/firebase/firestoreClient";
 import { COLLECTIONS } from "@/constants/collections";
 import type { SubjectDoc, SubjectStatus } from "@/types/academic";
+import { listAllQueryDocuments } from "@/services/firestore/pagination";
 
 export interface CreateSubjectInput {
   name: string;
@@ -26,13 +23,18 @@ function subjectId(code: string): string {
 
 export async function createSubject(input: CreateSubjectInput): Promise<void> {
   const id = subjectId(input.code);
-  await setDoc(doc(db, COLLECTIONS.SUBJECTS, id), {
-    name: input.name,
-    code: id,
-    description: input.description,
-    status: "active",
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
+  const ref = doc(db, COLLECTIONS.SUBJECTS, id);
+  await runTransaction(db, async (transaction) => {
+    const existing = await transaction.get(ref);
+    if (existing.exists()) throw new Error("SUBJECT_CODE_EXISTS");
+    transaction.set(ref, {
+      name: input.name,
+      code: id,
+      description: input.description,
+      status: "active",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
   });
 }
 
@@ -61,9 +63,11 @@ export async function setSubjectStatus(subjectDocId: string, status: SubjectStat
   });
 }
 
-/** Danh muc mon hoc - nho (du an quy mo <50 tai khoan), khong can pagination that su (A14). */
 export async function listSubjects(): Promise<(SubjectDoc & { id: string })[]> {
-  const q = query(collection(db, COLLECTIONS.SUBJECTS), orderBy("name"), limit(200));
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as SubjectDoc) }));
+  const documents = await listAllQueryDocuments(
+    COLLECTIONS.SUBJECTS,
+    [orderBy("name")],
+    200,
+  );
+  return documents.map((d) => ({ id: d.id, ...(d.data() as SubjectDoc) }));
 }

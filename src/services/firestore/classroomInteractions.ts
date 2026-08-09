@@ -6,6 +6,7 @@ import {
   increment,
   limit,
   query,
+  runTransaction,
   serverTimestamp,
   updateDoc,
   where,
@@ -14,14 +15,17 @@ import {
 import { format } from "date-fns";
 import { COLLECTIONS } from "@/constants/collections";
 import { db } from "@/services/firebase/firestoreClient";
-import { attendanceCounts, queueAttendanceEntryWrite } from "@/services/firestore/attendance";
+import { attendanceCounts, queueAttendanceAlertWrite, queueAttendanceRecordWrite } from "@/services/firestore/attendance";
 import { sendMessenger } from "@/services/integrations/messenger";
 import type {
   AttendanceStatus,
   AttendanceDoc,
+  ClassDoc,
   PreviousHomeworkStatus,
+  SessionDoc,
   SessionInteractionDoc,
   SessionStudentReviewDoc,
+  StudentDoc,
 } from "@/types/academic";
 
 export interface ClassroomStudentEntry {
@@ -72,7 +76,7 @@ export async function getSessionStudentReviews(
     collection(db, COLLECTIONS.SESSION_STUDENT_REVIEWS),
     where("classId", "==", classId),
     where("sessionId", "==", sessionId),
-    limit(150),
+    limit(MAX_CLASSROOM_STUDENTS),
   ));
   return snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as SessionStudentReviewDoc) }));
 }
@@ -85,66 +89,96 @@ export async function getSessionAttendanceEntries(
     collection(db, COLLECTIONS.ATTENDANCE),
     where("classId", "==", classId),
     where("sessionId", "==", sessionId),
-    limit(150),
+    limit(MAX_CLASSROOM_STUDENTS),
   ));
   return snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as AttendanceDoc) }));
 }
 
 export async function saveClassroomDraft(input: SaveClassroomDraftInput): Promise<void> {
-  if (input.entries.length > 150) throw new Error("CLASSROOM_ROSTER_TOO_LARGE");
+  if (input.entries.length > MAX_CLASSROOM_STUDENTS) throw new Error("CLASSROOM_ROSTER_TOO_LARGE");
+  await runTransaction(db, async (transaction) => {
+    const classRef = doc(db, COLLECTIONS.CLASSES, input.classId);
+    const sessionRef = doc(db, COLLECTIONS.SESSIONS, input.sessionId);
+    const interactionRef = doc(db, COLLECTIONS.SESSION_INTERACTIONS, input.sessionId);
+    const [classSnap, sessionSnap, interactionSnap] = await Promise.all([
+      transaction.get(classRef),
+      transaction.get(sessionRef),
+      transaction.get(interactionRef),
+    ]);
+    if (!classSnap.exists()) throw new Error("CLASS_NOT_FOUND");
+    if (!sessionSnap.exists()) throw new Error("SESSION_NOT_FOUND");
+    const klass = classSnap.data() as ClassDoc;
+    const session = sessionSnap.data() as SessionDoc;
+    if (klass.status !== "active") throw new Error("CLASS_NOT_ACTIVE");
+    if (session.classId !== input.classId || klass.courseId !== input.courseId) throw new Error("CLASSROOM_CONTEXT_MISMATCH");
+    const roster = [...new Set(klass.studentIds)].sort();
+    const entryIds = [...new Set(input.entries.map((entry) => entry.studentId))].sort();
+    if (entryIds.length !== input.entries.length || JSON.stringify(entryIds) !== JSON.stringify(roster)) {
+      throw new Error("CLASSROOM_ROSTER_STALE");
+    }
 
-  const batch = writeBatch(db);
-  batch.set(doc(db, COLLECTIONS.SESSION_INTERACTIONS, input.sessionId), input.workflowStatus === "amended" ? {
-    taughtContent: input.taughtContent.trim(),
-    quickSummary: input.quickSummary.trim(),
-    homeworkText: input.homeworkText.trim(),
-    updatedAt: serverTimestamp(),
-  } : {
-    sessionId: input.sessionId,
-    classId: input.classId,
-    courseId: input.courseId,
-    teacherId: input.teacherId,
-    workflowStatus: "draft",
-    taughtContent: input.taughtContent.trim(),
-    quickSummary: input.quickSummary.trim(),
-    homeworkText: input.homeworkText.trim(),
-    version: 1,
-    ...(input.isNew ? { createdAt: serverTimestamp() } : {}),
-    updatedAt: serverTimestamp(),
-  }, { merge: true });
-
-  const counts = attendanceCounts(input.entries.map((entry) => ({
-    studentId: entry.studentId,
-    status: entry.attendanceStatus,
-    note: entry.individualComment,
-  })));
-  input.entries.forEach((entry) => {
-    batch.set(doc(db, COLLECTIONS.SESSION_STUDENT_REVIEWS, `${input.sessionId}_${entry.studentId}`), {
+    transaction.set(interactionRef, input.workflowStatus === "amended" ? {
+      taughtContent: input.taughtContent.trim(),
+      quickSummary: input.quickSummary.trim(),
+      homeworkText: input.homeworkText.trim(),
+      updatedAt: serverTimestamp(),
+    } : {
       sessionId: input.sessionId,
       classId: input.classId,
-      studentId: entry.studentId,
-      attendanceStatus: entry.attendanceStatus,
-      previousHomeworkStatus: entry.previousHomeworkStatus,
-      individualComment: entry.individualComment.trim(),
-      updatedBy: input.teacherId,
+      courseId: input.courseId,
+      teacherId: input.teacherId,
+      workflowStatus: "draft",
+      taughtContent: input.taughtContent.trim(),
+      quickSummary: input.quickSummary.trim(),
+      homeworkText: input.homeworkText.trim(),
+      version: 1,
+      ...(!interactionSnap.exists() ? { createdAt: serverTimestamp() } : {}),
       updatedAt: serverTimestamp(),
     }, { merge: true });
-    queueAttendanceEntryWrite(batch, input.sessionId, input.classId, {
+    const counts = attendanceCounts(input.entries.map((entry) => ({
       studentId: entry.studentId,
       status: entry.attendanceStatus,
       note: entry.individualComment,
-    }, input.teacherId);
+    })));
+    input.entries.forEach((entry) => {
+      transaction.set(doc(db, COLLECTIONS.SESSION_STUDENT_REVIEWS, `${input.sessionId}_${entry.studentId}`), {
+        sessionId: input.sessionId,
+        classId: input.classId,
+        studentId: entry.studentId,
+        attendanceStatus: entry.attendanceStatus,
+        previousHomeworkStatus: entry.previousHomeworkStatus,
+        individualComment: entry.individualComment.trim(),
+        updatedBy: input.teacherId,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+      queueAttendanceRecordWrite(transaction as unknown as ReturnType<typeof writeBatch>, input.sessionId, input.classId, {
+        studentId: entry.studentId,
+        status: entry.attendanceStatus,
+        note: entry.individualComment,
+      }, input.teacherId);
+    });
+    transaction.set(doc(db, COLLECTIONS.ATTENDANCE_SUMMARIES, input.sessionId), {
+      sessionId: input.sessionId,
+      classId: input.classId,
+      total: input.entries.length,
+      ...counts,
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
   });
 
-  batch.set(doc(db, COLLECTIONS.ATTENDANCE_SUMMARIES, input.sessionId), {
-    sessionId: input.sessionId,
-    classId: input.classId,
-    total: input.entries.length,
-    ...counts,
-    updatedAt: serverTimestamp(),
-  }, { merge: true });
-  await batch.commit();
+  // Draft/review/attendance remain atomic (2 writes/student + 2 metadata writes).
+  // Alerts use deterministic IDs in a separate idempotent batch so a 200-student
+  // roster stays below Firestore's 500-write transaction limit. A retry is safe.
+  const alertBatch = writeBatch(db);
+  input.entries.forEach((entry) => queueAttendanceAlertWrite(alertBatch, input.sessionId, input.classId, {
+    studentId: entry.studentId,
+    status: entry.attendanceStatus,
+    note: entry.individualComment,
+  }));
+  await alertBatch.commit();
 }
+
+const MAX_CLASSROOM_STUDENTS = 200;
 
 export interface SessionSummaryContext {
   studentName: string;
@@ -212,32 +246,63 @@ export interface PublishStudentResult {
  * session -> completed), sau do gui Messenger tuan tu va tra ket qua tung hoc sinh.
  */
 export async function publishClassroomInteraction(input: PublishClassroomInput): Promise<PublishStudentResult[]> {
-  const blockers = classroomPublishBlockers(input);
-  if (blockers.length) throw new Error(`CLASSROOM_PUBLISH_INCOMPLETE: ${blockers.join(" ")}`);
+  const messages = await runTransaction(db, async (transaction) => {
+    const classRef = doc(db, COLLECTIONS.CLASSES, input.classId);
+    const sessionRef = doc(db, COLLECTIONS.SESSIONS, input.sessionId);
+    const interactionRef = doc(db, COLLECTIONS.SESSION_INTERACTIONS, input.sessionId);
+    const [classSnap, sessionSnap, interactionSnap] = await Promise.all([
+      transaction.get(classRef),
+      transaction.get(sessionRef),
+      transaction.get(interactionRef),
+    ]);
+    if (!classSnap.exists()) throw new Error("CLASS_NOT_FOUND");
+    if (!sessionSnap.exists()) throw new Error("SESSION_NOT_FOUND");
+    if (!interactionSnap.exists()) throw new Error("CLASSROOM_DRAFT_NOT_FOUND");
+    const klass = classSnap.data() as ClassDoc;
+    const session = sessionSnap.data() as SessionDoc;
+    const interaction = interactionSnap.data() as SessionInteractionDoc;
+    if (session.classId !== input.classId || interaction.classId !== input.classId) throw new Error("CLASSROOM_CONTEXT_MISMATCH");
+    if (interaction.workflowStatus !== "draft" && interaction.workflowStatus !== "amended") throw new Error("CLASSROOM_NOT_PUBLISHABLE");
+    const studentIds = [...new Set(klass.studentIds)].sort();
+    if (studentIds.length > MAX_CLASSROOM_STUDENTS) throw new Error("CLASSROOM_ROSTER_TOO_LARGE");
+    const [studentSnaps, reviewSnaps] = await Promise.all([
+      Promise.all(studentIds.map((studentId) => transaction.get(doc(db, COLLECTIONS.STUDENTS, studentId)))),
+      Promise.all(studentIds.map((studentId) => transaction.get(doc(db, COLLECTIONS.SESSION_STUDENT_REVIEWS, `${input.sessionId}_${studentId}`)))),
+    ]);
+    if (studentSnaps.some((snap) => !snap.exists())) throw new Error("CLASSROOM_STUDENT_MISSING");
+    const students = studentSnaps.map((snap) => ({ id: snap.id, fullName: (snap.data() as StudentDoc).fullName }));
+    const entries = reviewSnaps.flatMap((snap) => snap.exists() ? [snap.data() as SessionStudentReviewDoc] : []);
+    const blockers = classroomPublishBlockers({
+      students,
+      entries,
+      taughtContent: interaction.taughtContent,
+      quickSummary: interaction.quickSummary,
+      homeworkText: interaction.homeworkText,
+    });
+    if (blockers.length) throw new Error(`CLASSROOM_PUBLISH_INCOMPLETE: ${blockers.join(" ")}`);
+    const isRepublish = interaction.workflowStatus === "amended";
+    const entryByStudent = new Map(entries.map((entry) => [entry.studentId, entry]));
+    const messages = students.map((student) => ({
+      student,
+      message: formatSessionSummaryMessage({
+        studentName: student.fullName,
+        className: klass.name,
+        sessionStartAt: session.startAt.toDate(),
+        entry: entryByStudent.get(student.id),
+        taughtContent: interaction.taughtContent,
+        quickSummary: interaction.quickSummary,
+        homeworkText: interaction.homeworkText,
+        isRepublish,
+      }),
+    }));
 
-  const entryByStudent = new Map(input.entries.map((entry) => [entry.studentId, entry]));
-  const messages = input.students.map((student) => ({
-    student,
-    message: formatSessionSummaryMessage({
-      studentName: student.fullName,
-      className: input.className,
-      sessionStartAt: input.sessionStartAt,
-      entry: entryByStudent.get(student.id),
-      taughtContent: input.taughtContent,
-      quickSummary: input.quickSummary,
-      homeworkText: input.homeworkText,
-      isRepublish: input.isRepublish,
-    }),
-  }));
-
-  const batch = writeBatch(db);
-  batch.update(doc(db, COLLECTIONS.SESSION_INTERACTIONS, input.sessionId), {
-    workflowStatus: "published",
-    version: increment(1),
-    updatedAt: serverTimestamp(),
-  });
-  messages.forEach(({ student, message }) => {
-    batch.set(doc(db, COLLECTIONS.ANNOUNCEMENTS, `${input.sessionId}_${student.id}`), {
+    transaction.update(interactionRef, {
+      workflowStatus: "published",
+      version: increment(1),
+      updatedAt: serverTimestamp(),
+    });
+    messages.forEach(({ student, message }) => {
+      transaction.set(doc(db, COLLECTIONS.ANNOUNCEMENTS, `${input.sessionId}_${student.id}`), {
       type: "session_summary",
       sessionId: input.sessionId,
       classId: input.classId,
@@ -245,13 +310,14 @@ export async function publishClassroomInteraction(input: PublishClassroomInput):
       title: input.isRepublish ? "Tổng kết buổi học (bản cập nhật)" : "Tổng kết buổi học",
       message,
       createdAt: serverTimestamp(),
+      });
     });
+    transaction.update(sessionRef, {
+      status: "completed",
+      updatedAt: serverTimestamp(),
+    });
+    return messages;
   });
-  batch.update(doc(db, COLLECTIONS.SESSIONS, input.sessionId), {
-    status: "completed",
-    updatedAt: serverTimestamp(),
-  });
-  await batch.commit();
 
   const results: PublishStudentResult[] = [];
   for (const { student, message } of messages) {

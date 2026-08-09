@@ -6,6 +6,9 @@ const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
 const origin = config.env?.production?.vars?.ALLOWED_ORIGIN;
 const graphVersion = config.env?.production?.vars?.META_GRAPH_VERSION;
 const pageId = config.env?.production?.vars?.META_PAGE_ID;
+const workerUtility = config.env?.production?.vars?.UTILITY_MESSAGING_ENABLED;
+const frontendEnv = fs.readFileSync(path.resolve("../..", ".env.real"), "utf8");
+const frontendUtility = frontendEnv.match(/^VITE_UTILITY_MESSAGING_ENABLED=(true|false)$/m)?.[1];
 
 if (typeof origin !== "string" || !origin.startsWith("https://")) {
   throw new Error("env.production.vars.ALLOWED_ORIGIN must be an https origin.");
@@ -23,4 +26,12 @@ if (typeof pageId !== "string" || !/^\d+$/.test(pageId)) {
   throw new Error("env.production.vars.META_PAGE_ID must be a numeric Facebook Page ID.");
 }
 
-console.log(`Production config: origin=${origin}, graph=${graphVersion}, page=${pageId}`);
+if (!frontendUtility || !["true", "false"].includes(workerUtility)) {
+  throw new Error("Utility Messaging flags must be true or false in .env.real and Worker production.");
+}
+
+if (frontendUtility !== workerUtility) {
+  throw new Error(`Utility Messaging mismatch: frontend=${frontendUtility}, worker=${workerUtility}.`);
+}
+
+console.log(`Production config: origin=${origin}, graph=${graphVersion}, page=${pageId}, utility=${workerUtility}`);

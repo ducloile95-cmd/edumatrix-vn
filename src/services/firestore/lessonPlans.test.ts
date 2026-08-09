@@ -1,15 +1,17 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-const { batchCommit, batchSet, getCurrentUserDoc, getDocs, isAdminUser, isTeacherUser, listClasses, where, writeBatch } = vi.hoisted(() => ({
-  batchCommit: vi.fn(),
-  batchSet: vi.fn(),
+const { getCurrentUserDoc, getDocs, isAdminUser, isTeacherUser, listClasses, runTransaction, transactionDelete, transactionGet, transactionSet, transactionUpdate, where } = vi.hoisted(() => ({
   getCurrentUserDoc: vi.fn(),
   getDocs: vi.fn(),
   isAdminUser: vi.fn(),
   isTeacherUser: vi.fn(),
   listClasses: vi.fn(),
+  runTransaction: vi.fn(),
+  transactionDelete: vi.fn(),
+  transactionGet: vi.fn(),
+  transactionSet: vi.fn(),
+  transactionUpdate: vi.fn(),
   where: vi.fn((...values) => ({ where: values })),
-  writeBatch: vi.fn(),
 }));
 
 vi.mock("firebase/firestore", () => ({
@@ -24,11 +26,11 @@ vi.mock("firebase/firestore", () => ({
   limit: vi.fn((value) => ({ limit: value })),
   orderBy: vi.fn(),
   query: vi.fn((...values) => values),
+  runTransaction,
   serverTimestamp: vi.fn(),
   setDoc: vi.fn(),
   updateDoc: vi.fn(),
   where,
-  writeBatch,
 }));
 vi.mock("@/services/firebase/firestoreClient", () => ({ db: {} }));
 vi.mock("@/services/firestore/authz", () => ({ getCurrentUserDoc, isAdminUser, isTeacherUser }));
@@ -39,7 +41,7 @@ vi.mock("@/utils/lessonPlan", () => ({
   normalizeLessonPlanTemplate: (value: unknown) => value,
 }));
 
-import { createLessonPlan, listLessonPlans } from "@/services/firestore/lessonPlans";
+import { createLessonPlan, listLessonPlans, updateLessonPlan } from "@/services/firestore/lessonPlans";
 
 function snapshot(items: { id: string; updatedAt: number }[]) {
   return {
@@ -58,9 +60,16 @@ describe("listLessonPlans", () => {
     isTeacherUser.mockReset();
     listClasses.mockReset();
     where.mockClear();
-    batchCommit.mockReset().mockResolvedValue(undefined);
-    batchSet.mockReset();
-    writeBatch.mockReset().mockReturnValue({ set: batchSet, update: vi.fn(), delete: vi.fn(), commit: batchCommit });
+    transactionDelete.mockReset();
+    transactionGet.mockReset();
+    transactionSet.mockReset();
+    transactionUpdate.mockReset();
+    runTransaction.mockReset().mockImplementation(async (_db, callback) => callback({
+      delete: transactionDelete,
+      get: transactionGet,
+      set: transactionSet,
+      update: transactionUpdate,
+    }));
   });
 
   test("combines teacher-owned and assigned-class plans without duplicates", async () => {
@@ -79,11 +88,22 @@ describe("listLessonPlans", () => {
     expect(result.map((item) => item.id)).toEqual(["class-plan", "shared-plan", "own-plan"]);
   });
 
-  test("creates a published plan and public summary in one batch", async () => {
+  test("creates a published plan and public summary in one transaction", async () => {
     await createLessonPlan({ status: "published", classId: "class-1" } as never, "teacher-1");
 
-    expect(writeBatch).toHaveBeenCalledTimes(1);
-    expect(batchSet).toHaveBeenCalledTimes(2);
-    expect(batchCommit).toHaveBeenCalledTimes(1);
+    expect(runTransaction).toHaveBeenCalledTimes(1);
+    expect(transactionSet).toHaveBeenCalledTimes(2);
+  });
+
+  test("clears the previous session pointer when a plan moves", async () => {
+    transactionGet
+      .mockResolvedValueOnce({ exists: () => true, data: () => ({ sessionId: "session-old" }) })
+      .mockResolvedValueOnce({ id: "session-old", ref: "sessions/session-old", exists: () => true, data: () => ({ classId: "class-1", lessonPlanId: "plan-1" }) })
+      .mockResolvedValueOnce({ id: "session-new", ref: "sessions/session-new", exists: () => true, data: () => ({ classId: "class-1", lessonPlanId: null }) });
+
+    await updateLessonPlan("plan-1", { status: "draft", classId: "class-1", sessionId: "session-new" } as never);
+
+    expect(transactionUpdate).toHaveBeenCalledWith("sessions/session-old", expect.objectContaining({ lessonPlanId: null }));
+    expect(transactionUpdate).toHaveBeenCalledWith("sessions/session-new", expect.objectContaining({ lessonPlanId: "plan-1" }));
   });
 });

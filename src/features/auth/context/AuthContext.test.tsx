@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   onSnapshot: vi.fn(),
   setCachedUserDoc: vi.fn(),
   attemptClaimInvite: vi.fn(),
+  clearLessonPlanDraftsForUid: vi.fn(),
 }));
 
 vi.mock("@/services/firebase/authClient", () => ({ auth: {} }));
@@ -32,6 +33,7 @@ vi.mock("firebase/firestore", () => ({
 vi.mock("@/services/firebase/firestoreClient", () => ({ db: {} }));
 vi.mock("@/services/firestore/authz", () => ({ setCachedUserDoc: mocks.setCachedUserDoc }));
 vi.mock("@/services/firestore/users", () => ({ attemptClaimInvite: mocks.attemptClaimInvite }));
+vi.mock("@/features/lesson-plans/utils/lessonPlanDrafts", () => ({ clearLessonPlanDraftsForUid: mocks.clearLessonPlanDraftsForUid }));
 
 afterEach(cleanup);
 
@@ -47,6 +49,7 @@ describe("AuthProvider profile failures", () => {
     mocks.onSnapshot.mockClear();
     mocks.setCachedUserDoc.mockClear();
     mocks.attemptClaimInvite.mockClear();
+    mocks.clearLessonPlanDraftsForUid.mockClear();
   });
 
   it("keeps a Firestore profile error separate from a missing profile", async () => {
@@ -65,5 +68,13 @@ describe("AuthProvider profile failures", () => {
     expect(await screen.findByText("profile-error")).toBeTruthy();
     expect(mocks.setCachedUserDoc).toHaveBeenCalledWith(null);
     expect(mocks.attemptClaimInvite).not.toHaveBeenCalled();
+  });
+
+  it("clears the previous user's lesson-plan drafts on logout", async () => {
+    render(<AuthProvider><AuthProbe /></AuthProvider>);
+    await waitFor(() => expect(mocks.authObserver).not.toBeNull());
+    await act(async () => { mocks.authObserver?.({ uid: "user-1" }); });
+    await act(async () => { mocks.authObserver?.(null); });
+    expect(mocks.clearLessonPlanDraftsForUid).toHaveBeenCalledWith("user-1");
   });
 });

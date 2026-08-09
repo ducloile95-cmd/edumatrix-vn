@@ -2,12 +2,20 @@ import {
   Timestamp,
   collection,
   doc,
+  documentId,
   getDocs,
   limit,
+  orderBy,
   query,
+  runTransaction,
   serverTimestamp,
+  startAfter,
   where,
   writeBatch,
+  type DocumentData,
+  type QueryConstraint,
+  type QueryDocumentSnapshot,
+  type QuerySnapshot,
 } from "firebase/firestore";
 import { COLLECTIONS } from "@/constants/collections";
 import { db } from "@/services/firebase/firestoreClient";
@@ -66,6 +74,24 @@ export async function createInvoices(inputs: CreateInvoiceInput[]): Promise<void
   await batch.commit();
 }
 
+async function listAllDocuments(collectionName: string, baseConstraints: QueryConstraint[], pageSize: number): Promise<QueryDocumentSnapshot<DocumentData, DocumentData>[]> {
+  const documents: QueryDocumentSnapshot<DocumentData, DocumentData>[] = [];
+  let cursor: QueryDocumentSnapshot<DocumentData, DocumentData> | null = null;
+  do {
+    const snapshot: QuerySnapshot<DocumentData, DocumentData> = await getDocs(query(
+      collection(db, collectionName),
+      ...baseConstraints,
+      orderBy(documentId()),
+      ...(cursor ? [startAfter(cursor)] : []),
+      limit(pageSize),
+    ));
+    documents.push(...snapshot.docs);
+    cursor = snapshot.docs.length ? snapshot.docs[snapshot.docs.length - 1] : null;
+    if (snapshot.size < pageSize) break;
+  } while (cursor);
+  return documents;
+}
+
 export async function listInvoices(): Promise<(InvoiceDoc & { id: string })[]> {
   const currentUser = await getCurrentUserDoc();
   if (isTeacherUser(currentUser)) {
@@ -73,17 +99,19 @@ export async function listInvoices(): Promise<(InvoiceDoc & { id: string })[]> {
     return listInvoicesByStudents(students.map((student) => student.id));
   }
   if (!isAdminUser(currentUser)) return [];
-  const snap = await getDocs(query(collection(db, COLLECTIONS.INVOICES), limit(300)));
-  return snap.docs.map((item) => ({ id: item.id, ...(item.data() as InvoiceDoc) }));
+  const documents = await listAllDocuments(COLLECTIONS.INVOICES, [], 300);
+  return documents.map((item) => ({ id: item.id, ...(item.data() as InvoiceDoc) }));
 }
 
 export async function listInvoicesByStudents(ids: string[], pageSize = 100): Promise<(InvoiceDoc & { id: string })[]> {
   const groups = await Promise.all(
-    ids.map(async (studentId) => {
-      const snap = await getDocs(
-        query(collection(db, COLLECTIONS.INVOICES), where("studentId", "==", studentId), limit(pageSize)),
+    [...new Set(ids)].filter(Boolean).map(async (studentId) => {
+      const documents = await listAllDocuments(
+        COLLECTIONS.INVOICES,
+        [where("studentId", "==", studentId)],
+        pageSize,
       );
-      return snap.docs.map((item) => ({ id: item.id, ...(item.data() as InvoiceDoc) }));
+      return documents.map((item) => ({ id: item.id, ...(item.data() as InvoiceDoc) }));
     }),
   );
 
@@ -96,15 +124,29 @@ export async function reportPayment(
   reference: string,
   note: string,
 ): Promise<void> {
-  const batch = writeBatch(db);
-  const payment = doc(db, COLLECTIONS.PAYMENTS, stableDocumentId([invoice.id, uid]));
+  await runTransaction(db, async (transaction) => {
+    const invoiceRef = doc(db, COLLECTIONS.INVOICES, invoice.id);
+    const paymentRef = doc(db, COLLECTIONS.PAYMENTS, stableDocumentId([invoice.id, uid]));
+    const [invoiceSnap, paymentSnap] = await Promise.all([
+      transaction.get(invoiceRef),
+      transaction.get(paymentRef),
+    ]);
+    if (!invoiceSnap.exists()) throw new Error("INVOICE_NOT_FOUND");
+    const currentInvoice = invoiceSnap.data() as InvoiceDoc;
+    if (currentInvoice.status !== "unpaid" && currentInvoice.status !== "overdue" && currentInvoice.status !== "rejected") {
+      throw new Error("INVOICE_NOT_REPORTABLE");
+    }
+    if (paymentSnap.exists()) {
+      const currentPayment = paymentSnap.data() as PaymentDoc;
+      if (currentPayment.status !== "rejected" || currentPayment.reportedBy !== uid) {
+        throw new Error("PAYMENT_NOT_REPORTABLE");
+      }
+    }
 
-  batch.set(
-    payment,
-    {
+    transaction.set(paymentRef, {
       invoiceId: invoice.id,
-      studentId: invoice.studentId,
-      amount: invoice.amount,
+      studentId: currentInvoice.studentId,
+      amount: currentInvoice.amount,
       transactionReference: reference,
       note,
       status: "reported",
@@ -113,14 +155,12 @@ export async function reportPayment(
       reportedAt: serverTimestamp(),
       verifiedAt: null,
       updatedAt: serverTimestamp(),
-    },
-    { merge: true },
-  );
-  batch.update(doc(db, COLLECTIONS.INVOICES, invoice.id), {
-    status: "pending",
-    updatedAt: serverTimestamp(),
+    }, { merge: true });
+    transaction.update(invoiceRef, {
+      status: "pending",
+      updatedAt: serverTimestamp(),
+    });
   });
-  await batch.commit();
 }
 
 export async function listPayments(): Promise<(PaymentDoc & { id: string })[]> {
@@ -130,17 +170,19 @@ export async function listPayments(): Promise<(PaymentDoc & { id: string })[]> {
     return listPaymentsByStudents(students.map((student) => student.id));
   }
   if (!isAdminUser(currentUser)) return [];
-  const snap = await getDocs(query(collection(db, COLLECTIONS.PAYMENTS), limit(300)));
-  return snap.docs.map((item) => ({ id: item.id, ...(item.data() as PaymentDoc) }));
+  const documents = await listAllDocuments(COLLECTIONS.PAYMENTS, [], 300);
+  return documents.map((item) => ({ id: item.id, ...(item.data() as PaymentDoc) }));
 }
 
 export async function listPaymentsByStudents(ids: string[], pageSize = 100): Promise<(PaymentDoc & { id: string })[]> {
   const uniqueIds = [...new Set(ids)].filter(Boolean);
   const groups = await Promise.all(uniqueIds.map(async (studentId) => {
-    const snap = await getDocs(
-      query(collection(db, COLLECTIONS.PAYMENTS), where("studentId", "==", studentId), limit(pageSize)),
+    const documents = await listAllDocuments(
+      COLLECTIONS.PAYMENTS,
+      [where("studentId", "==", studentId)],
+      pageSize,
     );
-    return snap.docs.map((item) => ({ id: item.id, ...(item.data() as PaymentDoc) }));
+    return documents.map((item) => ({ id: item.id, ...(item.data() as PaymentDoc) }));
   }));
   return groups.flat();
 }
@@ -150,17 +192,31 @@ export async function reconcilePayment(
   status: Exclude<PaymentStatus, "reported">,
   uid: string,
 ): Promise<void> {
-  const batch = writeBatch(db);
+  await runTransaction(db, async (transaction) => {
+    const paymentRef = doc(db, COLLECTIONS.PAYMENTS, payment.id);
+    const paymentSnap = await transaction.get(paymentRef);
+    if (!paymentSnap.exists()) throw new Error("PAYMENT_NOT_FOUND");
+    const currentPayment = paymentSnap.data() as PaymentDoc;
+    if (currentPayment.status !== "reported") throw new Error("PAYMENT_ALREADY_RECONCILED");
 
-  batch.update(doc(db, COLLECTIONS.PAYMENTS, payment.id), {
-    status,
-    verifiedBy: uid,
-    verifiedAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
+    const invoiceRef = doc(db, COLLECTIONS.INVOICES, currentPayment.invoiceId);
+    const invoiceSnap = await transaction.get(invoiceRef);
+    if (!invoiceSnap.exists()) throw new Error("INVOICE_NOT_FOUND");
+    const invoice = invoiceSnap.data() as InvoiceDoc;
+    if (invoice.status !== "pending") throw new Error("INVOICE_NOT_PENDING");
+    if (invoice.studentId !== currentPayment.studentId || invoice.amount !== currentPayment.amount) {
+      throw new Error("PAYMENT_INVOICE_MISMATCH");
+    }
+
+    transaction.update(paymentRef, {
+      status,
+      verifiedBy: uid,
+      verifiedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    transaction.update(invoiceRef, {
+      status: status === "verified" ? "paid" : "rejected",
+      updatedAt: serverTimestamp(),
+    });
   });
-  batch.update(doc(db, COLLECTIONS.INVOICES, payment.invoiceId), {
-    status: status === "verified" ? "paid" : "rejected",
-    updatedAt: serverTimestamp(),
-  });
-  await batch.commit();
 }

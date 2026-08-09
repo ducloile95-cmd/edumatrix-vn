@@ -91,6 +91,38 @@ describe("StudentInfoDialog", () => {
     }));
   });
 
+  test("does not sync enrollments when only student information changes", async () => {
+    renderWithQueryClient(
+      <StudentInfoDialog canManageLinks open student={student} onClose={vi.fn()} />,
+    );
+
+    const fullNameInput = screen.getByDisplayValue(student.fullName) as HTMLInputElement;
+    fireEvent.change(fullNameInput, { target: { value: "Updated Student" } });
+    fireEvent.submit(fullNameInput.form!);
+
+    await waitFor(() => {
+      expect(serviceMocks.updateStudent).toHaveBeenCalledWith("student-1", expect.objectContaining({
+        fullName: "Updated Student",
+      }));
+    });
+    expect(serviceMocks.syncStudentEnrollments).not.toHaveBeenCalled();
+  });
+
+  test("adds a class from another course without removing current classes", async () => {
+    renderWithQueryClient(
+      <StudentInfoDialog canManageLinks open student={student} onClose={vi.fn()} />,
+    );
+
+    fireEvent.click(await screen.findByRole("button", { name: /Khóa học.*Chỉnh sửa/i }));
+    fireEvent.click(await screen.findByRole("option", { name: "Lớp Văn B1" }));
+    const fullNameInput = screen.getByDisplayValue(student.fullName) as HTMLInputElement;
+    fireEvent.submit(fullNameInput.form!);
+
+    await waitFor(() => {
+      expect(serviceMocks.syncStudentEnrollments).toHaveBeenCalledWith("student-1", ["class-1", "class-2"]);
+    });
+  });
+
   test("keeps relationship rows read-only for a non-admin viewer", async () => {
     renderWithQueryClient(
       <StudentInfoDialog canManageLinks={false} open student={student} onClose={vi.fn()} />,

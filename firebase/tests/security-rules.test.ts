@@ -7,7 +7,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { collection, deleteDoc, doc, documentId, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, Timestamp, where } from "firebase/firestore";
+import { collection, deleteDoc, doc, documentId, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, Timestamp, where, writeBatch } from "firebase/firestore";
 
 /**
  * Emulator test cho Firestore Security Rules (A16, A28).
@@ -307,6 +307,8 @@ describe("chat and message outbox", () => {
   beforeEach(async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       const db = ctx.firestore();
+      await setDoc(doc(db, "students", "student_001"), { teacherIds: [TEACHER_UID] });
+      await setDoc(doc(db, "students", "student_002"), { teacherIds: ["other-teacher"] });
       await setDoc(doc(db, "chat_threads", "thread_assigned"), { assignedTeacherIds: [TEACHER_UID], parentUid: VIEWER_UID, studentId: "student_001" });
       await setDoc(doc(db, "chat_threads", "thread_other"), { assignedTeacherIds: ["other-teacher"], parentUid: "other-parent", studentId: "student_002" });
       await setDoc(doc(db, "chat_threads", "thread_assigned", "messages", "message_1"), { direction: "inbound", text: "Xin chao" });
@@ -463,8 +465,13 @@ describe("teacher scoped finance and assignment summaries", () => {
       const now = Timestamp.now();
       await setDoc(doc(db, "students", "student_assigned"), { teacherIds: [TEACHER_UID] });
       await setDoc(doc(db, "students", "student_other"), { teacherIds: ["other-teacher"] });
-      await setDoc(doc(db, "invoices", "invoice_assigned"), { studentId: "student_assigned", status: "unpaid", updatedAt: now });
-      await setDoc(doc(db, "invoices", "invoice_other"), { studentId: "student_other", status: "unpaid", updatedAt: now });
+      const invoiceData = (studentId: string, status: string) => ({
+        invoiceCode: `INV-${studentId}`, studentId, courseId: null, title: "Hoc phi", amount: 100000,
+        dueAt: now, paymentContent: "PAY", bankBin: "970436", accountNumber: "123456",
+        accountName: "EDUMATRIX", status, createdBy: ADMIN_UID, createdAt: now, updatedAt: now,
+      });
+      await setDoc(doc(db, "invoices", "invoice_assigned"), invoiceData("student_assigned", "pending"));
+      await setDoc(doc(db, "invoices", "invoice_other"), invoiceData("student_other", "unpaid"));
       await setDoc(doc(db, "payments", "payment_assigned"), {
         invoiceId: "invoice_assigned", studentId: "student_assigned", amount: 100000,
         transactionReference: "REF-1", note: "", status: "reported", reportedBy: VIEWER_UID,
@@ -500,10 +507,13 @@ describe("teacher scoped finance and assignment summaries", () => {
     await assertFails(updateDoc(doc(asTeacher(), "payments", "payment_assigned"), {
       status: "verified", verifiedBy: TEACHER_UID, verifiedAt: serverTimestamp(), updatedAt: serverTimestamp(),
     }));
-    await assertSucceeds(updateDoc(doc(asAdmin(), "invoices", "invoice_assigned"), { status: "paid", updatedAt: serverTimestamp() }));
-    await assertSucceeds(updateDoc(doc(asAdmin(), "payments", "payment_assigned"), {
+    const db = asAdmin();
+    const batch = writeBatch(db);
+    batch.update(doc(db, "invoices", "invoice_assigned"), { status: "paid", updatedAt: serverTimestamp() });
+    batch.update(doc(db, "payments", "payment_assigned"), {
       status: "verified", verifiedBy: ADMIN_UID, verifiedAt: serverTimestamp(), updatedAt: serverTimestamp(),
-    }));
+    });
+    await assertSucceeds(batch.commit());
   });
 
   test("Teacher chi doc assignment summary cua lop duoc phan cong", async () => {

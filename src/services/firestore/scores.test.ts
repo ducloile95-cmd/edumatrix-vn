@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-const { runTransaction, transactionGet, transactionSet } = vi.hoisted(() => ({
+const { getDocs, runTransaction, startAfter, transactionGet, transactionSet } = vi.hoisted(() => ({
+  getDocs: vi.fn(),
   runTransaction: vi.fn(),
+  startAfter: vi.fn(),
   transactionGet: vi.fn(),
   transactionSet: vi.fn(),
 }));
@@ -10,18 +12,19 @@ vi.mock("firebase/firestore", () => ({
   collection: vi.fn(),
   doc: vi.fn((_db, collectionName: string, id: string) => `${collectionName}/${id}`),
   documentId: vi.fn(),
-  getDocs: vi.fn(),
+  getDocs,
   limit: vi.fn(),
   orderBy: vi.fn(),
   query: vi.fn(),
   runTransaction,
   serverTimestamp: vi.fn(() => "server-time"),
+  startAfter,
   where: vi.fn(),
 }));
 
 vi.mock("@/services/firebase/firestoreClient", () => ({ db: {} }));
 
-import { saveClassScores } from "@/services/firestore/scores";
+import { listScoresByClass, saveClassScores } from "@/services/firestore/scores";
 
 const baseInput = {
   classId: "class-1",
@@ -62,7 +65,9 @@ describe("saveClassScores", () => {
   });
 
   test("writes the whole class in one transaction", async () => {
-    transactionGet.mockResolvedValue({ exists: () => false });
+    transactionGet
+      .mockResolvedValueOnce({ exists: () => true, data: () => ({ subjectIds: ["math"], studentIds: ["student-1", "student-2"] }) })
+      .mockResolvedValue({ exists: () => false });
 
     await saveClassScores({
       ...baseInput,
@@ -73,8 +78,18 @@ describe("saveClassScores", () => {
     });
 
     expect(runTransaction).toHaveBeenCalledTimes(1);
-    expect(transactionGet).toHaveBeenCalledTimes(4);
+    expect(transactionGet).toHaveBeenCalledTimes(5);
     expect(transactionSet).toHaveBeenCalledTimes(4);
+  });
+
+  test("rejects a subject outside the class", async () => {
+    transactionGet.mockResolvedValueOnce({ exists: () => true, data: () => ({ subjectIds: ["english"], studentIds: ["student-1"] }) });
+
+    await expect(saveClassScores({
+      ...baseInput,
+      entries: [{ studentId: "student-1", score: 8, comment: "" }],
+    })).rejects.toThrow("SUBJECT_NOT_IN_CLASS");
+    expect(transactionSet).not.toHaveBeenCalled();
   });
 
   test("rejects duplicate students and oversized class writes", async () => {
@@ -94,5 +109,20 @@ describe("saveClassScores", () => {
         comment: "",
       })),
     })).rejects.toThrow("SCORE_BATCH_TOO_LARGE");
+  });
+});
+
+describe("listScoresByClass", () => {
+  test("loads score history after the first 500 documents", async () => {
+    const page = (offset: number, count: number) => ({
+      docs: Array.from({ length: count }, (_, index) => ({
+        id: `score-${offset + index}`,
+        data: () => ({ published: true }),
+      })),
+    });
+    getDocs.mockReset().mockResolvedValueOnce(page(0, 500)).mockResolvedValueOnce(page(500, 1));
+
+    await expect(listScoresByClass("class-1")).resolves.toHaveLength(501);
+    expect(getDocs).toHaveBeenCalledTimes(2);
   });
 });

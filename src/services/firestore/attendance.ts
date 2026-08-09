@@ -6,9 +6,8 @@ import {
   limit,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
-  setDoc,
-  startAfter,
   where,
   writeBatch,
 } from "firebase/firestore";
@@ -20,11 +19,23 @@ import { getCurrentUserDoc, isTeacherUser } from "@/services/firestore/authz";
 import { listClasses } from "@/services/firestore/classes";
 import { listSessions } from "@/services/firestore/sessions";
 import { listStudents } from "@/services/firestore/students";
+import { listAllQueryDocuments } from "@/services/firestore/pagination";
 import type { AttendanceDoc, AttendanceStatus, AttendanceSummaryDoc, SessionDoc } from "@/types/academic";
 
 export interface AttendanceEntry { studentId: string; status: AttendanceStatus; note: string; }
 
 export function queueAttendanceEntryWrite(
+  batch: WriteBatch,
+  sessionId: string,
+  classId: string,
+  entry: AttendanceEntry,
+  actorUid: string,
+): void {
+  queueAttendanceRecordWrite(batch, sessionId, classId, entry, actorUid);
+  queueAttendanceAlertWrite(batch, sessionId, classId, entry);
+}
+
+export function queueAttendanceRecordWrite(
   batch: WriteBatch,
   sessionId: string,
   classId: string,
@@ -47,7 +58,16 @@ export function queueAttendanceEntryWrite(
     },
     { merge: true },
   );
+}
 
+export function queueAttendanceAlertWrite(
+  batch: WriteBatch,
+  sessionId: string,
+  classId: string,
+  entry: AttendanceEntry,
+): void {
+  const attendanceId = `${sessionId}_${entry.studentId}`;
+  const note = entry.note.trim();
   const needsAlert = entry.status === "absent" || entry.status === "late";
   batch.set(
     doc(db, COLLECTIONS.ANNOUNCEMENTS, `attendance_${attendanceId}`),
@@ -79,22 +99,33 @@ function chunk30(values: string[]): string[][] {
 }
 
 export async function saveAttendance(sessionId: string, classId: string, entries: AttendanceEntry[], actorUid: string): Promise<void> {
-  // Chunk 200 entry (toi da 400 op/batch < gioi han 500). Voi si so thuc te
-  // <200 thi luon la 1 batch nguyen tu; neu >1 batch va loi giua chung,
-  // rebuild summary best-effort de summary khop voi phan da ghi roi nem loi.
-  try {
-    for (let offset = 0; offset < entries.length; offset += 200) {
-      const batch = writeBatch(db);
-      entries.slice(offset, offset + 200).forEach((entry) => {
-        queueAttendanceEntryWrite(batch, sessionId, classId, entry, actorUid);
-      });
-      await batch.commit();
-    }
-  } catch (error) {
-    await rebuildAttendanceSummary(sessionId, classId).catch(() => undefined);
-    throw error;
-  }
-  await rebuildAttendanceSummary(sessionId, classId);
+  if (entries.length > 200) throw new Error("ATTENDANCE_ROSTER_LIMIT");
+  const batch = writeBatch(db);
+  const counts: Record<AttendanceStatus, number> = { present: 0, absent: 0, late: 0, excused: 0 };
+  entries.forEach((entry) => {
+    counts[entry.status] += 1;
+    queueAttendanceEntryWrite(batch, sessionId, classId, entry, actorUid);
+  });
+  batch.set(doc(db, COLLECTIONS.ATTENDANCE_SUMMARIES, sessionId), {
+    sessionId,
+    classId,
+    total: entries.length,
+    ...counts,
+    updatedAt: serverTimestamp(),
+  });
+  await batch.commit();
+}
+
+async function listAttendancePages(
+  constraints: QueryConstraint[],
+  pageSize: number,
+): Promise<Array<AttendanceDoc & { id: string }>> {
+  const documents = await listAllQueryDocuments(
+    COLLECTIONS.ATTENDANCE,
+    [...constraints, orderBy(documentId())],
+    pageSize,
+  );
+  return documents.map((item) => ({ id: item.id, ...(item.data() as AttendanceDoc) }));
 }
 
 /**
@@ -112,32 +143,41 @@ export async function registerLeave(
   note: string,
   actorUid: string,
 ): Promise<void> {
-  const batch = writeBatch(db);
-  queueAttendanceEntryWrite(batch, sessionId, classId, { studentId, status, note }, actorUid);
-  await batch.commit();
-  await rebuildAttendanceSummary(sessionId, classId);
-}
-
-async function rebuildAttendanceSummary(sessionId: string, classId: string): Promise<void> {
-  const snapshot = await getDocs(query(
-    collection(db, COLLECTIONS.ATTENDANCE),
-    where("classId", "==", classId),
-    where("sessionId", "==", sessionId),
-    limit(500),
-  ));
-  const counts: Record<AttendanceStatus, number> = { present: 0, absent: 0, late: 0, excused: 0 };
-  snapshot.docs.forEach((item) => { const status = (item.data() as AttendanceDoc).status; counts[status] += 1; });
-  await setDoc(doc(db, COLLECTIONS.ATTENDANCE_SUMMARIES, sessionId), { sessionId, classId, total: snapshot.size, ...counts, updatedAt: serverTimestamp() });
+  await runTransaction(db, async (transaction) => {
+    const attendanceRef = doc(db, COLLECTIONS.ATTENDANCE, `${sessionId}_${studentId}`);
+    const summaryRef = doc(db, COLLECTIONS.ATTENDANCE_SUMMARIES, sessionId);
+    const [attendanceSnap, summarySnap] = await Promise.all([
+      transaction.get(attendanceRef),
+      transaction.get(summaryRef),
+    ]);
+    const previousStatus = attendanceSnap.exists() ? (attendanceSnap.data() as AttendanceDoc).status : null;
+    const summary = summarySnap.exists()
+      ? summarySnap.data() as AttendanceSummaryDoc
+      : { sessionId, classId, total: 0, present: 0, absent: 0, late: 0, excused: 0 };
+    const counts: Record<AttendanceStatus, number> = {
+      present: summary.present,
+      absent: summary.absent,
+      late: summary.late,
+      excused: summary.excused,
+    };
+    if (previousStatus) counts[previousStatus] = Math.max(0, counts[previousStatus] - 1);
+    counts[status] += 1;
+    queueAttendanceEntryWrite(transaction as unknown as WriteBatch, sessionId, classId, { studentId, status, note }, actorUid);
+    transaction.set(summaryRef, {
+      sessionId,
+      classId,
+      total: summary.total + Number(!previousStatus),
+      ...counts,
+      updatedAt: serverTimestamp(),
+    });
+  });
 }
 
 export async function listAttendanceBySession(sessionId: string, classId: string): Promise<(AttendanceDoc & { id: string })[]> {
-  const snapshot = await getDocs(query(
-    collection(db, COLLECTIONS.ATTENDANCE),
-    where("classId", "==", classId),
-    where("sessionId", "==", sessionId),
-    limit(500),
-  ));
-  return snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as AttendanceDoc) }));
+  return listAttendancePages(
+    [where("classId", "==", classId), where("sessionId", "==", sessionId)],
+    500,
+  );
 }
 
 /** Cac attendance doc cho nhieu session cung luc - chunk 30 (gioi han Firestore "in"), dung cho Tong quan. */
@@ -149,25 +189,19 @@ export async function listAttendanceBySessionIds(sessionIds: string[], pageSize 
     // Giu classId == de Rules chung minh duoc canManageClass (1 get/lop);
     // them sessionId in de loc tai server thay vi tai ve toan bo lich su lop.
     const classes = await listClasses();
-    const snapshots = await Promise.all(classes.flatMap((klass) => chunk30(uniqueIds).map((ids) => getDocs(
-      query(collection(db, COLLECTIONS.ATTENDANCE), where("classId", "==", klass.id), where("sessionId", "in", ids), limit(pageSize)),
+    const groups = await Promise.all(classes.flatMap((klass) => chunk30(uniqueIds).map((ids) => (
+      listAttendancePages(
+        [where("classId", "==", klass.id), where("sessionId", "in", ids)],
+        pageSize,
+      )
     ))));
-    return snapshots.flatMap((snapshot) => snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as AttendanceDoc) })));
+    return groups.flat();
   }
   const groups: (AttendanceDoc & { id: string })[][] = [];
 
   for (let offset = 0; offset < uniqueIds.length; offset += 30) {
     const chunk = uniqueIds.slice(offset, offset + 30);
-    let cursor: unknown = null;
-    let hasMore = true;
-    while (hasMore) {
-      const constraints: QueryConstraint[] = [where("sessionId", "in", chunk), orderBy(documentId()), limit(pageSize)];
-      if (cursor) constraints.splice(2, 0, startAfter(cursor));
-      const snapshot = await getDocs(query(collection(db, COLLECTIONS.ATTENDANCE), ...constraints));
-      groups.push(snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as AttendanceDoc) })));
-      hasMore = snapshot.docs.length === pageSize;
-      cursor = snapshot.docs[snapshot.docs.length - 1];
-    }
+    groups.push(await listAttendancePages([where("sessionId", "in", chunk)], pageSize));
   }
 
   return groups.flat();
@@ -207,12 +241,10 @@ export async function listAttendanceByStudents(studentIds: string[], pageSize = 
   if (isTeacherUser(currentUser)) {
     const classes = await listClasses();
     const groups = await Promise.all(
-      classes.flatMap((klass) => chunk30(uniqueIds).map(async (ids) => {
-        const snapshot = await getDocs(
-          query(collection(db, COLLECTIONS.ATTENDANCE), where("classId", "==", klass.id), where("studentId", "in", ids), limit(pageSize)),
-        );
-        return snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as AttendanceDoc) }));
-      })),
+      classes.flatMap((klass) => chunk30(uniqueIds).map((ids) => listAttendancePages(
+        [where("classId", "==", klass.id), where("studentId", "in", ids)],
+        pageSize,
+      ))),
     );
     return groups.flat().sort((a, b) => b.markedAt.toMillis() - a.markedAt.toMillis());
   }
@@ -223,10 +255,10 @@ export async function listAttendanceByStudents(studentIds: string[], pageSize = 
     return acc;
   }, []);
 
-  const groups = await Promise.all(chunks.map(async (chunk) => {
-    const snapshot = await getDocs(query(collection(db, COLLECTIONS.ATTENDANCE), where("studentId", "in", chunk), limit(pageSize)));
-    return snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as AttendanceDoc) }));
-  }));
+  const groups = await Promise.all(chunks.map((chunk) => listAttendancePages(
+    [where("studentId", "in", chunk)],
+    pageSize,
+  )));
   return groups.flat().sort((a, b) => b.markedAt.toMillis() - a.markedAt.toMillis());
 }
 

@@ -93,7 +93,9 @@ service cloud.firestore {
 
     function classIsSchedulable(classId) {
       return existsAfter(/databases/$(database)/documents/classes/$(classId)) &&
-        getAfter(/databases/$(database)/documents/classes/$(classId)).data.get('status', 'active') == 'active';
+        getAfter(/databases/$(database)/documents/classes/$(classId)).data.get('status', 'active') == 'active' &&
+        existsAfter(/databases/$(database)/documents/courses/$(getAfter(/databases/$(database)/documents/classes/$(classId)).data.courseId)) &&
+        getAfter(/databases/$(database)/documents/courses/$(getAfter(/databases/$(database)/documents/classes/$(classId)).data.courseId)).data.status == 'active';
     }
 
     function isAssignedTeacherForCourse(courseId) {
@@ -147,6 +149,24 @@ service cloud.firestore {
 
     function keepsImmutable(fieldNames) {
       return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fieldNames);
+    }
+
+    function courseHasClassRevision(courseId) {
+      return get(/databases/$(database)/documents/courses/$(courseId)).data.keys().hasAny(['classRevision']);
+    }
+
+    function advancesCourseClassRevision(courseId) {
+      return !courseHasClassRevision(courseId) ||
+        getAfter(/databases/$(database)/documents/courses/$(courseId)).data.classRevision ==
+          get(/databases/$(database)/documents/courses/$(courseId)).data.classRevision + 1;
+    }
+
+    function validCourseClassRevisionUpdate() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['classRevision']) || (
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['classRevision']) &&
+        request.resource.data.classRevision ==
+          (resource.data.keys().hasAny(['classRevision']) ? resource.data.classRevision : 0) + 1
+      );
     }
 
     function ownsStudent(studentId) {
@@ -252,6 +272,24 @@ service cloud.firestore {
       return value is list;
     }
 
+    function validUserData(data) {
+      return data.keys().hasAll(['role', 'studentIds', 'status']) &&
+        data.keys().hasOnly(['email', 'displayName', 'photoURL', 'role', 'studentIds', 'status', 'createdAt', 'updatedAt', 'lastLoginAt', 'notificationPrefs', 'phone', 'address', 'facebookUrl']) &&
+        isValidRole(data.role) &&
+        data.studentIds is list &&
+        data.status in ['active', 'disabled'] &&
+        (!data.keys().hasAny(['email']) || data.email is string) &&
+        (!data.keys().hasAny(['displayName']) || data.displayName is string) &&
+        (!data.keys().hasAny(['photoURL']) || data.photoURL == null || data.photoURL is string) &&
+        (!data.keys().hasAny(['phone']) || data.phone is string) &&
+        (!data.keys().hasAny(['address']) || data.address is string) &&
+        (!data.keys().hasAny(['facebookUrl']) || data.facebookUrl is string) &&
+        (!data.keys().hasAny(['createdAt']) || data.createdAt is timestamp) &&
+        (!data.keys().hasAny(['updatedAt']) || data.updatedAt is timestamp) &&
+        (!data.keys().hasAny(['lastLoginAt']) || data.lastLoginAt is timestamp) &&
+        (!data.keys().hasAny(['notificationPrefs']) || data.notificationPrefs is map);
+    }
+
     function validSubjectData(subjectId, data) {
       return data.keys().hasAll(['name', 'code', 'description', 'status', 'createdAt', 'updatedAt']) &&
         data.keys().hasOnly(['name', 'code', 'description', 'status', 'createdAt', 'updatedAt']) &&
@@ -262,9 +300,22 @@ service cloud.firestore {
         hasTimestamps(data);
     }
 
-    function validCourseData(data) {
+    function validCoursePointer(courseId, data) {
+      let curriculumId = data.get('activeCurriculumId', null);
+      let curriculumVersion = data.get('activeCurriculumVersion', null);
+      return (curriculumId == null && curriculumVersion == null) || (
+        curriculumId is string && curriculumVersion is int &&
+        existsAfter(/databases/$(database)/documents/course_curricula/$(curriculumId)) &&
+        getAfter(/databases/$(database)/documents/course_curricula/$(curriculumId)).data.courseId == courseId &&
+        getAfter(/databases/$(database)/documents/course_curricula/$(curriculumId)).data.version == curriculumVersion &&
+        getAfter(/databases/$(database)/documents/course_curricula/$(curriculumId)).data.status == 'published' &&
+        data.get('curriculumVersionCounter', curriculumVersion) >= curriculumVersion
+      );
+    }
+
+    function validCourseData(courseId, data) {
       return data.keys().hasAll(['name', 'subjectIds', 'pricePerSession', 'tuitionFee', 'totalSessions', 'startDate', 'endDate', 'status', 'createdAt', 'updatedAt']) &&
-        data.keys().hasOnly(['name', 'subjectIds', 'teacherIds', 'pricePerSession', 'tuitionFee', 'totalSessions', 'startDate', 'endDate', 'status', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['name', 'subjectIds', 'teacherIds', 'pricePerSession', 'tuitionFee', 'totalSessions', 'startDate', 'endDate', 'status', 'activeCurriculumId', 'activeCurriculumVersion', 'curriculumVersionCounter', 'classRevision', 'createdAt', 'updatedAt']) &&
         data.name is string &&
         isStringList(data.subjectIds) &&
         data.subjectIds.size() > 0 &&
@@ -279,6 +330,11 @@ service cloud.firestore {
         data.endDate is timestamp &&
         data.endDate >= data.startDate &&
         data.status in ['draft', 'active', 'completed'] &&
+        (!data.keys().hasAny(['activeCurriculumId']) || data.activeCurriculumId == null || data.activeCurriculumId is string) &&
+        (!data.keys().hasAny(['activeCurriculumVersion']) || data.activeCurriculumVersion == null || data.activeCurriculumVersion is int) &&
+        (!data.keys().hasAny(['curriculumVersionCounter']) || data.curriculumVersionCounter == null || (data.curriculumVersionCounter is int && data.curriculumVersionCounter >= 0)) &&
+        (!data.keys().hasAny(['classRevision']) || (data.classRevision is int && data.classRevision >= 0)) &&
+        validCoursePointer(courseId, data) &&
         hasTimestamps(data);
     }
 
@@ -307,6 +363,7 @@ service cloud.firestore {
         (!data.keys().hasAny(['staffNote']) || data.staffNote is string) &&
         (!data.keys().hasAny(['nickname']) || data.nickname is string) &&
         data.status in ['active', 'inactive'] &&
+        (data.status == 'active' || (data.currentClassIds.size() == 0 && data.teacherIds.size() == 0)) &&
         hasTimestamps(data);
     }
 
@@ -314,34 +371,40 @@ service cloud.firestore {
       return data.keys().hasAll(['daysOfWeek', 'startTime', 'endTime', 'startDate', 'endDate', 'sessionCount']) &&
         data.keys().hasOnly(['daysOfWeek', 'startTime', 'endTime', 'startDate', 'endDate', 'sessionCount']) &&
         data.daysOfWeek is list &&
-        data.daysOfWeek.size() > 0 &&
+        data.daysOfWeek.size() > 0 && data.daysOfWeek.hasOnly([0, 1, 2, 3, 4, 5, 6]) &&
         data.startTime is string &&
         data.endTime is string &&
         data.startDate is timestamp &&
         data.endDate is timestamp &&
         data.endDate >= data.startDate &&
         data.sessionCount is int &&
-        data.sessionCount > 0;
+        data.sessionCount > 0 && data.sessionCount <= 200;
     }
 
     function validClassData(data) {
       return data.keys().hasAll(['name', 'courseId', 'subjectIds', 'teacherIds', 'studentIds', 'scheduleText', 'location', 'status', 'createdAt', 'updatedAt']) &&
-        data.keys().hasOnly(['name', 'courseId', 'subjectIds', 'teacherIds', 'studentIds', 'scheduleText', 'location', 'status', 'recurrence', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['name', 'courseId', 'subjectIds', 'teacherIds', 'studentIds', 'scheduleText', 'location', 'status', 'curriculumId', 'curriculumVersion', 'recurrence', 'createdAt', 'updatedAt']) &&
         data.name is string &&
         data.courseId is string &&
         isStringList(data.subjectIds) &&
+        data.subjectIds.size() > 0 &&
+        data.subjectIds.toSet().size() == data.subjectIds.size() &&
         isStringList(data.teacherIds) &&
+        data.teacherIds.toSet().size() == data.teacherIds.size() &&
         isStringList(data.studentIds) &&
+        data.studentIds.toSet().size() == data.studentIds.size() &&
         data.scheduleText is string &&
         data.location is string &&
         data.status in ['active', 'completed', 'cancelled'] &&
+        (!data.keys().hasAny(['curriculumId']) || data.curriculumId == null || data.curriculumId is string) &&
+        (!data.keys().hasAny(['curriculumVersion']) || data.curriculumVersion == null || data.curriculumVersion is int) &&
         (!data.keys().hasAny(['recurrence']) || data.recurrence == null || validRecurrence(data.recurrence)) &&
         hasTimestamps(data);
     }
 
     function validSessionData(data) {
       return data.keys().hasAll(['classId', 'title', 'startAt', 'endAt', 'location', 'status', 'note', 'makeUpForSessionId', 'createdAt', 'updatedAt']) &&
-        data.keys().hasOnly(['classId', 'title', 'startAt', 'endAt', 'location', 'status', 'note', 'makeUpForSessionId', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['classId', 'title', 'startAt', 'endAt', 'location', 'status', 'note', 'makeUpForSessionId', 'sequenceNumber', 'curriculumVersion', 'curriculumItemId', 'lessonPlanId', 'createdAt', 'updatedAt']) &&
         data.classId is string &&
         data.title is string &&
         data.startAt is timestamp &&
@@ -351,6 +414,10 @@ service cloud.firestore {
         data.status in ['scheduled', 'rescheduled', 'cancelled', 'completed'] &&
         data.note is string &&
         (data.makeUpForSessionId == null || data.makeUpForSessionId is string) &&
+        (!data.keys().hasAny(['sequenceNumber']) || data.sequenceNumber == null || data.sequenceNumber is int) &&
+        (!data.keys().hasAny(['curriculumVersion']) || data.curriculumVersion == null || data.curriculumVersion is int) &&
+        (!data.keys().hasAny(['curriculumItemId']) || data.curriculumItemId == null || data.curriculumItemId is string) &&
+        (!data.keys().hasAny(['lessonPlanId']) || data.lessonPlanId == null || data.lessonPlanId is string) &&
         hasTimestamps(data);
     }
 
@@ -441,34 +508,80 @@ service cloud.firestore {
         hasTimestamps(data);
     }
 
-    function validCourseCurriculumData(data) {
+    function validCourseCurriculumData(curriculumId, data) {
       return data.keys().hasAll(['courseId', 'version', 'title', 'itemIds', 'itemCount', 'totalDurationMinutes', 'status', 'publishedBy', 'publishedAt', 'revision', 'createdAt', 'updatedAt']) &&
         data.keys().hasOnly(['courseId', 'version', 'title', 'itemIds', 'itemCount', 'totalDurationMinutes', 'status', 'publishedBy', 'publishedAt', 'revision', 'createdAt', 'updatedAt']) &&
         data.courseId is string &&
-        data.version is number &&
+        curriculumId.matches('^' + data.courseId + '_v[0-9]+$') &&
+        data.version is int && data.version >= 1 &&
         data.title is string && data.title.size() >= 1 && data.title.size() <= 160 &&
         data.itemIds is list &&
-        data.itemCount is number &&
-        data.totalDurationMinutes is number &&
+        data.itemCount is int && data.itemCount >= 1 && data.itemCount <= 200 && data.itemIds.size() == data.itemCount &&
+        data.totalDurationMinutes is int && data.totalDurationMinutes >= data.itemCount &&
         data.status in ['draft', 'published', 'superseded', 'archived'] &&
         (data.publishedBy == null || data.publishedBy is string) &&
         (data.publishedAt == null || data.publishedAt is timestamp) &&
-        data.revision is number &&
+        data.revision is int && data.revision >= 1 &&
         hasTimestamps(data);
     }
 
-    function validCourseCurriculumItemData(data) {
+    function validCourseCurriculumItemData(itemId, data) {
       return data.keys().hasAll(['courseId', 'curriculumVersion', 'sequenceNumber', 'subjectId', 'title', 'standardLessonId', 'durationMinutes', 'status', 'createdAt', 'updatedAt']) &&
         data.keys().hasOnly(['courseId', 'curriculumVersion', 'sequenceNumber', 'subjectId', 'title', 'standardLessonId', 'durationMinutes', 'status', 'createdAt', 'updatedAt']) &&
         data.courseId is string &&
-        data.curriculumVersion is number &&
-        data.sequenceNumber is number && data.sequenceNumber >= 1 &&
+        itemId.matches('^' + data.courseId + '_v[0-9]+_s[0-9][0-9][0-9]$') &&
+        data.curriculumVersion is int && data.curriculumVersion >= 1 &&
+        data.sequenceNumber is int && data.sequenceNumber >= 1 && data.sequenceNumber <= 200 &&
         data.subjectId is string &&
         data.title is string && data.title.size() >= 1 && data.title.size() <= 160 &&
         (data.standardLessonId == null || data.standardLessonId is string) &&
-        data.durationMinutes is number && data.durationMinutes >= 1 &&
+        data.durationMinutes is int && data.durationMinutes >= 1 && data.durationMinutes <= 600 &&
         data.status in ['draft', 'ready'] &&
         hasTimestamps(data);
+    }
+
+    function validEnrollmentData(enrollmentId, data) {
+      return data.keys().hasAll(['classId', 'courseId', 'studentId', 'status', 'joinedAt', 'endedAt']) &&
+        data.keys().hasOnly(['classId', 'courseId', 'studentId', 'status', 'joinedAt', 'endedAt']) &&
+        data.classId is string && data.courseId is string && data.studentId is string &&
+        enrollmentId == data.classId + '_' + data.studentId &&
+        data.status in ['active', 'ended'] &&
+        data.joinedAt is timestamp &&
+        (data.endedAt == null || data.endedAt is timestamp) &&
+        existsAfter(/databases/$(database)/documents/classes/$(data.classId)) &&
+        existsAfter(/databases/$(database)/documents/students/$(data.studentId)) &&
+        data.courseId == getAfter(/databases/$(database)/documents/classes/$(data.classId)).data.courseId &&
+        (data.status == 'ended' || (
+          getAfter(/databases/$(database)/documents/classes/$(data.classId)).data.status == 'active' &&
+          getAfter(/databases/$(database)/documents/students/$(data.studentId)).data.status == 'active'
+        ));
+    }
+
+    function validCurriculumTransition() {
+      return (resource.data.status == 'draft' && request.resource.data.status in ['draft', 'published']) ||
+        (resource.data.status == 'published' && request.resource.data.status == 'superseded') ||
+        (resource.data.status in ['superseded', 'archived'] && request.resource.data.status == resource.data.status);
+    }
+
+    function validCurriculumCourseState(curriculumId, data) {
+      let course = getAfter(/databases/$(database)/documents/courses/$(data.courseId)).data;
+      let activeVersion = course.get('activeCurriculumVersion', 0);
+      return existsAfter(/databases/$(database)/documents/courses/$(data.courseId)) &&
+        data.itemCount == course.totalSessions &&
+        data.version <= course.get('curriculumVersionCounter', 0) &&
+        (
+          (data.status == 'draft' && (activeVersion == null || data.version > activeVersion)) ||
+          (data.status == 'published' && course.activeCurriculumId == curriculumId && course.activeCurriculumVersion == data.version) ||
+          (data.status in ['superseded', 'archived'] && course.get('activeCurriculumId', null) != curriculumId)
+        );
+    }
+
+    function curriculumItemVersionIsEditable(data) {
+      let course = getAfter(/databases/$(database)/documents/courses/$(data.courseId)).data;
+      let activeVersion = course.get('activeCurriculumVersion', 0);
+      return existsAfter(/databases/$(database)/documents/courses/$(data.courseId)) &&
+        data.curriculumVersion <= course.get('curriculumVersionCounter', 0) &&
+        (activeVersion == null || data.curriculumVersion > activeVersion);
     }
 
     function validScoreSource(data, scoreId) {
@@ -483,6 +596,9 @@ service cloud.firestore {
             data.assessmentType == 'assignment' &&
             scoreId == 'assignment_' + data.assignmentId + '_' + data.studentId &&
             get(/databases/$(database)/documents/assignments/$(data.assignmentId)).data.classId == data.classId &&
+            get(/databases/$(database)/documents/assignments/$(data.assignmentId)).data.get('subjectId', '') == data.subjectId &&
+            get(/databases/$(database)/documents/assignments/$(data.assignmentId)).data.title == data.assessmentName &&
+            get(/databases/$(database)/documents/assignments/$(data.assignmentId)).data.maxScore == data.maxScore &&
             get(/databases/$(database)/documents/submissions/$(data.submissionId)).data.studentId == data.studentId &&
             get(/databases/$(database)/documents/submissions/$(data.submissionId)).data.assignmentId == data.assignmentId &&
             get(/databases/$(database)/documents/submissions/$(data.submissionId)).data.classId == data.classId
@@ -548,6 +664,62 @@ service cloud.firestore {
         (!data.keys().hasAny(['classId']) || data.classId is string) &&
         (!data.keys().hasAny(['studentId']) || data.studentId is string) &&
         (!data.keys().hasAny(['resolvedAt']) || data.resolvedAt == null || data.resolvedAt is timestamp);
+    }
+
+    function validAnnouncementTarget(announcementId, data) {
+      return data.classId is string && data.studentId is string &&
+        canManageClass(data.classId) &&
+        data.studentId in get(/databases/$(database)/documents/classes/$(data.classId)).data.studentIds &&
+        (
+          (
+            data.type == 'attendance_alert' &&
+            announcementId == 'attendance_' + data.sessionId + '_' + data.studentId &&
+            sessionBelongsToClass(data.sessionId, data.classId)
+          ) || (
+            data.type == 'schedule_change' &&
+            announcementId == 'schedule_' + data.sessionId + '_' + data.studentId &&
+            sessionBelongsToClass(data.sessionId, data.classId)
+          ) || (
+            data.type == 'homework_reminder' &&
+            announcementId == 'assignment_' + data.assignmentId + '_' + data.studentId &&
+            get(/databases/$(database)/documents/assignments/$(data.assignmentId)).data.classId == data.classId
+          ) || (
+            data.type == 'session_summary' &&
+            announcementId == data.sessionId + '_' + data.studentId &&
+            sessionBelongsToClass(data.sessionId, data.classId)
+          )
+        );
+    }
+
+    function lessonPlanLinksBelongTogether(data) {
+      return data.classId is string &&
+        exists(/databases/$(database)/documents/classes/$(data.classId)) &&
+        (data.courseId == null || data.courseId == get(/databases/$(database)/documents/classes/$(data.classId)).data.courseId) &&
+        (data.subjectId == null || data.subjectId in get(/databases/$(database)/documents/classes/$(data.classId)).data.subjectIds) &&
+        (data.sessionId == null || sessionBelongsToClass(data.sessionId, data.classId));
+    }
+
+    function validStandardLessonTransition() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let creatorCanSubmit = resource.data.createdBy == request.auth.uid && resource.data.approvalStatus == 'draft' &&
+        request.resource.data.approvalStatus == 'pending' && changed.hasOnly(['approvalStatus', 'updatedAt']);
+      let canEditDraft = resource.data.approvalStatus == 'draft' && request.resource.data.approvalStatus == 'draft' &&
+        request.resource.data.revision == resource.data.revision + 1 &&
+        (isAdmin() || resource.data.createdBy == request.auth.uid);
+      let adminTransition = isAdmin() && changed.hasOnly(['approvalStatus', 'updatedAt']) &&
+        request.resource.data.revision == resource.data.revision && (
+          (resource.data.approvalStatus == 'pending' && request.resource.data.approvalStatus in ['approved', 'draft']) ||
+          (resource.data.approvalStatus == 'approved' && request.resource.data.approvalStatus == 'archived')
+        );
+      return creatorCanSubmit || canEditDraft || adminTransition;
+    }
+
+    function validCurriculumStandardLesson(data) {
+      return data.standardLessonId == null || (
+        exists(/databases/$(database)/documents/standard_lessons/$(data.standardLessonId)) &&
+        get(/databases/$(database)/documents/standard_lessons/$(data.standardLessonId)).data.approvalStatus == 'approved' &&
+        get(/databases/$(database)/documents/standard_lessons/$(data.standardLessonId)).data.subjectId == data.subjectId
+      );
     }
 
     function validAttendanceData(data, attendanceId) {
@@ -686,7 +858,7 @@ service cloud.firestore {
         isTeacher() && resource.data.role in ['teacher', 'viewer']
       );
 
-      allow create: if isAdmin() || (
+      allow create: if validUserData(request.resource.data) && (isAdmin() || (
         request.auth.uid == uid &&
         hasActiveInvite() &&
         request.resource.data.email == requesterEmail() &&
@@ -696,16 +868,16 @@ service cloud.firestore {
         request.resource.data.keys().hasOnly(
           ['email', 'displayName', 'photoURL', 'role', 'studentIds', 'status', 'createdAt', 'updatedAt']
         )
-      );
+      ));
 
-      allow update: if isAdmin() || (
+      allow update: if validUserData(request.resource.data) && (isAdmin() || (
         request.auth.uid == uid &&
         request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(['displayName', 'photoURL', 'lastLoginAt', 'notificationPrefs', 'phone', 'address', 'facebookUrl', 'updatedAt']) &&
         request.resource.data.role == resource.data.role &&
         request.resource.data.studentIds == resource.data.studentIds &&
         request.resource.data.status == resource.data.status
-      );
+      ));
 
       allow delete: if false;
     }
@@ -837,12 +1009,18 @@ service cloud.firestore {
 
     match /courses/{courseId} {
       allow read: if isActive();
-      allow create: if isStaff() &&
+      allow create: if (isAdmin() || (isTeacher() && request.auth.uid in request.resource.data.teacherIds)) &&
         request.resource.data.keys().hasAny(['teacherIds']) &&
         request.resource.data.teacherIds.size() > 0 &&
-        validCourseData(request.resource.data);
-      allow update: if isStaff() &&
-        validCourseData(request.resource.data) &&
+        request.resource.data.totalSessions <= 200 &&
+        validCourseData(courseId, request.resource.data);
+      allow update: if (isAdmin() || (
+          isTeacher() && request.auth.uid in resource.data.teacherIds &&
+          request.auth.uid in request.resource.data.teacherIds
+        )) &&
+        validCourseData(courseId, request.resource.data) &&
+        validCourseClassRevisionUpdate() &&
+        (request.resource.data.totalSessions <= 200 || request.resource.data.totalSessions == resource.data.totalSessions) &&
         keepsImmutable(['createdAt']);
       allow delete: if false;
     }
@@ -873,10 +1051,11 @@ service cloud.firestore {
         isAdmin() ||
         (
           isTeacher() &&
-          request.resource.data.teacherIds.size() == 1 &&
-          request.resource.data.teacherIds[0] == request.auth.uid &&
           request.resource.data.parentUids.size() == 0 &&
-          request.resource.data.currentClassIds.size() == 0 &&
+          request.resource.data.currentClassIds.size() == 1 &&
+          request.auth.uid in get(/databases/$(database)/documents/classes/$(request.resource.data.currentClassIds[0])).data.teacherIds &&
+          get(/databases/$(database)/documents/classes/$(request.resource.data.currentClassIds[0])).data.status == 'active' &&
+          request.resource.data.teacherIds == get(/databases/$(database)/documents/classes/$(request.resource.data.currentClassIds[0])).data.teacherIds &&
           request.resource.data.status == 'active'
         )
       ) && validStudentData(studentId, request.resource.data);
@@ -925,9 +1104,30 @@ service cloud.firestore {
           request.resource.data.studentIds.size() == 0
         )
       ) &&
-        validClassData(request.resource.data);
-      allow update: if keepsImmutable(['createdAt']) &&
         validClassData(request.resource.data) &&
+        advancesCourseClassRevision(request.resource.data.courseId) &&
+        exists(/databases/$(database)/documents/courses/$(request.resource.data.courseId)) &&
+        get(/databases/$(database)/documents/courses/$(request.resource.data.courseId)).data.status == 'active' &&
+        request.resource.data.subjectIds.hasOnly(get(/databases/$(database)/documents/courses/$(request.resource.data.courseId)).data.subjectIds) &&
+        request.resource.data.teacherIds.hasOnly(get(/databases/$(database)/documents/courses/$(request.resource.data.courseId)).data.teacherIds) &&
+        (!request.resource.data.keys().hasAny(['recurrence']) || request.resource.data.recurrence == null ||
+          request.resource.data.recurrence.sessionCount == get(/databases/$(database)/documents/courses/$(request.resource.data.courseId)).data.totalSessions);
+      allow update: if keepsImmutable(['createdAt', 'courseId', 'curriculumId', 'curriculumVersion']) &&
+        validClassData(request.resource.data) &&
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'subjectIds', 'teacherIds', 'recurrence']) ||
+          advancesCourseClassRevision(resource.data.courseId)) &&
+        (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['subjectIds', 'teacherIds', 'recurrence']) || (
+            request.resource.data.subjectIds.hasOnly(
+              get(/databases/$(database)/documents/courses/$(resource.data.courseId)).data.subjectIds
+            ) &&
+            request.resource.data.teacherIds.hasOnly(
+              get(/databases/$(database)/documents/courses/$(resource.data.courseId)).data.teacherIds
+            ) &&
+            (!request.resource.data.keys().hasAny(['recurrence']) || request.resource.data.recurrence == null ||
+              request.resource.data.recurrence.sessionCount == get(/databases/$(database)/documents/courses/$(resource.data.courseId)).data.totalSessions)
+          )
+        ) &&
         (
           isAdmin() ||
           (
@@ -942,7 +1142,8 @@ service cloud.firestore {
               get(/databases/$(database)/documents/courses/$(resource.data.courseId)).data.subjectIds
             ) &&
             request.resource.data.teacherIds == resource.data.teacherIds &&
-            request.resource.data.studentIds == resource.data.studentIds
+            request.resource.data.studentIds == resource.data.studentIds &&
+            request.resource.data.status != 'cancelled'
           )
         );
       allow delete: if false;
@@ -954,11 +1155,10 @@ service cloud.firestore {
 
     match /enrollments/{enrollmentId} {
       allow read: if canManageClass(resource.data.classId) || ownsStudent(resource.data.studentId);
-      allow create: if (
+      allow create: if validEnrollmentData(enrollmentId, request.resource.data) && ((
         isAdmin() &&
-        enrollmentId == request.resource.data.classId + '_' + request.resource.data.studentId &&
         request.resource.data.status in ['active', 'ended']
-      ) || isTeacherEnrollmentCreate(enrollmentId);
+      ) || isTeacherEnrollmentCreate(enrollmentId));
       allow update: if (
         isAdmin() ||
         (
@@ -967,7 +1167,7 @@ service cloud.firestore {
           request.resource.data.status == 'ended'
         )
       ) &&
-        request.resource.data.status in ['active', 'ended'] &&
+        validEnrollmentData(enrollmentId, request.resource.data) &&
         keepsImmutable(['classId', 'courseId', 'studentId', 'joinedAt']);
       allow delete: if false;
     }
@@ -983,7 +1183,7 @@ service cloud.firestore {
         validSessionData(request.resource.data);
       allow update: if canManageClass(resource.data.classId) &&
         validSessionData(request.resource.data) &&
-        keepsImmutable(['classId', 'createdAt']) &&
+        keepsImmutable(['classId', 'sequenceNumber', 'curriculumVersion', 'curriculumItemId', 'createdAt']) &&
         (
           classIsSchedulable(resource.data.classId) ||
           (
@@ -1047,9 +1247,11 @@ service cloud.firestore {
       allow read: if isStaff() || (
         isActive() && resource.data.studentId != null && ownsStudent(resource.data.studentId)
       );
-      allow create: if isStaff() && validAnnouncementData(request.resource.data);
+      allow create: if isStaff() && validAnnouncementData(request.resource.data) &&
+        validAnnouncementTarget(announcementId, request.resource.data);
       allow update: if isStaff() &&
         validAnnouncementData(request.resource.data) &&
+        canManageClass(resource.data.classId) &&
         (
           (
             resource.data.type == 'attendance_alert' &&
@@ -1088,9 +1290,11 @@ service cloud.firestore {
         resource.data.createdBy == request.auth.uid;
       allow create: if (isAdmin() || (request.resource.data.classId != null && isAssignedTeacherForClass(request.resource.data.classId))) &&
         request.resource.data.createdBy == request.auth.uid &&
-        validLessonPlanData(request.resource.data);
+        validLessonPlanData(request.resource.data) &&
+        lessonPlanLinksBelongTogether(request.resource.data);
       allow update: if (isAdmin() || (resource.data.classId != null && isAssignedTeacherForClass(resource.data.classId))) &&
         validLessonPlanData(request.resource.data) &&
+        lessonPlanLinksBelongTogether(request.resource.data) &&
         keepsImmutable(['classId', 'createdBy', 'createdAt']);
       allow delete: if false;
     }
@@ -1117,22 +1321,35 @@ service cloud.firestore {
 
     match /standard_lessons/{lessonId} {
       allow read: if isStaff();
-      allow create: if isStaff() && request.resource.data.createdBy == request.auth.uid && validStandardLessonData(request.resource.data);
-      allow update: if isStaff() && validStandardLessonData(request.resource.data) && keepsImmutable(['createdBy', 'createdAt']);
+      allow create: if isStaff() && request.resource.data.createdBy == request.auth.uid &&
+        request.resource.data.approvalStatus == 'draft' && request.resource.data.revision == 1 &&
+        validStandardLessonData(request.resource.data);
+      allow update: if isStaff() && validStandardLessonData(request.resource.data) &&
+        validStandardLessonTransition() && keepsImmutable(['createdBy', 'createdAt']);
       allow delete: if false;
     }
 
     match /course_curricula/{curriculumId} {
       allow read: if isStaff();
-      allow create: if isStaff() && validCourseCurriculumData(request.resource.data);
-      allow update: if isStaff() && validCourseCurriculumData(request.resource.data) && keepsImmutable(['courseId', 'version', 'createdAt']);
+      allow create: if isStaff() && request.resource.data.status == 'draft' &&
+        request.resource.data.publishedBy == null && request.resource.data.publishedAt == null &&
+        validCourseCurriculumData(curriculumId, request.resource.data) &&
+        validCurriculumCourseState(curriculumId, request.resource.data);
+      allow update: if isStaff() && validCourseCurriculumData(curriculumId, request.resource.data) &&
+        validCurriculumTransition() && validCurriculumCourseState(curriculumId, request.resource.data) &&
+        keepsImmutable(['courseId', 'version', 'createdAt']);
       allow delete: if false;
     }
 
     match /course_curriculum_items/{itemId} {
       allow read: if isStaff();
-      allow create: if isStaff() && validCourseCurriculumItemData(request.resource.data);
-      allow update: if isStaff() && validCourseCurriculumItemData(request.resource.data) && keepsImmutable(['courseId', 'curriculumVersion', 'sequenceNumber', 'createdAt']);
+      allow create: if isStaff() && request.resource.data.status == 'draft' &&
+        validCourseCurriculumItemData(itemId, request.resource.data) && validCurriculumStandardLesson(request.resource.data) &&
+        curriculumItemVersionIsEditable(request.resource.data);
+      allow update: if isStaff() && validCourseCurriculumItemData(itemId, request.resource.data) &&
+        validCurriculumStandardLesson(request.resource.data) &&
+        curriculumItemVersionIsEditable(request.resource.data) &&
+        keepsImmutable(['courseId', 'curriculumVersion', 'sequenceNumber', 'createdAt']);
       allow delete: if false;
     }
 
@@ -1236,6 +1453,7 @@ service cloud.firestore {
       allow create: if canManageClass(request.resource.data.classId) &&
         request.resource.data.maxScore > 0 &&
         request.resource.data.score >= 0 && request.resource.data.score <= request.resource.data.maxScore &&
+        request.resource.data.subjectId in get(/databases/$(database)/documents/classes/$(request.resource.data.classId)).data.subjectIds &&
         (
           request.resource.data.get('source', 'manual') == 'assignment' ||
           request.resource.data.studentId in
@@ -1245,6 +1463,7 @@ service cloud.firestore {
       allow update: if canManageClass(resource.data.classId) &&
         request.resource.data.maxScore > 0 &&
         request.resource.data.score >= 0 && request.resource.data.score <= request.resource.data.maxScore &&
+        request.resource.data.subjectId in get(/databases/$(database)/documents/classes/$(resource.data.classId)).data.subjectIds &&
         validScoreSource(request.resource.data, scoreId) &&
         request.resource.data.get('source', 'manual') == resource.data.get('source', 'manual') &&
         request.resource.data.get('assignmentId', null) == resource.data.get('assignmentId', null) &&
@@ -1271,7 +1490,7 @@ service cloud.firestore {
         validInvoiceData(request.resource.data);
       allow update: if keepsImmutable(
         ['invoiceCode', 'studentId', 'courseId', 'amount', 'paymentContent', 'bankBin', 'accountNumber', 'accountName', 'createdBy', 'createdAt', 'sourceType', 'sourceId', 'classId', 'subjectId', 'billingItemId', 'itemNameSnapshot', 'unitPriceSnapshot', 'quantity']
-      ) && (
+      ) && validInvoiceData(request.resource.data) && (
         isAdmin() || (
           ownsStudent(resource.data.studentId) && resource.data.status in ['unpaid', 'overdue', 'rejected'] &&
           request.resource.data.status == 'pending' &&
@@ -1292,7 +1511,10 @@ service cloud.firestore {
         getAfter(/databases/$(database)/documents/invoices/$(request.resource.data.invoiceId)).data.amount == request.resource.data.amount &&
         getAfter(/databases/$(database)/documents/invoices/$(request.resource.data.invoiceId)).data.studentId == request.resource.data.studentId;
       allow update: if validPaymentData(request.resource.data) && ((isAdmin() &&
+        resource.data.status == 'reported' &&
         request.resource.data.status in ['verified', 'rejected'] &&
+        getAfter(/databases/$(database)/documents/invoices/$(resource.data.invoiceId)).data.status ==
+          (request.resource.data.status == 'verified' ? 'paid' : 'rejected') &&
         keepsImmutable(['invoiceId', 'studentId', 'amount', 'reportedBy', 'reportedAt'])
       ) || (
         ownsStudent(resource.data.studentId) &&
@@ -1312,16 +1534,42 @@ service cloud.firestore {
       ));
       allow delete: if false;
     }
+    match /chat_tags/{tagId} {
+      allow read: if isStaff();
+      allow create: if isAdmin() &&
+        request.resource.data.keys().hasOnly(['label', 'color', 'createdBy', 'createdAt', 'updatedAt']) &&
+        request.resource.data.label is string &&
+        request.resource.data.label.size() > 0 && request.resource.data.label.size() <= 24 &&
+        request.resource.data.color in ['red', 'pink', 'amber', 'green', 'blue'] &&
+        request.resource.data.createdBy == request.auth.uid &&
+        request.resource.data.createdAt == request.time &&
+        request.resource.data.updatedAt == request.time;
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
     match /chat_threads/{threadId} {
       allow read: if isAdmin() || (
-        isTeacher() && request.auth.uid in resource.data.assignedTeacherIds
+        isTeacher() && request.auth.uid in resource.data.assignedTeacherIds &&
+        request.auth.uid in get(/databases/$(database)/documents/students/$(resource.data.studentId)).data.teacherIds
       );
-      allow create, update, delete: if false;
+      allow update: if (isAdmin() || (
+          isTeacher() && request.auth.uid in resource.data.assignedTeacherIds &&
+          request.auth.uid in get(/databases/$(database)/documents/students/$(resource.data.studentId)).data.teacherIds
+        )) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tagIds', 'updatedAt']) &&
+        request.resource.data.tagIds is list &&
+        request.resource.data.tagIds.size() <= 10 &&
+        request.resource.data.updatedAt == request.time;
+      allow create, delete: if false;
 
       match /messages/{messageId} {
         allow read: if isAdmin() || (
           isTeacher() && request.auth.uid in
-            get(/databases/$(database)/documents/chat_threads/$(threadId)).data.assignedTeacherIds
+            get(/databases/$(database)/documents/chat_threads/$(threadId)).data.assignedTeacherIds &&
+          request.auth.uid in get(/databases/$(database)/documents/students/$(
+            get(/databases/$(database)/documents/chat_threads/$(threadId)).data.studentId
+          )).data.teacherIds
         );
         allow create, update, delete: if false;
       }

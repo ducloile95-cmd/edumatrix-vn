@@ -6,6 +6,7 @@ import { DataListPanel } from "@/components/ui/dataListLayout";
 import { FilterSelect, FilterToolbar } from "@/components/ui/FilterToolbar";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/feedback/toastContext";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { listSubjects } from "@/services/firestore/subjects";
 import {
   listStandardLessons,
@@ -14,15 +15,17 @@ import {
   returnStandardLesson,
   archiveStandardLesson,
 } from "@/services/firestore/standardLessons";
-import type { StandardLessonApprovalStatus } from "@/types/academic";
+import type { StandardLessonApprovalStatus, StandardLessonDoc } from "@/types/academic";
 
 interface StandardLessonLibraryProps {
-  onEdit: (lesson: any) => void;
+  onEdit: (lesson: StandardLessonDoc & { id: string }) => void;
   onCreateNew: () => void;
 }
 
 export function StandardLessonLibrary({ onEdit, onCreateNew }: StandardLessonLibraryProps) {
   const { showToast } = useToast();
+  const { firebaseUser, userDoc } = useAuth();
+  const isAdmin = userDoc?.role === "admin";
   const queryClient = useQueryClient();
   const [subjectId, setSubjectId] = useState<string>("");
   const [approvalStatus, setApprovalStatus] = useState<StandardLessonApprovalStatus | "">("");
@@ -134,7 +137,7 @@ export function StandardLessonLibrary({ onEdit, onCreateNew }: StandardLessonLib
             { value: "approved", label: "Đã phê duyệt" },
             { value: "archived", label: "Đã lưu trữ" },
           ]}
-          onChange={(val) => setApprovalStatus(val as any)}
+          onChange={(val) => setApprovalStatus(val as StandardLessonApprovalStatus | "")}
         />
 
         <div className="flex items-end">
@@ -204,7 +207,7 @@ export function StandardLessonLibrary({ onEdit, onCreateNew }: StandardLessonLib
 
                     <div className="flex items-center justify-between pt-4 border-t border-neutral-100">
                       <div className="flex gap-1.5">
-                        {lesson.approvalStatus === "draft" && (
+                        {lesson.approvalStatus === "draft" && (isAdmin || lesson.createdBy === firebaseUser?.uid) && (
                           <>
                             <Button onClick={() => onEdit(lesson)} variant="secondary" size="sm" className="p-1.5">
                               <Edit3 className="h-4 w-4 text-neutral-600" />
@@ -227,7 +230,7 @@ export function StandardLessonLibrary({ onEdit, onCreateNew }: StandardLessonLib
                           </>
                         )}
 
-                        {lesson.approvalStatus === "pending" && (
+                        {lesson.approvalStatus === "pending" && isAdmin && (
                           <>
                             <Button
                               onClick={() => {
@@ -262,7 +265,7 @@ export function StandardLessonLibrary({ onEdit, onCreateNew }: StandardLessonLib
                           </>
                         )}
 
-                        {lesson.approvalStatus !== "archived" && (
+                        {lesson.approvalStatus === "approved" && isAdmin && (
                           <Button
                             onClick={() => {
                               setConfirmAction({

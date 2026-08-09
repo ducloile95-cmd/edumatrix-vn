@@ -4,7 +4,7 @@ vi.mock("@/services/firebase/authClient", () => ({
   auth: { currentUser: { getIdToken: vi.fn().mockResolvedValue("firebase-id-token") } },
 }));
 
-import { createMessengerInviteLink, friendlyMessengerError, postToPage, sendMessenger } from "@/services/integrations/messenger";
+import { createMessengerInviteLink, friendlyMessengerError, postToPage, sendMessenger, syncMessengerThreadContexts } from "@/services/integrations/messenger";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -82,6 +82,18 @@ describe("Messenger integration adapter", () => {
     expect(fetchMock).toHaveBeenCalledWith(
       "https://messenger.example.workers.dev/api/messenger/referral",
       expect.objectContaining({ body: JSON.stringify({ parentUid: "parent-private-uid", studentId: "student-1" }) }),
+    );
+  });
+
+  test("requests a server-side refresh of cached thread relationships", async () => {
+    vi.stubEnv("VITE_MESSENGER_WORKER_URL", "https://messenger.example.workers.dev");
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{"ok":true,"updated":3}', { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(syncMessengerThreadContexts()).resolves.toBe(3);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://messenger.example.workers.dev/api/messenger/sync-contexts",
+      expect.objectContaining({ body: "{}" }),
     );
   });
 });

@@ -9,6 +9,7 @@ import { LessonPlanActivitiesSection } from "@/features/lesson-plans/components/
 import { LessonPlanBasicsSection } from "@/features/lesson-plans/components/LessonPlanBasicsSection";
 import { LessonPlanDriveSection } from "@/features/lesson-plans/components/LessonPlanDriveSection";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { loadLessonPlanDraft, removeLessonPlanDraft, saveLessonPlanDraft } from "@/features/lesson-plans/utils/lessonPlanDrafts";
 import { listClasses } from "@/services/firestore/classes";
 import { listSessionsByClass } from "@/services/firestore/sessions";
 import { listSubjects } from "@/services/firestore/subjects";
@@ -82,6 +83,7 @@ export function LessonPlanForm({ editingPlan, onDone, initialValues }: LessonPla
   const queryClient = useQueryClient();
   const isEditing = !!editingPlan;
   const driveInputRef = useRef<HTMLInputElement>(null);
+  const lastDraftContext = useRef<{ classId: string | null; sessionId: string | null } | null>(null);
   const [driveAttachment, setDriveAttachment] = useState<LessonPlanDriveAttachment | null>(() => driveAttachmentFromPlan(editingPlan));
   const [driveBusy, setDriveBusy] = useState(false);
   const [driveError, setDriveError] = useState<string | null>(null);
@@ -111,31 +113,22 @@ export function LessonPlanForm({ editingPlan, onDone, initialValues }: LessonPla
 
   const watchedValues = watch();
   const isStandardLesson = watchedValues.isStandardLesson;
+  const uid = firebaseUser?.uid ?? "";
 
   // Debounced Auto-Save Draft
   useEffect(() => {
-    if (isEditing) return;
+    if (isEditing || !uid) return;
     const timer = setTimeout(() => {
-      localStorage.setItem("lp_editor_draft", JSON.stringify(watchedValues));
+      const currentContext = { classId: watchedValues.classId ?? null, sessionId: watchedValues.sessionId ?? null };
+      const previousContext = lastDraftContext.current;
+      if (previousContext && (previousContext.classId !== currentContext.classId || previousContext.sessionId !== currentContext.sessionId)) {
+        removeLessonPlanDraft(uid, previousContext.classId, previousContext.sessionId);
+      }
+      saveLessonPlanDraft(uid, watchedValues.classId, watchedValues.sessionId, watchedValues);
+      lastDraftContext.current = currentContext;
     }, 1200);
     return () => clearTimeout(timer);
-  }, [watchedValues, isEditing]);
-
-  // Load Auto-Saved Draft on mount
-  useEffect(() => {
-    if (isEditing) return;
-    const saved = localStorage.getItem("lp_editor_draft");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (parsed && confirm("Phát hiện bản nháp tự động lưu chưa được lưu lại. Bạn có muốn phục hồi không?")) {
-          reset(parsed);
-        }
-      } catch (e) {
-        console.error("Failed to recover draft", e);
-      }
-    }
-  }, [isEditing, reset]);
+  }, [watchedValues, isEditing, uid]);
 
   useEffect(() => {
     setDriveAttachment(driveAttachmentFromPlan(editingPlan));
@@ -159,9 +152,14 @@ export function LessonPlanForm({ editingPlan, onDone, initialValues }: LessonPla
         isStandardLesson: !editingPlan.classId,
       });
     } else {
-      reset({ ...DEFAULT_VALUES, ...initialValues });
+      const classId = initialValues?.classId ?? null;
+      const sessionId = initialValues?.sessionId ?? null;
+      const saved = loadLessonPlanDraft(uid, classId, sessionId);
+      reset(saved && confirm("Phát hiện bản nháp tự động lưu chưa được lưu lại. Bạn có muốn phục hồi không?")
+        ? saved
+        : { ...DEFAULT_VALUES, ...initialValues });
     }
-  }, [editingPlan, initialValues, reset]);
+  }, [editingPlan, initialValues, reset, uid]);
 
   const classId = watch("classId");
   const selectedClass = classes?.find((item) => item.id === classId) ?? null;
@@ -186,7 +184,7 @@ export function LessonPlanForm({ editingPlan, onDone, initialValues }: LessonPla
       else await createLessonPlan(values, firebaseUser?.uid ?? "unknown", driveAttachment);
     },
     onSuccess: () => {
-      localStorage.removeItem("lp_editor_draft");
+      removeLessonPlanDraft(uid, watchedValues.classId, watchedValues.sessionId);
       reset(DEFAULT_VALUES);
       queryClient.invalidateQueries({ queryKey: ["lesson-plans"] });
       onDone?.();
@@ -351,7 +349,7 @@ export function LessonPlanForm({ editingPlan, onDone, initialValues }: LessonPla
                   return;
                 }
               }
-              localStorage.removeItem("lp_editor_draft");
+              removeLessonPlanDraft(uid, watchedValues.classId, watchedValues.sessionId);
               onDone?.();
             }}
           >

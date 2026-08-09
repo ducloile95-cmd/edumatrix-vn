@@ -4,8 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { studentFormSchema, type StudentFormValues } from "@/schemas/student";
 import { listClasses } from "@/services/firestore/classes";
-import { enrollStudent } from "@/services/firestore/enrollments";
-import { createStudent, linkParentToStudent, updateStudent } from "@/services/firestore/students";
+import { createStudentWithRelations, updateStudent } from "@/services/firestore/students";
 import { USER_ROLES } from "@/constants/roles";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import type { StudentDoc } from "@/types/academic";
@@ -32,6 +31,7 @@ export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
     register,
     handleSubmit,
     reset,
+    setError,
     formState: { errors },
   } = useForm<StudentFormValues>({
     resolver: zodResolver(studentFormSchema),
@@ -83,7 +83,7 @@ export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
   }, [editingStudent, reset]);
 
   const mutation = useMutation({
-    mutationFn: async (values: StudentFormValues): Promise<string[]> => {
+    mutationFn: async (values: StudentFormValues): Promise<void> => {
       if (editingStudent) {
         await updateStudent(editingStudent.id, {
           dateOfBirth: values.dateOfBirth,
@@ -91,80 +91,46 @@ export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
           nickname: values.nickname ?? "",
           staffNote: values.staffNote ?? "",
         });
-        return [];
+        return;
       }
 
-      // Buoc bat buoc. That bai o day thi chua co gi duoc ghi, nem loi nhu cu.
-      await createStudent({
+      await createStudentWithRelations({
+        classId: values.classId || undefined,
         dateOfBirth: values.dateOfBirth,
         fullName: values.fullName,
         nickname: values.nickname ?? "",
+        parentEmail: isAdmin ? values.parentEmail || undefined : undefined,
+        parentProfile: isAdmin && values.parentEmail ? {
+          address: values.parentAddress ?? "",
+          displayName: values.parentName ?? "",
+          facebookUrl: values.parentFacebookUrl ?? "",
+          phone: values.parentPhone ?? "",
+        } : undefined,
+        staffNote: values.staffNote ?? "",
         studentCode: values.studentCode,
       });
-
-      // Ba buoc ben duoi chay SAU khi ho so da nam trong Firestore. Nem loi o day
-      // se de lai hoc sinh mo coi va lan submit sau dinh student_code_exists (C1),
-      // nen chung chi duoc bao cao mem qua danh sach warnings.
-      const studentId = values.studentCode.trim().toUpperCase();
-      const warnings: string[] = [];
-
-      if (values.staffNote) {
-        try {
-          await updateStudent(studentId, {
-            dateOfBirth: values.dateOfBirth,
-            fullName: values.fullName,
-            staffNote: values.staffNote,
-          });
-        } catch {
-          warnings.push("staff_note_failed");
-        }
-      }
-
-      if (isAdmin && values.parentEmail) {
-        try {
-          const result = await linkParentToStudent(studentId, values.parentEmail, {
-            address: values.parentAddress ?? "",
-            displayName: values.parentName ?? "",
-            facebookUrl: values.parentFacebookUrl ?? "",
-            phone: values.parentPhone ?? "",
-          });
-          if (!result.linked) warnings.push(`parent_${result.reason}`);
-        } catch {
-          warnings.push("parent_error");
-        }
-      }
-
-      if (values.classId) {
-        const selectedClass = classes.data?.find((item) => item.id === values.classId);
-        if (!selectedClass) {
-          warnings.push("class_not_found");
-        } else {
-          try {
-            await enrollStudent(values.classId, selectedClass.courseId, studentId);
-          } catch {
-            warnings.push("enroll_failed");
-          }
-        }
-      }
-
-      return warnings;
     },
-    onSuccess: (warnings) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["students"] });
       queryClient.invalidateQueries({ queryKey: ["classes"] });
-      // Con canh bao thi giu form mo de Admin doc duoc, khong dong ngay.
-      if (!warnings.length) onDone?.();
+      onDone?.();
     },
   });
-
-  const partialWarnings = mutation.data ?? [];
+  const submit = handleSubmit((values) => {
+    if (!isAdmin && !isEditing && !values.classId) {
+      setError("classId", { message: "Giáo viên phải chọn lớp mình phụ trách" });
+      return;
+    }
+    mutation.mutate(values);
+  });
+  const selectableClasses = (classes.data ?? []).filter((item) => item.status === "active");
   const formLayoutClass = isAdmin
     ? "lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1.15fr)_minmax(260px,.7fr)]"
     : "lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,.65fr)]";
 
   return (
     <form
-      onSubmit={handleSubmit((values) => mutation.mutate(values))}
+      onSubmit={submit}
       className={`grid items-stretch gap-4 ${formLayoutClass}`}
     >
       <section className={sectionClass}>
@@ -229,12 +195,15 @@ export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
       </section>}
 
       <section className={sectionClass}>
-        <SectionHeader title="Đăng ký lớp học" description="Có thể chọn lớp ngay khi tạo hồ sơ hoặc bỏ trống để đăng ký sau." />
+        <SectionHeader
+          title="Đăng ký lớp học"
+          description={isAdmin ? "Có thể chọn lớp ngay khi tạo hồ sơ hoặc đăng ký sau." : "Chọn lớp bạn phụ trách để tạo và ghi danh học sinh."}
+        />
         <div className="grid content-start gap-3 p-4">
           <Field error={errors.classId?.message} label="Lớp học">
             <select className={inputClass} disabled={classes.isLoading || isEditing} {...register("classId")}>
-              <option value="">Chưa đăng ký lớp</option>
-              {classes.data?.map((item) => (
+              <option value="">{isAdmin ? "Chưa đăng ký lớp" : "Chọn lớp phụ trách"}</option>
+              {selectableClasses.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.name} - {item.id}
                 </option>
@@ -253,32 +222,20 @@ export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
         </p>
       )}
 
-      {partialWarnings.length > 0 && (
-        <div role="alert" className="rounded-input border border-warning-300 bg-warning-50 px-3 py-2 text-sm leading-6 text-warning-900 lg:col-span-full">
-          <p className="font-semibold">Đã tạo hồ sơ học sinh, nhưng các bước sau chưa hoàn tất:</p>
-          <ul className="mt-1 list-disc pl-5">
-            {partialWarnings.map((warning) => (
-              <li key={warning}>{getWarningMessage(warning)}</li>
-            ))}
-          </ul>
-          <p className="mt-1">Hồ sơ đã được lưu an toàn. Đừng thêm lại học sinh từ đầu; làm theo hướng dẫn trên để hoàn tất phần còn thiếu.</p>
-        </div>
-      )}
-
       <div className="flex justify-end gap-2 border-t border-neutral-200 pt-4 lg:col-span-full">
         <button
           type="button"
           onClick={() => onDone?.()}
           className="min-h-touch rounded-input border border-neutral-300 px-5 text-sm font-medium text-neutral-600 transition hover:bg-neutral-50"
         >
-          {partialWarnings.length > 0 ? "Đóng" : "Hủy"}
+          Hủy
         </button>
         <button
           type="submit"
-          disabled={mutation.isPending || partialWarnings.length > 0}
+          disabled={mutation.isPending}
           className="min-h-touch rounded-input bg-primary-500 px-5 text-sm font-medium text-white transition hover:bg-primary-600 disabled:opacity-60"
         >
-          {mutation.isPending ? "Đang lưu..." : partialWarnings.length > 0 ? "Đã tạo học sinh" : isEditing ? "Lưu thay đổi" : "Thêm học sinh"}
+          {mutation.isPending ? "Đang lưu..." : isEditing ? "Lưu thay đổi" : "Thêm học sinh"}
         </button>
       </div>
     </form>
@@ -310,19 +267,14 @@ function Field({ children, error, label }: { children: React.ReactNode; error?: 
 
 function getMutationErrorMessage(error: unknown): string {
   const message = error instanceof Error ? error.message : "";
-  if (message === "not_found") return "Không tìm thấy tài khoản phụ huynh theo email đã nhập.";
-  if (message === "not_viewer") return "Email này không thuộc tài khoản phụ huynh/học sinh.";
-  if (message === "class_not_found") return "Không tìm thấy lớp học đã chọn.";
+  if (message === "PARENT_NOT_FOUND") return "Không tìm thấy tài khoản phụ huynh theo email đã nhập.";
+  if (message === "PARENT_NOT_VIEWER") return "Email này không thuộc tài khoản phụ huynh/học sinh.";
+  if (message === "PARENT_NOT_ACTIVE") return "Tài khoản phụ huynh đang bị vô hiệu hóa.";
+  if (message === "PARENT_EMAIL_CHANGED") return "Email phụ huynh vừa thay đổi. Vui lòng kiểm tra và thử lại.";
+  if (message === "CLASS_NOT_FOUND") return "Không tìm thấy lớp học đã chọn.";
+  if (message === "CLASS_NOT_ACTIVE") return "Lớp học đã chọn không còn hoạt động.";
+  if (message === "TEACHER_CLASS_REQUIRED") return "Giáo viên phải chọn lớp mình phụ trách.";
+  if (message === "TEACHER_CLASS_FORBIDDEN") return "Bạn không được phân công vào lớp đã chọn.";
+  if (message === "student_code_exists") return "Mã học sinh đã tồn tại.";
   return "Không thể lưu học sinh. Kiểm tra mã học sinh, thông tin liên kết hoặc quyền truy cập.";
-}
-
-/** Cac buoc bo sung that bai SAU khi ho so da duoc tao - hoc sinh van ton tai (C1). */
-function getWarningMessage(warning: string): string {
-  if (warning === "staff_note_failed") return "Chưa lưu được ghi chú. Mở Thông tin học sinh, nhập lại ghi chú rồi lưu.";
-  if (warning === "parent_not_found") return "Chưa liên kết phụ huynh: không tìm thấy tài khoản theo email đã nhập. Kiểm tra tài khoản rồi liên kết lại trong Thông tin học sinh.";
-  if (warning === "parent_not_viewer") return "Chưa liên kết phụ huynh: email không thuộc tài khoản phụ huynh/học sinh. Kiểm tra đúng loại tài khoản rồi liên kết lại trong Thông tin học sinh.";
-  if (warning === "parent_error") return "Chưa liên kết phụ huynh do lỗi ghi dữ liệu. Mở Thông tin học sinh và liên kết lại.";
-  if (warning === "class_not_found") return "Chưa ghi danh: không tìm thấy lớp đã chọn. Vào Lớp học, mở lớp phù hợp và ghi danh học sinh.";
-  if (warning === "enroll_failed") return "Chưa ghi danh do lỗi ghi dữ liệu. Vào Lớp học, mở lớp đã chọn và ghi danh học sinh.";
-  return "Một bước bổ sung chưa hoàn tất.";
 }

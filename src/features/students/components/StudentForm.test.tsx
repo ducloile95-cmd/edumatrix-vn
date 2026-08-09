@@ -6,24 +6,17 @@ import { StudentForm } from "@/features/students/components/StudentForm";
 import { renderWithQueryClient } from "@/test/renderWithQueryClient";
 
 const authState = vi.hoisted(() => ({ value: { firebaseUser: { uid: "admin-1" }, role: "admin" } }));
-
 const serviceMocks = vi.hoisted(() => ({
-  createStudent: vi.fn(),
-  updateStudent: vi.fn(),
-  linkParentToStudent: vi.fn(),
-  enrollStudent: vi.fn(),
+  createStudentWithRelations: vi.fn(),
   listClasses: vi.fn(),
+  updateStudent: vi.fn(),
 }));
 
 vi.mock("@/features/auth/hooks/useAuth", () => ({ useAuth: () => authState.value }));
-
 vi.mock("@/services/firestore/students", () => ({
-  createStudent: serviceMocks.createStudent,
+  createStudentWithRelations: serviceMocks.createStudentWithRelations,
   updateStudent: serviceMocks.updateStudent,
-  linkParentToStudent: serviceMocks.linkParentToStudent,
 }));
-
-vi.mock("@/services/firestore/enrollments", () => ({ enrollStudent: serviceMocks.enrollStudent }));
 vi.mock("@/services/firestore/classes", () => ({ listClasses: serviceMocks.listClasses }));
 
 async function fillRequiredFields() {
@@ -37,13 +30,12 @@ function submit() {
   fireEvent.click(screen.getByRole("button", { name: "Thêm học sinh" }));
 }
 
-describe("StudentForm partial-write handling", () => {
+describe("StudentForm atomic creation", () => {
   beforeEach(() => {
-    serviceMocks.listClasses.mockResolvedValue([{ id: "class-1", name: "Lớp A1", courseId: "course-1" }]);
-    serviceMocks.createStudent.mockResolvedValue(undefined);
+    authState.value = { firebaseUser: { uid: "admin-1" }, role: "admin" };
+    serviceMocks.listClasses.mockResolvedValue([{ id: "class-1", name: "Lớp A1", courseId: "course-1", status: "active" }]);
+    serviceMocks.createStudentWithRelations.mockResolvedValue(undefined);
     serviceMocks.updateStudent.mockResolvedValue(undefined);
-    serviceMocks.linkParentToStudent.mockResolvedValue({ linked: true });
-    serviceMocks.enrollStudent.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -51,19 +43,7 @@ describe("StudentForm partial-write handling", () => {
     vi.clearAllMocks();
   });
 
-  test("closes the form and reports nothing when every step succeeds", async () => {
-    const onDone = vi.fn();
-    renderWithQueryClient(<StudentForm onDone={onDone} />);
-    await fillRequiredFields();
-    submit();
-
-    await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1));
-    expect(screen.queryByText(/chưa hoàn tất/)).toBeNull();
-  });
-
-  test("keeps the student and warns instead of throwing when parent link and enrollment both fail", async () => {
-    serviceMocks.linkParentToStudent.mockRejectedValue(new Error("permission-denied"));
-    serviceMocks.enrollStudent.mockRejectedValue(new Error("permission-denied"));
+  test("submits student and all requested relations in one service call", async () => {
     const onDone = vi.fn();
     renderWithQueryClient(<StudentForm onDone={onDone} />);
     await fillRequiredFields();
@@ -71,34 +51,46 @@ describe("StudentForm partial-write handling", () => {
     fireEvent.change(screen.getByLabelText(/Lớp học/), { target: { value: "class-1" } });
     submit();
 
-    // (c) ca hai canh bao deu hien, khong phai chi canh bao phu huynh.
-    await screen.findByText(/Chưa liên kết phụ huynh do lỗi ghi dữ liệu/);
-    await screen.findByText(/Chưa ghi danh do lỗi ghi dữ liệu/);
+    await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1));
+    expect(serviceMocks.createStudentWithRelations).toHaveBeenCalledWith(expect.objectContaining({
+      classId: "class-1",
+      parentEmail: "phuhuynh@example.com",
+      studentCode: "HS001",
+    }));
+  });
 
-    // (a) mutation van thanh cong: hoc sinh da duoc tao, khong co loi do.
-    expect(serviceMocks.createStudent).toHaveBeenCalledTimes(1);
-    expect(serviceMocks.enrollStudent).toHaveBeenCalledTimes(1);
-    expect(screen.queryByText(/Không thể lưu học sinh/)).toBeNull();
-    expect(screen.getByText(/Hồ sơ đã được lưu an toàn/)).toBeTruthy();
-    expect(screen.getByText(/Vào Lớp học, mở lớp đã chọn và ghi danh học sinh/)).toBeTruthy();
+  test("keeps form values and shows a specific relation error when transaction fails", async () => {
+    serviceMocks.createStudentWithRelations.mockRejectedValue(new Error("PARENT_NOT_FOUND"));
+    const onDone = vi.fn();
+    renderWithQueryClient(<StudentForm onDone={onDone} />);
+    await fillRequiredFields();
+    fireEvent.change(screen.getByLabelText(/Email liên kết/), { target: { value: "missing@example.com" } });
+    submit();
 
-    // Form giu nguyen de Admin doc canh bao, khong dong ngay.
+    await screen.findByText(/Không tìm thấy tài khoản phụ huynh/);
+    expect(screen.getByLabelText<HTMLInputElement>(/Mã học sinh/).value).toBe("HS001");
     expect(onDone).not.toHaveBeenCalled();
   });
 
-  test("blocks a second submit so the retry cannot hit student_code_exists", async () => {
-    serviceMocks.linkParentToStudent.mockResolvedValue({ linked: false, reason: "not_viewer" });
+  test("does not submit twice while the transaction is pending", async () => {
+    serviceMocks.createStudentWithRelations.mockImplementation(() => new Promise(() => undefined));
     renderWithQueryClient(<StudentForm />);
     await fillRequiredFields();
-    fireEvent.change(screen.getByLabelText(/Email liên kết/), { target: { value: "phuhuynh@example.com" } });
     submit();
 
-    // Du an khong cai @testing-library/jest-dom nen kiem tra thuoc tinh DOM truc tiep.
-    const resubmit = await screen.findByRole<HTMLButtonElement>("button", { name: "Đã tạo học sinh" });
-    expect(resubmit.disabled).toBe(true);
-    fireEvent.click(resubmit);
+    const pendingButton = await screen.findByRole<HTMLButtonElement>("button", { name: "Đang lưu..." });
+    expect(pendingButton.disabled).toBe(true);
+    fireEvent.click(pendingButton);
+    expect(serviceMocks.createStudentWithRelations).toHaveBeenCalledTimes(1);
+  });
 
-    // (b) khong co lan goi createStudent thu hai.
-    await waitFor(() => expect(serviceMocks.createStudent).toHaveBeenCalledTimes(1));
+  test("requires a teacher to select an active assigned class", async () => {
+    authState.value = { firebaseUser: { uid: "teacher-1" }, role: "teacher" };
+    renderWithQueryClient(<StudentForm />);
+    await fillRequiredFields();
+    submit();
+
+    expect(await screen.findByText("Giáo viên phải chọn lớp mình phụ trách")).toBeTruthy();
+    expect(serviceMocks.createStudentWithRelations).not.toHaveBeenCalled();
   });
 });

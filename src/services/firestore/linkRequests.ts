@@ -1,16 +1,11 @@
 import {
-  arrayUnion,
-  collection,
   doc,
-  getDocs,
-  limit,
   onSnapshot,
-  query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc,
   where,
-  writeBatch,
   type Unsubscribe,
 } from "firebase/firestore";
 import type { User } from "firebase/auth";
@@ -19,7 +14,9 @@ import { COLLECTIONS } from "@/constants/collections";
 import { normalizeStudentCode } from "@/services/firestore/students";
 import { writeAuditLog } from "@/services/firestore/auditLog";
 import { normalizeEmail } from "@/utils/email";
-import type { DeclaredChildInput, LinkRequestDoc } from "@/types/user";
+import type { DeclaredChildInput, LinkRequestDoc, UserDoc } from "@/types/user";
+import type { StudentDoc } from "@/types/academic";
+import { listAllQueryDocuments } from "@/services/firestore/pagination";
 
 export type LinkRequest = LinkRequestDoc & { id: string };
 
@@ -75,12 +72,12 @@ export async function listPendingLinkRequests(pageSize = 50): Promise<LinkReques
   // Chi loc theo status, KHONG orderBy: ghep where + orderBy khac field se doi
   // mot composite index rieng cho link_requests. So yeu cau cho duyet luon nho
   // (chan boi pageSize) nen sap xep o client re hon nhieu so voi nuoi mot index.
-  const snapshot = await getDocs(query(
-    collection(db, COLLECTIONS.LINK_REQUESTS),
-    where("status", "==", "pending"),
-    limit(pageSize),
-  ));
-  return snapshot.docs
+  const documents = await listAllQueryDocuments(
+    COLLECTIONS.LINK_REQUESTS,
+    [where("status", "==", "pending")],
+    pageSize,
+  );
+  return documents
     .map((item) => ({ id: item.id, ...(item.data() as LinkRequestDoc) }))
     .sort((a, b) => (a.createdAt?.toMillis?.() ?? 0) - (b.createdAt?.toMillis?.() ?? 0));
 }
@@ -94,58 +91,93 @@ export async function approveLinkRequest(actor: User, request: LinkRequest, deci
   // users.studentIds se thieu mot ma, va khong co gi bao cho ai biet.
   if (decisions.length !== request.children.length) throw new Error("decision_count_mismatch");
 
-  const studentIds = decisions.map((decision) =>
+  let studentIds = decisions.map((decision) =>
     decision.mode === "existing" ? decision.studentId : normalizeStudentCode(decision.studentCode));
   if (new Set(studentIds).size !== studentIds.length) throw new Error("duplicate_student");
 
-  const batch = writeBatch(db);
+  await runTransaction(db, async (transaction) => {
+    const requestRef = doc(db, COLLECTIONS.LINK_REQUESTS, request.id);
+    const userRef = doc(db, COLLECTIONS.USERS, request.id);
+    const [requestSnap, userSnap] = await Promise.all([
+      transaction.get(requestRef),
+      transaction.get(userRef),
+    ]);
+    if (!requestSnap.exists()) throw new Error("LINK_REQUEST_NOT_FOUND");
+    const currentRequest = requestSnap.data() as LinkRequestDoc;
+    if (currentRequest.status !== "pending") throw new Error("LINK_REQUEST_ALREADY_REVIEWED");
+    if (decisions.length !== currentRequest.children.length) throw new Error("decision_count_mismatch");
 
-  batch.set(doc(db, COLLECTIONS.USERS, request.id), {
-    email: request.email,
-    displayName: request.parentName,
-    photoURL: null,
-    role: "viewer",
-    studentIds,
-    status: "active",
-    phone: request.phone,
-    address: request.address ?? "",
-    facebookUrl: request.facebookUrl ?? "",
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
+    studentIds = decisions.map((decision) =>
+      decision.mode === "existing" ? decision.studentId : normalizeStudentCode(decision.studentCode));
+    if (new Set(studentIds).size !== studentIds.length) throw new Error("duplicate_student");
+    const studentRefs = studentIds.map((studentId) => doc(db, COLLECTIONS.STUDENTS, studentId));
+    const studentSnaps = await Promise.all(studentRefs.map((studentRef) => transaction.get(studentRef)));
+    decisions.forEach((decision, index) => {
+      if (decision.mode === "existing" && !studentSnaps[index].exists()) throw new Error("STUDENT_NOT_FOUND");
+      if (decision.mode === "new" && studentSnaps[index].exists()) throw new Error("STUDENT_ALREADY_EXISTS");
+    });
 
-  decisions.forEach((decision, index) => {
-    const child = request.children[index];
-    if (decision.mode === "existing") {
-      batch.update(doc(db, COLLECTIONS.STUDENTS, decision.studentId), {
-        parentUids: arrayUnion(request.id),
+    if (userSnap.exists()) {
+      const currentUser = userSnap.data() as UserDoc;
+      if (currentUser.role !== "viewer") throw new Error("USER_ROLE_INVALID");
+      transaction.update(userRef, {
+        email: currentRequest.email,
+        displayName: currentRequest.parentName,
+        studentIds: [...new Set([...currentUser.studentIds, ...studentIds])],
+        status: "active",
+        phone: currentRequest.phone,
+        address: currentRequest.address ?? "",
+        facebookUrl: currentRequest.facebookUrl ?? "",
         updatedAt: serverTimestamp(),
       });
-      return;
+    } else {
+      transaction.set(userRef, {
+        email: currentRequest.email,
+        displayName: currentRequest.parentName,
+        photoURL: null,
+        role: "viewer",
+        studentIds,
+        status: "active",
+        phone: currentRequest.phone,
+        address: currentRequest.address ?? "",
+        facebookUrl: currentRequest.facebookUrl ?? "",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
     }
-    const id = normalizeStudentCode(decision.studentCode);
-    batch.set(doc(db, COLLECTIONS.STUDENTS, id), {
-      studentCode: id,
-      fullName: child.fullName,
-      nickname: child.nickname ?? "",
-      dateOfBirth: child.dateOfBirth,
-      parentUids: [request.id],
-      currentClassIds: [],
-      teacherIds: [],
-      staffNote: child.note ?? "",
-      status: "active",
-      createdAt: serverTimestamp(),
+
+    decisions.forEach((decision, index) => {
+      const child = currentRequest.children[index];
+      const studentRef = studentRefs[index];
+      if (decision.mode === "existing") {
+        const student = studentSnaps[index].data() as StudentDoc;
+        transaction.update(studentRef, {
+          parentUids: [...new Set([...student.parentUids, request.id])],
+          updatedAt: serverTimestamp(),
+        });
+      } else {
+        const id = studentIds[index];
+        transaction.set(studentRef, {
+          studentCode: id,
+          fullName: child.fullName,
+          nickname: child.nickname ?? "",
+          dateOfBirth: child.dateOfBirth,
+          parentUids: [request.id],
+          currentClassIds: [],
+          teacherIds: [],
+          staffNote: child.note ?? "",
+          status: "active",
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      }
+    });
+    transaction.update(requestRef, {
+      status: "approved",
+      reviewedBy: actor.uid,
       updatedAt: serverTimestamp(),
     });
   });
-
-  batch.update(doc(db, COLLECTIONS.LINK_REQUESTS, request.id), {
-    status: "approved",
-    reviewedBy: actor.uid,
-    updatedAt: serverTimestamp(),
-  });
-
-  await batch.commit();
   // Ngoai batch: writeAuditLog tu nuot loi (A26), ghi log that bai khong duoc
   // lam hong mot lan duyet da commit thanh cong.
   await writeAuditLog(actor, "link_request_approved", "user", request.id, {

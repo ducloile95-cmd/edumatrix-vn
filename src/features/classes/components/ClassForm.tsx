@@ -248,6 +248,11 @@ export function ClassForm({ editingClass, onDone }: ClassFormProps) {
 
   const selectedCourseId = watch("courseId");
   const selectedCourse = courses?.find((course) => course.id === selectedCourseId);
+  useEffect(() => {
+    if (!isEditing && selectedCourse?.totalSessions) {
+      setRecurrence((current) => ({ ...current, sessionCount: selectedCourse.totalSessions }));
+    }
+  }, [isEditing, selectedCourse?.totalSessions]);
   const activeCourses = courses?.filter((c) =>
     (c.status === "active" || c.id === editingClass?.courseId) &&
     (isAdmin || (c.teacherIds ?? []).includes(ownTeacherUid ?? ""))
@@ -262,6 +267,7 @@ export function ClassForm({ editingClass, onDone }: ClassFormProps) {
       <div data-testid="class-form-layout" className="grid min-h-0 flex-1 overflow-y-auto bg-neutral-50/80 xl:grid-cols-[minmax(0,1.2fr)_minmax(520px,.8fr)] xl:overflow-hidden">
         <div className="border-b border-neutral-200 p-3 xl:min-h-0 xl:border-b-0 xl:border-r">
           <ClassSmartSchedulePanel
+            expectedSessionCount={selectedCourse?.totalSessions}
             readOnly={isEditing || !isAdmin}
             recurrence={recurrence}
             setRecurrence={setRecurrence}

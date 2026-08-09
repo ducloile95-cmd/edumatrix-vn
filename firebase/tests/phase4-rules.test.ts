@@ -5,7 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 let env: RulesTestEnvironment;
-const session = { classId: "class-1", title: "Buoi 1", startAt: Timestamp.now(), endAt: Timestamp.now(), location: "P1", status: "scheduled", note: "", makeUpForSessionId: null, createdAt: Timestamp.now(), updatedAt: Timestamp.now() };
+const session = { classId: "class-1", title: "Buoi 1", startAt: Timestamp.now(), endAt: Timestamp.now(), location: "P1", status: "scheduled", note: "", makeUpForSessionId: null, sequenceNumber: 1, curriculumVersion: 1, curriculumItemId: "item-1", lessonPlanId: null, createdAt: Timestamp.now(), updatedAt: Timestamp.now() };
 
 beforeAll(async () => { env = await initializeTestEnvironment({ projectId: "phase4-rules", firestore: { rules: fs.readFileSync(path.resolve(__dirname, "../firestore.rules"), "utf8"), host: "localhost", port: Number(process.env.FIRESTORE_EMULATOR_PORT ?? 8091) } }); });
 afterAll(async () => env.cleanup());
@@ -16,20 +16,27 @@ beforeEach(async () => {
     await setDoc(doc(db, "users", "admin"), { role: "admin", status: "active", studentIds: [] });
     await setDoc(doc(db, "users", "viewer"), { role: "viewer", status: "active", studentIds: ["student-1"] });
     await setDoc(doc(db, "users", "other"), { role: "viewer", status: "active", studentIds: ["student-2"] });
-    await setDoc(doc(db, "classes", "class-1"), { studentIds: ["student-1"] });
+    await setDoc(doc(db, "courses", "course-1"), { status: "active", subjectIds: ["subject-1"], teacherIds: [], totalSessions: 1 });
+    await setDoc(doc(db, "classes", "class-1"), { courseId: "course-1", studentIds: ["student-1"], status: "active" });
     await setDoc(doc(db, "sessions", "session-1"), session);
   });
 });
 
 describe("Phase 4 session ownership", () => {
   test("staff creates a session", async () => assertSucceeds(setDoc(doc(env.authenticatedContext("admin").firestore(), "sessions", "session-2"), session)));
+  test("lesson plan link is mutable but curriculum identity is immutable", async () => {
+    const ref = doc(env.authenticatedContext("admin").firestore(), "sessions", "session-1");
+    await assertSucceeds(updateDoc(ref, { lessonPlanId: "lesson-plan-1", updatedAt: Timestamp.now() }));
+    await assertFails(updateDoc(ref, { sequenceNumber: 2, updatedAt: Timestamp.now() }));
+    await assertFails(updateDoc(ref, { curriculumItemId: "item-2", updatedAt: Timestamp.now() }));
+  });
   test("admin creates an active class with its first session atomically", async () => {
     const db = env.authenticatedContext("admin").firestore();
     const batch = writeBatch(db);
     batch.set(doc(db, "classes", "class-batch"), {
       name: "Lop batch",
       courseId: "course-1",
-      subjectIds: [],
+      subjectIds: ["subject-1"],
       teacherIds: [],
       studentIds: [],
       scheduleText: "",

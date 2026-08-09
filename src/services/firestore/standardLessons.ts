@@ -7,11 +7,13 @@ import {
   limit,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   startAfter,
   Timestamp,
-  updateDoc,
   where,
+  type DocumentData,
+  type QueryDocumentSnapshot,
 } from "firebase/firestore";
 import { db } from "@/services/firebase/firestoreClient";
 import { COLLECTIONS } from "@/constants/collections";
@@ -46,36 +48,58 @@ export async function getStandardLesson(id: string): Promise<(StandardLessonDoc 
 
 export async function updateStandardLesson(
   id: string,
-  input: Partial<Omit<StandardLessonDoc, "createdBy" | "createdAt" | "updatedAt">>
+  input: Partial<Omit<StandardLessonDoc, "approvalStatus" | "revision" | "createdBy" | "createdAt" | "updatedAt">>
 ): Promise<void> {
   const lessonRef = doc(db, COLLECTIONS.STANDARD_LESSONS, id);
-  await updateDoc(lessonRef, {
-    ...input,
-    updatedAt: serverTimestamp(),
+  await runTransaction(db, async (transaction) => {
+    const lessonSnap = await transaction.get(lessonRef);
+    if (!lessonSnap.exists()) throw new Error("STANDARD_LESSON_NOT_FOUND");
+    const lesson = lessonSnap.data() as StandardLessonDoc;
+    if (lesson.approvalStatus !== "draft") throw new Error("STANDARD_LESSON_NOT_EDITABLE");
+    transaction.update(lessonRef, {
+      ...input,
+      revision: lesson.revision + 1,
+      updatedAt: serverTimestamp(),
+    });
+  });
+}
+
+async function transitionStandardLesson(
+  id: string,
+  from: StandardLessonApprovalStatus[],
+  approvalStatus: StandardLessonApprovalStatus,
+): Promise<void> {
+  const lessonRef = doc(db, COLLECTIONS.STANDARD_LESSONS, id);
+  await runTransaction(db, async (transaction) => {
+    const lessonSnap = await transaction.get(lessonRef);
+    if (!lessonSnap.exists()) throw new Error("STANDARD_LESSON_NOT_FOUND");
+    const lesson = lessonSnap.data() as StandardLessonDoc;
+    if (!from.includes(lesson.approvalStatus)) throw new Error("STANDARD_LESSON_TRANSITION_INVALID");
+    transaction.update(lessonRef, { approvalStatus, updatedAt: serverTimestamp() });
   });
 }
 
 export async function submitStandardLessonForApproval(id: string): Promise<void> {
-  await updateStandardLesson(id, { approvalStatus: "pending" });
+  await transitionStandardLesson(id, ["draft"], "pending");
 }
 
 export async function approveStandardLesson(id: string): Promise<void> {
-  await updateStandardLesson(id, { approvalStatus: "approved" });
+  await transitionStandardLesson(id, ["pending"], "approved");
 }
 
 export async function returnStandardLesson(id: string): Promise<void> {
-  await updateStandardLesson(id, { approvalStatus: "draft" });
+  await transitionStandardLesson(id, ["pending"], "draft");
 }
 
 export async function archiveStandardLesson(id: string): Promise<void> {
-  await updateStandardLesson(id, { approvalStatus: "archived" });
+  await transitionStandardLesson(id, ["approved"], "archived");
 }
 
 export async function listStandardLessons(
   filters: { subjectId?: string; approvalStatus?: StandardLessonApprovalStatus } = {},
   pageSize = 25,
-  lastVisibleDoc?: any
-): Promise<{ lessons: (StandardLessonDoc & { id: string })[]; lastDoc: any }> {
+  lastVisibleDoc?: QueryDocumentSnapshot<DocumentData>
+): Promise<{ lessons: (StandardLessonDoc & { id: string })[]; lastDoc: QueryDocumentSnapshot<DocumentData> | null }> {
   let q = query(
     collection(db, COLLECTIONS.STANDARD_LESSONS),
     orderBy("updatedAt", "desc")
@@ -102,4 +126,19 @@ export async function listStandardLessons(
     lessons,
     lastDoc: snapshot.docs[snapshot.docs.length - 1] || null,
   };
+}
+
+export async function listAllStandardLessons(
+  filters: { subjectId?: string; approvalStatus?: StandardLessonApprovalStatus } = {},
+  pageSize = 100,
+): Promise<Array<StandardLessonDoc & { id: string }>> {
+  const lessons: Array<StandardLessonDoc & { id: string }> = [];
+  let cursor: QueryDocumentSnapshot<DocumentData> | undefined;
+  do {
+    const page = await listStandardLessons(filters, pageSize, cursor);
+    lessons.push(...page.lessons);
+    cursor = page.lastDoc ?? undefined;
+    if (page.lessons.length < pageSize) break;
+  } while (cursor);
+  return lessons;
 }

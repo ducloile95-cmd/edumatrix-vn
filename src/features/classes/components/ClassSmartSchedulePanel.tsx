@@ -32,6 +32,7 @@ export interface RecurrenceFormState {
 }
 
 interface ClassSmartSchedulePanelProps {
+  expectedSessionCount?: number;
   readOnly?: boolean;
   recurrence: RecurrenceFormState;
   setRecurrence: Dispatch<SetStateAction<RecurrenceFormState>>;
@@ -42,6 +43,7 @@ interface ClassSmartSchedulePanelProps {
 const FIELD_CLASS = "min-h-touch w-full rounded-input border border-neutral-300 bg-white px-3 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100";
 
 export function ClassSmartSchedulePanel({
+  expectedSessionCount,
   readOnly = false,
   recurrence,
   setRecurrence,
@@ -119,7 +121,7 @@ export function ClassSmartSchedulePanel({
               <div><label htmlFor="recurrence-start-time" className="mb-1.5 block text-xs font-bold text-neutral-700">Bắt đầu<span className="ml-0.5 text-danger-500">*</span></label><input id="recurrence-start-time" type="time" value={recurrence.startTime} disabled={readOnly} onChange={(event) => setRecurrence((current) => ({ ...current, startTime: event.target.value }))} className={FIELD_CLASS} /></div>
               <div><label htmlFor="recurrence-end-time" className="mb-1.5 block text-xs font-bold text-neutral-700">Kết thúc<span className="ml-0.5 text-danger-500">*</span></label><input id="recurrence-end-time" type="time" value={recurrence.endTime} disabled={readOnly} onChange={(event) => setRecurrence((current) => ({ ...current, endTime: event.target.value }))} className={FIELD_CLASS} /></div>
             </div>
-            <div><label htmlFor="recurrence-session-count" className="mb-1.5 block text-xs font-bold text-neutral-700">Tổng số buổi<span className="ml-0.5 text-danger-500">*</span></label><input id="recurrence-session-count" type="number" min={1} step={1} value={recurrence.sessionCount} disabled={readOnly} onChange={(event) => setRecurrence((current) => ({ ...current, sessionCount: Number(event.target.value) }))} className={FIELD_CLASS} /></div>
+            <div><label htmlFor="recurrence-session-count" className="mb-1.5 block text-xs font-bold text-neutral-700">Tổng số buổi<span className="ml-0.5 text-danger-500">*</span></label><input id="recurrence-session-count" type="number" min={1} max={200} step={1} value={recurrence.sessionCount} disabled={readOnly || expectedSessionCount !== undefined} onChange={(event) => setRecurrence((current) => ({ ...current, sessionCount: Number(event.target.value) }))} className={FIELD_CLASS} /></div>
             <div className="rounded-xl border border-success-100 bg-success-50 p-2.5 text-xs leading-5 text-success-900">
               {recurrencePreview ? <><strong className="block text-sm">{recurrencePreview.sessions.length} buổi dự kiến</strong>Buổi đầu {format(recurrencePreview.sessions[0].startAt, "dd/MM/yyyy")}, bế giảng {format(recurrencePreview.endDate, "dd/MM/yyyy")}.</> : "Điền đủ ngày bắt đầu, thứ trong tuần, giờ học và tổng số buổi để xem trước."}
             </div>

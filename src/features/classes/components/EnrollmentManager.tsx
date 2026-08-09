@@ -12,7 +12,6 @@ import type { StudentDoc } from "@/types/academic";
 
 interface EnrollmentManagerProps {
   classId: string;
-  courseId: string;
   enrolledStudentIds: string[];
   canUnenroll?: boolean;
 }
@@ -27,7 +26,7 @@ function initials(fullName: string): string {
  * Ghi danh/rut hoc sinh khoi lop. Dung so luong hoc sinh nho (<50 theo quy
  * mo du an) nen tai toan bo danh sach hoc sinh roi loc o client (A14).
  */
-export function EnrollmentManager({ classId, courseId, enrolledStudentIds, canUnenroll = true }: EnrollmentManagerProps) {
+export function EnrollmentManager({ classId, enrolledStudentIds, canUnenroll = true }: EnrollmentManagerProps) {
   const [search, setSearch] = useState("");
   const [confirmTarget, setConfirmTarget] = useState<(StudentDoc & { id: string }) | null>(null);
   const queryClient = useQueryClient();
@@ -45,7 +44,7 @@ export function EnrollmentManager({ classId, courseId, enrolledStudentIds, canUn
   };
 
   const enrollMutation = useMutation({
-    mutationFn: (studentId: string) => enrollStudent(classId, courseId, studentId),
+    mutationFn: (studentId: string) => enrollStudent(classId, studentId),
     onSuccess: invalidate,
   });
 

@@ -12,10 +12,14 @@ import { listLessonPlans } from "@/services/firestore/lessonPlans";
 import { updateDoc, doc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/services/firebase/firestoreClient";
 import { COLLECTIONS } from "@/constants/collections";
+import type { LessonPlanDoc, SessionDoc } from "@/types/academic";
+
+type TeachingSession = SessionDoc & { id: string; courseId?: string };
+type SessionWithPlan = TeachingSession & { linkedPlan?: (LessonPlanDoc & { id: string }) };
 
 interface TeachingSessionWorkspaceProps {
-  onEditLessonPlan: (plan: any) => void;
-  onCreateLessonPlan: (session: any) => void;
+  onEditLessonPlan: (plan: LessonPlanDoc & { id: string }) => void;
+  onCreateLessonPlan: (session: TeachingSession) => void;
 }
 
 export function TeachingSessionWorkspace({ onEditLessonPlan, onCreateLessonPlan }: TeachingSessionWorkspaceProps) {
@@ -31,7 +35,7 @@ export function TeachingSessionWorkspace({ onEditLessonPlan, onCreateLessonPlan 
     queryFn: listClasses,
   });
 
-  const classIds = useMemo(() => classes.map((c) => c.id), [classes]);
+  const classIds = useMemo(() => classes.filter((item) => item.status !== "cancelled").map((c) => c.id), [classes]);
 
   const { data: lessonPlans = [] } = useQuery({
     queryKey: ["lesson-plans"],
@@ -66,9 +70,9 @@ export function TeachingSessionWorkspace({ onEditLessonPlan, onCreateLessonPlan 
     const tonight = endOfDay(new Date());
     const sevenDaysFromNow = endOfDay(addDays(new Date(), 7));
 
-    const todaySessions: any[] = [];
-    const upcomingSessions: any[] = [];
-    const needNotesSessions: any[] = [];
+    const todaySessions: SessionWithPlan[] = [];
+    const upcomingSessions: SessionWithPlan[] = [];
+    const needNotesSessions: SessionWithPlan[] = [];
 
     filteredSessions.forEach((s) => {
       const start = s.startAt.toDate();
@@ -296,12 +300,13 @@ function SessionItem({
   onCreatePlan,
   onOpenDiary,
 }: {
-  session: any;
+  session: SessionWithPlan;
   classLabel: string;
-  onEditPlan: (plan: any) => void;
-  onCreatePlan: (session: any) => void;
+  onEditPlan: (plan: LessonPlanDoc & { id: string }) => void;
+  onCreatePlan: (session: TeachingSession) => void;
   onOpenDiary: (notes: string) => void;
 }) {
+  const linkedPlan = session.linkedPlan;
   const startStr = format(session.startAt.toDate(), "HH:mm");
   const endStr = format(session.endAt.toDate(), "HH:mm");
   const dateStr = format(session.startAt.toDate(), "dd/MM");
@@ -336,15 +341,15 @@ function SessionItem({
         </span>
 
         <div className="flex gap-1.5">
-          {session.linkedPlan ? (
+          {linkedPlan ? (
             <>
-              <Button size="sm" variant="secondary" onClick={() => onEditPlan(session.linkedPlan)}>
+              <Button size="sm" variant="secondary" onClick={() => onEditPlan(linkedPlan)}>
                 Sửa
               </Button>
               <Button
                 size="sm"
                 variant="primary"
-                onClick={() => onOpenDiary(session.linkedPlan.notesAfterTeaching || "")}
+                onClick={() => onOpenDiary(linkedPlan.notesAfterTeaching || "")}
               >
                 Nhật ký
               </Button>

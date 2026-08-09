@@ -19,21 +19,32 @@ function enrollmentId(classId: string, studentId: string): string {
  * buoc 3): enrollments/{id}, classes/{classId}.studentIds,
  * students/{studentId}.currentClassIds.
  */
-export async function enrollStudent(classId: string, courseId: string, studentId: string): Promise<void> {
+export async function enrollStudent(classId: string, studentId: string): Promise<void> {
   // runTransaction (doc teacherIds ben trong transaction) thay vi getDoc roi
   // batch de tranh TOCTOU khi 2 thao tac ghi danh chay dong thoi.
   await runTransaction(db, async (transaction) => {
     const classRef = doc(db, COLLECTIONS.CLASSES, classId);
-    const classSnap = await transaction.get(classRef);
-    const teacherIds = classSnap.exists() ? (classSnap.data() as ClassDoc).teacherIds : [];
+    const studentRef = doc(db, COLLECTIONS.STUDENTS, studentId);
     const enrollRef = doc(db, COLLECTIONS.ENROLLMENTS, enrollmentId(classId, studentId));
+    const [classSnap, studentSnap, enrollmentSnap] = await Promise.all([
+      transaction.get(classRef),
+      transaction.get(studentRef),
+      transaction.get(enrollRef),
+    ]);
+    if (!classSnap.exists()) throw new Error("class_not_found");
+    if (!studentSnap.exists()) throw new Error("student_not_found");
+    const klass = classSnap.data() as ClassDoc;
+    const student = studentSnap.data() as StudentDoc;
+    if (klass.status !== "active") throw new Error("class_not_active");
+    if (student.status !== "active") throw new Error("student_not_active");
+    const teacherIds = klass.teacherIds;
 
     transaction.set(enrollRef, {
       classId,
-      courseId,
+      courseId: klass.courseId,
       studentId,
       status: "active",
-      joinedAt: serverTimestamp(),
+      joinedAt: enrollmentSnap.exists() ? enrollmentSnap.data().joinedAt : serverTimestamp(),
       endedAt: null,
     });
     transaction.update(classRef, {
@@ -45,7 +56,7 @@ export async function enrollStudent(classId: string, courseId: string, studentId
       updatedAt: serverTimestamp(),
     };
     if (teacherIds.length > 0) studentUpdate.teacherIds = arrayUnion(...teacherIds);
-    transaction.update(doc(db, COLLECTIONS.STUDENTS, studentId), studentUpdate);
+    transaction.update(studentRef, studentUpdate);
   });
 }
 
@@ -94,8 +105,10 @@ export async function syncStudentEnrollments(studentId: string, nextClassIds: st
     const studentSnap = await transaction.get(studentRef);
     if (!studentSnap.exists()) throw new Error("student_not_found");
 
-    const currentClassIds = [...new Set((studentSnap.data() as StudentDoc).currentClassIds)];
+    const student = studentSnap.data() as StudentDoc;
+    const currentClassIds = [...new Set(student.currentClassIds)];
     const normalizedNextIds = [...new Set(nextClassIds)].filter(Boolean).sort();
+    if (student.status !== "active" && normalizedNextIds.length > 0) throw new Error("student_not_active");
     const allClassIds = [...new Set([...currentClassIds, ...normalizedNextIds])];
     const classSnaps = await Promise.all(
       allClassIds.map((classId) => transaction.get(doc(db, COLLECTIONS.CLASSES, classId))),
@@ -103,10 +116,19 @@ export async function syncStudentEnrollments(studentId: string, nextClassIds: st
     const classById = new Map(
       classSnaps.filter((snap) => snap.exists()).map((snap) => [snap.id, snap.data() as ClassDoc]),
     );
-    if (normalizedNextIds.some((classId) => !classById.has(classId))) throw new Error("class_not_found");
+    if (normalizedNextIds.some((classId) => !classById.has(classId) && !currentClassIds.includes(classId))) {
+      throw new Error("class_not_found");
+    }
+    if (normalizedNextIds.some((classId) => {
+      const klass = classById.get(classId);
+      return klass !== undefined && klass.status !== "active";
+    })) {
+      throw new Error("class_not_active");
+    }
+    const existingNextIds = normalizedNextIds.filter((classId) => classById.has(classId));
 
-    const addedClassIds = normalizedNextIds.filter((classId) => !currentClassIds.includes(classId));
-    const removedClassIds = currentClassIds.filter((classId) => !normalizedNextIds.includes(classId));
+    const addedClassIds = existingNextIds.filter((classId) => !currentClassIds.includes(classId));
+    const removedClassIds = currentClassIds.filter((classId) => !existingNextIds.includes(classId));
     const changedClassIds = [...addedClassIds, ...removedClassIds];
     const enrollmentSnaps = await Promise.all(
       changedClassIds.map((classId) => transaction.get(doc(db, COLLECTIONS.ENROLLMENTS, enrollmentId(classId, studentId)))),
@@ -156,10 +178,10 @@ export async function syncStudentEnrollments(studentId: string, nextClassIds: st
     });
 
     const teacherIds = [...new Set(
-      normalizedNextIds.flatMap((classId) => classById.get(classId)?.teacherIds ?? []),
+      existingNextIds.flatMap((classId) => classById.get(classId)?.teacherIds ?? []),
     )].sort();
     transaction.update(studentRef, {
-      currentClassIds: normalizedNextIds,
+      currentClassIds: existingNextIds,
       teacherIds,
       updatedAt: serverTimestamp(),
     });

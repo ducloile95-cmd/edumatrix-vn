@@ -7,7 +7,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { doc, getDoc, serverTimestamp, setDoc, Timestamp, updateDoc } from "firebase/firestore";
+import { doc, getDoc, serverTimestamp, setDoc, Timestamp, updateDoc, writeBatch } from "firebase/firestore";
 
 /**
  * Emulator test cho Firestore Security Rules cua subjects/students/courses/
@@ -139,6 +139,15 @@ function asUnauthenticated() {
   return testEnv.unauthenticatedContext().firestore();
 }
 
+describe("users data shape", () => {
+  test("Admin cannot write studentIds as a string", async () => {
+    await assertFails(updateDoc(doc(asAdmin(), "users", ADMIN_UID), {
+      studentIds: STUDENT_OWNED,
+      updatedAt: serverTimestamp(),
+    }));
+  });
+});
+
 describe("subjects", () => {
   test("unauthenticated khong doc duoc", async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
@@ -214,6 +223,25 @@ describe("courses", () => {
     await assertSucceeds(setDoc(doc(asAdmin(), "courses", "course_new"), validCourse));
   });
 
+  test("course payload accepts curriculum pointers and rejects more than 200 sessions", async () => {
+    await assertSucceeds(setDoc(doc(asAdmin(), "courses", "course_curriculum"), {
+      ...validCourse,
+      totalSessions: 200,
+      activeCurriculumId: null,
+      activeCurriculumVersion: null,
+      curriculumVersionCounter: 0,
+    }));
+    await assertFails(setDoc(doc(asAdmin(), "courses", "course_too_large"), { ...validCourse, totalSessions: 201 }));
+  });
+
+  test("legacy course above 200 sessions remains editable only when its size is unchanged", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "courses", "legacy_large"), { ...validCourse, totalSessions: 201, createdAt: Timestamp.now(), updatedAt: Timestamp.now() });
+    });
+    await assertSucceeds(updateDoc(doc(asAdmin(), "courses", "legacy_large"), { name: "Legacy renamed", updatedAt: serverTimestamp() }));
+    await assertFails(updateDoc(doc(asAdmin(), "courses", "legacy_large"), { totalSessions: 202, updatedAt: serverTimestamp() }));
+  });
+
   test("Rules chan khoa hoc co hoc phi am", async () => {
     await assertFails(setDoc(doc(asAdmin(), "courses", "course_bad_fee"), { ...validCourse, tuitionFee: -1 }));
   });
@@ -231,6 +259,69 @@ describe("courses", () => {
       }),
     );
   });
+});
+
+describe("class curriculum payload and private demo requests", () => {
+  test("a revision-protected course requires class creation and revision bump in one commit", async () => {
+    const db = asAdmin();
+    const courseRef = doc(db, "courses", "course_revision");
+    const classRef = doc(db, "classes", "class_revision");
+    await assertSucceeds(setDoc(courseRef, {
+      name: "Revision course",
+      subjectIds: ["IELTS"],
+      teacherIds: [TEACHER_UID],
+      pricePerSession: 62500,
+      tuitionFee: 1500000,
+      totalSessions: 24,
+      startDate: Timestamp.fromDate(new Date("2026-01-01T00:00:00Z")),
+      endDate: Timestamp.fromDate(new Date("2026-03-01T00:00:00Z")),
+      status: "active",
+      classRevision: 0,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }));
+    const classData = {
+      name: "Revision class",
+      courseId: "course_revision",
+      subjectIds: ["IELTS"],
+      teacherIds: [TEACHER_UID],
+      studentIds: [],
+      scheduleText: "Mon 18:00",
+      location: "P1",
+      status: "active",
+      curriculumId: null,
+      curriculumVersion: null,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+
+    await assertFails(setDoc(classRef, classData));
+    const batch = writeBatch(db);
+    batch.update(courseRef, { classRevision: 1 });
+    batch.set(classRef, classData);
+    await assertSucceeds(batch.commit());
+  });
+
+  test("Admin creates the exact scheduled class payload", async () => {
+    const start = Timestamp.fromDate(new Date("2026-01-01T00:00:00Z"));
+    const end = Timestamp.fromDate(new Date("2026-03-01T00:00:00Z"));
+    await assertSucceeds(setDoc(doc(asAdmin(), "classes", "class-curriculum"), {
+      name: "Class curriculum",
+      courseId: "course_001",
+      subjectIds: ["IELTS"],
+      teacherIds: [TEACHER_UID],
+      studentIds: [],
+      scheduleText: "Mon 18:00",
+      location: "P1",
+      status: "active",
+      curriculumId: "course_001_v1",
+      curriculumVersion: 1,
+      recurrence: { daysOfWeek: [1], startTime: "18:00", endTime: "19:30", startDate: start, endDate: end, sessionCount: 24 },
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }));
+  });
+
 });
 
 describe("students - ownership", () => {
@@ -276,7 +367,7 @@ describe("classes - ownership qua studentIds", () => {
       await setDoc(doc(ctx.firestore(), "classes", "class_001"), {
         name: "Lớp A",
         courseId: "course_001",
-        subjectIds: [],
+        subjectIds: ["IELTS"],
         teacherIds: [TEACHER_UID],
         studentIds: [STUDENT_OWNED],
         scheduleText: "",
@@ -304,7 +395,7 @@ describe("classes - ownership qua studentIds", () => {
       setDoc(doc(asTeacher(), "classes", "class_002"), {
         name: "Lớp B",
         courseId: "course_001",
-        subjectIds: [],
+        subjectIds: ["IELTS"],
         teacherIds: [TEACHER_UID],
         studentIds: [],
         scheduleText: "",
@@ -316,12 +407,27 @@ describe("classes - ownership qua studentIds", () => {
     );
   });
 
+  test("Rules reject a class without subjects", async () => {
+    await assertFails(setDoc(doc(asAdmin(), "classes", "class_no_subject"), {
+      name: "No subject",
+      courseId: "course_001",
+      subjectIds: [],
+      teacherIds: [TEACHER_UID],
+      studentIds: [],
+      scheduleText: "",
+      location: "",
+      status: "active",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }));
+  });
+
   test("Teacher khong tao duoc lop co san hoc sinh", async () => {
     await assertFails(
       setDoc(doc(asTeacher(), "classes", "class_004"), {
         name: "Class with student",
         courseId: "course_001",
-        subjectIds: [],
+        subjectIds: ["IELTS"],
         teacherIds: [TEACHER_UID],
         studentIds: [STUDENT_OTHER],
         scheduleText: "",
@@ -347,7 +453,7 @@ describe("classes - ownership qua studentIds", () => {
       setDoc(doc(asViewer(), "classes", "class_003"), {
         name: "Lớp C",
         courseId: "course_001",
-        subjectIds: [],
+        subjectIds: ["IELTS"],
         teacherIds: [],
         studentIds: [],
         scheduleText: "",
@@ -361,6 +467,17 @@ describe("classes - ownership qua studentIds", () => {
 });
 
 describe("enrollments", () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "classes", "class_001"), {
+        courseId: "course_001",
+        studentIds: [STUDENT_OWNED],
+        teacherIds: [TEACHER_UID],
+        status: "active",
+      });
+    });
+  });
+
   test("Admin tao enrollment dung ID xac dinh thi thanh cong", async () => {
     await assertSucceeds(
       setDoc(doc(asAdmin(), "enrollments", `class_001_${STUDENT_OWNED}`), {
@@ -385,6 +502,52 @@ describe("enrollments", () => {
         endedAt: null,
       }),
     );
+  });
+
+  test("Admin cannot actively enroll an inactive student", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "students", "inactive_student"), {
+        studentCode: "inactive_student",
+        fullName: "Inactive",
+        dateOfBirth: "2012-01-01",
+        parentUids: [],
+        currentClassIds: [],
+        teacherIds: [],
+        status: "inactive",
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      });
+    });
+    await assertFails(setDoc(doc(asAdmin(), "enrollments", "class_001_inactive_student"), {
+      classId: "class_001",
+      courseId: "course_001",
+      studentId: "inactive_student",
+      status: "active",
+      joinedAt: serverTimestamp(),
+      endedAt: null,
+    }));
+  });
+
+  test("Admin cannot create an enrollment for a missing class", async () => {
+    await assertFails(setDoc(doc(asAdmin(), "enrollments", `missing_${STUDENT_OWNED}`), {
+      classId: "missing",
+      courseId: "course_001",
+      studentId: STUDENT_OWNED,
+      status: "active",
+      joinedAt: serverTimestamp(),
+      endedAt: null,
+    }));
+  });
+
+  test("Admin cannot create an enrollment whose course differs from the class", async () => {
+    await assertFails(setDoc(doc(asAdmin(), "enrollments", `class_001_${STUDENT_OWNED}`), {
+      classId: "class_001",
+      courseId: "wrong-course",
+      studentId: STUDENT_OWNED,
+      status: "active",
+      joinedAt: serverTimestamp(),
+      endedAt: null,
+    }));
   });
 
   test("Viewer khong tao duoc enrollment", async () => {

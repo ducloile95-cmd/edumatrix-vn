@@ -2,7 +2,6 @@ import {
   collection,
   doc,
   getDocs,
-  limit,
   query,
   serverTimestamp,
   where,
@@ -11,6 +10,7 @@ import {
 } from "firebase/firestore";
 import { COLLECTIONS } from "@/constants/collections";
 import { db } from "@/services/firebase/firestoreClient";
+import { listAnnouncementsByStudent } from "@/services/firestore/announcements";
 
 export interface ViewerNotification {
   id: string;
@@ -19,13 +19,6 @@ export interface ViewerNotification {
   createdAt?: Timestamp;
   isRead: boolean;
 }
-
-type AnnouncementData = {
-  title?: string;
-  message?: string;
-  createdAt?: Timestamp;
-  resolvedAt?: Timestamp | null;
-};
 
 const PER_STUDENT_LIMIT = 50;
 const TOTAL_LIMIT = 200;
@@ -42,18 +35,7 @@ export async function listViewerNotifications(
   if (!uid || studentIds.length === 0) return [];
 
   const groups = await Promise.all(
-    [...new Set(studentIds)].map(async (studentId) => {
-      const snapshot = await getDocs(
-        query(
-          collection(db, COLLECTIONS.ANNOUNCEMENTS),
-          where("studentId", "==", studentId),
-          limit(PER_STUDENT_LIMIT),
-        ),
-      );
-      return snapshot.docs
-        .map((item) => ({ id: item.id, ...(item.data() as AnnouncementData) }))
-        .filter((item) => !item.resolvedAt);
-    }),
+    [...new Set(studentIds)].map((studentId) => listAnnouncementsByStudent(studentId, PER_STUDENT_LIMIT)),
   );
 
   const unique = [...new Map(groups.flat().map((item) => [item.id, item])).values()]

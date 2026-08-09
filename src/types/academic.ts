@@ -28,6 +28,11 @@ export interface CourseDoc {
   startDate: Timestamp;
   endDate: Timestamp;
   status: CourseStatus;
+  activeCurriculumId?: string | null;
+  activeCurriculumVersion?: number | null;
+  curriculumVersionCounter?: number | null;
+  /** Tang atomically whenever a class definition for this course changes. */
+  classRevision?: number;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -72,6 +77,8 @@ export interface ClassDoc {
   scheduleText: string;
   location: string;
   status: ClassStatus;
+  curriculumId?: string | null;
+  curriculumVersion?: number | null;
   /** Lop cu/lop tao thu cong = undefined. */
   recurrence?: ClassRecurrence | null;
   createdAt: Timestamp;

@@ -1,19 +1,42 @@
-import { collection, getDocs, limit, query, where } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  startAfter,
+  where,
+  type DocumentData,
+  type QueryDocumentSnapshot,
+  type QuerySnapshot,
+} from "firebase/firestore";
 import { db } from "@/services/firebase/firestoreClient";
 import { COLLECTIONS } from "@/constants/collections";
 import type { AnnouncementDoc } from "@/types/academic";
 
-/** Thong bao cua 1 hoc sinh, toi da `pageSize` ban ghi (khong sap xep). */
+/** Thong bao moi nhat cua 1 hoc sinh, bo qua cac ban ghi da giai quyet. */
 export async function listAnnouncementsByStudent(
   studentId: string,
   pageSize = 50,
 ): Promise<(AnnouncementDoc & { id: string })[]> {
-  const snap = await getDocs(
-    query(collection(db, COLLECTIONS.ANNOUNCEMENTS), where("studentId", "==", studentId), limit(pageSize)),
-  );
-  return snap.docs
-    .map((item) => ({ id: item.id, ...(item.data() as AnnouncementDoc) }))
-    .filter((item) => !item.resolvedAt);
+  const result: (AnnouncementDoc & { id: string })[] = [];
+  let cursor: QueryDocumentSnapshot | null = null;
+  const batchSize = Math.max(pageSize, 50);
+  while (result.length < pageSize) {
+    const snap: QuerySnapshot<DocumentData> = await getDocs(query(
+      collection(db, COLLECTIONS.ANNOUNCEMENTS),
+      where("studentId", "==", studentId),
+      orderBy("createdAt", "desc"),
+      ...(cursor ? [startAfter(cursor)] : []),
+      limit(batchSize),
+    ));
+    result.push(...snap.docs
+      .map((item) => ({ id: item.id, ...(item.data() as AnnouncementDoc) }))
+      .filter((item) => !item.resolvedAt));
+    if (snap.docs.length < batchSize) break;
+    cursor = snap.docs[snap.docs.length - 1];
+  }
+  return result.slice(0, pageSize);
 }
 
 /** Gop thong bao cua nhieu hoc sinh (vd Phu huynh co nhieu con), moi nhat truoc. */

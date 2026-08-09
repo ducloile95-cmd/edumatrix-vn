@@ -1,10 +1,6 @@
 import {
-  collection,
   doc,
-  getDocs,
-  limit,
   orderBy,
-  query,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -16,6 +12,7 @@ import { normalizeEmail } from "@/utils/email";
 import { writeAuditLog } from "@/services/firestore/auditLog";
 import type { InviteDoc } from "@/types/user";
 import type { UserRole } from "@/types/user";
+import { listAllQueryDocuments } from "@/services/firestore/pagination";
 
 export interface CreateInviteInput {
   email: string;
@@ -50,9 +47,11 @@ export async function revokeInvite(actor: User, email: string): Promise<void> {
   await writeAuditLog(actor, "invite_revoked", "invite", normalized);
 }
 
-/** Danh sach loi moi cho man hinh Admin - khong realtime, co limit (A14). */
 export async function listInvites(): Promise<InviteDoc[]> {
-  const q = query(collection(db, COLLECTIONS.INVITES), orderBy("createdAt", "desc"), limit(100));
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => d.data() as InviteDoc);
+  const documents = await listAllQueryDocuments(
+    COLLECTIONS.INVITES,
+    [orderBy("createdAt", "desc")],
+    100,
+  );
+  return documents.map((d) => d.data() as InviteDoc);
 }

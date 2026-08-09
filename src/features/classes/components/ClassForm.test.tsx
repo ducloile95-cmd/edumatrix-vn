@@ -70,6 +70,7 @@ describe("ClassForm", () => {
         status: "active",
         subjectIds: ["subject-1"],
         teacherIds: ["teacher-1"],
+        totalSessions: 12,
       },
     ]);
     serviceMocks.listSubjects.mockResolvedValue([

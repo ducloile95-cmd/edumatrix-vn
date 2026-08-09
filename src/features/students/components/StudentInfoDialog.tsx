@@ -144,7 +144,9 @@ export function StudentInfoDialog({ canManageLinks, onClose, open, student }: St
   const updateMutation = useMutation({
     mutationFn: async () => {
       if (!student) return;
-      if (canManageLinks) await syncStudentEnrollments(student.id, selectedClassIds);
+      const classesChanged = selectedClassIds.length !== student.currentClassIds.length ||
+        selectedClassIds.some((classId) => !student.currentClassIds.includes(classId));
+      if (canManageLinks && classesChanged) await syncStudentEnrollments(student.id, selectedClassIds);
       await updateStudent(student.id, {
         fullName: fullName.trim(),
         nickname: nickname.trim(),
@@ -201,7 +203,6 @@ export function StudentInfoDialog({ canManageLinks, onClose, open, student }: St
   const allClasses = classesQuery.data ?? [];
   const linkedClasses = allClasses.filter((klass) => selectedClassIds.includes(klass.id));
   const courseById = new Map((coursesQuery.data ?? []).map((course) => [course.id, course.name]));
-  const linkedCourseIds = [...new Set(linkedClasses.map((klass) => klass.courseId))];
   const classNames = linkedClasses.map((klass) => klass.name);
   const courseNames = [...new Set(linkedClasses.map((klass) => courseById.get(klass.courseId)).filter(Boolean))];
   const linkedTeacherIds = [...new Set(linkedClasses.flatMap((klass) => klass.teacherIds))];
@@ -329,8 +330,19 @@ export function StudentInfoDialog({ canManageLinks, onClose, open, student }: St
                   </div>
                 </RelationEditorRow>
                 <RelationEditorRow label="Khóa học" value={courseNames.join(", ") || "Chưa cập nhật"} expanded={activeRelation === "courses"} editable={canManageLinks} onToggle={() => setActiveRelation((current) => current === "courses" ? null : "courses")}>
-                  <div role="listbox" aria-label="Danh sách Khóa học" className="grid gap-1.5">
-                    {(coursesQuery.data ?? []).map((course) => <RelationOption key={course.id} selected={linkedCourseIds.includes(course.id)} label={course.name} onClick={() => openClassesWithFilter({ type: "course", id: course.id })} actionLabel="Lọc lớp" />)}
+                  <div className="grid gap-3">
+                    {(coursesQuery.data ?? []).map((course) => {
+                      const courseClasses = allClasses.filter((klass) => klass.courseId === course.id);
+                      return (
+                        <div key={course.id} className="grid gap-1.5">
+                          <p className="px-1 text-xs font-bold text-neutral-600">{course.name}</p>
+                          <div role="listbox" aria-label={`Danh sách lớp ${course.name}`} aria-multiselectable="true" className="grid gap-1.5">
+                            {courseClasses.map((klass) => <RelationOption key={klass.id} selected={selectedClassIds.includes(klass.id)} label={klass.name} onClick={() => toggleClass(klass.id)} />)}
+                            {courseClasses.length === 0 && <p className="px-1 py-2 text-sm text-neutral-500">Chưa có lớp.</p>}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </RelationEditorRow>
                 <RelationEditorRow label="Giáo viên phụ trách" value={teacherNames.join(", ") || "Chưa phân giáo viên"} expanded={activeRelation === "teachers"} editable={canManageLinks} onToggle={() => setActiveRelation((current) => current === "teachers" ? null : "teachers")}>

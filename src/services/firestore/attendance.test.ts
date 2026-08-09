@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-const { getDocs, where } = vi.hoisted(() => ({ getDocs: vi.fn(), where: vi.fn((...values) => ({ where: values })) }));
+const { batchCommit, batchSet, getCurrentUserDoc, getDocs, isTeacherUser, listClasses, where, writeBatch } = vi.hoisted(() => ({
+  batchCommit: vi.fn(), batchSet: vi.fn(), getDocs: vi.fn(),
+  getCurrentUserDoc: vi.fn(), isTeacherUser: vi.fn(), listClasses: vi.fn(),
+  where: vi.fn((...values) => ({ where: values })), writeBatch: vi.fn(),
+}));
 
 vi.mock("firebase/firestore", () => ({
   collection: vi.fn(() => "attendance-collection"),
@@ -10,20 +14,21 @@ vi.mock("firebase/firestore", () => ({
   limit: vi.fn((value) => ({ limit: value })),
   orderBy: vi.fn((value) => ({ orderBy: value })),
   query: vi.fn((...parts) => parts),
+  runTransaction: vi.fn(),
   serverTimestamp: vi.fn(() => "server-time"),
   setDoc: vi.fn(),
   startAfter: vi.fn((value) => ({ startAfter: value })),
   where,
-  writeBatch: vi.fn(),
+  writeBatch,
 }));
 
 vi.mock("@/services/firebase/firestoreClient", () => ({ db: {} }));
-vi.mock("@/services/firestore/authz", () => ({ getCurrentUserDoc: vi.fn(), isTeacherUser: vi.fn() }));
-vi.mock("@/services/firestore/classes", () => ({ listClasses: vi.fn() }));
+vi.mock("@/services/firestore/authz", () => ({ getCurrentUserDoc, isTeacherUser }));
+vi.mock("@/services/firestore/classes", () => ({ listClasses }));
 vi.mock("@/services/firestore/sessions", () => ({ listSessions: vi.fn() }));
 vi.mock("@/services/firestore/students", () => ({ listStudents: vi.fn() }));
 
-import { listAttendanceBySession, listAttendanceBySessionIds, queueAttendanceEntryWrite } from "@/services/firestore/attendance";
+import { listAttendanceBySession, listAttendanceBySessionIds, listAttendanceByStudents, queueAttendanceEntryWrite, saveAttendance } from "@/services/firestore/attendance";
 
 function snapshot(offset: number, count: number) {
   return {
@@ -37,6 +42,9 @@ function snapshot(offset: number, count: number) {
 describe("listAttendanceBySessionIds", () => {
   beforeEach(() => {
     getDocs.mockReset();
+    getCurrentUserDoc.mockReset().mockResolvedValue({ role: "admin" });
+    isTeacherUser.mockReset().mockReturnValue(false);
+    listClasses.mockReset();
     where.mockClear();
   });
 
@@ -49,9 +57,33 @@ describe("listAttendanceBySessionIds", () => {
     expect(getDocs).toHaveBeenCalledTimes(2);
     expect(result[result.length - 1]?.id).toBe("attendance-599");
   });
+
+  test("paginates teacher-scoped attendance instead of truncating a student's history", async () => {
+    getCurrentUserDoc.mockResolvedValue({ uid: "teacher-1", role: "teacher" });
+    isTeacherUser.mockReturnValue(true);
+    listClasses.mockResolvedValue([{ id: "class-1" }]);
+    const attendancePage = (offset: number, count: number) => ({
+      docs: Array.from({ length: count }, (_, index) => ({
+        id: `attendance-${offset + index}`,
+        data: () => ({ markedAt: { toMillis: () => offset + index } }),
+      })),
+    });
+    getDocs.mockResolvedValueOnce(attendancePage(0, 500)).mockResolvedValueOnce(attendancePage(500, 1));
+
+    const result = await listAttendanceByStudents(["student-1"]);
+
+    expect(result).toHaveLength(501);
+    expect(getDocs).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("session-scoped attendance", () => {
+  beforeEach(() => {
+    batchCommit.mockReset().mockResolvedValue(undefined);
+    batchSet.mockReset();
+    writeBatch.mockReset().mockReturnValue({ set: batchSet, commit: batchCommit });
+  });
+
   test("queries by both class and session so Teacher rules can prove scope", async () => {
     getDocs.mockResolvedValueOnce(snapshot(0, 1));
 
@@ -59,6 +91,15 @@ describe("session-scoped attendance", () => {
 
     expect(where).toHaveBeenCalledWith("classId", "==", "class-1");
     expect(where).toHaveBeenCalledWith("sessionId", "==", "session-1");
+  });
+
+  test("loads every attendance record when a session has more than 500 students", async () => {
+    getDocs.mockReset().mockResolvedValueOnce(snapshot(0, 500)).mockResolvedValueOnce(snapshot(500, 1));
+
+    const result = await listAttendanceBySession("session-1", "class-1");
+
+    expect(result).toHaveLength(501);
+    expect(getDocs).toHaveBeenCalledTimes(2);
   });
 
   test("resolves an old alert when attendance becomes present", () => {
@@ -92,5 +133,17 @@ describe("session-scoped attendance", () => {
     );
 
     expect(batch.set.mock.calls[1]?.[1]).toMatchObject({ resolvedAt: null });
+  });
+
+  test("commits roster entries and their summary atomically", async () => {
+    await saveAttendance("session-1", "class-1", [
+      { studentId: "student-1", status: "present", note: "" },
+      { studentId: "student-2", status: "absent", note: "" },
+    ], "teacher-1");
+
+    expect(writeBatch).toHaveBeenCalledTimes(1);
+    expect(batchSet).toHaveBeenCalledTimes(5);
+    expect(batchSet).toHaveBeenLastCalledWith(undefined, expect.objectContaining({ total: 2, present: 1, absent: 1 }));
+    expect(batchCommit).toHaveBeenCalledTimes(1);
   });
 });

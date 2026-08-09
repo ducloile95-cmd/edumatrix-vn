@@ -174,6 +174,7 @@ test("health check exposes Cloudflare production version",async()=>{
 test("webhook challenge",async()=>expect(await(await worker.fetch(new Request("https://worker/webhook?hub.mode=subscribe&hub.verify_token=verify-me&hub.challenge=123"),env)).text()).toBe("123"));
 test("rejects wrong verify token",async()=>expect((await worker.fetch(new Request("https://worker/webhook?hub.mode=subscribe&hub.verify_token=wrong&hub.challenge=123"),env)).status).toBe(403));
 test("send requires auth",async()=>expect((await worker.fetch(new Request("https://worker/api/messenger/send",{method:"POST"}),env)).status).toBe(401));
+test("thread context sync requires auth",async()=>expect((await worker.fetch(new Request("https://worker/api/messenger/sync-contexts",{method:"POST"}),env)).status).toBe(401));
 test("post requires auth",async()=>expect((await worker.fetch(new Request("https://worker/api/messenger/post",{method:"POST"}),env)).status).toBe(401));
 test.each(["/api/messenger/post","/api/messenger/referral"])("returns the matching secondary production origin for %s",async(path)=>{
   const productionEnv={...env,ALLOWED_ORIGIN:"https://edumatrix-vn-576b1.web.app,https://edumatrix.id.vn"}satisfies Env;

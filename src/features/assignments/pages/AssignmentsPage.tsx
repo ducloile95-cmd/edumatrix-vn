@@ -56,13 +56,9 @@ export default function AssignmentsPage({ embedded = false }: { embedded?: boole
     enabled: !!form.classId,
   });
   const create = useMutation({
-    mutationFn: () => {
-      const klass = classes.data?.find((item) => item.id === form.classId);
-      return createAssignment(
-        { title: form.title.trim(), description: form.description.trim(), classId: form.classId, subjectId: form.subjectId, lessonPlanId: form.lessonPlanId || null, sessionId: form.sessionId || null, dueAt: Timestamp.fromDate(new Date(form.dueAt)), submissionType: "text", maxScore: Number(form.maxScore), status: form.status, createdBy: firebaseUser?.uid ?? "unknown" },
-        klass?.studentIds.length ?? 0,
-      );
-    },
+      mutationFn: () => {
+        return createAssignment({ title: form.title.trim(), description: form.description.trim(), classId: form.classId, subjectId: form.subjectId, lessonPlanId: form.lessonPlanId || null, sessionId: form.sessionId || null, dueAt: Timestamp.fromDate(new Date(form.dueAt)), submissionType: "text", maxScore: Number(form.maxScore), status: form.status, createdBy: firebaseUser?.uid ?? "unknown" });
+      },
     onSuccess: () => {
       client.invalidateQueries({ queryKey: ["assignments"] });
       client.invalidateQueries({ queryKey: ["assignment-summaries"] });

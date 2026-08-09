@@ -1,6 +1,7 @@
 import { collection, doc, documentId, getDocs, limit, orderBy, query, runTransaction, serverTimestamp, where } from "firebase/firestore";
-import { db } from "@/services/firebase/firestoreClient"; import { COLLECTIONS } from "@/constants/collections"; import type { AssessmentType, ScoreDoc } from "@/types/academic";
+import { db } from "@/services/firebase/firestoreClient"; import { COLLECTIONS } from "@/constants/collections"; import type { AssessmentType, ClassDoc, ScoreDoc } from "@/types/academic";
 import { stableDocumentId } from "@/utils/idempotency";
+import { listAllQueryDocuments } from "@/services/firestore/pagination";
 export interface ScoreEntry { studentId: string; score: number; comment: string; }
 function scoreId(input: { classId: string; subjectId: string; assessmentName: string; studentId: string }): string { return stableDocumentId([input.classId, input.subjectId, input.assessmentName, input.studentId]); }
 export async function saveClassScores(input: { classId: string; subjectId: string; assessmentName: string; assessmentType: AssessmentType; maxScore: number; entries: ScoreEntry[]; actorUid: string }): Promise<void> {
@@ -12,6 +13,11 @@ export async function saveClassScores(input: { classId: string; subjectId: strin
   if (input.entries.length > 200) throw new Error("SCORE_BATCH_TOO_LARGE");
 
   await runTransaction(db, async (transaction) => {
+    const classSnap = await transaction.get(doc(db, COLLECTIONS.CLASSES, input.classId));
+    if (!classSnap.exists()) throw new Error("CLASS_NOT_FOUND");
+    const klass = classSnap.data() as ClassDoc;
+    if (!klass.subjectIds.includes(input.subjectId)) throw new Error("SUBJECT_NOT_IN_CLASS");
+    if (input.entries.some((entry) => !klass.studentIds.includes(entry.studentId))) throw new Error("STUDENT_NOT_IN_CLASS");
     const rows = await Promise.all(input.entries.map(async (entry) => {
       const scoreRef = doc(db, COLLECTIONS.SCORES, scoreId({ ...input, studentId: entry.studentId }));
       const summaryRef = doc(db, COLLECTIONS.STUDENT_SUMMARIES, entry.studentId);
@@ -61,5 +67,14 @@ export async function saveClassScores(input: { classId: string; subjectId: strin
   });
 }
 export async function listScoresByStudent(studentId:string,pageSize=50):Promise<(ScoreDoc&{id:string})[]>{const snap=await getDocs(query(collection(db,COLLECTIONS.SCORES),where("studentId","==",studentId),orderBy("createdAt","desc"),limit(pageSize)));return snap.docs.map((item)=>({id:item.id,...(item.data() as ScoreDoc)})).filter((item)=>item.published!==false);}
-export async function listScoresByClass(classId:string):Promise<(ScoreDoc&{id:string})[]>{const snap=await getDocs(query(collection(db,COLLECTIONS.SCORES),where("classId","==",classId),limit(500)));return snap.docs.map((item)=>({id:item.id,...(item.data() as ScoreDoc)})).filter((item)=>item.published!==false);}
+export async function listScoresByClass(classId: string): Promise<(ScoreDoc & { id: string })[]> {
+  const documents = await listAllQueryDocuments(
+    COLLECTIONS.SCORES,
+    [where("classId", "==", classId)],
+    500,
+  );
+  return documents
+    .map((item) => ({ id: item.id, ...(item.data() as ScoreDoc) }))
+    .filter((item) => item.published !== false);
+}
 export async function listStudentSummariesByIds(studentIds:string[]):Promise<{id:string;scoreCount:number;averagePercent:number;latestScore:number;latestMaxScore:number}[]>{const unique=[...new Set(studentIds)].filter(Boolean);const groups=await Promise.all(unique.reduce<string[][]>((chunks,id,index)=>{if(index%30===0)chunks.push([]);chunks[chunks.length-1].push(id);return chunks;},[]).map(async(chunk)=>{const snap=await getDocs(query(collection(db,COLLECTIONS.STUDENT_SUMMARIES),where(documentId(),"in",chunk)));return snap.docs.map((item)=>({id:item.id,...(item.data() as {scoreCount:number;averagePercent:number;latestScore:number;latestMaxScore:number})}));}));return groups.flat();}

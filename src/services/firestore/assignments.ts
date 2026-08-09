@@ -1,11 +1,9 @@
 import {
   collection,
   doc,
+  documentId,
   getDoc,
-  getDocs,
-  limit,
   orderBy,
-  query,
   runTransaction,
   serverTimestamp,
   where,
@@ -16,28 +14,41 @@ import { db } from "@/services/firebase/firestoreClient";
 import { getCurrentUserDoc, isAdminUser, isTeacherUser } from "@/services/firestore/authz";
 import { listClasses } from "@/services/firestore/classes";
 import { assignmentScoreId } from "@/utils/idempotency";
-import type { AssignmentDoc, AssignmentSummaryDoc, ScoreDoc, SubmissionDoc, SubmissionStatus } from "@/types/academic";
+import { listAllQueryDocuments } from "@/services/firestore/pagination";
+import type { AssignmentDoc, AssignmentSummaryDoc, ClassDoc, ScoreDoc, SubmissionDoc, SubmissionStatus } from "@/types/academic";
+
+async function listAllPages<T>(
+  collectionName: string,
+  constraints: Parameters<typeof listAllQueryDocuments>[1],
+  pageSize: number,
+): Promise<Array<T & { id: string }>> {
+  const documents = await listAllQueryDocuments(collectionName, constraints, pageSize);
+  return documents.map((item) => ({ id: item.id, ...(item.data() as T) }));
+}
 
 export async function createAssignment(
   input: Omit<AssignmentDoc, "createdAt" | "updatedAt">,
-  totalStudents: number,
 ): Promise<void> {
   const ref = doc(collection(db, COLLECTIONS.ASSIGNMENTS));
-  const batch = writeBatch(db);
-  batch.set(ref, {
-    ...input,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
+  await runTransaction(db, async (transaction) => {
+    const classSnap = await transaction.get(doc(db, COLLECTIONS.CLASSES, input.classId));
+    if (!classSnap.exists()) throw new Error("CLASS_NOT_FOUND");
+    const klass = classSnap.data() as ClassDoc;
+    if (input.subjectId && !klass.subjectIds.includes(input.subjectId)) throw new Error("SUBJECT_NOT_IN_CLASS");
+    transaction.set(ref, {
+      ...input,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    transaction.set(doc(db, COLLECTIONS.ASSIGNMENT_SUMMARIES, ref.id), {
+      assignmentId: ref.id,
+      totalStudents: klass.studentIds.length,
+      submittedCount: 0,
+      gradedCount: 0,
+      redoCount: 0,
+      updatedAt: serverTimestamp(),
+    });
   });
-  batch.set(doc(db, COLLECTIONS.ASSIGNMENT_SUMMARIES, ref.id), {
-    assignmentId: ref.id,
-    totalStudents,
-    submittedCount: 0,
-    gradedCount: 0,
-    redoCount: 0,
-    updatedAt: serverTimestamp(),
-  });
-  await batch.commit();
 }
 
 export async function listAssignments(): Promise<(AssignmentDoc & { id: string })[]> {
@@ -45,25 +56,28 @@ export async function listAssignments(): Promise<(AssignmentDoc & { id: string }
   if (!currentUser || (!isAdminUser(currentUser) && !isTeacherUser(currentUser))) return [];
 
   if (isAdminUser(currentUser)) {
-    const snap = await getDocs(
-      query(collection(db, COLLECTIONS.ASSIGNMENTS), orderBy("dueAt", "desc"), limit(200)),
+    return listAllPages<AssignmentDoc>(
+      COLLECTIONS.ASSIGNMENTS,
+      [orderBy("dueAt", "desc"), orderBy(documentId())],
+      200,
     );
-    return snap.docs.map((item) => ({ id: item.id, ...(item.data() as AssignmentDoc) }));
   }
 
   const classes = await listClasses();
-  const groups = await Promise.all(classes.map(async (klass) => {
-    const snap = await getDocs(
-      query(collection(db, COLLECTIONS.ASSIGNMENTS), where("classId", "==", klass.id), limit(200)),
-    );
-    return snap.docs.map((item) => ({ id: item.id, ...(item.data() as AssignmentDoc) }));
-  }));
+  const groups = await Promise.all(classes.map((klass) => listAllPages<AssignmentDoc>(
+    COLLECTIONS.ASSIGNMENTS,
+    [where("classId", "==", klass.id), orderBy(documentId())],
+    200,
+  )));
   return groups.flat().sort((a, b) => b.dueAt.toMillis() - a.dueAt.toMillis());
 }
 
 export async function listAssignmentSummaries(): Promise<(AssignmentSummaryDoc & { id: string })[]> {
-  const snap = await getDocs(query(collection(db, COLLECTIONS.ASSIGNMENT_SUMMARIES), limit(300)));
-  return snap.docs.map((item) => ({ id: item.id, ...(item.data() as AssignmentSummaryDoc) }));
+  return listAllPages<AssignmentSummaryDoc>(
+    COLLECTIONS.ASSIGNMENT_SUMMARIES,
+    [orderBy(documentId())],
+    300,
+  );
 }
 
 export async function listAssignmentSummariesByIds(
@@ -79,27 +93,23 @@ export async function listAssignmentSummariesByIds(
 }
 
 export async function listAssignmentsByClass(classId: string, pageSize = 100): Promise<(AssignmentDoc & { id: string })[]> {
-  const snap = await getDocs(
-    query(
-      collection(db, COLLECTIONS.ASSIGNMENTS),
-      where("classId", "==", classId),
-      where("status", "==", "published"),
-      limit(pageSize),
-    ),
+  return listAllPages<AssignmentDoc>(
+    COLLECTIONS.ASSIGNMENTS,
+    [where("classId", "==", classId), where("status", "==", "published"), orderBy(documentId())],
+    pageSize,
   );
-  return snap.docs.map((item) => ({ id: item.id, ...(item.data() as AssignmentDoc) }));
 }
 
 export async function listSubmissions(assignmentId: string, classId: string): Promise<(SubmissionDoc & { id: string })[]> {
-  const snap = await getDocs(
-    query(
-      collection(db, COLLECTIONS.SUBMISSIONS),
+  return listAllPages<SubmissionDoc>(
+    COLLECTIONS.SUBMISSIONS,
+    [
       where("assignmentId", "==", assignmentId),
       where("classId", "==", classId),
-      limit(200),
-    ),
+      orderBy(documentId()),
+    ],
+    200,
   );
-  return snap.docs.map((item) => ({ id: item.id, ...(item.data() as SubmissionDoc) }));
 }
 
 export async function listSubmissionsByStudents(studentIds: string[], pageSize = 300): Promise<(SubmissionDoc & { id: string })[]> {
@@ -117,25 +127,21 @@ export async function listSubmissionsByStudents(studentIds: string[], pageSize =
     // Giu classId == de Rules chung minh duoc canManageClass (1 get/lop);
     // them studentId in de loc tai server thay vi tai ve toan bo bai nop cua lop.
     const classes = await listClasses();
-    const groups = await Promise.all(
-      classes.flatMap((klass) => chunks.map(async (chunk) => {
-        const snap = await getDocs(
-          query(collection(db, COLLECTIONS.SUBMISSIONS), where("classId", "==", klass.id), where("studentId", "in", chunk), limit(pageSize)),
-        );
-        return snap.docs.map((item) => ({ id: item.id, ...(item.data() as SubmissionDoc) }));
-      })),
-    );
+    const groups = await Promise.all(classes.flatMap((klass) => chunks.map((chunk) => (
+      listAllPages<SubmissionDoc>(
+        COLLECTIONS.SUBMISSIONS,
+        [where("classId", "==", klass.id), where("studentId", "in", chunk), orderBy(documentId())],
+        pageSize,
+      )
+    ))));
     return groups.flat();
   }
 
-  const groups = await Promise.all(
-    chunks.map(async (chunk) => {
-      const snap = await getDocs(
-        query(collection(db, COLLECTIONS.SUBMISSIONS), where("studentId", "in", chunk), limit(pageSize)),
-      );
-      return snap.docs.map((item) => ({ id: item.id, ...(item.data() as SubmissionDoc) }));
-    }),
-  );
+  const groups = await Promise.all(chunks.map((chunk) => listAllPages<SubmissionDoc>(
+    COLLECTIONS.SUBMISSIONS,
+    [where("studentId", "in", chunk), orderBy(documentId())],
+    pageSize,
+  )));
 
   return groups.flat();
 }
@@ -145,21 +151,24 @@ export async function gradeSubmission(
   assignment: AssignmentDoc & { id: string },
   input: { score: number | null; teacherComment: string; status: SubmissionStatus; checkedBy: string },
 ): Promise<void> {
-  if (input.status === "graded" && (input.score == null || input.score < 0 || input.score > assignment.maxScore)) {
-    throw new Error("SCORE_INVALID");
-  }
   await runTransaction(db, async (transaction) => {
     const submissionRef = doc(db, COLLECTIONS.SUBMISSIONS, id);
     const summaryRef = doc(db, COLLECTIONS.ASSIGNMENT_SUMMARIES, assignment.id);
-    const [submissionSnap, summarySnap] = await Promise.all([
+    const assignmentRef = doc(db, COLLECTIONS.ASSIGNMENTS, assignment.id);
+    const [assignmentSnap, submissionSnap, summarySnap] = await Promise.all([
+      transaction.get(assignmentRef),
       transaction.get(submissionRef),
       transaction.get(summaryRef),
     ]);
 
+    if (!assignmentSnap.exists()) throw new Error("ASSIGNMENT_NOT_FOUND");
     if (!submissionSnap.exists()) throw new Error("SUBMISSION_NOT_FOUND");
-
+    const currentAssignment = assignmentSnap.data() as AssignmentDoc;
+    if (input.status === "graded" && (input.score == null || input.score < 0 || input.score > currentAssignment.maxScore)) {
+      throw new Error("SCORE_INVALID");
+    }
     const previous = submissionSnap.data() as SubmissionDoc;
-    if (previous.assignmentId !== assignment.id || previous.classId !== assignment.classId) throw new Error("SUBMISSION_MISMATCH");
+    if (previous.assignmentId !== assignment.id || previous.classId !== currentAssignment.classId) throw new Error("SUBMISSION_MISMATCH");
     const scoreRef = doc(db, COLLECTIONS.SCORES, assignmentScoreId(assignment.id, previous.studentId));
     const studentSummaryRef = doc(db, COLLECTIONS.STUDENT_SUMMARIES, previous.studentId);
     const [scoreSnap, studentSummarySnap] = await Promise.all([
@@ -179,7 +188,7 @@ export async function gradeSubmission(
     const oldCount = studentSummary?.scoreCount ?? 0;
     const oldTotal = studentSummary?.totalPercent ?? ((studentSummary?.averagePercent ?? 0) * oldCount);
     const oldPercent = currentScore && currentPublished ? currentScore.score / currentScore.maxScore * 100 : 0;
-    const nextPercent = resolvedScore != null && nextPublished ? resolvedScore / assignment.maxScore * 100 : 0;
+    const nextPercent = resolvedScore != null && nextPublished ? resolvedScore / currentAssignment.maxScore * 100 : 0;
     const count = Math.max(0, oldCount - Number(currentPublished) + Number(nextPublished));
     const total = Math.max(0, oldTotal - oldPercent + nextPercent);
 
@@ -204,12 +213,12 @@ export async function gradeSubmission(
     if (resolvedScore != null) {
       transaction.set(scoreRef, {
         studentId: previous.studentId,
-        classId: assignment.classId,
-        subjectId: assignment.subjectId ?? "",
-        assessmentName: assignment.title,
+        classId: currentAssignment.classId,
+        subjectId: currentAssignment.subjectId ?? "",
+        assessmentName: currentAssignment.title,
         assessmentType: "assignment",
         score: resolvedScore,
-        maxScore: assignment.maxScore,
+        maxScore: currentAssignment.maxScore,
         teacherComment: input.teacherComment,
         source: "assignment",
         assignmentId: assignment.id,
@@ -225,7 +234,7 @@ export async function gradeSubmission(
         totalPercent: total,
         averagePercent: count ? total / count : 0,
         latestScore: resolvedScore,
-        latestMaxScore: assignment.maxScore,
+        latestMaxScore: currentAssignment.maxScore,
         updatedAt: serverTimestamp(),
       }, { merge: true });
     }

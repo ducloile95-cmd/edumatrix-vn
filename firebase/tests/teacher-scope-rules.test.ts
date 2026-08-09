@@ -46,6 +46,9 @@ beforeEach(async () => {
       status: "active",
       studentIds: [],
     });
+    await setDoc(doc(db, "courses", "course-1"), {
+      status: "active", subjectIds: ["subject-1"], teacherIds: [assignedTeacher, otherTeacher], totalSessions: 1,
+    });
     await setDoc(doc(db, "classes", "class-owned"), {
       name: "Owned class",
       courseId: "course-1",
@@ -61,7 +64,7 @@ beforeEach(async () => {
     await setDoc(doc(db, "classes", "class-other"), {
       name: "Other class",
       courseId: "course-1",
-      subjectIds: [],
+      subjectIds: ["subject-1"],
       teacherIds: [otherTeacher],
       studentIds: ["student-2"],
       scheduleText: "",
@@ -184,6 +187,12 @@ beforeEach(async () => {
 });
 
 describe("teacher scope by assigned class", () => {
+  test("teacher cannot announce to a student outside an assigned class", async () => {
+    await assertFails(setDoc(doc(asTeacher(otherTeacher), "announcements", "schedule_session-owned_student-1"), {
+      type: "schedule_change", sessionId: "session-owned", classId: "class-owned", studentId: "student-1",
+      title: "Schedule changed", message: "", createdAt: serverTimestamp(), resolvedAt: null,
+    }));
+  });
   test("teacher reads only assigned classes", async () => {
     await assertSucceeds(getDoc(doc(asTeacher(assignedTeacher), "classes", "class-owned")));
     await assertFails(getDoc(doc(asTeacher(otherTeacher), "classes", "class-owned")));

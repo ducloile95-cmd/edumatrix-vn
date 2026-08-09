@@ -18,6 +18,7 @@ interface ImportMetaEnv {
   readonly VITE_GOOGLE_PICKER_APP_ID?: string;
   /** Mirrors the Worker flag; keep false until Meta approves Utility Messaging. */
   readonly VITE_UTILITY_MESSAGING_ENABLED?: string;
+  readonly VITE_MESSENGER_WORKER_URL?: string;
 }
 
 interface ImportMeta {

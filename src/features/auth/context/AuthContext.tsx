@@ -8,6 +8,7 @@ import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/services/firebase/authClient";
 import type { UserDoc } from "@/types/user";
 import { AuthContext, type AuthContextValue } from "@/features/auth/context/auth-context-value";
+import { clearLessonPlanDraftsForUid } from "@/features/lesson-plans/utils/lessonPlanDrafts";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
@@ -21,9 +22,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   >(null);
   const claimAttemptedForUid = useRef<string | null>(null);
   const lastLoginTouchedForUid = useRef<string | null>(null);
+  const previousUid = useRef<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (previousUid.current && previousUid.current !== user?.uid) clearLessonPlanDraftsForUid(previousUid.current);
+      previousUid.current = user?.uid ?? null;
       setFirebaseUser(user);
       setAuthResolved(true);
       // Reset profile trong cung lan render voi auth state. Neu giu gia tri
@@ -40,6 +44,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    if (firebaseUser && userDoc && userDoc.status !== "active") clearLessonPlanDraftsForUid(firebaseUser.uid);
+  }, [firebaseUser, userDoc]);
 
   useEffect(() => {
     if (!firebaseUser) return;
