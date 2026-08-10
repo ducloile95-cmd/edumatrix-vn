@@ -12,6 +12,7 @@ export interface Env {
   META_PAGE_ID?: string;
   ALLOWED_ORIGIN: string;
   UTILITY_MESSAGING_ENABLED?: string;
+  RELEASE_SHA?: string;
   CF_VERSION_METADATA?: { id: string; tag: string; timestamp: string };
 }
 
@@ -169,22 +170,24 @@ function parseAllowedOrigins(env: Env): string[] {
     .filter((origin) => origin !== "" && origin !== "*");
 }
 
-function allowedOrigin(request: Request, env: Env): string {
+function allowedOrigin(request: Request, env: Env): string | null {
   const requestOrigin = request.headers.get("origin");
   const configuredOrigins = parseAllowedOrigins(env);
   return requestOrigin && configuredOrigins.includes(requestOrigin)
     ? requestOrigin
-    : configuredOrigins[0] ?? "";
+    : null;
 }
 
 export function corsHeaders(env: Env, request?: Request) {
-  return {
-    "access-control-allow-origin": request ? allowedOrigin(request, env) : parseAllowedOrigins(env)[0] ?? "",
+  const headers: Record<string, string> = {
     "access-control-allow-headers": "authorization, content-type",
     "access-control-allow-methods": "GET,POST,OPTIONS",
     "vary": "Origin",
     "content-type": "application/json",
   };
+  const origin = request ? allowedOrigin(request, env) : parseAllowedOrigins(env)[0] ?? null;
+  if (origin) headers["access-control-allow-origin"] = origin;
+  return headers;
 }
 
 export function extractBearer(value: string | null): string | null {
@@ -212,6 +215,7 @@ export function publicErrorCode(error: unknown): string {
     "missing_bearer_token",
     "missing_recipient",
     "no_recipient",
+    "origin_not_allowed",
     "parent_scope_denied",
     "service_auth_failed",
     "staff_required",
@@ -220,6 +224,13 @@ export function publicErrorCode(error: unknown): string {
     "unlinked_conversation_not_found",
   ]);
   return known.has(message) ? message : "internal_error";
+}
+
+function errorStatus(error: unknown): number {
+  const code = publicErrorCode(error);
+  if (code === "missing_bearer_token") return 401;
+  if (code === "admin_required" || code === "staff_required" || code === "origin_not_allowed") return 403;
+  return 500;
 }
 
 function logEvent(level: "info" | "warn" | "error", event: string, fields: Record<string, unknown>): void {
@@ -745,9 +756,10 @@ async function decryptPrivateValue(value: string, env: Env): Promise<string> {
   return new TextDecoder().decode(decrypted);
 }
 
-function safeConnectOrigin(value: string | undefined, env: Env): string {
+export function safeConnectOrigin(value: string | undefined, env: Env): string {
   const configured = env.ALLOWED_ORIGIN.split(",").map((origin) => origin.trim()).filter(Boolean);
-  return value && configured.includes(value) ? value : configured[0] ?? "";
+  if (!value || !configured.includes(value)) throw new Error("origin_not_allowed");
+  return value;
 }
 
 async function configuredPageAccess(env: Env): Promise<{ token: string; pageId: string }> {
@@ -1320,6 +1332,7 @@ export default {
         ok: true,
         service: "messenger-worker",
         version: env.CF_VERSION_METADATA?.id ?? "local",
+        release: env.RELEASE_SHA ?? (env.CF_VERSION_METADATA?.tag || "local"),
         environment: env.ALLOWED_ORIGIN.includes("localhost") ? "development" : "production",
       }), { headers: corsHeaders(env, request) });
       else if (path === "/api/messenger/send" && request.method === "POST") response = await handleSend(request, env);
@@ -1339,7 +1352,7 @@ export default {
     } catch (error) {
       const errorCode = publicErrorCode(error);
       logEvent("error", "request_failed", { requestId, method: request.method, path, errorCode, durationMs: Date.now() - startedAt });
-      return new Response(JSON.stringify({ error: errorCode, requestId }), { status: 500, headers: { ...corsHeaders(env, request), "x-request-id": requestId } });
+      return new Response(JSON.stringify({ error: errorCode, requestId }), { status: errorStatus(error), headers: { ...corsHeaders(env, request), "x-request-id": requestId } });
     }
   },
 };
