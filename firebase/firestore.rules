@@ -169,6 +169,14 @@ service cloud.firestore {
       );
     }
 
+    function isTeacherCurriculumPointerUpdate(courseId) {
+      return isAssignedTeacherForCourse(courseId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'activeCurriculumId', 'activeCurriculumVersion',
+          'curriculumVersionCounter', 'updatedAt'
+        ]);
+    }
+
     function ownsStudent(studentId) {
       return isActive() &&
         currentUser().role == 'viewer' &&
@@ -484,7 +492,11 @@ service cloud.firestore {
         data.activities is list &&
         data.homework is string &&
         data.notesAfterTeaching is string &&
-        (data.attachmentUrl == null || data.attachmentUrl is string) &&
+        (data.attachmentUrl == null || (
+          data.attachmentUrl is string &&
+          data.attachmentUrl.size() <= 2048 &&
+          data.attachmentUrl.matches('https://.+')
+        )) &&
         data.attachmentLabel is string &&
         validLessonPlanDriveAttachment(data) &&
         data.publicSummary is string &&
@@ -871,11 +883,7 @@ service cloud.firestore {
     // phai khop dung role/studentIds lay tu invite - nguoi dung khong tu chon (A16.4).
 
     match /users/{uid} {
-      // Teacher can read the operational directory needed by class and parent
-      // views, but Admin profiles remain private from Teacher accounts.
-      allow read: if isAdmin() || request.auth.uid == uid || (
-        isTeacher() && resource.data.role in ['teacher', 'viewer']
-      );
+      allow read: if isAdmin() || request.auth.uid == uid;
 
       allow create: if validUserData(request.resource.data) && (isAdmin() || (
         request.auth.uid == uid &&
@@ -975,7 +983,7 @@ service cloud.firestore {
     // Integration identifiers are public config for active staff. Other settings remain Admin-only.
     match /settings/{docId} {
       allow read: if isAdmin() ||
-        (docId == 'integrations' && isStaff()) ||
+        (docId in ['integrations', 'payment'] && isStaff()) ||
         (docId == 'academic' && isActive());
       allow create, update: if isAdmin() && (
         (docId == 'general' && validGeneralSettings(request.resource.data)) ||
@@ -998,7 +1006,7 @@ service cloud.firestore {
     match /audit_logs/{logId} {
       allow read: if isAdmin();
 
-      allow create: if isStaff() &&
+      allow create: if isAdmin() &&
         request.resource.data.actorUid == request.auth.uid &&
         request.resource.data.keys().hasOnly(
           ['action', 'actorUid', 'actorEmail', 'targetType', 'targetId', 'meta', 'createdAt']
@@ -1014,30 +1022,27 @@ service cloud.firestore {
 
     match /subjects/{subjectId} {
       allow read: if isActive();
-      allow create: if isStaff() &&
+      allow create: if isAdmin() &&
         request.resource.data.status == 'active' &&
         validSubjectData(subjectId, request.resource.data);
-      allow update: if isStaff() &&
+      allow update: if isAdmin() &&
         validSubjectData(subjectId, request.resource.data) &&
         keepsImmutable(['code', 'createdAt']);
       allow delete: if false;
     }
 
     // ---------- courses/{courseId} ----------
-    // Staff CRUD. Danh muc khoa hoc khong nhay cam theo tung hoc sinh nen
-    // moi nguoi dung active deu doc duoc (Phase 3).
+    // Admin quan ly danh muc khoa hoc. Teacher duoc gan chi co the cap nhat
+    // con tro giao trinh trong giao dich publish; moi tai khoan active duoc doc.
 
     match /courses/{courseId} {
       allow read: if isActive();
-      allow create: if (isAdmin() || (isTeacher() && request.auth.uid in request.resource.data.teacherIds)) &&
+      allow create: if isAdmin() &&
         request.resource.data.keys().hasAny(['teacherIds']) &&
         request.resource.data.teacherIds.size() > 0 &&
         request.resource.data.totalSessions <= 200 &&
         validCourseData(courseId, request.resource.data);
-      allow update: if (isAdmin() || (
-          isTeacher() && request.auth.uid in resource.data.teacherIds &&
-          request.auth.uid in request.resource.data.teacherIds
-        )) &&
+      allow update: if (isAdmin() || isTeacherCurriculumPointerUpdate(courseId)) &&
         validCourseData(courseId, request.resource.data) &&
         validCourseClassRevisionUpdate() &&
         (request.resource.data.totalSessions <= 200 || request.resource.data.totalSessions == resource.data.totalSessions) &&
@@ -1066,7 +1071,7 @@ service cloud.firestore {
     // tu sua duoc).
 
     match /students/{studentId} {
-      allow read: if isStaff() || ownsStudent(studentId);
+      allow read: if isAdmin() || isAssignedTeacherForStudent(studentId) || ownsStudent(studentId);
       allow create: if (
         isAdmin() ||
         (
@@ -1504,7 +1509,10 @@ service cloud.firestore {
     match /invoices/{invoiceId} {
       allow read: if isAdmin() || ownsStudent(resource.data.studentId) ||
         isAssignedTeacherForStudent(resource.data.studentId);
-      allow create: if isAdmin() &&
+      allow create: if (isAdmin() || (
+          isTeacher() && request.resource.data.classId is string &&
+          isAssignedTeacherForClass(request.resource.data.classId)
+        )) &&
         request.resource.data.createdBy == request.auth.uid &&
         request.resource.data.status == 'unpaid' &&
         validInvoiceData(request.resource.data);
@@ -1512,6 +1520,11 @@ service cloud.firestore {
         ['invoiceCode', 'studentId', 'courseId', 'amount', 'paymentContent', 'bankBin', 'accountNumber', 'accountName', 'createdBy', 'createdAt', 'sourceType', 'sourceId', 'classId', 'subjectId', 'billingItemId', 'itemNameSnapshot', 'unitPriceSnapshot', 'quantity']
       ) && validInvoiceData(request.resource.data) && (
         isAdmin() || (
+          isAssignedTeacherForStudent(resource.data.studentId) &&
+          resource.data.status == 'pending' &&
+          request.resource.data.status in ['paid', 'rejected'] &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+        ) || (
           ownsStudent(resource.data.studentId) && resource.data.status in ['unpaid', 'overdue', 'rejected'] &&
           request.resource.data.status == 'pending' &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
@@ -1530,9 +1543,10 @@ service cloud.firestore {
         getAfter(/databases/$(database)/documents/invoices/$(request.resource.data.invoiceId)).data.status == 'pending' &&
         getAfter(/databases/$(database)/documents/invoices/$(request.resource.data.invoiceId)).data.amount == request.resource.data.amount &&
         getAfter(/databases/$(database)/documents/invoices/$(request.resource.data.invoiceId)).data.studentId == request.resource.data.studentId;
-      allow update: if validPaymentData(request.resource.data) && ((isAdmin() &&
+      allow update: if validPaymentData(request.resource.data) && (((isAdmin() || isAssignedTeacherForStudent(resource.data.studentId)) &&
         resource.data.status == 'reported' &&
         request.resource.data.status in ['verified', 'rejected'] &&
+        request.resource.data.verifiedBy == request.auth.uid &&
         getAfter(/databases/$(database)/documents/invoices/$(resource.data.invoiceId)).data.status ==
           (request.resource.data.status == 'verified' ? 'paid' : 'rejected') &&
         keepsImmutable(['invoiceId', 'studentId', 'amount', 'reportedBy', 'reportedAt'])

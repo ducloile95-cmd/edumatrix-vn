@@ -205,18 +205,15 @@ describe("InvoicesPage", () => {
     });
   });
 
-  test("does not expose invoice creation or reconciliation to a teacher", async () => {
+  test("exposes invoice creation and reconciliation to a teacher", async () => {
     authState.value = {
       firebaseUser: { uid: "teacher-1" },
       role: "teacher",
     };
     renderWithQueryClient(<InvoicesPage />);
 
-    await screen.findByText("Teacher chỉ được theo dõi");
-    expect(
-      screen.queryByRole("button", { name: "Tạo hóa đơn" }),
-    ).toBeNull();
-    expect(screen.queryByRole("button", { name: "Đối soát" })).toBeNull();
-    expect(serviceMocks.getPaymentSettings).not.toHaveBeenCalled();
+    await screen.findByRole("button", { name: "Tạo hóa đơn" });
+    expect(screen.getByRole("tab", { name: "Đối soát" })).toBeTruthy();
+    expect(serviceMocks.getPaymentSettings).toHaveBeenCalledTimes(1);
   });
 });

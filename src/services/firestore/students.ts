@@ -20,7 +20,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/services/firebase/firestoreClient";
 import { COLLECTIONS } from "@/constants/collections";
-import { getCurrentUserDoc } from "@/services/firestore/authz";
+import { getCurrentUserDoc, isAdminUser, isTeacherUser } from "@/services/firestore/authz";
 import { normalizeEmail } from "@/utils/email";
 import type { ClassDoc, StudentDoc, StudentStatus } from "@/types/academic";
 import type { UserDoc } from "@/types/user";
@@ -180,6 +180,9 @@ export async function listStudents(): Promise<(StudentDoc & { id: string })[]> {
 
 /** Danh bạ dùng riêng cho ghi danh. Rules vẫn giới hạn quyền ghi theo lớp phụ trách. */
 export async function listEnrollmentCandidates(): Promise<(StudentDoc & { id: string })[]> {
+  const currentUser = await getCurrentUserDoc();
+  if (isTeacherUser(currentUser)) return listStudents();
+  if (!isAdminUser(currentUser)) return [];
   return listStudentPages([orderBy("fullName")]);
 }
 

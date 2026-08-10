@@ -7,7 +7,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { collection, deleteDoc, doc, documentId, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, Timestamp, where, writeBatch } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, Timestamp, where, writeBatch } from "firebase/firestore";
 
 /**
  * Emulator test cho Firestore Security Rules (A16, A28).
@@ -432,7 +432,7 @@ describe("admin settings", () => {
     }));
   });
 
-  test("Teacher chi doc public integration config va khong duoc ghi", async () => {
+  test("Teacher doc cau hinh can thiet va khong duoc ghi", async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), "settings", "integrations"), {
       facebookPageId: "page-id",
       driveFolderId: "folder-id",
@@ -440,7 +440,7 @@ describe("admin settings", () => {
       updatedAt: Timestamp.now(),
     }));
     await assertSucceeds(getDoc(doc(asTeacher(), "settings", "integrations")));
-    await assertFails(getDoc(doc(asTeacher(), "settings", "payment")));
+    await assertSucceeds(getDoc(doc(asTeacher(), "settings", "payment")));
     await assertFails(setDoc(doc(asTeacher(), "settings", "integrations"), {
       facebookPageId: "page-id",
       driveFolderId: "folder-id",
@@ -487,13 +487,10 @@ describe("teacher operational directory", () => {
     });
   });
 
-  test("Teacher doc duoc ho so phu huynh va giao vien khac", async () => {
-    await assertSucceeds(getDoc(doc(asTeacher(), "users", VIEWER_UID)));
-    await assertSucceeds(getDoc(doc(asTeacher(), "users", "teacher-colleague")));
-    await assertSucceeds(getDocs(query(
-      collection(asTeacher(), "users"),
-      where(documentId(), "in", [VIEWER_UID, "teacher-colleague"]),
-    )));
+  test("Teacher chi doc duoc ho so cua chinh minh", async () => {
+    await assertSucceeds(getDoc(doc(asTeacher(), "users", TEACHER_UID)));
+    await assertFails(getDoc(doc(asTeacher(), "users", VIEWER_UID)));
+    await assertFails(getDoc(doc(asTeacher(), "users", "teacher-colleague")));
   });
 
   test("Teacher khong doc duoc ho so Admin", async () => {
@@ -576,18 +573,17 @@ describe("teacher scoped finance and assignment summaries", () => {
     await assertFails(getDocs(collection(asTeacher(), "payments")));
   });
 
-  test("Teacher khong duoc doi soat, Admin van duoc xu ly", async () => {
-    await assertFails(updateDoc(doc(asTeacher(), "invoices", "invoice_assigned"), { status: "paid", updatedAt: serverTimestamp() }));
-    await assertFails(updateDoc(doc(asTeacher(), "payments", "payment_assigned"), {
-      status: "verified", verifiedBy: TEACHER_UID, verifiedAt: serverTimestamp(), updatedAt: serverTimestamp(),
-    }));
-    const db = asAdmin();
+  test("Teacher doi soat trong lop duoc phan cong, khong duoc xu ly lop khac", async () => {
+    const db = asTeacher();
     const batch = writeBatch(db);
     batch.update(doc(db, "invoices", "invoice_assigned"), { status: "paid", updatedAt: serverTimestamp() });
     batch.update(doc(db, "payments", "payment_assigned"), {
-      status: "verified", verifiedBy: ADMIN_UID, verifiedAt: serverTimestamp(), updatedAt: serverTimestamp(),
+      status: "verified", verifiedBy: TEACHER_UID, verifiedAt: serverTimestamp(), updatedAt: serverTimestamp(),
     });
     await assertSucceeds(batch.commit());
+    await assertFails(updateDoc(doc(asTeacher(), "payments", "payment_other"), {
+      status: "verified", verifiedBy: TEACHER_UID, verifiedAt: serverTimestamp(), updatedAt: serverTimestamp(),
+    }));
   });
 
   test("Teacher chi doc assignment summary cua lop duoc phan cong", async () => {

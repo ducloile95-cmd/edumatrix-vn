@@ -85,6 +85,18 @@ beforeEach(async () => {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
+    await setDoc(doc(db, "students", "student-1"), {
+      studentCode: "student-1",
+      fullName: "Assigned Student",
+      dateOfBirth: "2012-01-01",
+      parentUids: [],
+      currentClassIds: ["class-owned"],
+      teacherIds: [assignedTeacher],
+      staffNote: "",
+      status: "active",
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
     await setDoc(doc(db, "sessions", "session-owned"), {
       classId: "class-owned",
       title: "Session",
@@ -198,8 +210,10 @@ describe("teacher scope by assigned class", () => {
     await assertFails(getDoc(doc(asTeacher(otherTeacher), "classes", "class-owned")));
   });
 
-  test("teacher can read enrollment candidates", async () => {
-    await assertSucceeds(getDoc(doc(asTeacher(assignedTeacher), "students", "student-available")));
+  test("teacher reads only assigned students", async () => {
+    await assertSucceeds(getDoc(doc(asTeacher(assignedTeacher), "students", "student-1")));
+    await assertFails(getDoc(doc(asTeacher(assignedTeacher), "students", "student-available")));
+    await assertFails(getDoc(doc(asTeacher(assignedTeacher), "students", "student-2")));
   });
 
   test("teacher enrolls a student only into an assigned class", async () => {

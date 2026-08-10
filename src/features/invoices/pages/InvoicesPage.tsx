@@ -53,7 +53,7 @@ const TABS: Array<{ value: FinanceTab; label: string }> = [
 export default function InvoicesPage() {
   const reducedMotion = useReducedMotion();
   const { firebaseUser, role } = useAuth();
-  const isAdmin = role === USER_ROLES.ADMIN;
+  const canManageFinance = role === USER_ROLES.ADMIN || role === USER_ROLES.TEACHER;
   const client = useQueryClient();
   const students = useQuery({ queryKey: ["students", role, firebaseUser?.uid], queryFn: listStudents });
   const invoices = useQuery({ queryKey: ["invoices", role, firebaseUser?.uid], queryFn: listInvoices });
@@ -65,7 +65,7 @@ export default function InvoicesPage() {
   const paymentSettings = useQuery({
     queryKey: ["settings", "payment"],
     queryFn: getPaymentSettings,
-    enabled: isAdmin,
+    enabled: canManageFinance,
   });
   const [activeTab, setActiveTab] = useState<FinanceTab>("overview");
   const [createOpen, setCreateOpen] = useState(false);
@@ -104,7 +104,7 @@ export default function InvoicesPage() {
 
   const reconcile = useMutation({
     mutationFn: ({ payment, status }: { payment: NonNullable<typeof payments.data>[number]; status: "verified" | "rejected" }) => {
-      if (!isAdmin) throw new Error("Chỉ Admin được đối soát thanh toán");
+      if (!canManageFinance) throw new Error("Tài khoản không có quyền đối soát thanh toán");
       return reconcilePayment(payment, status, firebaseUser?.uid ?? "unknown");
     },
     onSuccess: () => {
@@ -162,11 +162,11 @@ export default function InvoicesPage() {
   return (
     <>
       <PageHeader
-        actions={isAdmin ? <Button variant="primary" icon={<Plus size={17} />} onClick={() => setCreateOpen(true)}>Tạo hóa đơn</Button> : undefined}
+        actions={canManageFinance ? <Button variant="primary" icon={<Plus size={17} />} onClick={() => setCreateOpen(true)}>Tạo hóa đơn</Button> : undefined}
       />
 
       <Tabs label="Điều hướng tài chính" className="mb-5">
-        {TABS.filter((tab) => isAdmin || tab.value !== "reconcile").map((tab) => (
+        {TABS.filter((tab) => canManageFinance || tab.value !== "reconcile").map((tab) => (
           <Tab
             key={tab.value}
             active={activeTab === tab.value}
@@ -186,7 +186,7 @@ export default function InvoicesPage() {
             <StatCard icon={ReceiptText} tone="primary" value={formatCompactVnd(financeSummary.billed)} label="Tổng phải thu" hint={`${invoices.data?.length ?? 0} hóa đơn đã phát hành`} />
             <StatCard icon={CircleDollarSign} tone="success" value={formatCompactVnd(financeSummary.collected)} label="Đã thu" hint={`${financeSummary.collectionRate}% tổng giá trị hóa đơn`} />
             <StatCard icon={WalletCards} tone="warning" value={formatCompactVnd(financeSummary.outstanding)} label="Công nợ còn lại" hint="Chưa thu và đang chờ xác nhận" />
-            <StatCard icon={Clock3} tone={financeSummary.pendingCount > 0 ? "danger" : "neutral"} value={financeSummary.pendingCount} label={isAdmin ? "Chờ đối soát" : "Đang chờ Admin"} hint={isAdmin ? "Giao dịch cần xử lý thủ công" : "Teacher chỉ được theo dõi"} />
+            <StatCard icon={Clock3} tone={financeSummary.pendingCount > 0 ? "danger" : "neutral"} value={financeSummary.pendingCount} label="Chờ đối soát" hint="Giao dịch cần xử lý thủ công" />
           </section>
 
           <section className="grid gap-4 xl:grid-cols-[1.45fr_1fr]">
@@ -225,7 +225,7 @@ export default function InvoicesPage() {
             </ChartPanel>
           </section>
 
-          {isAdmin && financeSummary.pendingCount > 0 && (
+          {canManageFinance && financeSummary.pendingCount > 0 && (
             <button type="button" onClick={() => setActiveTab("reconcile")} className="flex w-full items-center justify-between rounded-card border border-warning-100 bg-warning-50 p-4 text-left transition hover:border-warning-200">
               <span className="flex items-center gap-3"><ShieldCheck className="text-warning-700" size={21} /><span><span className="block text-sm font-bold text-neutral-900">Có {financeSummary.pendingCount} giao dịch đang chờ</span><span className="text-xs text-neutral-600">Mở hàng đợi đối soát để xác nhận hoặc từ chối.</span></span></span>
               <span className="text-sm font-bold text-warning-700">Xử lý ngay</span>
@@ -277,7 +277,7 @@ export default function InvoicesPage() {
         </DataListPanel>
       )}
 
-      {isAdmin && activeTab === "reconcile" && (
+      {canManageFinance && activeTab === "reconcile" && (
         <DataListPanel className="motion-content-enter rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)]">
           <div className="shrink-0 border-b border-neutral-200 p-4 sm:p-5"><div className="flex items-center justify-between gap-3"><div><h2 className="text-base font-bold text-neutral-900">Hàng đợi đối soát</h2><p className="mt-1 text-sm text-neutral-500">Kiểm tra mã giao dịch trước khi xác nhận thu tiền.</p></div><span className="rounded-full bg-warning-50 px-3 py-1 text-xs font-bold text-warning-700">{reportedPayments.length} đang chờ</span></div></div>
           <div className={DATA_LIST_SCROLL}>
@@ -301,7 +301,7 @@ export default function InvoicesPage() {
         </DataListPanel>
       )}
 
-      {isAdmin && <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Tạo hóa đơn" description="Tạo học phí theo lớp hoặc khoản thu đồ dùng học tập." size="2xl" bodyClassName="flex overflow-hidden p-0">
+      {canManageFinance && <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Tạo hóa đơn" description="Tạo học phí theo lớp hoặc khoản thu đồ dùng học tập." size="2xl" bodyClassName="flex overflow-hidden p-0">
         <InvoiceCreationForm
           students={students.data ?? []}
           classes={classes.data ?? []}

@@ -143,6 +143,16 @@ describe("Course Curricula security rules", () => {
     });
     await assertSucceeds(batch.commit());
   });
+
+  test("assigned teacher cannot edit course catalog fields", async () => {
+    const db = env.authenticatedContext("teacher-1").firestore();
+    const batch = writeBatch(db);
+    batch.update(doc(db, "courses", "course-1"), {
+      name: "Unauthorized rename",
+      updatedAt: Timestamp.now(),
+    });
+    await assertFails(batch.commit());
+  });
 });
 
 describe("Course Curriculum Items security rules", () => {

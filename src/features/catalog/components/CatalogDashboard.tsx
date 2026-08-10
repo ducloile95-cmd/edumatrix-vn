@@ -16,6 +16,7 @@ import type { CourseStatus } from "@/types/academic";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 
 interface CatalogDashboardProps {
+  canManage?: boolean;
   /** Bam "Thêm khóa học" tren mon con thieu -> chuyen sang tab Danh muc, mo CourseForm voi mon da chon san. */
   onCreateCourseForSubject: (subjectId: string) => void;
 }
@@ -29,7 +30,7 @@ function pricePerSession(course: { pricePerSession?: number; tuitionFee: number;
   return course.pricePerSession ?? Math.round(course.tuitionFee / course.totalSessions);
 }
 
-export function CatalogDashboard({ onCreateCourseForSubject }: CatalogDashboardProps) {
+export function CatalogDashboard({ canManage = false, onCreateCourseForSubject }: CatalogDashboardProps) {
   const reducedMotion = useReducedMotion();
   // Tai dung listCourses()/listSubjects() - cung queryKey voi CourseForm/CoursesList/SubjectsList
   // nen chia se cache React Query, khong phat sinh loai truy van Firestore moi (ke hoach muc 3).
@@ -217,13 +218,13 @@ export function CatalogDashboard({ onCreateCourseForSubject }: CatalogDashboardP
                   <span className="text-sm font-semibold text-neutral-900">
                     {subject.name} <span className="font-normal text-neutral-500">({subject.code})</span>
                   </span>
-                  <button
+                  {canManage && <button
                     type="button"
                     onClick={() => onCreateCourseForSubject(subject.id)}
                     className="min-h-touch rounded-input border border-neutral-300 bg-white px-3 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
                   >
                     Thêm khóa học
-                  </button>
+                  </button>}
                 </li>
               ))}
             </ul>

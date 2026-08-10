@@ -128,10 +128,27 @@ describe("Phase 9 payment", () => {
       }),
     ));
 
-  test("teacher cannot create invoice", async () =>
+  test("teacher cannot create an unscoped invoice", async () =>
     assertFails(
       setDoc(doc(env.authenticatedContext("teacher").firestore(), "invoices", "invoice-new"), {
         ...invoice,
+        createdBy: "teacher",
+      }),
+    ));
+
+  test("teacher creates an invoice for an assigned class", async () =>
+    assertSucceeds(
+      setDoc(doc(env.authenticatedContext("teacher").firestore(), "invoices", "invoice-teacher"), {
+        ...billingItemInvoice,
+        createdBy: "teacher",
+      }),
+    ));
+
+  test("teacher cannot create an invoice for a student outside the assigned class", async () =>
+    assertFails(
+      setDoc(doc(env.authenticatedContext("teacher").firestore(), "invoices", "invoice-cross-class"), {
+        ...billingItemInvoice,
+        studentId: "student-2",
         createdBy: "teacher",
       }),
     ));
@@ -309,6 +326,19 @@ describe("Phase 9 payment", () => {
     const batch = writeBatch(db);
     batch.update(doc(db, "payments", "payment-1"), {
       status: "verified", verifiedBy: "admin", verifiedAt: Timestamp.now(), updatedAt: Timestamp.now(),
+    });
+    batch.update(doc(db, "invoices", "invoice-1"), { status: "paid", updatedAt: Timestamp.now() });
+    await assertSucceeds(batch.commit());
+  });
+
+  test("assigned teacher verifies payment and its invoice atomically", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), "invoices", "invoice-1"), { status: "pending" });
+    });
+    const db = env.authenticatedContext("teacher").firestore();
+    const batch = writeBatch(db);
+    batch.update(doc(db, "payments", "payment-1"), {
+      status: "verified", verifiedBy: "teacher", verifiedAt: Timestamp.now(), updatedAt: Timestamp.now(),
     });
     batch.update(doc(db, "invoices", "invoice-1"), { status: "paid", updatedAt: Timestamp.now() });
     await assertSucceeds(batch.commit());

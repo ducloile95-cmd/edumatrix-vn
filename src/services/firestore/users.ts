@@ -99,7 +99,7 @@ export async function attemptClaimInvite(firebaseUser: User): Promise<ClaimResul
 export async function listUsers(): Promise<(UserDoc & { uid: string })[]> {
   const documents = await listAllQueryDocuments(
     COLLECTIONS.USERS,
-    [orderBy("createdAt", "desc")],
+    [orderBy("createdAt", "desc"), orderBy(documentId())],
     100,
   );
   return documents.map((d) => ({
@@ -220,10 +220,11 @@ export async function listUsersByRole(role: UserRole): Promise<(UserDoc & { uid:
   if (!currentUser) return [];
 
   if (!isAdminUser(currentUser) && (!isTeacherUser(currentUser) || role === "admin")) return [];
+  if (isTeacherUser(currentUser)) return role === "teacher" ? [currentUser] : [];
 
   const documents = await listAllQueryDocuments(
     COLLECTIONS.USERS,
-    [where("role", "==", role), where("status", "==", "active")],
+    [where("role", "==", role), where("status", "==", "active"), orderBy(documentId())],
     50,
   );
   return documents.map((d) => ({
