@@ -26,7 +26,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_APPCHECK_DEBUG_TOKEN) {
     import.meta.env.VITE_APPCHECK_DEBUG_TOKEN;
 }
 
-if (import.meta.env.VITE_APPCHECK_SITE_KEY) {
+if (typeof document !== "undefined" && import.meta.env.VITE_APPCHECK_SITE_KEY) {
   initializeAppCheck(firebaseApp, {
       provider: new ReCaptchaV3Provider(
         import.meta.env.VITE_APPCHECK_SITE_KEY,
