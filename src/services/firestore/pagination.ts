@@ -8,7 +8,7 @@ import {
 import type { DocumentData, QueryConstraint, QueryDocumentSnapshot } from "firebase/firestore";
 import { db } from "@/services/firebase/firestoreClient";
 
-/** Load every page; Firestore adds a stable implicit __name__ order when needed. */
+/** Load every page of a query whose constraints include a stable orderBy. */
 export async function listAllQueryDocuments(
   collectionName: string,
   constraints: QueryConstraint[],
@@ -26,4 +26,18 @@ export async function listAllQueryDocuments(
     if (snapshot.docs.length < pageSize) break;
   } while (cursor);
   return documents;
+}
+
+/** Load one bounded page for previews and dashboards. */
+export async function listQueryDocumentsPage(
+  collectionName: string,
+  constraints: QueryConstraint[],
+  pageSize: number,
+): Promise<QueryDocumentSnapshot<DocumentData>[]> {
+  const snapshot = await getDocs(query(
+    collection(db, collectionName),
+    ...constraints,
+    limit(pageSize),
+  ));
+  return snapshot.docs;
 }

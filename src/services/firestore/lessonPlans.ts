@@ -4,7 +4,7 @@ import { COLLECTIONS } from "@/constants/collections";
 import { listSessionsByClass } from "@/services/firestore/sessions";
 import { getCurrentUserDoc, isAdminUser, isTeacherUser } from "@/services/firestore/authz";
 import { listClasses } from "@/services/firestore/classes";
-import { listAllQueryDocuments } from "@/services/firestore/pagination";
+import { listAllQueryDocuments, listQueryDocumentsPage } from "@/services/firestore/pagination";
 import { normalizeLessonPlan, normalizeLessonPlanTemplate } from "@/utils/lessonPlan";
 import type { LessonPlanDoc, LessonPlanDriveAttachment, LessonPlanTemplateDoc, SessionDoc } from "@/types/academic";
 import type { LessonPlanFormValues } from "@/schemas/lessonPlan";
@@ -225,6 +225,15 @@ export async function listPublicLessonPlansByClass(classId: string, pageSize = 1
     COLLECTIONS.LESSON_PLAN_PUBLIC,
     [where("classId", "==", classId)],
     pageSize,
+  );
+  return documents.map((item) => ({ id: item.id, ...item.data() }));
+}
+
+export async function listPublicLessonPlanPreviewByClass(classId: string, maxResults: number): Promise<Record<string, unknown>[]> {
+  const documents = await listQueryDocumentsPage(
+    COLLECTIONS.LESSON_PLAN_PUBLIC,
+    [where("classId", "==", classId), orderBy("publishedAt", "desc")],
+    maxResults,
   );
   return documents.map((item) => ({ id: item.id, ...item.data() }));
 }

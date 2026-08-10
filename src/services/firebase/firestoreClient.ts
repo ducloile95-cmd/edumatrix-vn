@@ -6,8 +6,8 @@ import {
 } from "firebase/firestore";
 import { firebaseApp } from "@/services/firebase/app";
 
-// Dung cache bo nho mac dinh. IndexedDB mot-tab co the giu primary lease sau
-// deploy/dang xuat, khien moi truy van cua tab moi cung that bai.
+// Dung cache bo nho de tab thu hai va lease IndexedDB cu khong chan Firestore.
+// React Query van giu cache trong phien de giam refetch tren Spark.
 export const db: Firestore = initializeFirestore(firebaseApp, {
   localCache: memoryLocalCache(),
 });

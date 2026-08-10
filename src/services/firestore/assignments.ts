@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  documentId,
   getDoc,
   orderBy,
   runTransaction,
@@ -13,7 +14,7 @@ import { db } from "@/services/firebase/firestoreClient";
 import { getCurrentUserDoc, isAdminUser, isTeacherUser } from "@/services/firestore/authz";
 import { listClasses } from "@/services/firestore/classes";
 import { assignmentScoreId } from "@/utils/idempotency";
-import { listAllQueryDocuments } from "@/services/firestore/pagination";
+import { listAllQueryDocuments, listQueryDocumentsPage } from "@/services/firestore/pagination";
 import type { AssignmentDoc, AssignmentSummaryDoc, ClassDoc, ScoreDoc, SubmissionDoc, SubmissionStatus } from "@/types/academic";
 
 async function listAllPages<T>(
@@ -57,7 +58,7 @@ export async function listAssignments(): Promise<(AssignmentDoc & { id: string }
   if (isAdminUser(currentUser)) {
     return listAllPages<AssignmentDoc>(
       COLLECTIONS.ASSIGNMENTS,
-      [orderBy("dueAt", "desc")],
+      [orderBy("dueAt", "desc"), orderBy(documentId())],
       200,
     );
   }
@@ -65,7 +66,7 @@ export async function listAssignments(): Promise<(AssignmentDoc & { id: string }
   const classes = await listClasses();
   const groups = await Promise.all(classes.map((klass) => listAllPages<AssignmentDoc>(
     COLLECTIONS.ASSIGNMENTS,
-    [where("classId", "==", klass.id)],
+    [where("classId", "==", klass.id), orderBy(documentId())],
     200,
   )));
   return groups.flat().sort((a, b) => b.dueAt.toMillis() - a.dueAt.toMillis());
@@ -74,7 +75,7 @@ export async function listAssignments(): Promise<(AssignmentDoc & { id: string }
 export async function listAssignmentSummaries(): Promise<(AssignmentSummaryDoc & { id: string })[]> {
   return listAllPages<AssignmentSummaryDoc>(
     COLLECTIONS.ASSIGNMENT_SUMMARIES,
-    [],
+    [orderBy(documentId())],
     300,
   );
 }
@@ -94,9 +95,18 @@ export async function listAssignmentSummariesByIds(
 export async function listAssignmentsByClass(classId: string, pageSize = 100): Promise<(AssignmentDoc & { id: string })[]> {
   return listAllPages<AssignmentDoc>(
     COLLECTIONS.ASSIGNMENTS,
-    [where("classId", "==", classId), where("status", "==", "published")],
+    [where("classId", "==", classId), where("status", "==", "published"), orderBy(documentId())],
     pageSize,
   );
+}
+
+export async function listAssignmentPreviewByClass(classId: string, maxResults: number): Promise<(AssignmentDoc & { id: string })[]> {
+  const documents = await listQueryDocumentsPage(
+    COLLECTIONS.ASSIGNMENTS,
+    [where("classId", "==", classId), where("status", "==", "published"), orderBy("dueAt", "asc")],
+    maxResults,
+  );
+  return documents.map((item) => ({ id: item.id, ...(item.data() as AssignmentDoc) }));
 }
 
 export async function listSubmissions(assignmentId: string, classId: string): Promise<(SubmissionDoc & { id: string })[]> {
@@ -105,6 +115,7 @@ export async function listSubmissions(assignmentId: string, classId: string): Pr
     [
       where("assignmentId", "==", assignmentId),
       where("classId", "==", classId),
+      orderBy(documentId()),
     ],
     200,
   );
@@ -128,7 +139,7 @@ export async function listSubmissionsByStudents(studentIds: string[], pageSize =
     const groups = await Promise.all(classes.flatMap((klass) => chunks.map((chunk) => (
       listAllPages<SubmissionDoc>(
         COLLECTIONS.SUBMISSIONS,
-        [where("classId", "==", klass.id), where("studentId", "in", chunk)],
+        [where("classId", "==", klass.id), where("studentId", "in", chunk), orderBy(documentId())],
         pageSize,
       )
     ))));
@@ -137,11 +148,23 @@ export async function listSubmissionsByStudents(studentIds: string[], pageSize =
 
   const groups = await Promise.all(chunks.map((chunk) => listAllPages<SubmissionDoc>(
     COLLECTIONS.SUBMISSIONS,
-    [where("studentId", "in", chunk)],
+    [where("studentId", "in", chunk), orderBy(documentId())],
     pageSize,
   )));
 
   return groups.flat();
+}
+
+export async function listSubmissionPreviewsByStudents(studentIds: string[], maxPerStudent: number): Promise<(SubmissionDoc & { id: string })[]> {
+  const groups = await Promise.all([...new Set(studentIds)].filter(Boolean).map(async (studentId) => {
+    const documents = await listQueryDocumentsPage(
+      COLLECTIONS.SUBMISSIONS,
+      [where("studentId", "==", studentId), orderBy("submittedAt", "desc")],
+      maxPerStudent,
+    );
+    return documents.map((item) => ({ id: item.id, ...(item.data() as SubmissionDoc) }));
+  }));
+  return groups.flat().sort((a, b) => b.submittedAt.toMillis() - a.submittedAt.toMillis());
 }
 
 export async function gradeSubmission(

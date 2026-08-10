@@ -2,8 +2,10 @@ import {
   Timestamp,
   collection,
   doc,
+  documentId,
   getDocs,
   limit,
+  orderBy,
   query,
   runTransaction,
   serverTimestamp,
@@ -21,6 +23,7 @@ import { stableDocumentId } from "@/utils/idempotency";
 import { createInvoiceCode, createPaymentContent } from "@/utils/payment";
 import { getCurrentUserDoc, isAdminUser, isTeacherUser } from "@/services/firestore/authz";
 import { listStudents } from "@/services/firestore/students";
+import { listQueryDocumentsPage } from "@/services/firestore/pagination";
 import type { InvoiceDoc, InvoiceSourceType, PaymentDoc, PaymentStatus } from "@/types/academic";
 
 export interface CreateInvoiceInput {
@@ -79,6 +82,7 @@ async function listAllDocuments(collectionName: string, baseConstraints: QueryCo
     const snapshot: QuerySnapshot<DocumentData, DocumentData> = await getDocs(query(
       collection(db, collectionName),
       ...baseConstraints,
+      orderBy(documentId()),
       ...(cursor ? [startAfter(cursor)] : []),
       limit(pageSize),
     ));
@@ -113,6 +117,18 @@ export async function listInvoicesByStudents(ids: string[], pageSize = 100): Pro
   );
 
   return groups.flat();
+}
+
+export async function listInvoicePreviewsByStudents(ids: string[], maxPerStudent: number): Promise<(InvoiceDoc & { id: string })[]> {
+  const groups = await Promise.all([...new Set(ids)].filter(Boolean).map(async (studentId) => {
+    const documents = await listQueryDocumentsPage(
+      COLLECTIONS.INVOICES,
+      [where("studentId", "==", studentId), orderBy("dueAt", "asc")],
+      maxPerStudent,
+    );
+    return documents.map((item) => ({ id: item.id, ...(item.data() as InvoiceDoc) }));
+  }));
+  return groups.flat().sort((a, b) => a.dueAt.toMillis() - b.dueAt.toMillis());
 }
 
 export async function reportPayment(

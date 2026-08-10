@@ -4,6 +4,7 @@ import {
   documentId,
   getDocs,
   limit,
+  orderBy,
   query,
   runTransaction,
   serverTimestamp,
@@ -18,7 +19,7 @@ import { getCurrentUserDoc, isTeacherUser } from "@/services/firestore/authz";
 import { listClasses } from "@/services/firestore/classes";
 import { listSessions } from "@/services/firestore/sessions";
 import { listStudents } from "@/services/firestore/students";
-import { listAllQueryDocuments } from "@/services/firestore/pagination";
+import { listAllQueryDocuments, listQueryDocumentsPage } from "@/services/firestore/pagination";
 import type { AttendanceDoc, AttendanceStatus, AttendanceSummaryDoc, SessionDoc } from "@/types/academic";
 
 export interface AttendanceEntry { studentId: string; status: AttendanceStatus; note: string; }
@@ -121,7 +122,7 @@ async function listAttendancePages(
 ): Promise<Array<AttendanceDoc & { id: string }>> {
   const documents = await listAllQueryDocuments(
     COLLECTIONS.ATTENDANCE,
-    constraints,
+    [...constraints, orderBy(documentId())],
     pageSize,
   );
   return documents.map((item) => ({ id: item.id, ...(item.data() as AttendanceDoc) }));
@@ -258,6 +259,18 @@ export async function listAttendanceByStudents(studentIds: string[], pageSize = 
     [where("studentId", "in", chunk)],
     pageSize,
   )));
+  return groups.flat().sort((a, b) => b.markedAt.toMillis() - a.markedAt.toMillis());
+}
+
+export async function listAttendancePreviewsByStudents(studentIds: string[], maxPerStudent: number): Promise<(AttendanceDoc & { id: string })[]> {
+  const groups = await Promise.all([...new Set(studentIds)].filter(Boolean).map(async (studentId) => {
+    const documents = await listQueryDocumentsPage(
+      COLLECTIONS.ATTENDANCE,
+      [where("studentId", "==", studentId), orderBy("markedAt", "desc")],
+      maxPerStudent,
+    );
+    return documents.map((item) => ({ id: item.id, ...(item.data() as AttendanceDoc) }));
+  }));
   return groups.flat().sort((a, b) => b.markedAt.toMillis() - a.markedAt.toMillis());
 }
 
