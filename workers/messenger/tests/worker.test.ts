@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import worker, { assertStudentScope, buildFeedPayload, buildMessengerPayload, buildUtilityPayload, checkMetaUtilityPermission, corsHeaders, extractBearer, extractInboundMessages, extractReferralLinks, extractUtilityTemplateStatuses, firebaseCertificates, isMessengerTagShape, markWebhookMessageProcessed, META_OAUTH_SCOPES, META_UTILITY_OAUTH_SCOPE, metaErrorCode, metaOAuthCompletionErrorMessage, metaOAuthErrorMessage, metaOAuthScopes, metaUtilityPermissionStatus, parseMessengerProfile, postGraph, publicErrorCode, referralClaimUid, referralTargetAllowed, resetFirebaseCachesForTest, safeConnectOrigin, sendGraph, serviceAccessToken, validPostImages, validUtilityParameters, verifyMetaSignature, webhookMessageProcessed, type Env } from "../src/index";
+import worker, { assertStudentScope, buildFeedPayload, buildMessengerPayload, buildUtilityPayload, checkMetaUtilityPermission, corsHeaders, extractBearer, extractInboundMessages, extractReferralLinks, extractUtilityTemplateStatuses, firebaseCertificates, isMessengerTagShape, markWebhookMessageProcessed, META_OAUTH_SCOPES, META_UTILITY_OAUTH_SCOPE, META_WEBHOOK_FIELDS, metaErrorCode, metaOAuthCompletionErrorMessage, metaOAuthErrorMessage, metaOAuthScopes, metaUtilityPermissionStatus, parseMessengerProfile, postGraph, publicErrorCode, referralClaimUid, referralTargetAllowed, resetFirebaseCachesForTest, safeConnectOrigin, sendGraph, serviceAccessToken, subscribePageWebhooks, validPostImages, validUtilityParameters, verifyMetaSignature, webhookMessageProcessed, type Env } from "../src/index";
 const env={FIREBASE_PROJECT_ID:"project",FIREBASE_CLIENT_EMAIL:"email",FIREBASE_PRIVATE_KEY:"key",META_APP_ID:"app-id",META_PAGE_ACCESS_TOKEN:"token",META_APP_SECRET:"app-secret",META_WEBHOOK_VERIFY_TOKEN:"verify-me",META_GRAPH_VERSION:"v25.0",META_PAGE_ID:"page-id",ALLOWED_ORIGIN:"http://localhost:5173"}satisfies Env;
 describe("messenger worker",()=>{
 afterEach(()=>{vi.restoreAllMocks();resetFirebaseCachesForTest()});
@@ -216,6 +216,24 @@ test("checks Utility permission without putting the access token in the URL",asy
   const [url,init]=fetchMock.mock.calls[0];
   expect(String(url)).not.toContain(secretToken);
   expect(new Headers(init?.headers).get("authorization")).toBe(`Bearer ${secretToken}`);
+});
+test("subscribes and verifies required Page webhook fields without exposing the token",async()=>{
+  const page={id:"page-id",name:"Page",access_token:"page-secret"};
+  const fetchMock=vi.spyOn(globalThis,"fetch")
+    .mockResolvedValueOnce(new Response(JSON.stringify({success:true}),{status:200,headers:{"content-type":"application/json"}}))
+    .mockResolvedValueOnce(new Response(JSON.stringify({data:[{id:env.META_APP_ID,subscribed_fields:[...META_WEBHOOK_FIELDS]}]}),{status:200,headers:{"content-type":"application/json"}}));
+  await expect(subscribePageWebhooks(page,env)).resolves.toEqual([...META_WEBHOOK_FIELDS]);
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+  for(const [url,init] of fetchMock.mock.calls){
+    expect(String(url)).not.toContain(page.access_token);
+    expect(new Headers(init?.headers).get("authorization")).toBe(`Bearer ${page.access_token}`);
+  }
+});
+test("rejects a Page webhook subscription that cannot be verified",async()=>{
+  vi.spyOn(globalThis,"fetch")
+    .mockResolvedValueOnce(new Response(JSON.stringify({success:true}),{status:200,headers:{"content-type":"application/json"}}))
+    .mockResolvedValueOnce(new Response(JSON.stringify({data:[{id:env.META_APP_ID,subscribed_fields:["messages"]}]}),{status:200,headers:{"content-type":"application/json"}}));
+  await expect(subscribePageWebhooks({id:"page-id",name:"Page",access_token:"secret"},env)).rejects.toThrow("meta_webhook_subscription_unverified");
 });
 test("maps Meta OAuth denial separately from app configuration failures",()=>{
   expect(metaOAuthErrorMessage("access_denied","user_denied")).toContain("chưa cấp quyền");

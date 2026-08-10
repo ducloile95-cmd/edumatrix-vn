@@ -73,6 +73,7 @@ export const META_OAUTH_SCOPES = [
   "pages_manage_posts",
 ] as const;
 export const META_UTILITY_OAUTH_SCOPE = "page_utility_messaging";
+export const META_WEBHOOK_FIELDS = ["messages", "messaging_postbacks", "messaging_referrals"] as const;
 export function metaOAuthScopes(env: Env): readonly string[] {
   return env.UTILITY_MESSAGING_ENABLED === "true" ? [...META_OAUTH_SCOPES, META_UTILITY_OAUTH_SCOPE] : META_OAUTH_SCOPES;
 }
@@ -84,6 +85,8 @@ export function metaOAuthErrorMessage(error: string, reason: string): string {
 export function metaOAuthCompletionErrorMessage(error: string): string {
   return error === "meta_no_managed_pages"
     ? "Không tìm thấy Fanpage được tài khoản này quản lý."
+    : error === "meta_webhook_subscription_failed" || error === "meta_webhook_subscription_unverified"
+      ? "Không thể đăng ký webhook cho Fanpage. Kiểm tra quyền pages_manage_metadata rồi kết nối lại."
     : "Không thể hoàn tất kết nối Facebook. Vui lòng thử lại.";
 }
 export function metaUtilityPermissionStatus(data: unknown): MetaUtilityPermissionStatus {
@@ -102,6 +105,27 @@ export async function checkMetaUtilityPermission(accessToken: string, env: Env):
   } catch {
     return "unknown";
   }
+}
+
+export async function subscribePageWebhooks(page: MetaManagedPage, env: Env): Promise<string[]> {
+  const endpoint = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/${encodeURIComponent(page.id)}/subscribed_apps`;
+  const subscribeUrl = new URL(endpoint);
+  subscribeUrl.searchParams.set("subscribed_fields", META_WEBHOOK_FIELDS.join(","));
+  const headers = { authorization: `Bearer ${page.access_token}` };
+  const subscribeResponse = await fetch(subscribeUrl, { method: "POST", headers });
+  const subscribeData = await subscribeResponse.json<Record<string, unknown>>();
+  if (!subscribeResponse.ok || subscribeData.success !== true) throw new Error("meta_webhook_subscription_failed");
+
+  const verifyResponse = await fetch(endpoint, { headers });
+  const verifyData = await verifyResponse.json<{ data?: Array<{ id?: string; subscribed_fields?: unknown }> }>();
+  const app = (verifyData.data ?? []).find((item) => item.id === env.META_APP_ID);
+  const fields = Array.isArray(app?.subscribed_fields)
+    ? app.subscribed_fields.filter((field): field is string => typeof field === "string")
+    : [];
+  if (!verifyResponse.ok || !META_WEBHOOK_FIELDS.every((field) => fields.includes(field))) {
+    throw new Error("meta_webhook_subscription_unverified");
+  }
+  return fields;
 }
 interface UtilityTemplateDefinition {
   metaName: string;
@@ -1221,6 +1245,7 @@ async function handleMetaConnectSelect(request: Request, env: Env): Promise<Resp
   const utilityPermissionValue = fieldString(document, "utilityMessagingPermission");
   const utilityMessagingPermission: MetaUtilityPermissionStatus =
     utilityPermissionValue === "granted" || utilityPermissionValue === "missing" ? utilityPermissionValue : "unknown";
+  const webhookSubscribedFields = await subscribePageWebhooks(page, env);
   await writeDocument("messenger_private_config", "page", {
     pageId: page.id,
     pageName: page.name,
@@ -1229,18 +1254,21 @@ async function handleMetaConnectSelect(request: Request, env: Env): Promise<Resp
     utilityMessagingPermission,
     connectedAt: now,
   }, serviceToken, env);
-  await writeDocument("settings", "integrations", {
+  await updateDocumentFields("settings", "integrations", {
     facebookPageId: page.id,
     facebookPageName: page.name,
     facebookPagePictureUrl: page.picture?.data?.url ?? null,
     facebookConnectionStatus: "connected",
     facebookUtilityMessagingPermission: utilityMessagingPermission,
+    facebookWebhookSubscriptionStatus: "verified",
+    facebookWebhookSubscribedFields: webhookSubscribedFields,
+    facebookWebhookVerifiedAt: now,
     facebookConnectedAt: now,
     updatedAt: now,
   }, serviceToken, env);
   await updateDocumentFields("messenger_oauth_states", body.state!, { status: "used", selectedPageId: page.id, usedAt: now, encryptedPages: null }, serviceToken, env);
   dynamicPageTokenCache = { token: page.access_token, pageId: page.id, expiresAt: Date.now() + 5 * 60 * 1000 };
-  return new Response(JSON.stringify({ page: { id: page.id, name: page.name, pictureUrl: page.picture?.data?.url ?? null, utilityMessagingPermission } }), { headers: corsHeaders(env, request) });
+  return new Response(JSON.stringify({ page: { id: page.id, name: page.name, pictureUrl: page.picture?.data?.url ?? null, utilityMessagingPermission, webhookSubscriptionStatus: "verified" } }), { headers: corsHeaders(env, request) });
 }
 
 async function handleWebhook(request: Request, env: Env): Promise<Response> {

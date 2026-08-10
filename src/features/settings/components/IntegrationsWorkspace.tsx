@@ -67,6 +67,7 @@ export function IntegrationsWorkspace() {
   const messengerWorker = (import.meta.env.VITE_MESSENGER_WORKER_URL ?? "").trim();
   const messengerReady = Boolean(messengerWorker && form.facebookPageId.trim());
   const utilityPermission = settings.data?.facebookUtilityMessagingPermission ?? "unknown";
+  const webhookVerified = settings.data?.facebookWebhookSubscriptionStatus === "verified";
   const utilityReconnectRequired = messengerReady && utilityPermission !== "granted";
   const paymentReady = Boolean(payment.data?.bankBin && payment.data?.accountNumber);
 
@@ -78,7 +79,7 @@ export function IntegrationsWorkspace() {
         <Button size="sm" variant={driveConnected ? "secondary" : "primary"} disabled={!drivePublicConfig || drive.isPending} onClick={() => drive.mutate()}>{drive.isPending ? "Đang kết nối..." : driveConnected ? "Kết nối lại" : "Kết nối Drive"}</Button>
         {driveConnected && <Button size="sm" variant="secondary" icon={<Unplug size={14} />} onClick={() => { disconnectGoogleDrive(); setDriveConnected(false); }}>Ngắt phiên</Button>}
       </IntegrationCard>
-      <IntegrationCard icon={<Facebook size={19} />} title="Facebook & Messenger" description="Kết nối Fanpage để dùng Messenger và đăng bài." configured={messengerReady} detail={`${settings.data?.facebookPageName ? `${settings.data.facebookPageName} · ${form.facebookPageId}` : form.facebookPageId ? `Page ID: ${form.facebookPageId}` : "Chưa kết nối Fanpage"}${messengerReady ? ` · Utility: ${utilityPermission === "granted" ? "Đã cấp quyền" : utilityPermission === "missing" ? "Thiếu quyền" : "Chưa kiểm tra"}` : ""}`}>
+      <IntegrationCard icon={<Facebook size={19} />} title="Facebook & Messenger" description="Kết nối Fanpage để dùng Messenger và đăng bài." configured={messengerReady && webhookVerified} detail={`${settings.data?.facebookPageName ? `${settings.data.facebookPageName} · ${form.facebookPageId}` : form.facebookPageId ? `Page ID: ${form.facebookPageId}` : "Chưa kết nối Fanpage"}${messengerReady ? ` · Webhook: ${webhookVerified ? "Đã xác minh" : "Chưa xác minh"} · Utility: ${utilityPermission === "granted" ? "Đã cấp quyền" : utilityPermission === "missing" ? "Thiếu quyền" : "Chưa kiểm tra"}` : ""}`}>
         <Button size="sm" variant={messengerReady ? "secondary" : "primary"} icon={messengerReady ? <RefreshCw size={14} /> : <Facebook size={14} />} onClick={() => setMetaConnectOpen(true)}>
           {utilityReconnectRequired ? "Kết nối lại Fanpage" : messengerReady ? "Đổi Fanpage" : "Kết nối Facebook"}
         </Button>

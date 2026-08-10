@@ -50,9 +50,27 @@ service cloud.firestore {
     }
 
     function validIntegrationSettings(data) {
-      return data.keys().hasOnly(['facebookPageId', 'driveFolderId', 'webhookUrl', 'updatedAt']) &&
+      return data.keys().hasOnly([
+          'facebookPageId', 'facebookPageName', 'facebookPagePictureUrl',
+          'facebookConnectionStatus', 'facebookUtilityMessagingPermission',
+          'facebookWebhookSubscriptionStatus', 'facebookWebhookSubscribedFields',
+          'facebookWebhookVerifiedAt', 'facebookConnectedAt',
+          'driveFolderId', 'webhookUrl', 'updatedAt'
+        ]) &&
         data.keys().hasAll(['facebookPageId', 'driveFolderId', 'webhookUrl', 'updatedAt']) &&
         data.facebookPageId is string && data.facebookPageId.size() <= 100 &&
+        (!('facebookPageName' in data) || (data.facebookPageName is string && data.facebookPageName.size() <= 120)) &&
+        (!('facebookPagePictureUrl' in data) || data.facebookPagePictureUrl == null || (
+          data.facebookPagePictureUrl is string &&
+          data.facebookPagePictureUrl.size() <= 2048 &&
+          data.facebookPagePictureUrl.matches('https://.+')
+        )) &&
+        (!('facebookConnectionStatus' in data) || data.facebookConnectionStatus in ['connected', 'disconnected']) &&
+        (!('facebookUtilityMessagingPermission' in data) || data.facebookUtilityMessagingPermission in ['granted', 'missing', 'unknown']) &&
+        (!('facebookWebhookSubscriptionStatus' in data) || data.facebookWebhookSubscriptionStatus in ['verified', 'unknown']) &&
+        (!('facebookWebhookSubscribedFields' in data) || (data.facebookWebhookSubscribedFields is list && data.facebookWebhookSubscribedFields.size() <= 10)) &&
+        (!('facebookWebhookVerifiedAt' in data) || data.facebookWebhookVerifiedAt == null || data.facebookWebhookVerifiedAt is timestamp) &&
+        (!('facebookConnectedAt' in data) || data.facebookConnectedAt == null || data.facebookConnectedAt is timestamp) &&
         data.driveFolderId is string && data.driveFolderId.size() <= 200 &&
         data.webhookUrl is string && data.webhookUrl.size() <= 500;
     }

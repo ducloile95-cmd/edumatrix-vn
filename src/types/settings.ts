@@ -24,6 +24,9 @@ export interface IntegrationSettingsDoc {
   facebookPagePictureUrl?: string | null;
   facebookConnectionStatus?: "connected" | "disconnected";
   facebookUtilityMessagingPermission?: "granted" | "missing" | "unknown";
+  facebookWebhookSubscriptionStatus?: "verified" | "unknown";
+  facebookWebhookSubscribedFields?: string[];
+  facebookWebhookVerifiedAt?: Timestamp | null;
   facebookConnectedAt?: Timestamp | null;
   driveFolderId: string;
   webhookUrl: string;
