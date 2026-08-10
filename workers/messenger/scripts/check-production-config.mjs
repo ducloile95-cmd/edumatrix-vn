@@ -9,6 +9,8 @@ const pageId = config.env?.production?.vars?.META_PAGE_ID;
 const workerUtility = config.env?.production?.vars?.UTILITY_MESSAGING_ENABLED;
 const frontendEnv = fs.readFileSync(path.resolve("../..", ".env.real"), "utf8");
 const frontendUtility = frontendEnv.match(/^VITE_UTILITY_MESSAGING_ENABLED=(true|false)$/m)?.[1];
+const workerUrl = frontendEnv.match(/^VITE_MESSENGER_WORKER_URL=(\S+)$/m)?.[1];
+const canonicalWorkerUrl = "https://edumatrix-messenger-production.ducloile99.workers.dev";
 
 if (typeof origin !== "string" || !origin.startsWith("https://")) {
   throw new Error("env.production.vars.ALLOWED_ORIGIN must be an https origin.");
@@ -34,4 +36,12 @@ if (frontendUtility !== workerUtility) {
   throw new Error(`Utility Messaging mismatch: frontend=${frontendUtility}, worker=${workerUtility}.`);
 }
 
-console.log(`Production config: origin=${origin}, graph=${graphVersion}, page=${pageId}, utility=${workerUtility}`);
+if (frontendUtility !== "false") {
+  throw new Error("Utility Messaging must remain disabled until Meta grants page_utility_messaging.");
+}
+
+if (workerUrl !== canonicalWorkerUrl) {
+  throw new Error(`VITE_MESSENGER_WORKER_URL must be ${canonicalWorkerUrl}.`);
+}
+
+console.log(`Production config: worker=${workerUrl}, origin=${origin}, graph=${graphVersion}, page=${pageId}, utility=${workerUtility}`);

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import worker, { assertStudentScope, buildFeedPayload, buildMessengerPayload, buildUtilityPayload, checkMetaUtilityPermission, corsHeaders, extractBearer, extractInboundMessages, extractReferralLinks, extractUtilityTemplateStatuses, firebaseCertificates, isMessengerTagShape, markWebhookMessageProcessed, META_OAUTH_SCOPES, META_UTILITY_OAUTH_SCOPE, metaErrorCode, metaOAuthCompletionErrorMessage, metaOAuthErrorMessage, metaOAuthScopes, metaUtilityPermissionStatus, parseMessengerProfile, postGraph, publicErrorCode, referralClaimUid, referralTargetAllowed, resetFirebaseCachesForTest, sendGraph, serviceAccessToken, validPostImages, validUtilityParameters, verifyMetaSignature, webhookMessageProcessed, type Env } from "../src/index";
+import worker, { assertStudentScope, buildFeedPayload, buildMessengerPayload, buildUtilityPayload, checkMetaUtilityPermission, corsHeaders, extractBearer, extractInboundMessages, extractReferralLinks, extractUtilityTemplateStatuses, firebaseCertificates, isMessengerTagShape, markWebhookMessageProcessed, META_OAUTH_SCOPES, META_UTILITY_OAUTH_SCOPE, metaErrorCode, metaOAuthCompletionErrorMessage, metaOAuthErrorMessage, metaOAuthScopes, metaUtilityPermissionStatus, parseMessengerProfile, postGraph, publicErrorCode, referralClaimUid, referralTargetAllowed, resetFirebaseCachesForTest, safeConnectOrigin, sendGraph, serviceAccessToken, validPostImages, validUtilityParameters, verifyMetaSignature, webhookMessageProcessed, type Env } from "../src/index";
 const env={FIREBASE_PROJECT_ID:"project",FIREBASE_CLIENT_EMAIL:"email",FIREBASE_PRIVATE_KEY:"key",META_APP_ID:"app-id",META_PAGE_ACCESS_TOKEN:"token",META_APP_SECRET:"app-secret",META_WEBHOOK_VERIFY_TOKEN:"verify-me",META_GRAPH_VERSION:"v25.0",META_PAGE_ID:"page-id",ALLOWED_ORIGIN:"http://localhost:5173"}satisfies Env;
 describe("messenger worker",()=>{
 afterEach(()=>{vi.restoreAllMocks();resetFirebaseCachesForTest()});
@@ -145,10 +145,10 @@ test("returns CORS only for the configured origin",()=>{
 });
 test("never echoes a wildcard origin even if ALLOWED_ORIGIN is misconfigured to *",()=>{
   const wildcardEnv={...env,ALLOWED_ORIGIN:"*"}satisfies Env;
-  expect(corsHeaders(wildcardEnv,new Request("https://worker/health",{headers:{origin:"https://evil.example"}}))["access-control-allow-origin"]).toBe("");
-  expect(corsHeaders(wildcardEnv)["access-control-allow-origin"]).toBe("");
+  expect(corsHeaders(wildcardEnv,new Request("https://worker/health",{headers:{origin:"https://evil.example"}}))["access-control-allow-origin"]).toBeUndefined();
+  expect(corsHeaders(wildcardEnv)["access-control-allow-origin"]).toBeUndefined();
   const mixedEnv={...env,ALLOWED_ORIGIN:"*,https://edumatrix-vn-576b1.web.app"}satisfies Env;
-  expect(corsHeaders(mixedEnv,new Request("https://worker/health",{headers:{origin:"https://evil.example"}}))["access-control-allow-origin"]).toBe("https://edumatrix-vn-576b1.web.app");
+  expect(corsHeaders(mixedEnv,new Request("https://worker/health",{headers:{origin:"https://evil.example"}}))["access-control-allow-origin"]).toBeUndefined();
 });
 test("maps internal and Meta failures to stable public error codes",()=>{
   expect(publicErrorCode(new Error('meta_{"message":"Invalid OAuth","code":190}'))).toBe("meta_token_invalid");
@@ -166,16 +166,29 @@ test("does not log or return the rejected Page token",async()=>{
   expect(publicErrorCode(failure)).toBe("meta_token_invalid");
   expect(JSON.stringify(warn.mock.calls)).not.toContain(secretToken);
 });
-test("health check exposes local service version",async()=>expect(await(await worker.fetch(new Request("https://worker/health"),env)).json()).toEqual({ok:true,service:"messenger-worker",version:"local",environment:"development"}));
+test("health check exposes local service version",async()=>expect(await(await worker.fetch(new Request("https://worker/health"),env)).json()).toEqual({ok:true,service:"messenger-worker",version:"local",release:"local",environment:"development"}));
 test("health check exposes Cloudflare production version",async()=>{
-  const productionEnv={...env,ALLOWED_ORIGIN:"https://edumatrix-vn-576b1.web.app",CF_VERSION_METADATA:{id:"version-123",tag:"",timestamp:"2026-07-27T00:00:00Z"}};
-  await expect((await worker.fetch(new Request("https://worker/health"),productionEnv)).json()).resolves.toMatchObject({version:"version-123",environment:"production"});
+  const productionEnv={...env,ALLOWED_ORIGIN:"https://edumatrix-vn-576b1.web.app",RELEASE_SHA:"07a1036",CF_VERSION_METADATA:{id:"version-123",tag:"",timestamp:"2026-07-27T00:00:00Z"}};
+  await expect((await worker.fetch(new Request("https://worker/health"),productionEnv)).json()).resolves.toMatchObject({version:"version-123",release:"07a1036",environment:"production"});
 });
 test("webhook challenge",async()=>expect(await(await worker.fetch(new Request("https://worker/webhook?hub.mode=subscribe&hub.verify_token=verify-me&hub.challenge=123"),env)).text()).toBe("123"));
 test("rejects wrong verify token",async()=>expect((await worker.fetch(new Request("https://worker/webhook?hub.mode=subscribe&hub.verify_token=wrong&hub.challenge=123"),env)).status).toBe(403));
 test("send requires auth",async()=>expect((await worker.fetch(new Request("https://worker/api/messenger/send",{method:"POST"}),env)).status).toBe(401));
 test("thread context sync requires auth",async()=>expect((await worker.fetch(new Request("https://worker/api/messenger/sync-contexts",{method:"POST"}),env)).status).toBe(401));
 test("post requires auth",async()=>expect((await worker.fetch(new Request("https://worker/api/messenger/post",{method:"POST"}),env)).status).toBe(401));
+test("Meta connect start requires auth",async()=>{
+  const response=await worker.fetch(new Request("https://worker/api/meta/connect/start",{method:"POST",headers:{origin:"http://localhost:5173"}}),env);
+  expect(response.status).toBe(401);
+  await expect(response.json()).resolves.toMatchObject({error:"missing_bearer_token"});
+});
+test("rejects an OAuth origin outside the allowlist",()=>{
+  expect(()=>safeConnectOrigin("https://evil.example",env)).toThrow("origin_not_allowed");
+});
+test("does not emit an allow-origin header for a disallowed origin",async()=>{
+  const response=await worker.fetch(new Request("https://worker/api/messenger/send",{method:"OPTIONS",headers:{origin:"https://evil.example"}}),env);
+  expect(response.status).toBe(204);
+  expect(response.headers.get("access-control-allow-origin")).toBeNull();
+});
 test.each(["/api/messenger/post","/api/messenger/referral"])("returns the matching secondary production origin for %s",async(path)=>{
   const productionEnv={...env,ALLOWED_ORIGIN:"https://edumatrix-vn-576b1.web.app,https://edumatrix.id.vn"}satisfies Env;
   const response=await worker.fetch(new Request(`https://worker${path}`,{method:"POST",headers:{origin:"https://edumatrix.id.vn"}}),productionEnv);
