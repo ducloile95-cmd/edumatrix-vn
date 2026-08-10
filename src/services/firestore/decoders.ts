@@ -37,8 +37,8 @@ export function decodeUserDoc(value: unknown, path: string): UserDoc {
   if (!(["admin", "teacher", "viewer"] as unknown[]).includes(data.role)) fail(path);
   if (!(["active", "disabled"] as unknown[]).includes(data.status)) fail(path);
   stringArray(data.studentIds, path);
-  if (data.photoURL !== null && typeof data.photoURL !== "string") fail(path);
-  return value as UserDoc;
+  if (data.photoURL !== undefined && data.photoURL !== null && typeof data.photoURL !== "string") fail(path);
+  return { ...data, photoURL: data.photoURL ?? null } as unknown as UserDoc;
 }
 
 export function decodeStudentDoc(value: unknown, path: string): StudentDoc {
