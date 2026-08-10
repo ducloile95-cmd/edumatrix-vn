@@ -1006,7 +1006,7 @@ service cloud.firestore {
     match /audit_logs/{logId} {
       allow read: if isAdmin();
 
-      allow create: if isAdmin() &&
+      allow create: if isStaff() &&
         request.resource.data.actorUid == request.auth.uid &&
         request.resource.data.keys().hasOnly(
           ['action', 'actorUid', 'actorEmail', 'targetType', 'targetId', 'meta', 'createdAt']

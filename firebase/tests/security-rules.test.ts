@@ -460,6 +460,26 @@ describe("admin settings", () => {
   });
 });
 
+describe("audit logs", () => {
+  const auditData = {
+    action: "attendance_adjusted",
+    actorUid: TEACHER_UID,
+    actorEmail: TEACHER_EMAIL,
+    targetType: "attendance_session",
+    targetId: "session-1",
+    meta: {},
+    createdAt: Timestamp.now(),
+  };
+
+  test("Teacher ghi duoc audit cua chinh minh nhung khong gia mao actor", async () => {
+    await assertSucceeds(setDoc(doc(asTeacher(), "audit_logs", "teacher-own"), auditData));
+    await assertFails(setDoc(doc(asTeacher(), "audit_logs", "teacher-spoof"), {
+      ...auditData,
+      actorUid: ADMIN_UID,
+    }));
+  });
+});
+
 describe("teacher operational directory", () => {
   beforeEach(async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
