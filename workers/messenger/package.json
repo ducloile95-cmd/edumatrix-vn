@@ -9,7 +9,8 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "deploy:prod": "npm run check:prod-config && node scripts/run-production.mjs",
-    "test": "vitest run"
+    "test": "vitest run",
+    "verify:prod": "npm run check:prod-config && node scripts/verify-production.mjs"
   },
   "dependencies": {
     "jose": "^6.1.0"
