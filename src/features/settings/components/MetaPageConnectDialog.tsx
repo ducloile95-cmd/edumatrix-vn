@@ -66,13 +66,18 @@ export function MetaPageConnectDialog({ open, onClose, onConnected }: MetaPageCo
 
   async function begin() {
     setError("");
+    const popup = window.open("about:blank", "edumatrix-meta-connect", "popup,width=620,height=760");
+    if (!popup) {
+      setError("Trình duyệt đang chặn cửa sổ Facebook. Hãy cho phép popup rồi thử lại.");
+      return;
+    }
     try {
       const nextSession = await startMetaPageConnection();
-      const popup = window.open(nextSession.authorizationUrl, "edumatrix-meta-connect", "popup,width=620,height=760");
-      if (!popup) throw new Error("Trình duyệt đang chặn cửa sổ Facebook. Hãy cho phép popup rồi thử lại.");
+      popup.location.replace(nextSession.authorizationUrl);
       setSession(nextSession);
       setStep("waiting");
     } catch (reason) {
+      popup.close();
       setError(reason instanceof Error ? reason.message : "Không thể mở kết nối Facebook.");
     }
   }
@@ -132,6 +137,14 @@ export function MetaPageConnectDialog({ open, onClose, onConnected }: MetaPageCo
               <LoaderCircle className="animate-spin text-primary-700" size={30} />
               <h3 className="mt-4 text-sm font-bold text-neutral-900">Đang chờ Facebook xác nhận</h3>
               <p className="mt-2 max-w-sm text-sm leading-6 text-neutral-500">Hoàn tất hộp thoại Facebook vừa mở. Sau đó danh sách Fanpage sẽ tự xuất hiện tại đây.</p>
+              {session && (
+                <a
+                  className="mt-3 text-xs font-bold text-primary-700 underline decoration-primary-200 underline-offset-4 hover:text-primary-800"
+                  href={session.authorizationUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >Mở Facebook lại</a>
+              )}
               <Button className="mt-4" size="sm" variant="secondary" icon={<RefreshCw size={14} />} onClick={() => session && void refreshStatus(session)}>Kiểm tra lại</Button>
             </div>
           )}
