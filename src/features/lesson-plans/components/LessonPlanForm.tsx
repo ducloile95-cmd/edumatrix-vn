@@ -65,7 +65,7 @@ const TEXTAREA = "min-h-20 w-full rounded-input border border-neutral-300 p-3 te
 const LABEL = "mb-1 block text-sm font-medium text-neutral-700";
 const SECTION_TITLE = "mb-3 text-xs font-bold uppercase tracking-wide text-primary-700";
 /** Khung ngăn cách các khối trong 1 cột (không dùng card lồng card vì cột đã có viền riêng). */
-const BLOCK = "rounded-card border border-neutral-200 bg-white p-4 shadow-[var(--shadow-1)]";
+const BLOCK = "rounded-card border border-neutral-200 bg-neutral-0 p-4 shadow-[var(--shadow-1)]";
 
 function driveAttachmentFromPlan(plan?: LessonPlanDoc | null): LessonPlanDriveAttachment | null {
   if (!plan?.driveFileId || !plan.driveFileName || !plan.driveMimeType || !plan.driveWebViewLink || !plan.driveModifiedTime) return null;
@@ -289,7 +289,7 @@ export function LessonPlanForm({ editingPlan, onDone, initialValues }: LessonPla
                     key={template.id}
                     type="button"
                     onClick={() => applyTemplate(template)}
-                    className="min-w-[200px] shrink-0 rounded-input border border-neutral-200 bg-white p-3 text-left text-sm transition hover:border-primary-300 hover:shadow-sm"
+                    className="min-w-[200px] shrink-0 rounded-input border border-neutral-200 bg-neutral-0 p-3 text-left text-sm transition hover:border-primary-300 hover:shadow-sm"
                   >
                     <p className="font-semibold text-neutral-900">{template.name}</p>
                     <p className="mt-1 text-xs text-neutral-500">{template.activities.length} hoạt động</p>
@@ -333,7 +333,7 @@ export function LessonPlanForm({ editingPlan, onDone, initialValues }: LessonPla
         </div>
       </div>
 
-      <div className="flex flex-none flex-col gap-2 border-t border-neutral-200 bg-white/95 px-4 py-3 shadow-[0_-8px_24px_rgba(28,26,21,.06)] backdrop-blur sm:px-5">
+      <div className="flex flex-none flex-col gap-2 border-t border-neutral-200 bg-neutral-0/95 px-4 py-3 shadow-[0_-8px_24px_rgba(28,26,21,.06)] backdrop-blur sm:px-5">
         {saveMutation.isError && (
           <p role="alert" className="text-sm text-danger-700">Không thể lưu giáo án. Vui lòng thử lại.</p>
         )}

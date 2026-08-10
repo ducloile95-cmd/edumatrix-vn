@@ -25,7 +25,7 @@ import { Button } from "@/components/ui/Button";
 import { generateRecurringSessions } from "@/utils/recurrence";
 
 const FIELD_CLASS =
-  "min-h-touch w-full rounded-input border border-neutral-300 bg-white px-3 text-sm text-neutral-800 outline-none transition placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-100";
+  "min-h-touch w-full rounded-input border border-neutral-300 bg-neutral-0 px-3 text-sm text-neutral-800 outline-none transition placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-100";
 const WEEKDAYS = [
   { day: 1, short: "T2", full: "Thứ 2" },
   { day: 2, short: "T3", full: "Thứ 3" },
@@ -46,7 +46,7 @@ interface ScheduleState {
 
 function Section({ icon, title, description, children }: { icon: ReactNode; title: string; description: string; children: ReactNode }) {
   return (
-    <section className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+    <section className="rounded-2xl border border-neutral-200 bg-neutral-0 p-4 shadow-sm">
       <div className="mb-3 flex items-start gap-3">
         <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary-50 text-primary-700">{icon}</span>
         <div>
@@ -95,7 +95,7 @@ function MultiSelect({ id, label, options }: { id: string; label: string; option
         </span>
       </button>
       {open && (
-        <div role="listbox" aria-multiselectable="true" aria-labelledby={labelId} className="absolute bottom-full inset-x-0 z-30 mb-1 max-h-52 overflow-y-auto rounded-xl border border-neutral-200 bg-white p-1.5 shadow-xl">
+        <div role="listbox" aria-multiselectable="true" aria-labelledby={labelId} className="absolute bottom-full inset-x-0 z-30 mb-1 max-h-52 overflow-y-auto rounded-xl border border-neutral-200 bg-neutral-0 p-1.5 shadow-xl">
           {options.map((option) => {
             const active = selected.includes(option);
             return (
@@ -177,7 +177,7 @@ export function ClassFormPopupDemo({ onClose }: { onClose: () => void }) {
     <form onSubmit={(event: FormEvent) => { event.preventDefault(); onClose(); }} className="flex min-h-0 flex-1 flex-col">
       <div data-testid="class-popup-layout" className="grid min-h-0 flex-1 overflow-y-auto bg-neutral-50/80 xl:grid-cols-[minmax(0,1.2fr)_minmax(520px,.8fr)] xl:overflow-hidden">
         <div className="border-b border-neutral-200 p-3 xl:min-h-0 xl:border-b-0 xl:border-r">
-          <section className="flex h-full min-h-0 flex-col rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+          <section className="flex h-full min-h-0 flex-col rounded-2xl border border-neutral-200 bg-neutral-0 p-4 shadow-sm">
             <div className="mb-3 flex items-start justify-between gap-3">
               <div className="flex items-start gap-3">
                 <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary-50 text-primary-700"><Sparkles size={18} /></span>
@@ -193,7 +193,7 @@ export function ClassFormPopupDemo({ onClose }: { onClose: () => void }) {
                     <div className="grid grid-cols-4 gap-1.5" role="group" aria-label="Chọn thứ trong tuần">
                       {WEEKDAYS.map(({ day, short, full }) => {
                         const active = schedule.daysOfWeek.includes(day);
-                        return <button key={day} type="button" aria-label={full} aria-pressed={active} onClick={() => toggleWeekday(day)} className={`min-h-9 cursor-pointer rounded-lg border text-xs font-bold transition ${active ? "border-primary-500 bg-primary-500 text-white" : "border-neutral-300 bg-white text-neutral-600 hover:border-primary-300"}`}>{short}</button>;
+                        return <button key={day} type="button" aria-label={full} aria-pressed={active} onClick={() => toggleWeekday(day)} className={`min-h-9 cursor-pointer rounded-lg border text-xs font-bold transition ${active ? "border-primary-500 bg-primary-500 text-white" : "border-neutral-300 bg-neutral-0 text-neutral-600 hover:border-primary-300"}`}>{short}</button>;
                       })}
                     </div>
                   </div>
@@ -202,7 +202,7 @@ export function ClassFormPopupDemo({ onClose }: { onClose: () => void }) {
                   <div className="rounded-xl border border-success-100 bg-success-50 p-2.5 text-xs leading-5 text-success-900"><strong className="block text-sm">{preview?.sessions.length ?? 0} buổi dự kiến</strong>{preview ? `Buổi đầu ${format(preview.sessions[0].startAt, "dd/MM/yyyy")}, bế giảng ${format(preview.endDate, "dd/MM/yyyy")}.` : "Hãy điền đủ điều kiện để xem trước."}</div>
                 </div>
 
-                <div className="min-w-0 rounded-xl border border-neutral-200 bg-white p-3">
+                <div className="min-w-0 rounded-xl border border-neutral-200 bg-neutral-0 p-3">
                   <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                     <div><p className="text-xs font-semibold text-neutral-500">Lịch tháng tương tác</p><h4 className="text-base font-black capitalize text-neutral-950">Tháng {format(visibleMonth, "MM / yyyy")}</h4></div>
                     <div className="flex items-center gap-1.5">
@@ -256,7 +256,7 @@ export function ClassFormPopupDemo({ onClose }: { onClose: () => void }) {
         </div>
       </div>
 
-      <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-neutral-200 bg-white px-4 py-3 sm:px-5">
+      <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-neutral-200 bg-neutral-0 px-4 py-3 sm:px-5">
         <p className="text-xs text-neutral-500"><strong className="text-neutral-700">Khung cố định 1.920 × 980</strong> · Lịch tương tác thật, không ghi dữ liệu</p>
         <div className="flex gap-2"><Button onClick={onClose}>Hủy</Button><Button type="submit" variant="primary">Tạo lớp học</Button></div>
       </footer>

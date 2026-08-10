@@ -17,9 +17,9 @@ const base =
 
 const variants: Record<ButtonVariant, string> = {
   primary: "border-primary-700 bg-gradient-to-br from-primary-500 to-primary-700 text-white",
-  secondary: "border-neutral-300 bg-gradient-to-b from-white to-neutral-100 text-neutral-700 hover:border-neutral-400 hover:text-neutral-950",
+  secondary: "border-neutral-300 bg-gradient-to-b from-neutral-0 to-neutral-100 text-neutral-700 hover:border-neutral-400 hover:text-neutral-950",
   danger: "border-danger-700 bg-gradient-to-br from-danger-500 to-danger-700 text-white",
-  ghost: "border-neutral-200 bg-gradient-to-b from-white/80 to-neutral-100/80 text-neutral-600 hover:border-neutral-300 hover:text-neutral-950",
+  ghost: "border-neutral-200 bg-gradient-to-b from-neutral-0/80 to-neutral-100/80 text-neutral-600 hover:border-neutral-300 hover:text-neutral-950",
 };
 
 const sizes: Record<ButtonSize, string> = {

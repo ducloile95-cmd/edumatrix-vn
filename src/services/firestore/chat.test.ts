@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   deleteDoc: vi.fn(),
   getDocs: vi.fn(),
   updateDoc: vi.fn(),
+  where: vi.fn((...values) => ({ where: values })),
   writeBatch: vi.fn(),
 }));
 
@@ -24,7 +25,7 @@ vi.mock("firebase/firestore", () => ({
   serverTimestamp: vi.fn(() => "server-time"),
   startAfter: vi.fn((value) => ({ startAfter: value })),
   updateDoc: mocks.updateDoc,
-  where: vi.fn((...values) => ({ where: values })),
+  where: mocks.where,
   writeBatch: mocks.writeBatch,
 }));
 
@@ -85,5 +86,20 @@ describe("chat tags", () => {
 
     expect(result).toHaveLength(31);
     expect(mocks.getDocs).toHaveBeenCalledTimes(2);
+  });
+
+  test("scopes teacher thread queries to each currently assigned student", async () => {
+    mocks.getDocs
+      .mockResolvedValueOnce({ docs: [{ id: "student-1" }, { id: "student-2" }] })
+      .mockResolvedValueOnce({ docs: [{ id: "thread-1", data: () => ({ studentId: "student-1" }) }] })
+      .mockResolvedValueOnce({ docs: [{ id: "thread-2", data: () => ({ studentId: "student-2" }) }] });
+
+    const result = await listChatThreads("teacher", "teacher-1");
+
+    expect(result.map((thread) => thread.id)).toEqual(["thread-1", "thread-2"]);
+    expect(mocks.where).toHaveBeenCalledWith("teacherIds", "array-contains", "teacher-1");
+    expect(mocks.where).toHaveBeenCalledWith("assignedTeacherIds", "array-contains", "teacher-1");
+    expect(mocks.where).toHaveBeenCalledWith("studentId", "==", "student-1");
+    expect(mocks.where).toHaveBeenCalledWith("studentId", "==", "student-2");
   });
 });

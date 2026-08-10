@@ -138,7 +138,7 @@ export default function ViewerAssignmentsPage() {
             <EmptyState title="Chưa được phân lớp" description="Hồ sơ học sinh vẫn được lưu. Bài tập sẽ hiển thị sau khi học sinh được phân vào lớp." />
           ) : (
             <>
-              <section className="grid grid-cols-2 overflow-hidden rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)] lg:grid-cols-4" aria-label="Tổng quan bài tập">
+              <section className="grid grid-cols-2 overflow-hidden rounded-card border border-neutral-200 bg-neutral-0 shadow-[var(--shadow-1)] lg:grid-cols-4" aria-label="Tổng quan bài tập">
             <SummaryCell label="Tổng bài được giao" value={counts.all} hint="Trong kỳ học hiện tại" />
             <SummaryCell label="Cần hoàn thành" value={counts.todo} hint={counts.todo > 0 ? "Cần phụ huynh theo dõi" : "Không có bài tồn"} />
             <SummaryCell label="Đã nộp" value={counts.submitted} hint="Đang chờ đánh giá" />
@@ -150,14 +150,14 @@ export default function ViewerAssignmentsPage() {
           {rows.length === 0 ? (
             <EmptyState title="Chưa có bài tập nào" description="Khi giáo viên giao bài mới, thông tin sẽ hiển thị ở đây." />
           ) : visibleRows.length === 0 ? (
-            <div className="rounded-card border border-dashed border-neutral-300 bg-white px-5 py-12 text-center text-sm text-neutral-500">Không có bài tập trong trạng thái này.</div>
+            <div className="rounded-card border border-dashed border-neutral-300 bg-neutral-0 px-5 py-12 text-center text-sm text-neutral-500">Không có bài tập trong trạng thái này.</div>
           ) : (
             <section aria-label="Danh sách bài tập" className="space-y-2.5">
               {visibleRows.map((row) => <AssignmentCard key={row.assignment.id} {...row} />)}
             </section>
           )}
 
-              <FilterTabs filter={filter} counts={counts} onChange={setFilter} className="fixed inset-x-0 z-30 grid grid-cols-4 border-t border-neutral-200 bg-white/95 px-2 py-2 shadow-[0_-10px_30px_rgba(37,61,124,.1)] backdrop-blur-md [bottom:calc(60px+env(safe-area-inset-bottom))] sm:hidden" mobile />
+              <FilterTabs filter={filter} counts={counts} onChange={setFilter} className="fixed inset-x-0 z-30 grid grid-cols-4 border-t border-neutral-200 bg-neutral-0/95 px-2 py-2 shadow-[0_-10px_30px_rgba(37,61,124,.1)] backdrop-blur-md [bottom:calc(60px+env(safe-area-inset-bottom))] sm:hidden" mobile />
             </>
           )}
         </div>
@@ -203,7 +203,7 @@ function AssignmentCard({ assignment, submission, className }: { assignment: Ass
   const state = assignmentFilter(submission);
   const due = getDueMeta(assignment.dueAt.toDate(), state);
   return (
-    <article className="grid gap-4 rounded-card border border-neutral-200 bg-white p-4 shadow-[0_4px_18px_rgba(37,61,124,.035)] transition-colors hover:border-primary-200 lg:grid-cols-[minmax(0,1fr)_310px] lg:gap-6 lg:p-5">
+    <article className="grid gap-4 rounded-card border border-neutral-200 bg-neutral-0 p-4 shadow-[0_4px_18px_rgba(37,61,124,.035)] transition-colors hover:border-primary-200 lg:grid-cols-[minmax(0,1fr)_310px] lg:gap-6 lg:p-5">
       <div className="min-w-0">
         <div className="mb-2 flex items-start justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-primary-700">

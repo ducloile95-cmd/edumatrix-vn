@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/Button";
 import type { LessonPlanFormValues } from "@/schemas/lessonPlan";
 
 const SECTION_TITLE = "mb-3 text-xs font-bold uppercase tracking-wide text-primary-700";
-const BLOCK = "rounded-card border border-neutral-200 bg-white p-4 shadow-[var(--shadow-1)]";
+const BLOCK = "rounded-card border border-neutral-200 bg-neutral-0 p-4 shadow-[var(--shadow-1)]";
 
 interface LessonPlanActivitiesSectionProps {
   activities: UseFieldArrayReturn<LessonPlanFormValues, "activities", "id">;
@@ -35,14 +35,14 @@ export function LessonPlanActivitiesSection({
                     </span>
                     <input
                       aria-label={`Tên hoạt động ${index + 1}`}
-                      className="min-h-9 flex-1 rounded-input border border-neutral-300 bg-white px-2.5 text-sm font-semibold focus:border-primary-500"
+                      className="min-h-9 flex-1 rounded-input border border-neutral-300 bg-neutral-0 px-2.5 text-sm font-semibold focus:border-primary-500"
                       {...register(`activities.${index}.name`)}
                     />
                     <input
                       aria-label={`Thời gian hoạt động ${index + 1} (phút)`}
                       type="number"
                       min={0}
-                      className="min-h-9 w-16 rounded-input border border-neutral-300 bg-white px-2 text-center text-sm focus:border-primary-500"
+                      className="min-h-9 w-16 rounded-input border border-neutral-300 bg-neutral-0 px-2 text-center text-sm focus:border-primary-500"
                       {...register(`activities.${index}.durationMinutes`)}
                     />
                     <span className="shrink-0 text-xs text-neutral-500">phút</span>
@@ -51,7 +51,7 @@ export function LessonPlanActivitiesSection({
                       aria-label="Xóa hoạt động"
                       onClick={() => activities.remove(index)}
                       disabled={activities.fields.length <= 1}
-                      className="flex size-8 shrink-0 items-center justify-center rounded-input border border-neutral-300 bg-white text-neutral-500 hover:border-danger-500 hover:text-danger-700 disabled:cursor-not-allowed disabled:opacity-40"
+                      className="flex size-8 shrink-0 items-center justify-center rounded-input border border-neutral-300 bg-neutral-0 text-neutral-500 hover:border-danger-500 hover:text-danger-700 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       <X size={14} />
                     </button>
@@ -61,13 +61,13 @@ export function LessonPlanActivitiesSection({
                       <label htmlFor={`lp-act-content-${index}`} className="mb-1 block text-xs font-semibold text-neutral-500">
                         Nội dung / cách thực hiện
                       </label>
-                      <textarea id={`lp-act-content-${index}`} className="min-h-14 w-full rounded-input border border-neutral-300 bg-white p-2 text-xs" {...register(`activities.${index}.content`)} />
+                      <textarea id={`lp-act-content-${index}`} className="min-h-14 w-full rounded-input border border-neutral-300 bg-neutral-0 p-2 text-xs" {...register(`activities.${index}.content`)} />
                     </div>
                     <div>
                       <label htmlFor={`lp-act-outcome-${index}`} className="mb-1 block text-xs font-semibold text-neutral-500">
                         Sản phẩm / kết quả mong đợi
                       </label>
-                      <textarea id={`lp-act-outcome-${index}`} className="min-h-14 w-full rounded-input border border-neutral-300 bg-white p-2 text-xs" {...register(`activities.${index}.expectedOutcome`)} />
+                      <textarea id={`lp-act-outcome-${index}`} className="min-h-14 w-full rounded-input border border-neutral-300 bg-neutral-0 p-2 text-xs" {...register(`activities.${index}.expectedOutcome`)} />
                     </div>
                   </div>
                 </div>

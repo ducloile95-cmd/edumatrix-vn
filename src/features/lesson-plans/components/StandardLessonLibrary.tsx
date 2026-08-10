@@ -148,7 +148,7 @@ export function StandardLessonLibrary({ onEdit, onCreateNew }: StandardLessonLib
       </FilterToolbar>
 
       {/* List container */}
-      <DataListPanel className="rounded-card border border-neutral-200 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.02)] min-h-0">
+      <DataListPanel className="rounded-card border border-neutral-200 bg-neutral-0 shadow-[0_1px_3px_rgba(0,0,0,0.02)] min-h-0">
         <div className="shrink-0 border-b border-neutral-200 px-4 py-4 sm:px-5">
           <h2 className="text-base font-semibold text-neutral-900">Thư viện bài học chuẩn</h2>
           <p className="mt-0.5 text-xs text-neutral-500">
@@ -187,7 +187,7 @@ export function StandardLessonLibrary({ onEdit, onCreateNew }: StandardLessonLib
                 return (
                   <div
                     key={lesson.id}
-                    className="flex flex-col justify-between rounded-card border border-neutral-200 bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.01)] hover:border-neutral-300 transition-colors"
+                    className="flex flex-col justify-between rounded-card border border-neutral-200 bg-neutral-0 p-5 shadow-[0_1px_2px_rgba(0,0,0,0.01)] hover:border-neutral-300 transition-colors"
                   >
                     <div>
                       <div className="flex items-center justify-between mb-3">

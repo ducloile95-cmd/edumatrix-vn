@@ -68,7 +68,7 @@ interface PopupDemo {
   secondaryAction?: string;
 }
 
-const FIELD_CLASS = "min-h-11 w-full rounded-[10px] border border-neutral-300 bg-white px-3 text-sm text-neutral-800 outline-none transition placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:bg-neutral-100";
+const FIELD_CLASS = "min-h-11 w-full rounded-[10px] border border-neutral-300 bg-neutral-0 px-3 text-sm text-neutral-800 outline-none transition placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:bg-neutral-100";
 const SIZE_LABELS: Record<DemoSize, string> = {
   compact: "720 px",
   standard: "1.080 px",
@@ -303,8 +303,8 @@ function DemoFieldControl({ field, fieldId }: { field: DemoField; fieldId: strin
   const common = { id: fieldId, className: FIELD_CLASS, disabled: field.readOnly, "aria-describedby": field.helper ? `${fieldId}-help` : undefined };
   if (field.type === "textarea") return <textarea {...common} rows={4} placeholder={field.placeholder} className={`${FIELD_CLASS} min-h-28 resize-y py-3`} />;
   if (field.type === "select") return <select {...common} defaultValue=""><option value="" disabled>Vui lòng chọn</option>{field.options?.map((option) => <option key={option}>{option}</option>)}</select>;
-  if (field.type === "chips") return <div className="flex min-h-11 flex-wrap items-center gap-2 rounded-[10px] border border-neutral-200 bg-neutral-50 p-2" role="group" aria-label={field.label}>{(field.options ?? ["Lựa chọn A", "Lựa chọn B", "Lựa chọn C"]).map((option, index) => <button key={option} type="button" className={`min-h-8 rounded-lg border px-3 text-xs font-semibold transition ${index === 0 ? "border-primary-200 bg-primary-50 text-primary-700" : "border-neutral-200 bg-white text-neutral-600 hover:border-primary-200"}`}>{option}</button>)}</div>;
-  if (field.type === "checklist") return <div className="grid gap-2 rounded-[10px] border border-neutral-200 bg-neutral-50 p-3 sm:grid-cols-2">{["Nguyễn Minh Anh · HS001", "Trần Gia Hân · HS002", "Lê Minh Khang · HS003"].map((item, index) => <label key={item} className="flex min-h-10 items-center gap-3 rounded-lg bg-white px-3 text-sm text-neutral-700"><input type="checkbox" defaultChecked={index === 0} />{item}</label>)}</div>;
+  if (field.type === "chips") return <div className="flex min-h-11 flex-wrap items-center gap-2 rounded-[10px] border border-neutral-200 bg-neutral-50 p-2" role="group" aria-label={field.label}>{(field.options ?? ["Lựa chọn A", "Lựa chọn B", "Lựa chọn C"]).map((option, index) => <button key={option} type="button" className={`min-h-8 rounded-lg border px-3 text-xs font-semibold transition ${index === 0 ? "border-primary-200 bg-primary-50 text-primary-700" : "border-neutral-200 bg-neutral-0 text-neutral-600 hover:border-primary-200"}`}>{option}</button>)}</div>;
+  if (field.type === "checklist") return <div className="grid gap-2 rounded-[10px] border border-neutral-200 bg-neutral-50 p-3 sm:grid-cols-2">{["Nguyễn Minh Anh · HS001", "Trần Gia Hân · HS002", "Lê Minh Khang · HS003"].map((item, index) => <label key={item} className="flex min-h-10 items-center gap-3 rounded-lg bg-neutral-0 px-3 text-sm text-neutral-700"><input type="checkbox" defaultChecked={index === 0} />{item}</label>)}</div>;
   if (field.type === "file") return <input {...common} type="file" />;
   return <input {...common} type={field.type ?? "text"} placeholder={field.placeholder} defaultValue={field.readOnly ? "Dữ liệu hiện tại được giữ nguyên" : undefined} />;
 }
@@ -313,13 +313,13 @@ function StandardDemoForm({ demo, pattern, onClose }: { demo: PopupDemo; pattern
   const formId = useId();
   const singleSection = demo.sections.length === 1;
   const layoutClass = {
-    focus: "max-w-[880px] flex-col gap-0 overflow-hidden rounded-card border border-neutral-200 bg-white",
+    focus: "max-w-[880px] flex-col gap-0 overflow-hidden rounded-card border border-neutral-200 bg-neutral-0",
     balanced: "max-w-[1280px] grid-cols-1 lg:grid lg:grid-cols-2",
     workspace: `flex-col xl:flex-row ${singleSection ? "max-w-[1280px]" : ""}`,
   }[pattern];
   const sectionClass = pattern === "focus"
     ? "min-w-0 border-b border-neutral-200 p-4 last:border-b-0 sm:p-6"
-    : "min-w-0 flex-1 rounded-card border border-neutral-200 bg-white p-4 sm:p-5";
+    : "min-w-0 flex-1 rounded-card border border-neutral-200 bg-neutral-0 p-4 sm:p-5";
   return (
     <form onSubmit={(event) => { event.preventDefault(); onClose(); }} className="flex min-h-0 flex-1 flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto bg-neutral-50/70 p-4 sm:p-6">
@@ -347,7 +347,7 @@ function StandardDemoForm({ demo, pattern, onClose }: { demo: PopupDemo; pattern
           ))}
         </div>
       </div>
-      <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-neutral-200 bg-white px-4 py-3 sm:px-6">
+      <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-neutral-200 bg-neutral-0 px-4 py-3 sm:px-6">
         <p className="text-xs text-neutral-500"><span className="font-bold text-neutral-700">Schema: {DATABASE_BINDINGS[demo.id]}</span> | Demo không ghi dữ liệu thật</p>
         <div className="flex gap-2">
           {demo.secondaryAction && <Button type="button">{demo.secondaryAction}</Button>}
@@ -396,7 +396,7 @@ function StudentRelationRow({
           <span className="block text-xs font-bold text-neutral-500">{label}</span>
           <span className="mt-1 block truncate text-sm font-semibold text-neutral-900">{selected.join(", ") || `Chưa chọn ${label.toLocaleLowerCase("vi")}`}</span>
         </span>
-        <span className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-input border border-neutral-200 bg-white px-3 text-xs font-bold text-primary-700 group-hover:border-primary-200">
+        <span className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-input border border-neutral-200 bg-neutral-0 px-3 text-xs font-bold text-primary-700 group-hover:border-primary-200">
           <Pencil aria-hidden="true" size={14} /> Chỉnh sửa <ChevronDown aria-hidden="true" className={`transition ${active ? "rotate-180" : ""}`} size={14} />
         </span>
       </button>
@@ -411,10 +411,10 @@ function StudentRelationRow({
                 role="option"
                 aria-selected={isSelected}
                 onClick={() => onSelect(option)}
-                className={`flex min-h-touch items-center justify-between gap-3 rounded-input border px-3 py-2 text-left text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 ${isSelected ? "border-primary-300 bg-primary-50 text-primary-800" : "border-neutral-200 bg-white text-neutral-700 hover:border-primary-200"}`}
+                className={`flex min-h-touch items-center justify-between gap-3 rounded-input border px-3 py-2 text-left text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 ${isSelected ? "border-primary-300 bg-primary-50 text-primary-800" : "border-neutral-200 bg-neutral-0 text-neutral-700 hover:border-primary-200"}`}
               >
                 <span>{option}</span>
-                <span className={`grid size-5 shrink-0 place-items-center rounded-full ${isSelected ? "bg-primary-700 text-white" : "border border-neutral-300 bg-white"}`}>
+                <span className={`grid size-5 shrink-0 place-items-center rounded-full ${isSelected ? "bg-primary-700 text-white" : "border border-neutral-300 bg-neutral-0"}`}>
                   {isSelected && <Check aria-hidden="true" size={13} strokeWidth={3} />}
                 </span>
               </button>
@@ -451,7 +451,7 @@ function StudentProfileDemo({ onClose }: { onClose: () => void }) {
       <div className="min-h-0 flex-1 overflow-y-auto bg-neutral-50/70 p-4 sm:p-6">
         <div className="mx-auto grid max-w-[1560px] gap-4 xl:grid-cols-3 xl:items-start">
           <div className="grid content-start gap-4 xl:contents">
-            <section className="overflow-hidden rounded-card border border-neutral-200 bg-white">
+            <section className="overflow-hidden rounded-card border border-neutral-200 bg-neutral-0">
               <div className="border-b border-neutral-200 bg-neutral-50 px-4 py-3"><h3 className="text-sm font-bold text-neutral-900">Thông tin học sinh</h3><p className="mt-1 text-xs text-neutral-500">Đồng bộ trường dữ liệu với form Thêm học sinh.</p></div>
               <div className="grid gap-3 p-4 sm:grid-cols-2">
                 {field("Mã học sinh", <input aria-label="Mã học sinh" className={FIELD_CLASS} defaultValue="HS001" disabled />)}
@@ -462,7 +462,7 @@ function StudentProfileDemo({ onClose }: { onClose: () => void }) {
               </div>
             </section>
 
-            <section className="overflow-hidden rounded-card border border-neutral-200 bg-white">
+            <section className="overflow-hidden rounded-card border border-neutral-200 bg-neutral-0">
               <div className="border-b border-neutral-200 bg-neutral-50 px-4 py-3"><h3 className="text-sm font-bold text-neutral-900">Thông tin phụ huynh</h3><p className="mt-1 text-xs text-neutral-500">Cùng tên trường và thứ tự với form Thêm học sinh.</p></div>
               <div className="grid gap-3 p-4 sm:grid-cols-2">
                 {field("Tên phụ huynh", <input aria-label="Tên phụ huynh" className={FIELD_CLASS} defaultValue="Nguyễn Văn An" />)}
@@ -474,7 +474,7 @@ function StudentProfileDemo({ onClose }: { onClose: () => void }) {
             </section>
           </div>
 
-          <section className="h-fit overflow-hidden rounded-card border border-neutral-200 bg-white">
+          <section className="h-fit overflow-hidden rounded-card border border-neutral-200 bg-neutral-0">
             <div className="border-b border-neutral-200 bg-neutral-50 px-4 py-3"><h3 className="text-sm font-bold text-neutral-900">Ghi danh và phân công</h3><p className="mt-1 text-xs leading-5 text-neutral-500">Ấn vào từng dòng để mở danh sách tương ứng và chọn nhiều giá trị.</p></div>
             {relationRows.map((row) => (
               <StudentRelationRow
@@ -493,7 +493,7 @@ function StudentProfileDemo({ onClose }: { onClose: () => void }) {
           </section>
         </div>
       </div>
-      <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-neutral-200 bg-white px-4 py-3 sm:px-6">
+      <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-neutral-200 bg-neutral-0 px-4 py-3 sm:px-6">
         <p className="text-xs text-neutral-500"><span className="font-bold text-neutral-700">Schema: {COLLECTIONS.STUDENTS}</span> | Quan hệ: classes, courses, users</p>
         <div className="flex gap-2"><Button type="button" onClick={onClose}>Hủy</Button><Button type="submit" variant="primary">Lưu thay đổi</Button></div>
       </footer>
@@ -502,7 +502,7 @@ function StudentProfileDemo({ onClose }: { onClose: () => void }) {
 }
 
 function LessonPlanDemo({ onClose }: { onClose: () => void }) {
-  const section = (title: string, children: ReactNode) => <section className="rounded-card border border-neutral-200 bg-white p-4"><h3 className="mb-4 text-sm font-bold text-neutral-900">{title}</h3>{children}</section>;
+  const section = (title: string, children: ReactNode) => <section className="rounded-card border border-neutral-200 bg-neutral-0 p-4"><h3 className="mb-4 text-sm font-bold text-neutral-900">{title}</h3>{children}</section>;
   const field = (label: string, type: FieldType = "text") => <label className="block"><span className="mb-1.5 block text-xs font-bold text-neutral-700">{label}</span>{type === "textarea" ? <textarea rows={3} className={`${FIELD_CLASS} resize-y py-3`} /> : <input type={type} className={FIELD_CLASS} />}</label>;
   return (
     <form onSubmit={(event: FormEvent) => { event.preventDefault(); onClose(); }} className="flex min-h-0 flex-1 flex-col">
@@ -520,7 +520,7 @@ function LessonPlanDemo({ onClose }: { onClose: () => void }) {
           {section("Tóm tắt công khai", field("Phụ huynh xem khi giáo án được xuất bản", "textarea"))}
         </div>
       </div>
-      <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-neutral-200 bg-white px-4 py-3 sm:px-6">
+      <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-neutral-200 bg-neutral-0 px-4 py-3 sm:px-6">
         <p className="text-xs text-neutral-500"><strong className="text-neutral-700">Khung 1.920 × 980</strong> · co an toàn theo viewport nhỏ hơn</p>
         <div className="flex flex-wrap justify-end gap-2"><Button>Lưu thành mẫu</Button><Button onClick={onClose}>Hủy</Button><Button type="submit" variant="primary">Lưu giáo án</Button></div>
       </footer>
@@ -547,7 +547,7 @@ const LESSON_PLAN_DEMO: PopupDemo = {
 
 function PopupPatternSelector({ value, onChange }: { value: PopupPattern; onChange: (pattern: PopupPattern) => void }) {
   return (
-    <section className="mt-6 rounded-modal border border-neutral-200 bg-white p-4 sm:p-5" aria-labelledby="popup-pattern-heading">
+    <section className="mt-6 rounded-modal border border-neutral-200 bg-neutral-0 p-4 sm:p-5" aria-labelledby="popup-pattern-heading">
       <div className="mb-4 max-w-3xl">
         <h2 id="popup-pattern-heading" className="flex items-center gap-2 text-lg font-bold text-neutral-950"><Database aria-hidden="true" size={18} className="text-primary-700" />Ba mẫu popup nhập liệu</h2>
         <p className="mt-1 text-sm leading-6 text-neutral-600">Chọn một mẫu rồi mở form bên dưới. Trường dữ liệu và thứ tự thao tác giữ nguyên theo schema hiện tại.</p>
@@ -562,9 +562,9 @@ function PopupPatternSelector({ value, onChange }: { value: PopupPattern; onChan
               type="button"
               aria-pressed={selected}
               onClick={() => onChange(pattern.id)}
-              className={`flex min-h-[112px] items-start gap-3 rounded-card border p-4 text-left transition focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${selected ? "border-primary-500 bg-primary-50" : "border-neutral-200 bg-neutral-50 hover:border-neutral-300 hover:bg-white"}`}
+              className={`flex min-h-[112px] items-start gap-3 rounded-card border p-4 text-left transition focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 ${selected ? "border-primary-500 bg-primary-50" : "border-neutral-200 bg-neutral-50 hover:border-neutral-300 hover:bg-neutral-0"}`}
             >
-              <span className={`grid size-9 shrink-0 place-items-center rounded-input ${selected ? "bg-primary-700 text-white" : "bg-white text-neutral-600"}`}><Icon size={18} /></span>
+              <span className={`grid size-9 shrink-0 place-items-center rounded-input ${selected ? "bg-primary-700 text-white" : "bg-neutral-0 text-neutral-600"}`}><Icon size={18} /></span>
               <span className="min-w-0">
                 <span className="flex flex-wrap items-center gap-x-2 gap-y-1"><strong className="text-sm text-neutral-900">{pattern.name}</strong><span className="text-xs font-semibold text-neutral-500">{pattern.width}</span></span>
                 <span className="mt-1 block text-xs leading-5 text-neutral-600">{pattern.description}</span>
@@ -579,7 +579,7 @@ function PopupPatternSelector({ value, onChange }: { value: PopupPattern; onChan
 
 function ButtonSystemPreview() {
   return (
-    <section className="mt-3 grid gap-4 rounded-modal border border-neutral-200 bg-white p-4 sm:p-5 lg:grid-cols-[minmax(240px,.7fr)_minmax(0,1.3fr)] lg:items-center" aria-labelledby="button-system-heading">
+    <section className="mt-3 grid gap-4 rounded-modal border border-neutral-200 bg-neutral-0 p-4 sm:p-5 lg:grid-cols-[minmax(240px,.7fr)_minmax(0,1.3fr)] lg:items-center" aria-labelledby="button-system-heading">
       <div>
         <h2 id="button-system-heading" className="text-base font-bold text-neutral-950">Hệ Button phẳng Gradient</h2>
         <p className="mt-1 text-sm leading-6 text-neutral-600">Bề mặt phẳng, không bóng nổi; gradient nhẹ phân biệt cấp độ thao tác và vẫn giữ nguyên API, chiều cao chạm 44px cùng màu thương hiệu.</p>
@@ -605,7 +605,7 @@ export default function FormPopupDemoPage() {
   return (
     <main className="min-h-dvh bg-[#f4f5f7] text-neutral-900">
       <div className="mx-auto max-w-[1680px] px-4 py-6 sm:px-6 lg:px-8 lg:py-9">
-        <header className="overflow-hidden rounded-modal border border-neutral-200 bg-white">
+        <header className="overflow-hidden rounded-modal border border-neutral-200 bg-neutral-0">
           <div className="grid gap-7 p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end lg:p-8">
             <div><div className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary-100 bg-primary-50 px-3 py-1.5 text-xs font-bold text-primary-700"><SlidersHorizontal size={14} /> Demo trước triển khai</div><h1 className="max-w-4xl text-2xl font-black tracking-[-0.03em] text-neutral-950 sm:text-3xl lg:text-4xl">Popup nhập liệu rộng vừa đủ, rõ thứ tự thao tác</h1><p className="mt-3 max-w-3xl text-sm leading-6 text-neutral-600 sm:text-base">Ba mẫu chiều ngang dùng chung field và schema hiện tại. Giáo án cùng Lớp học vẫn giữ nguyên workspace đã duyệt.</p></div>
             <div className="grid grid-cols-3 gap-2 text-center"><Metric value={allDemos.length} label="Demo" /><Metric value={fieldCount} label="Trường" /><Metric value="3" label="Mẫu popup" /></div>
@@ -624,10 +624,10 @@ export default function FormPopupDemoPage() {
             const Icon = demo.icon;
             const fields = demo.sections.reduce((total, section) => total + section.fields.length, 0);
             const effectiveSize = getDemoSize(demo, pattern);
-            return <button key={demo.id} type="button" onClick={() => setActive(demo)} className="group flex min-h-48 flex-col rounded-card border border-neutral-200 bg-white p-5 text-left transition hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-[0_2px_8px_rgba(28,26,21,.04)] focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"><div className="flex items-start justify-between gap-3"><span className="grid size-11 place-items-center rounded-card bg-primary-50 text-primary-700"><Icon size={21} /></span><span className="rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-1 text-[10px] font-bold text-neutral-600">{SIZE_LABELS[effectiveSize]}</span></div><div className="mt-5 flex-1"><p className="text-[11px] font-bold uppercase tracking-[0.12em] text-neutral-400">{demo.group}</p><h2 className="mt-1 text-base font-bold text-neutral-950">{demo.title}</h2><p className="mt-1.5 line-clamp-2 text-sm leading-5 text-neutral-500">{demo.description}</p></div><div className="mt-4 flex items-center justify-between border-t border-neutral-100 pt-3 text-xs"><span className="font-semibold text-neutral-500">{fields ? `${fields} trường / thông tin` : "Workspace chuyên biệt"}</span><span className="flex items-center gap-1 font-bold text-primary-700">Mở demo <ChevronRight className="transition group-hover:translate-x-0.5" size={15} /></span></div></button>;
+            return <button key={demo.id} type="button" onClick={() => setActive(demo)} className="group flex min-h-48 flex-col rounded-card border border-neutral-200 bg-neutral-0 p-5 text-left transition hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-[0_2px_8px_rgba(28,26,21,.04)] focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"><div className="flex items-start justify-between gap-3"><span className="grid size-11 place-items-center rounded-card bg-primary-50 text-primary-700"><Icon size={21} /></span><span className="rounded-full border border-neutral-200 bg-neutral-50 px-2.5 py-1 text-[10px] font-bold text-neutral-600">{SIZE_LABELS[effectiveSize]}</span></div><div className="mt-5 flex-1"><p className="text-[11px] font-bold uppercase tracking-[0.12em] text-neutral-400">{demo.group}</p><h2 className="mt-1 text-base font-bold text-neutral-950">{demo.title}</h2><p className="mt-1.5 line-clamp-2 text-sm leading-5 text-neutral-500">{demo.description}</p></div><div className="mt-4 flex items-center justify-between border-t border-neutral-100 pt-3 text-xs"><span className="font-semibold text-neutral-500">{fields ? `${fields} trường / thông tin` : "Workspace chuyên biệt"}</span><span className="flex items-center gap-1 font-bold text-primary-700">Mở demo <ChevronRight className="transition group-hover:translate-x-0.5" size={15} /></span></div></button>;
           })}
         </section>
-        {filtered.length === 0 && <div className="mt-6 rounded-card border border-dashed border-neutral-300 bg-white p-12 text-center text-sm text-neutral-500">Không tìm thấy popup phù hợp.</div>}
+        {filtered.length === 0 && <div className="mt-6 rounded-card border border-dashed border-neutral-300 bg-neutral-0 p-12 text-center text-sm text-neutral-500">Không tìm thấy popup phù hợp.</div>}
       </div>
       <DemoDialog demo={active} pattern={pattern} onClose={() => setActive(null)} />
     </main>

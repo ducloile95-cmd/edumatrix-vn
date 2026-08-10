@@ -15,7 +15,7 @@ export default function LegalPageLayout({
 }: LegalPageLayoutProps) {
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-800 sm:px-6">
-      <article className="mx-auto max-w-3xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <article className="mx-auto max-w-3xl overflow-hidden rounded-2xl border border-slate-200 bg-neutral-0 shadow-sm">
         <header className="border-b border-slate-200 px-6 py-8 sm:px-10">
           <Link
             to={ROUTES.LOGIN}

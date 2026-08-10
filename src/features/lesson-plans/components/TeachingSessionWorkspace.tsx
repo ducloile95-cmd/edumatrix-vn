@@ -133,7 +133,7 @@ export function TeachingSessionWorkspace({ onEditLessonPlan, onCreateLessonPlan 
             />
           </FilterToolbar>
 
-          <DataListPanel className="rounded-card border border-neutral-200 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.02)] min-h-0">
+          <DataListPanel className="rounded-card border border-neutral-200 bg-neutral-0 shadow-[0_1px_3px_rgba(0,0,0,0.02)] min-h-0">
             {/* Header of the panel containing list status */}
             <div className="shrink-0 border-b border-neutral-200 px-4 py-4 sm:px-5">
               <h2 className="text-base font-semibold text-neutral-900">Tiến độ giảng dạy</h2>
@@ -145,7 +145,7 @@ export function TeachingSessionWorkspace({ onEditLessonPlan, onCreateLessonPlan 
           {/* Panel Body: The 3 pipeline columns side by side */}
           <div className="flex-1 min-h-0 p-4 sm:p-5 grid grid-cols-1 md:grid-cols-3 gap-6 bg-neutral-50/30">
             {/* Column 1: Today */}
-            <div className="flex flex-col h-full min-h-0 rounded-card border border-neutral-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.01)]">
+            <div className="flex flex-col h-full min-h-0 rounded-card border border-neutral-200 bg-neutral-0 p-4 shadow-[0_1px_2px_rgba(0,0,0,0.01)]">
               <h3 className="shrink-0 mb-3 flex items-center justify-between text-sm font-bold text-neutral-800 border-b border-neutral-100 pb-2">
                 <span className="flex items-center gap-1.5">
                   <Calendar className="h-4 w-4 text-primary-500" /> Hôm nay
@@ -179,7 +179,7 @@ export function TeachingSessionWorkspace({ onEditLessonPlan, onCreateLessonPlan 
             </div>
 
             {/* Column 2: Next 7 days */}
-            <div className="flex flex-col h-full min-h-0 rounded-card border border-neutral-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.01)]">
+            <div className="flex flex-col h-full min-h-0 rounded-card border border-neutral-200 bg-neutral-0 p-4 shadow-[0_1px_2px_rgba(0,0,0,0.01)]">
               <h3 className="shrink-0 mb-3 flex items-center justify-between text-sm font-bold text-neutral-800 border-b border-neutral-100 pb-2">
                 <span className="flex items-center gap-1.5">
                   <Clock className="h-4 w-4 text-green-500" /> 7 ngày tới
@@ -213,7 +213,7 @@ export function TeachingSessionWorkspace({ onEditLessonPlan, onCreateLessonPlan 
             </div>
 
             {/* Column 3: Need notes */}
-            <div className="flex flex-col h-full min-h-0 rounded-card border border-neutral-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.01)]">
+            <div className="flex flex-col h-full min-h-0 rounded-card border border-neutral-200 bg-neutral-0 p-4 shadow-[0_1px_2px_rgba(0,0,0,0.01)]">
               <h3 className="shrink-0 mb-3 flex items-center justify-between text-sm font-bold text-neutral-800 border-b border-neutral-100 pb-2">
                 <span className="flex items-center gap-1.5">
                   <AlertTriangle className="h-4 w-4 text-yellow-500" /> Cần hoàn tất nhật ký
@@ -253,7 +253,7 @@ export function TeachingSessionWorkspace({ onEditLessonPlan, onCreateLessonPlan 
       {/* Diary Modal */}
       {editingSessionId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg rounded-card bg-white p-6 shadow-xl border border-neutral-200">
+          <div className="w-full max-w-lg rounded-card bg-neutral-0 p-6 shadow-xl border border-neutral-200">
             <h3 className="text-lg font-bold text-neutral-800 mb-4 flex items-center gap-2">
               <PenTool className="text-primary-500 h-5 w-5" /> Ghi Nhật ký sau dạy
             </h3>
@@ -325,7 +325,7 @@ function SessionItem({
     : "Thiếu giáo án";
 
   return (
-    <div className="rounded-card border border-neutral-200 bg-white p-4 space-y-3 shadow-[0_1px_2px_rgba(0,0,0,0.01)] hover:border-neutral-300 transition-colors">
+    <div className="rounded-card border border-neutral-200 bg-neutral-0 p-4 space-y-3 shadow-[0_1px_2px_rgba(0,0,0,0.01)] hover:border-neutral-300 transition-colors">
       <div className="flex items-center justify-between">
         <h4 className="text-xs font-bold text-neutral-800 uppercase tracking-wide">
           {classLabel} · Buổi {session.sequenceNumber || "—"}

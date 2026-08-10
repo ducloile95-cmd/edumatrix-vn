@@ -86,7 +86,7 @@ function AnnouncementCard({ item }: { item: Announcement }) {
   const Icon = meta.icon;
 
   return (
-    <article className="rounded-card border border-neutral-200 bg-white p-4 shadow-[0_4px_18px_rgba(37,61,124,.035)] sm:p-5">
+    <article className="rounded-card border border-neutral-200 bg-neutral-0 p-4 shadow-[0_4px_18px_rgba(37,61,124,.035)] sm:p-5">
       <div className="flex items-start gap-3">
         <span className={`grid size-10 shrink-0 place-items-center rounded-input ${meta.tone}`}>
           <Icon size={18} aria-hidden="true" />

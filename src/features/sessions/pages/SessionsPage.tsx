@@ -204,7 +204,7 @@ export default function SessionsPage() {
         }
       />
 
-      <section className="overflow-hidden rounded-card border border-neutral-200 bg-white">
+      <section className="overflow-hidden rounded-card border border-neutral-200 bg-neutral-0">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-200 px-4 py-3.5 sm:px-5">
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex gap-1">
@@ -232,7 +232,7 @@ export default function SessionsPage() {
                 type="button"
                 onClick={() => setTimetableView(value)}
                 className={`rounded-[7px] px-3 text-xs font-semibold transition ${
-                  timetableView === value ? "bg-primary-500 text-white shadow-[0_4px_12px_rgba(51,102,240,.18)]" : "text-neutral-600 hover:bg-white hover:text-primary-700"
+                  timetableView === value ? "bg-primary-500 text-white shadow-[0_4px_12px_rgba(51,102,240,.18)]" : "text-neutral-600 hover:bg-neutral-0 hover:text-primary-700"
                 }`}
               >
                 {label}

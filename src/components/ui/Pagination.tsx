@@ -39,7 +39,7 @@ export function Pagination({
           value={pageSize}
           onChange={(event) => onPageSizeChange?.(Number(event.target.value))}
           disabled={!onPageSizeChange}
-          className="h-9 rounded-input border border-neutral-300 bg-white px-2 text-sm font-medium text-neutral-800 transition focus:border-primary-500 disabled:cursor-not-allowed disabled:opacity-60"
+          className="h-9 rounded-input border border-neutral-300 bg-neutral-0 px-2 text-sm font-medium text-neutral-800 transition focus:border-primary-500 disabled:cursor-not-allowed disabled:opacity-60"
           aria-label="Số dòng mỗi trang"
         >
           {pageSizeOptions.map((option) => (
@@ -71,7 +71,7 @@ export function Pagination({
         >
           <ChevronLeft aria-hidden="true" size={16} />
         </button>
-        <span className="grid h-9 min-w-12 place-items-center rounded-input border border-neutral-300 bg-white px-3 text-sm font-semibold text-neutral-900">
+        <span className="grid h-9 min-w-12 place-items-center rounded-input border border-neutral-300 bg-neutral-0 px-3 text-sm font-semibold text-neutral-900">
           {page}
         </span>
         <button

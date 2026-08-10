@@ -61,10 +61,10 @@ function NotificationBell({ seeAllHref }: { seeAllHref: string }) {
     <div ref={ref} className="relative">
       <button type="button" aria-label={`Thông báo${unread ? ` (${unread} chưa đọc)` : ""}`} aria-expanded={open} onClick={() => setOpen((value) => !value)} className="icon-button relative flex">
         <Bell size={20} />
-        {unread > 0 && <span aria-live="polite" className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-gradient-to-br from-primary-500 to-primary-700 px-1 text-3xs font-bold text-white ring-2 ring-white">{unread}</span>}
+        {unread > 0 && <span aria-live="polite" className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-gradient-to-br from-primary-500 to-primary-700 px-1 text-3xs font-bold text-white ring-2 ring-neutral-0">{unread}</span>}
       </button>
       {open && (
-        <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-modal border border-neutral-200 bg-white shadow-[var(--shadow-3)]">
+        <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-modal border border-neutral-200 bg-neutral-0 shadow-[var(--shadow-3)]">
           <header className="flex items-center justify-between border-b border-neutral-200 px-4 py-3"><b className="text-sm">Thông báo</b></header>
           {notifications.length === 0
             ? <div className="px-4 py-8 text-center text-sm text-neutral-500">Chưa có thông báo mới</div>
@@ -122,14 +122,14 @@ function ChatButton() {
   return (
     <Link to={ROUTES.STAFF_CHAT} viewTransition aria-label={`Chat${unread ? ` (${unread} tin chưa đọc)` : ""}`} title="Chat" className="icon-button relative flex">
       <MessagesSquare size={20} />
-      {unread > 0 && <span aria-live="polite" className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-gradient-to-br from-primary-500 to-primary-700 px-1 text-3xs font-bold text-white ring-2 ring-white">{unread > 99 ? "99+" : unread}</span>}
+      {unread > 0 && <span aria-live="polite" className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-gradient-to-br from-primary-500 to-primary-700 px-1 text-3xs font-bold text-white ring-2 ring-neutral-0">{unread > 99 ? "99+" : unread}</span>}
     </Link>
   );
 }
 
 function RefreshButton() {
   return (
-    <button type="button" onClick={() => window.location.reload()} aria-label="Tải lại trang" title="Tải lại" className="motion-control grid size-9 shrink-0 place-items-center rounded-input border border-neutral-300 bg-white/80 text-neutral-600 hover:bg-white hover:text-primary-700 active:scale-[.96]">
+    <button type="button" onClick={() => window.location.reload()} aria-label="Tải lại trang" title="Tải lại" className="motion-control grid size-9 shrink-0 place-items-center rounded-input border border-neutral-300 bg-neutral-0/80 text-neutral-600 hover:bg-neutral-0 hover:text-primary-700 active:scale-[.96]">
       <RefreshCw size={16} />
     </button>
   );
@@ -157,7 +157,7 @@ function AddMenu() {
   return (
     <div ref={ref} className="relative">
       <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-haspopup="menu" className="motion-control inline-flex h-9 items-center gap-1.5 rounded-input bg-primary-600 px-3 text-xs font-bold text-white shadow-[0_5px_14px_rgba(35,72,214,.2)] hover:bg-primary-700 active:scale-[.98]"><Plus size={15} />Thêm<ChevronDown size={14} /></button>
-      {open && <div role="menu" className="absolute right-0 z-40 mt-2 w-48 overflow-hidden rounded-card border border-neutral-200 bg-white p-1.5 shadow-[var(--shadow-3)]">
+      {open && <div role="menu" className="absolute right-0 z-40 mt-2 w-48 overflow-hidden rounded-card border border-neutral-200 bg-neutral-0 p-1.5 shadow-[var(--shadow-3)]">
         {items.map((item) => {
           return <button key={item.label} type="button" role="menuitem" onClick={() => { setOpen(false); runViewTransition(() => navigate(item.to)); }} className="flex min-h-9 w-full items-center justify-between rounded-input px-3 text-left text-sm font-medium text-neutral-700 hover:bg-primary-50 hover:text-primary-700">{item.label}</button>;
         })}
@@ -172,7 +172,7 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const title = findPageTitle(pathname);
   const seeAllHref = isStaff ? ROUTES.STAFF_ANNOUNCEMENTS : ROUTES.VIEWER_ANNOUNCEMENTS;
 
-  return <header className="glass-panel sticky top-0 z-20 flex h-16 items-center justify-between border-b border-white/70 px-3 sm:px-6">
+  return <header className="glass-panel sticky top-0 z-20 flex h-16 items-center justify-between border-b border-neutral-0/70 px-3 sm:px-6">
     <NotificationSoundMonitor />
     <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
       {onMenuClick && <button type="button" onClick={onMenuClick} aria-label="Mở menu điều hướng" className="icon-button lg:hidden"><Menu size={20} /></button>}

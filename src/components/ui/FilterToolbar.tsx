@@ -11,7 +11,7 @@ export function FilterToolbar({ children, className = "", label = "Công cụ t�
   return (
     <section
       aria-label={label}
-      className={`mb-4 rounded-card border border-neutral-200 bg-white p-3 shadow-[var(--shadow-1)] sm:p-4 ${className}`}
+      className={`mb-4 rounded-card border border-neutral-200 bg-neutral-0 p-3 shadow-[var(--shadow-1)] sm:p-4 ${className}`}
     >
       <div className="grid gap-3 md:grid-cols-[minmax(260px,1fr)_minmax(190px,auto)] md:items-end">
         {children}
@@ -55,7 +55,7 @@ export function FilterSelect({ id, label, value, options, onChange, className = 
           id={id}
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="min-h-touch w-full appearance-none rounded-input border border-neutral-300 bg-white py-2 pl-3 pr-10 text-sm font-medium text-neutral-700 outline-none transition hover:border-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+          className="min-h-touch w-full appearance-none rounded-input border border-neutral-300 bg-neutral-0 py-2 pl-3 pr-10 text-sm font-medium text-neutral-700 outline-none transition hover:border-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
         >
           {options.map((option) => (
             <option key={option.value} value={option.value}>{option.label}</option>

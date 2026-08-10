@@ -56,8 +56,8 @@ export function ClassroomParentView({
     <>
 {active && (
         <div className="grid gap-4 xl:grid-cols-[1.2fr_.8fr]">
-          <section className="rounded-card border border-neutral-200 bg-white p-5 shadow-[var(--shadow-1)]">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><h2 className="text-lg font-bold text-neutral-950">Xem trước thông báo</h2><select aria-label="Chọn học sinh xem trước" value={previewStudent?.id ?? ""} onChange={(event) => setPreviewStudentId(event.target.value)} className="min-h-10 rounded-input border border-neutral-300 bg-white px-3 text-sm font-semibold">{classStudents.map((student) => <option key={student.id} value={student.id}>{student.fullName}</option>)}</select></div>
+          <section className="rounded-card border border-neutral-200 bg-neutral-0 p-5 shadow-[var(--shadow-1)]">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><h2 className="text-lg font-bold text-neutral-950">Xem trước thông báo</h2><select aria-label="Chọn học sinh xem trước" value={previewStudent?.id ?? ""} onChange={(event) => setPreviewStudentId(event.target.value)} className="min-h-10 rounded-input border border-neutral-300 bg-neutral-0 px-3 text-sm font-semibold">{classStudents.map((student) => <option key={student.id} value={student.id}>{student.fullName}</option>)}</select></div>
             {previewStudent ? <pre className="mt-5 whitespace-pre-wrap rounded-card border border-primary-100 bg-primary-50 p-4 font-sans text-sm leading-6 text-neutral-800">{formatSessionSummaryMessage({
               studentName: previewStudent.fullName,
               className: className,
@@ -69,7 +69,7 @@ export function ClassroomParentView({
               isRepublish: isAmended,
             })}</pre> : <div className="mt-4"><EmptyState title="Chưa có học sinh để xem trước" /></div>}
           </section>
-          <section className="rounded-card border border-neutral-200 bg-white p-5 shadow-[var(--shadow-1)]">
+          <section className="rounded-card border border-neutral-200 bg-neutral-0 p-5 shadow-[var(--shadow-1)]">
             <h2 className="text-lg font-bold text-neutral-950">Kênh phát hành</h2>
             {isPublished ? (
               <div className="mt-4 space-y-3">

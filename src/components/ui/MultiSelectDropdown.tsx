@@ -93,7 +93,7 @@ export function MultiSelectDropdown({
         aria-describedby={error ? errorId : undefined}
         aria-invalid={!!error}
         onClick={() => setOpen((current) => !current)}
-        className="flex min-h-touch w-full items-center justify-between gap-3 rounded-input border border-neutral-300 bg-white px-3 text-left text-sm outline-none transition hover:border-primary-300 focus-visible:border-primary-500 focus-visible:ring-2 focus-visible:ring-primary-100"
+        className="flex min-h-touch w-full items-center justify-between gap-3 rounded-input border border-neutral-300 bg-neutral-0 px-3 text-left text-sm outline-none transition hover:border-primary-300 focus-visible:border-primary-500 focus-visible:ring-2 focus-visible:ring-primary-100"
       >
         <span className={selectedLabels.length ? "truncate text-neutral-800" : "text-neutral-400"}>
           {selectedLabels.join(", ") || placeholder}
@@ -105,7 +105,7 @@ export function MultiSelectDropdown({
       </button>
 
       {open && (
-        <div ref={panelRef} className="absolute inset-x-0 top-full z-40 mt-1 overflow-hidden rounded-card border border-neutral-200 bg-white p-1.5 shadow-[var(--shadow-3)]">
+        <div ref={panelRef} className="absolute inset-x-0 top-full z-40 mt-1 overflow-hidden rounded-card border border-neutral-200 bg-neutral-0 p-1.5 shadow-[var(--shadow-3)]">
           <div role="listbox" aria-multiselectable="true" aria-labelledby={labelId} className="max-h-52 overflow-y-auto">
             {options.length === 0 && <p className="px-3 py-2 text-xs text-neutral-500">{emptyMessage}</p>}
             {options.map((option) => {

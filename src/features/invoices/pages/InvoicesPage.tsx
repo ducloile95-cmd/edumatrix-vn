@@ -235,7 +235,7 @@ export default function InvoicesPage() {
       )}
 
       {activeTab === "invoices" && (
-        <DataListPanel className="motion-content-enter rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)]">
+        <DataListPanel className="motion-content-enter rounded-card border border-neutral-200 bg-neutral-0 shadow-[var(--shadow-1)]">
           <div className="shrink-0 border-b border-neutral-200 p-4 sm:p-5">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
               <div><h2 className="text-base font-bold text-neutral-900">Danh sách công nợ</h2><p className="mt-1 text-sm text-neutral-500">{filteredInvoices.length} hóa đơn phù hợp bộ lọc</p></div>
@@ -278,7 +278,7 @@ export default function InvoicesPage() {
       )}
 
       {canManageFinance && activeTab === "reconcile" && (
-        <DataListPanel className="motion-content-enter rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)]">
+        <DataListPanel className="motion-content-enter rounded-card border border-neutral-200 bg-neutral-0 shadow-[var(--shadow-1)]">
           <div className="shrink-0 border-b border-neutral-200 p-4 sm:p-5"><div className="flex items-center justify-between gap-3"><div><h2 className="text-base font-bold text-neutral-900">Hàng đợi đối soát</h2><p className="mt-1 text-sm text-neutral-500">Kiểm tra mã giao dịch trước khi xác nhận thu tiền.</p></div><span className="rounded-full bg-warning-50 px-3 py-1 text-xs font-bold text-warning-700">{reportedPayments.length} đang chờ</span></div></div>
           <div className={DATA_LIST_SCROLL}>
             {payments.isLoading && <div className="p-5"><LoadingSkeleton rows={5} /></div>}

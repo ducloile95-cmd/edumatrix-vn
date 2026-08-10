@@ -3,6 +3,16 @@
 @tailwind utilities;
 
 :root {
+  color-scheme: light;
+  --surface-canvas: 250 250 249;
+  --surface-panel: 255 255 255;
+  --surface-subtle: 244 243 241;
+  --surface-hover: 231 229 226;
+  --border-subtle: 231 229 226;
+  --border-strong: 211 208 203;
+  --text-primary: 28 26 21;
+  --text-secondary: 87 83 77;
+  --text-muted: 120 116 109;
   --motion-instant: 150ms;
   --motion-fast: 200ms;
   --motion-standard: 250ms;
@@ -26,6 +36,24 @@
   --shadow-4: 0 28px 70px rgba(28, 51, 137, .22);
 }
 
+html.dark {
+  color-scheme: dark;
+  --surface-canvas: 17 19 24;
+  --surface-panel: 24 26 31;
+  --surface-subtle: 36 39 46;
+  --surface-hover: 48 52 61;
+  --border-subtle: 52 56 65;
+  --border-strong: 71 76 88;
+  --text-primary: 245 245 242;
+  --text-secondary: 203 200 194;
+  --text-muted: 157 153 145;
+  --grad-page: radial-gradient(circle at 12% 5%, rgba(51, 102, 240, .12), transparent 30rem), radial-gradient(circle at 92% 18%, rgba(22, 163, 74, .08), transparent 28rem), rgb(var(--surface-canvas));
+  --shadow-1: 0 4px 18px rgba(0, 0, 0, .2);
+  --shadow-2: 0 12px 32px rgba(0, 0, 0, .28);
+  --shadow-3: 0 18px 48px rgba(0, 0, 0, .38);
+  --shadow-4: 0 28px 70px rgba(0, 0, 0, .46);
+}
+
 @layer base {
   html {
     @apply text-neutral-800;
@@ -34,7 +62,7 @@
     @apply bg-neutral-50 font-sans text-sm antialiased;
     min-width: 320px;
     isolation: isolate;
-    background: #fafaf9;
+    background: rgb(var(--surface-canvas));
     letter-spacing: -0.005em;
     line-height: 1.55;
   }
@@ -62,9 +90,65 @@
   }
 }
 
+html.dark .glass-panel {
+  background: rgba(24, 26, 31, .82);
+  box-shadow: inset 0 1px rgba(255, 255, 255, .06);
+}
+
+html.dark :where(.bg-neutral-0, [class~="bg-neutral-0/50"], [class~="bg-neutral-0/70"], [class~="bg-neutral-0/75"], [class~="bg-neutral-0/80"], [class~="bg-neutral-0/85"], [class~="bg-neutral-0/90"], [class~="bg-neutral-0/95"]) { background-color: rgb(var(--surface-panel)); }
+html.dark :where(.bg-neutral-50, [class~="bg-neutral-50/70"], [class~="bg-neutral-50/80"]) { background-color: rgb(var(--surface-canvas)); }
+html.dark :where(.bg-neutral-100, [class~="bg-neutral-100/70"], [class~="bg-neutral-100/80"]) { background-color: rgb(var(--surface-subtle)); }
+html.dark :where(.bg-neutral-200, [class~="bg-neutral-200/70"], [class~="bg-neutral-200/80"]) { background-color: rgb(var(--surface-hover)); }
+html.dark :where([class~="hover:bg-neutral-0"]:hover, [class~="hover:bg-neutral-50"]:hover, [class~="hover:bg-neutral-0/80"]:hover) { background-color: rgb(var(--surface-panel)); }
+html.dark :where([class~="hover:bg-neutral-100"]:hover, [class~="hover:bg-neutral-200/70"]:hover) { background-color: rgb(var(--surface-hover)); }
+
+html.dark :where(.text-neutral-950, .text-neutral-900, .text-neutral-800) { color: rgb(var(--text-primary)); }
+html.dark :where(.text-neutral-700, .text-neutral-600) { color: rgb(var(--text-secondary)); }
+html.dark :where(.text-neutral-500, .text-neutral-400) { color: rgb(var(--text-muted)); }
+html.dark :where([class~="hover:text-neutral-900"]:hover, [class~="hover:text-neutral-800"]:hover) { color: rgb(var(--text-primary)); }
+
+html.dark :where(.border-neutral-100, .border-neutral-200) { border-color: rgb(var(--border-subtle)); }
+html.dark :where(.border-neutral-300, .border-neutral-400) { border-color: rgb(var(--border-strong)); }
+html.dark :where(.divide-neutral-100) > :not([hidden]) ~ :not([hidden]),
+html.dark :where(.divide-neutral-200) > :not([hidden]) ~ :not([hidden]) { border-color: rgb(var(--border-subtle)); }
+html.dark :where([class~="border-neutral-0/70"], .ring-neutral-0, [class~="ring-neutral-0/70"]) { --tw-ring-color: rgb(var(--surface-panel)); border-color: rgb(var(--border-subtle)); }
+
+html.dark :where(.bg-primary-50, [class~="bg-primary-50/70"], [class~="bg-primary-50/80"]) { background-color: rgba(51, 102, 240, .17); }
+html.dark :where(.bg-primary-100, [class~="bg-primary-100/70"]) { background-color: rgba(51, 102, 240, .24); }
+html.dark :where(.text-primary-600, .text-primary-700, .text-primary-800, .text-primary-900) { color: #aec4ff; }
+html.dark :where(.border-primary-100, .border-primary-200) { border-color: rgba(111, 152, 255, .32); }
+
+html.dark .bg-success-50 { background-color: rgba(22, 163, 74, .14); }
+html.dark .bg-success-100 { background-color: rgba(22, 163, 74, .2); }
+html.dark :where(.text-success-600, .text-success-700, .text-success-800, .text-success-900) { color: #86efac; }
+html.dark :where(.border-success-100, .border-success-200) { border-color: rgba(74, 222, 128, .28); }
+html.dark .bg-warning-50 { background-color: rgba(245, 158, 11, .14); }
+html.dark .bg-warning-100 { background-color: rgba(245, 158, 11, .2); }
+html.dark :where(.text-warning-700, .text-warning-800, .text-warning-900) { color: #fcd34d; }
+html.dark :where(.border-warning-100, .border-warning-200) { border-color: rgba(252, 211, 77, .28); }
+html.dark .bg-danger-50 { background-color: rgba(228, 69, 58, .14); }
+html.dark .bg-danger-100 { background-color: rgba(228, 69, 58, .2); }
+html.dark :where(.text-danger-600, .text-danger-700, .text-danger-900) { color: #fca5a5; }
+html.dark :where(.border-danger-100, .border-danger-200) { border-color: rgba(252, 165, 165, .28); }
+html.dark .bg-info-50 { background-color: rgba(14, 165, 233, .14); }
+html.dark .bg-info-100 { background-color: rgba(14, 165, 233, .2); }
+html.dark .text-info-700 { color: #7dd3fc; }
+html.dark .bg-accent-50 { background-color: rgba(255, 138, 61, .14); }
+html.dark .bg-accent-100 { background-color: rgba(255, 138, 61, .2); }
+html.dark .text-accent-700 { color: #fdba74; }
+
+html.dark :where(input, select, textarea) { background-color: rgb(var(--surface-canvas)); color: rgb(var(--text-primary)); }
+html.dark :where(input, textarea)::placeholder { color: rgb(var(--text-muted)); }
+
+.flag-icon { position: relative; display: inline-grid; width: 20px; height: 14px; flex: 0 0 auto; place-items: center; overflow: hidden; border: 1px solid rgba(28, 26, 21, .14); border-radius: 3px; box-shadow: 0 1px 2px rgba(28, 26, 21, .12); }
+.flag-icon-vi { background: #da251d; color: #ffdf00; font-size: 9px; line-height: 1; }
+.flag-icon-vi::after { content: "★"; transform: translateY(-.2px); }
+.flag-icon-en { background: linear-gradient(33deg, transparent 43%, #fff 43% 57%, transparent 57%), linear-gradient(-33deg, transparent 43%, #fff 43% 57%, transparent 57%), #183a78; }
+.flag-icon-en::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent 42%, #c8102e 42% 58%, transparent 58%), linear-gradient(transparent 36%, #fff 36% 64%, transparent 64%), linear-gradient(transparent 43%, #c8102e 43% 57%, transparent 57%); }
+
 @layer components {
   .glass-panel { background: rgba(255, 255, 255, .74); backdrop-filter: blur(14px) saturate(150%); box-shadow: inset 0 1px rgba(255,255,255,.85); }
-  .icon-button { @apply min-h-touch min-w-touch items-center justify-center rounded-card text-neutral-600 hover:bg-white/80 hover:text-primary-700 active:scale-95; transition: color var(--motion-standard) var(--ease-standard), background-color var(--motion-standard) var(--ease-standard), transform var(--motion-instant) var(--ease-standard); }
+  .icon-button { @apply min-h-touch min-w-touch items-center justify-center rounded-card text-neutral-600 hover:bg-neutral-0/80 hover:text-primary-700 active:scale-95; transition: color var(--motion-standard) var(--ease-standard), background-color var(--motion-standard) var(--ease-standard), transform var(--motion-instant) var(--ease-standard); }
   .icon-button:hover { transform: scale(1.05); }
   .motion-control { transition: color var(--motion-standard) var(--ease-standard), background-color var(--motion-standard) var(--ease-standard), border-color var(--motion-standard) var(--ease-standard), box-shadow var(--motion-standard) var(--ease-standard), transform var(--motion-instant) var(--ease-standard), opacity var(--motion-standard) var(--ease-standard); }
   button.motion-control:not(:disabled):hover { transform: translateY(-1px); }
@@ -110,7 +194,7 @@
 
   /* Đồng bộ toàn bộ form popup (Modal) với màu hệ thống — redesign-preserve (design-taste-frontend). */
   [role="dialog"] :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
-    @apply rounded-input border border-neutral-300 bg-white/85 text-neutral-800;
+    @apply rounded-input border border-neutral-300 bg-neutral-0/85 text-neutral-800;
     transition: border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-standard) var(--ease-standard), background-color var(--motion-fast) var(--ease-standard);
   }
   [role="dialog"] :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea):focus {

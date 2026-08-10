@@ -25,14 +25,14 @@ export function FanpagePanel({ configured, actorUid, actorName }: FanpagePanelPr
           <button
             type="button"
             onClick={() => setSub("compose")}
-            className={`min-h-9 rounded-[7px] px-4 text-xs font-bold ${sub === "compose" ? "bg-white text-primary-700 shadow-sm" : "text-neutral-500"}`}
+            className={`min-h-9 rounded-[7px] px-4 text-xs font-bold ${sub === "compose" ? "bg-neutral-0 text-primary-700 shadow-sm" : "text-neutral-500"}`}
           >
             Soạn bài
           </button>
           <button
             type="button"
             onClick={() => setSub("queue")}
-            className={`flex min-h-9 items-center gap-1.5 rounded-[7px] px-4 text-xs font-bold ${sub === "queue" ? "bg-white text-primary-700 shadow-sm" : "text-neutral-500"}`}
+            className={`flex min-h-9 items-center gap-1.5 rounded-[7px] px-4 text-xs font-bold ${sub === "queue" ? "bg-neutral-0 text-primary-700 shadow-sm" : "text-neutral-500"}`}
           >
             Hàng chờ &amp; Lịch sử
             {pendingCount > 0 && (

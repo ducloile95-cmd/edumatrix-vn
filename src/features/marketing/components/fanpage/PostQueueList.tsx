@@ -84,7 +84,7 @@ export function PostQueueList({ actorUid, actorName }: PostQueueListProps) {
 
   if (!ordered.length) {
     return (
-      <div className="rounded-card border border-neutral-200 bg-white py-16 text-center">
+      <div className="rounded-card border border-neutral-200 bg-neutral-0 py-16 text-center">
         <Clock3 className="mx-auto text-neutral-300" size={36} aria-hidden="true" />
         <p className="mt-3 text-sm font-semibold">Chưa có bài đăng nào</p>
         <p className="mt-1 text-xs text-neutral-500">Bài đăng ngay hoặc lên lịch sẽ xuất hiện ở đây.</p>
@@ -120,7 +120,7 @@ export function PostQueueList({ actorUid, actorName }: PostQueueListProps) {
 function StatChip({ tone, value, label }: { tone: "success" | "info" | "danger"; value: number; label: string }) {
   const toneClass = tone === "success" ? "bg-success-50 text-success-700" : tone === "info" ? "bg-info-50 text-info-700" : "bg-danger-50 text-danger-700";
   return (
-    <div className="flex items-center gap-3 rounded-card border border-neutral-200 bg-white p-4">
+    <div className="flex items-center gap-3 rounded-card border border-neutral-200 bg-neutral-0 p-4">
       <span className={`flex size-9 shrink-0 items-center justify-center rounded-input text-sm font-bold ${toneClass}`}>{value}</span>
       <span className="text-xs font-semibold text-neutral-500">{label}</span>
     </div>
@@ -131,7 +131,7 @@ function PostRow({ post, isDue, busy, onSendNow, onCancel, onRetry }: {
   post: Post; isDue: boolean; busy: boolean; onSendNow: () => void; onCancel: () => void; onRetry: () => void;
 }) {
   return (
-    <div className="flex gap-3 rounded-card border border-neutral-200 bg-white p-4">
+    <div className="flex gap-3 rounded-card border border-neutral-200 bg-neutral-0 p-4">
       <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary-500 to-primary-700 text-xs font-extrabold text-white">EM</span>
       <div className="min-w-0 flex-1">
         <div className="mb-1 flex flex-wrap items-center gap-2">

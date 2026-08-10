@@ -80,8 +80,8 @@ const DEMO_ITEMS: DemoBillingGroup[] = [
   },
 ];
 
-const FIELD_CLASS = "min-h-11 w-full rounded-input border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-500";
-const PANEL_CLASS = "min-w-0 overflow-hidden rounded-card border border-neutral-200 bg-white";
+const FIELD_CLASS = "min-h-11 w-full rounded-input border border-neutral-300 bg-neutral-0 px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-500";
+const PANEL_CLASS = "min-w-0 overflow-hidden rounded-card border border-neutral-200 bg-neutral-0";
 
 export function InvoiceClassBillingDemo({ onClose }: { onClose: () => void }) {
   const [billingMode, setBillingMode] = useState<BillingMode>("class");
@@ -137,11 +137,11 @@ export function InvoiceClassBillingDemo({ onClose }: { onClose: () => void }) {
       className="flex min-h-0 flex-1 flex-col"
     >
       <div className="min-h-0 flex-1 overflow-y-auto bg-neutral-50/70 p-4 sm:p-6">
-        <div className="mx-auto mb-4 flex max-w-[1600px] flex-col gap-3 rounded-card border border-neutral-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mx-auto mb-4 flex max-w-[1600px] flex-col gap-3 rounded-card border border-neutral-200 bg-neutral-0 p-3 sm:flex-row sm:items-center sm:justify-between">
           <div><p className="text-sm font-bold text-neutral-900">Loại hóa đơn</p><p className="mt-0.5 text-xs text-neutral-500">Chọn cách tính học phí trước khi chọn người học.</p></div>
           <div role="tablist" aria-label="Chọn loại hóa đơn" className="grid grid-cols-2 gap-1 rounded-input border border-neutral-200 bg-neutral-50 p-1">
-            <button type="button" role="tab" aria-selected={billingMode === "class"} onClick={() => changeBillingMode("class")} className={`min-h-10 rounded-lg px-4 text-xs font-bold transition ${billingMode === "class" ? "bg-white text-primary-700 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}>Theo lớp học</button>
-            <button type="button" role="tab" aria-selected={billingMode === "item"} onClick={() => changeBillingMode("item")} className={`min-h-10 rounded-lg px-4 text-xs font-bold transition ${billingMode === "item" ? "bg-white text-primary-700 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}>Đồ dùng học tập</button>
+            <button type="button" role="tab" aria-selected={billingMode === "class"} onClick={() => changeBillingMode("class")} className={`min-h-10 rounded-lg px-4 text-xs font-bold transition ${billingMode === "class" ? "bg-neutral-0 text-primary-700 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}>Theo lớp học</button>
+            <button type="button" role="tab" aria-selected={billingMode === "item"} onClick={() => changeBillingMode("item")} className={`min-h-10 rounded-lg px-4 text-xs font-bold transition ${billingMode === "item" ? "bg-neutral-0 text-primary-700 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}>Đồ dùng học tập</button>
           </div>
         </div>
         <div className="mx-auto grid max-w-[1600px] gap-4 xl:grid-cols-[minmax(300px,.82fr)_minmax(360px,1fr)_minmax(300px,.78fr)] xl:items-start">
@@ -175,7 +175,7 @@ export function InvoiceClassBillingDemo({ onClose }: { onClose: () => void }) {
                             aria-pressed={selected}
                             aria-label={`${selected ? `Đã chọn ${modeLabel}` : `Chọn ${modeLabel}`} ${item.name}`}
                             onClick={() => selectGroup(item.id)}
-                            className={`min-h-9 whitespace-nowrap rounded-input border px-3 text-xs font-bold transition active:scale-[.98] ${selected ? "border-primary-600 bg-primary-600 text-white" : "border-neutral-300 bg-white text-primary-700 hover:border-primary-300 hover:bg-primary-50"}`}
+                            className={`min-h-9 whitespace-nowrap rounded-input border px-3 text-xs font-bold transition active:scale-[.98] ${selected ? "border-primary-600 bg-primary-600 text-white" : "border-neutral-300 bg-neutral-0 text-primary-700 hover:border-primary-300 hover:bg-primary-50"}`}
                           >
                             {selected ? "Đã chọn" : billingMode === "class" ? "Chọn lớp" : "Chọn"}
                           </button>
@@ -256,7 +256,7 @@ export function InvoiceClassBillingDemo({ onClose }: { onClose: () => void }) {
         </div>
       </div>
 
-      <footer className="flex flex-col gap-3 border-t border-neutral-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+      <footer className="flex flex-col gap-3 border-t border-neutral-200 bg-neutral-0 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <p aria-live="polite" className="text-xs text-neutral-500"><strong className="text-neutral-700">Bản demo:</strong> {selectedStudents.length} học sinh đã chọn, chưa ghi dữ liệu thật.</p>
         <div className="grid grid-cols-2 gap-2 sm:flex">
           <Button type="button" onClick={onClose}>Hủy</Button>

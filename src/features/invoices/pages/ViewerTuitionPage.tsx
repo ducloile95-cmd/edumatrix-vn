@@ -135,7 +135,7 @@ function InvoiceCard({ invoice, onOpen }: { invoice: Invoice; onOpen: () => void
   const canReport = REPORTABLE_STATUSES.includes(invoice.status);
 
   return (
-    <article className="rounded-card border border-neutral-200 bg-white p-4 shadow-[0_4px_18px_rgba(37,61,124,.035)] transition-colors hover:border-primary-200 sm:p-5">
+    <article className="rounded-card border border-neutral-200 bg-neutral-0 p-4 shadow-[0_4px_18px_rgba(37,61,124,.035)] transition-colors hover:border-primary-200 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-2xs font-semibold uppercase tracking-wide text-neutral-500">{invoice.invoiceCode}</p>

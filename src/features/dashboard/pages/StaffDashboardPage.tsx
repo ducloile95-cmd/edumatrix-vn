@@ -27,10 +27,10 @@ import { DEFAULT_RANK_THRESHOLDS } from "@/utils/ranking";
 const QualityCharts = lazy(() => import("@/features/dashboard/components/QualityCharts"));
 const FinanceAgingChart = lazy(() => import("@/features/dashboard/components/FinanceAgingChart"));
 
-const FIELD_CLASS = "min-h-10 min-w-0 rounded-input border border-neutral-200 bg-neutral-50 px-3 text-sm font-medium text-neutral-700 outline-none transition hover:border-neutral-300 focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-100";
+const FIELD_CLASS = "min-h-10 min-w-0 rounded-input border border-neutral-200 bg-neutral-50 px-3 text-sm font-medium text-neutral-700 outline-none transition hover:border-neutral-300 focus:border-primary-500 focus:bg-neutral-0 focus:ring-2 focus:ring-primary-100";
 
 function Panel({ title, description, children, action }: { title: string; description?: string; children: ReactNode; action?: ReactNode }) {
-  return <section className="min-w-0 overflow-hidden rounded-card border border-neutral-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,.04)]"><div className="flex flex-wrap items-start justify-between gap-3 border-b border-neutral-100 px-5 py-4"><div><h2 className="text-base font-bold tracking-tight text-neutral-900">{title}</h2>{description && <p className="mt-1 text-xs leading-5 text-neutral-500">{description}</p>}</div>{action}</div>{children}</section>;
+  return <section className="min-w-0 overflow-hidden rounded-card border border-neutral-200/80 bg-neutral-0 shadow-[0_1px_2px_rgba(15,23,42,.04)]"><div className="flex flex-wrap items-start justify-between gap-3 border-b border-neutral-100 px-5 py-4"><div><h2 className="text-base font-bold tracking-tight text-neutral-900">{title}</h2>{description && <p className="mt-1 text-xs leading-5 text-neutral-500">{description}</p>}</div>{action}</div>{children}</section>;
 }
 
 function MetricCell({ icon: Icon, value, label, hint, tone = "primary" }: { icon: LucideIcon; value: ReactNode; label: string; hint: string; tone?: "primary" | "warning" | "accent" }) {
@@ -45,14 +45,14 @@ function StaffGreeting({ name, intro, metrics }: { name: string; intro: string; 
         <h2 className="text-2xl font-black tracking-tight text-neutral-950"><span className="text-primary-700">Xin chào!</span> {name}</h2>
         <p className="mt-1.5 text-sm leading-6 text-neutral-600">{intro}</p>
       </div>
-      <dl className="grid overflow-hidden rounded-input border border-primary-100 bg-white sm:grid-cols-3 sm:divide-x sm:divide-primary-100">
+      <dl className="grid overflow-hidden rounded-input border border-primary-100 bg-neutral-0 sm:grid-cols-3 sm:divide-x sm:divide-primary-100">
         {metrics.map(({ label, value, icon: Icon }) => <div key={label} className="flex items-center gap-3 border-b border-primary-100 px-4 py-3 last:border-b-0 sm:border-b-0">
           <span className="grid size-9 shrink-0 place-items-center rounded-input bg-primary-50 text-primary-700"><Icon size={17} strokeWidth={1.8} /></span>
           <div className="min-w-0"><dt className="text-xs font-semibold text-neutral-500">{label}</dt><dd className="mt-0.5 text-xl font-black tabular-nums text-neutral-950">{value}</dd></div>
         </div>)}
       </dl>
     </div>
-    <p className="border-t border-primary-100 bg-white/70 px-5 py-2.5 text-xs font-semibold text-primary-800 lg:px-6">Edumatrix chúc Thầy cô và trò học tốt, dạy tốt!</p>
+    <p className="border-t border-primary-100 bg-neutral-0/70 px-5 py-2.5 text-xs font-semibold text-primary-800 lg:px-6">Edumatrix chúc Thầy cô và trò học tốt, dạy tốt!</p>
   </section>;
 }
 
@@ -141,7 +141,7 @@ export default function StaffDashboardPage() {
   // Bo loc o cap trang: no ap cho ca khoi Van hanh lan moi tab ben duoi.
   // Dat vao header cua CollapsibleSection de khong ton them mot hang rieng.
   const filterBar = <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center xl:justify-end" aria-label="Phạm vi dữ liệu">
-    <div className="flex shrink-0 rounded-input bg-neutral-100 p-1" aria-label="Khoảng thời gian">{([7, 30, 90] as const).map((value) => <button key={value} type="button" onClick={() => setDays(value)} className={`min-h-8 flex-1 rounded-[7px] px-3 text-xs font-bold transition sm:flex-none ${days === value ? "bg-white text-primary-700 shadow-sm" : "text-neutral-500 hover:text-neutral-800"}`}>{value} ngày</button>)}</div>
+    <div className="flex shrink-0 rounded-input bg-neutral-100 p-1" aria-label="Khoảng thời gian">{([7, 30, 90] as const).map((value) => <button key={value} type="button" onClick={() => setDays(value)} className={`min-h-8 flex-1 rounded-[7px] px-3 text-xs font-bold transition sm:flex-none ${days === value ? "bg-neutral-0 text-primary-700 shadow-sm" : "text-neutral-500 hover:text-neutral-800"}`}>{value} ngày</button>)}</div>
     {isAdmin && <select aria-label="Khóa học" value={filters.courseId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, courseId: event.target.value || undefined, classId: undefined }))} className={`${FIELD_CLASS} w-full sm:w-40`}><option value="">Tất cả khóa học</option>{courses.data?.map((course) => <option key={course.id} value={course.id}>{course.name}</option>)}</select>}
     <select aria-label={isAdmin ? "Lớp học" : "Lớp phụ trách"} value={filters.classId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, classId: event.target.value || undefined }))} className={`${FIELD_CLASS} w-full sm:w-40`}><option value="">{isAdmin ? "Tất cả lớp" : "Lớp phụ trách"}</option>{classes.data?.filter((klass) => !filters.courseId || klass.courseId === filters.courseId).map((klass) => <option key={klass.id} value={klass.id}>{klass.name}</option>)}</select>
     {isAdmin && <select aria-label="Giáo viên" value={filters.teacherId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, teacherId: event.target.value || undefined }))} className={`${FIELD_CLASS} w-full sm:w-40`}><option value="">Tất cả giáo viên</option>{teachers.data?.map((teacher) => <option key={teacher.uid} value={teacher.uid}>{teacher.displayName}</option>)}</select>}
@@ -172,7 +172,7 @@ export default function StaffDashboardPage() {
       >
       <QueryPanel loading={overview.isLoading} error={overview.isError} retry={() => overview.refetch()}>
         {overview.data && <>
-          <section className="grid overflow-hidden rounded-card border border-neutral-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,.04)] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 [&>*]:border-neutral-100 [&>*:not(:last-child)]:border-b sm:[&>*]:border-b sm:[&>*]:border-r xl:[&>*]:border-b-0">
+          <section className="grid overflow-hidden rounded-card border border-neutral-200/80 bg-neutral-0 shadow-[0_1px_2px_rgba(15,23,42,.04)] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 [&>*]:border-neutral-100 [&>*:not(:last-child)]:border-b sm:[&>*]:border-b sm:[&>*]:border-r xl:[&>*]:border-b-0">
             <MetricCell icon={CalendarDays} value={overview.data.today.total} label={isAdmin ? "Buổi học hôm nay" : "Buổi dạy hôm nay"} hint={`${overview.data.today.done} đã xong · ${overview.data.today.upcoming} sắp tới`} />
             <MetricCell icon={GraduationCap} value={overview.data.activeClasses} label="Lớp đang hoạt động" hint={isAdmin ? "Theo bộ lọc hiện tại" : "Được phân công"} />
             <MetricCell icon={UserRound} value={overview.data.activeStudents} label={isAdmin ? "Học sinh active" : "Học sinh phụ trách"} hint="Không trùng học sinh" />
@@ -199,7 +199,7 @@ export default function StaffDashboardPage() {
       {tab === "quality" && <QueryPanel loading={learning.isLoading} error={learning.isError || academic.isError} retry={() => { academic.refetch(); learning.refetch(); }}>
         {learning.data && <>
           <p className="text-xs leading-5 text-neutral-500">{`Tổng hợp theo phạm vi ${days} ngày và bộ lọc hiện tại.`}</p>
-          <section className="mt-3 grid overflow-hidden rounded-card border border-neutral-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,.04)] sm:grid-cols-3 [&>*:not(:last-child)]:border-b sm:[&>*:not(:last-child)]:border-b-0 sm:[&>*:not(:last-child)]:border-r [&>*]:border-neutral-100">
+          <section className="mt-3 grid overflow-hidden rounded-card border border-neutral-200/80 bg-neutral-0 shadow-[0_1px_2px_rgba(15,23,42,.04)] sm:grid-cols-3 [&>*:not(:last-child)]:border-b sm:[&>*:not(:last-child)]:border-b-0 sm:[&>*:not(:last-child)]:border-r [&>*]:border-neutral-100">
             <MetricCell icon={CalendarDays} value={`${learning.data.attendanceRate}%`} label="Tỉ lệ chuyên cần" hint={`Trong ${days} ngày`} />
             <MetricCell icon={ClipboardCheck} value={`${learning.data.assignmentRate}%`} label="Hoàn thành bài tập" hint={`Trong ${days} ngày`} tone="accent" />
             <MetricCell icon={GraduationCap} value={`${learning.data.averageScore}%`} label="Điểm trung bình" hint="Theo điểm đã công bố" />

@@ -62,7 +62,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               <div
                 key={item.id}
                 role={item.tone === "error" ? "alert" : "status"}
-                className={`${item.closing ? "toast-exit" : "toast-lifecycle"} pointer-events-auto flex w-full max-w-md items-start gap-3 rounded-card border bg-white px-4 py-3 shadow-[var(--shadow-3)] ${toneClass}`}
+                className={`${item.closing ? "toast-exit" : "toast-lifecycle"} pointer-events-auto flex w-full max-w-md items-start gap-3 rounded-card border bg-neutral-0 px-4 py-3 shadow-[var(--shadow-3)] ${toneClass}`}
                 style={item.closing ? { animationDuration: `${TOAST_EXIT_MS}ms` } : undefined}
               >
                 <Icon className="mt-0.5 shrink-0" size={19} strokeWidth={2} aria-hidden="true" />

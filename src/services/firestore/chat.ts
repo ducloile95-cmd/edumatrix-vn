@@ -8,21 +8,72 @@ import type { ChatMessageDoc, ChatTagColor, ChatTagDoc, ChatThreadDoc, MessageOu
 import type { UserRole } from "@/types/user";
 
 export async function listChatThreads(role: UserRole, uid: string): Promise<Array<ChatThreadDoc & { id: string }>> {
-  const constraints = role === "admin"
-    ? [orderBy("lastMessageAt", "desc")]
-    : [where("assignedTeacherIds", "array-contains", uid), orderBy("lastMessageAt", "desc")];
-  const documents = await listAllQueryDocuments(COLLECTIONS.CHAT_THREADS, constraints, 30);
+  if (role === "admin") {
+    const documents = await listAllQueryDocuments(COLLECTIONS.CHAT_THREADS, [orderBy("lastMessageAt", "desc")], 30);
+    return documents.map((item) => ({ id: item.id, ...(item.data() as ChatThreadDoc) }));
+  }
+
+  const students = await listAllQueryDocuments(
+    COLLECTIONS.STUDENTS,
+    [where("teacherIds", "array-contains", uid)],
+    30,
+  );
+  const documents = (await Promise.all(students.map((student) => listAllQueryDocuments(
+    COLLECTIONS.CHAT_THREADS,
+    [
+      where("assignedTeacherIds", "array-contains", uid),
+      where("studentId", "==", student.id),
+      orderBy("lastMessageAt", "desc"),
+    ],
+    30,
+  )))).flat();
   return documents.map((item) => ({ id: item.id, ...(item.data() as ChatThreadDoc) }));
 }
 
 export function subscribeChatThreads(role: UserRole, uid: string, listener: (items: Array<ChatThreadDoc & { id: string }>) => void, onError: (error: Error) => void): Unsubscribe {
-  const source = collection(db, COLLECTIONS.CHAT_THREADS);
-  const q = role === "admin"
-    ? query(source, orderBy("lastMessageAt", "desc"))
-    : query(source, where("assignedTeacherIds", "array-contains", uid), orderBy("lastMessageAt", "desc"));
-  return onSnapshot(q, (snapshot) => {
-    listener(snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as ChatThreadDoc) })));
+  if (role === "admin") {
+    const q = query(collection(db, COLLECTIONS.CHAT_THREADS), orderBy("lastMessageAt", "desc"));
+    return onSnapshot(q, (snapshot) => {
+      listener(snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as ChatThreadDoc) })));
+    }, onError);
+  }
+
+  const threadsByStudent = new Map<string, Array<ChatThreadDoc & { id: string }>>();
+  const threadSubscriptions = new Map<string, Unsubscribe>();
+  const emit = () => listener([...threadsByStudent.values()].flat().sort((left, right) => (
+    (right.lastMessageAt?.toMillis?.() ?? 0) - (left.lastMessageAt?.toMillis?.() ?? 0)
+  )));
+  const studentsQuery = query(
+    collection(db, COLLECTIONS.STUDENTS),
+    where("teacherIds", "array-contains", uid),
+  );
+  const unsubscribeStudents = onSnapshot(studentsQuery, (snapshot) => {
+    const activeStudentIds = new Set(snapshot.docs.map((student) => student.id));
+    threadSubscriptions.forEach((unsubscribe, studentId) => {
+      if (activeStudentIds.has(studentId)) return;
+      unsubscribe();
+      threadSubscriptions.delete(studentId);
+      threadsByStudent.delete(studentId);
+    });
+    snapshot.docs.forEach((student) => {
+      if (threadSubscriptions.has(student.id)) return;
+      const threadsQuery = query(
+        collection(db, COLLECTIONS.CHAT_THREADS),
+        where("assignedTeacherIds", "array-contains", uid),
+        where("studentId", "==", student.id),
+        orderBy("lastMessageAt", "desc"),
+      );
+      threadSubscriptions.set(student.id, onSnapshot(threadsQuery, (threads) => {
+        threadsByStudent.set(student.id, threads.docs.map((item) => ({ id: item.id, ...(item.data() as ChatThreadDoc) })));
+        emit();
+      }, onError));
+    });
+    emit();
   }, onError);
+  return () => {
+    unsubscribeStudents();
+    threadSubscriptions.forEach((unsubscribe) => unsubscribe());
+  };
 }
 
 export function subscribeChatMessages(threadId: string, listener: (items: Array<ChatMessageDoc & { id: string }>) => void, onError: (error: Error) => void): Unsubscribe {

@@ -256,14 +256,14 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
 
   return (
     <div className="space-y-4">
-      <section className="overflow-hidden rounded-card border border-primary-200 bg-white shadow-[var(--shadow-1)]">
+      <section className="overflow-hidden rounded-card border border-primary-200 bg-neutral-0 shadow-[var(--shadow-1)]">
         <div className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
           <div><p className={`text-xs font-bold ${isPublished ? "text-success-700" : isAmended ? "text-warning-700" : "text-primary-700"}`}>{isPublished ? "ĐÃ PHÁT HÀNH" : isAmended ? "ĐANG ĐÍNH CHÍNH" : "ĐANG NHẬP BẢN NHÁP"}</p><h2 className="mt-1 text-xl font-bold text-neutral-950">{klass.data.name} · {session.data.title}</h2><p className="mt-1 text-sm text-neutral-500">{format(session.data.startAt.toDate(), "EEEE, dd/MM/yyyy", { locale: vi })}</p></div>
           <div className="grid gap-2 text-xs text-neutral-600 sm:grid-cols-3"><span className="flex items-center gap-2"><Clock3 size={15} />{format(session.data.startAt.toDate(), "HH:mm")} - {format(session.data.endAt.toDate(), "HH:mm")}</span><span className="flex items-center gap-2"><MapPin size={15} />{session.data.location || "Chưa có địa điểm"}</span><span className="flex items-center gap-2"><Users size={15} />{classStudents.length} học sinh</span></div>
         </div>
       </section>
 
-      <Tabs label="Nội dung tương tác lớp học" className="rounded-t-card border border-neutral-200 bg-white px-2">
+      <Tabs label="Nội dung tương tác lớp học" className="rounded-t-card border border-neutral-200 bg-neutral-0 px-2">
         <Tab active={activeView === "students"} onClick={() => setActiveView("students")}><Users size={15} /> Học sinh</Tab>
         <Tab active={activeView === "summary"} onClick={() => setActiveView("summary")}><BarChart3 size={15} /> Tổng kết buổi học</Tab>
         <Tab active={activeView === "parent"} onClick={() => setActiveView("parent")}><Send size={15} /> Gửi thông báo</Tab>
@@ -323,7 +323,7 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
         taughtContent={taughtContent}
       />
 
-      {showCourseSummary && <section className="flex flex-col gap-4 rounded-card border border-primary-200 bg-primary-50 p-5 sm:flex-row sm:items-center sm:justify-between"><div className="flex gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-input bg-white text-primary-700"><GraduationCap size={20} /></span><div><h2 className="font-bold text-neutral-950">Khóa học sắp kết thúc · Còn {remainingSessions} buổi</h2><p className="mt-1 text-sm text-neutral-600">Đã hoàn thành {completedSessions}/{totalSessions} buổi ({courseProgress}%). Có thể chuẩn bị bản nháp tổng kết khóa.</p></div></div><Button onClick={() => setCourseSummaryOpen(true)}>Xem bản nháp tổng kết khóa</Button></section>}
+      {showCourseSummary && <section className="flex flex-col gap-4 rounded-card border border-primary-200 bg-primary-50 p-5 sm:flex-row sm:items-center sm:justify-between"><div className="flex gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-input bg-neutral-0 text-primary-700"><GraduationCap size={20} /></span><div><h2 className="font-bold text-neutral-950">Khóa học sắp kết thúc · Còn {remainingSessions} buổi</h2><p className="mt-1 text-sm text-neutral-600">Đã hoàn thành {completedSessions}/{totalSessions} buổi ({courseProgress}%). Có thể chuẩn bị bản nháp tổng kết khóa.</p></div></div><Button onClick={() => setCourseSummaryOpen(true)}>Xem bản nháp tổng kết khóa</Button></section>}
 
       <Modal open={publishConfirmOpen} onClose={() => setPublishConfirmOpen(false)} title={isAmended ? "Xác nhận phát hành bản cập nhật" : "Xác nhận phát hành"} description="Gửi tổng kết cho phụ huynh và khóa buổi học. Bạn vẫn có thể mở lại để đính chính.">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

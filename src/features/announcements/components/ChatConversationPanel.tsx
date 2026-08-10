@@ -69,7 +69,7 @@ export function CopyInviteLinkButton({ parentUid, studentId, label }: { parentUi
             setPending(false);
           }
         }}
-        className="inline-flex items-center gap-1.5 rounded-input border border-neutral-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-primary-700 hover:bg-primary-50 disabled:opacity-50"
+        className="inline-flex items-center gap-1.5 rounded-input border border-neutral-300 bg-neutral-0 px-2.5 py-1.5 text-xs font-semibold text-primary-700 hover:bg-primary-50 disabled:opacity-50"
       >
         <Copy size={13} />{pending ? "Đang tạo link..." : copied ? "Đã copy link" : label}
       </button>
@@ -136,7 +136,7 @@ export function ConversationContext({ thread, parent, tags, onRemoveTag, onManag
         </div>
         <label className="block">
           <span className="mb-1.5 block text-xs font-bold text-neutral-700">Liên kết với học sinh</span>
-          <select value={studentId} onChange={(event) => setStudentId(event.target.value)} className="min-h-touch w-full rounded-input border border-neutral-300 bg-white px-3 text-sm">
+          <select value={studentId} onChange={(event) => setStudentId(event.target.value)} className="min-h-touch w-full rounded-input border border-neutral-300 bg-neutral-0 px-3 text-sm">
             <option value="">Chọn học sinh...</option>
             {(students.data ?? []).map((student) => <option key={student.id} value={student.id}>{student.fullName} · {student.studentCode}</option>)}
           </select>
@@ -156,7 +156,7 @@ export function ConversationContext({ thread, parent, tags, onRemoveTag, onManag
         <h4 className="text-sm font-semibold text-neutral-900">Tag hội thoại</h4>
         {tags.length ? <div className="mt-3 flex flex-wrap gap-1.5">{tags.map((tag) => <button key={tag.id} type="button" onClick={() => onRemoveTag(tag.id)} aria-label={`Bỏ tag ${tag.label}`} className={`flex min-h-8 items-center gap-1.5 rounded-full px-2.5 text-xs font-semibold transition-opacity hover:opacity-85 ${CHAT_TAG_STYLES[tag.color]}`}>{tag.label}<X size={12} aria-hidden="true" /></button>)}</div> : <p className="mt-2 text-xs leading-5 text-neutral-500">Chưa có tag.</p>}
         <p className="mt-2 text-xs leading-5 text-neutral-500">Gắn tag nhanh tại thanh phía trên ô nhập tin nhắn.</p>
-        {onManageTags && <button type="button" onClick={onManageTags} className="mt-3 flex min-h-10 w-full items-center justify-center gap-2 rounded-card border border-neutral-300 bg-white px-3 text-xs font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 active:scale-[.99]"><Settings2 size={15} />Quản lý tag mẫu</button>}
+        {onManageTags && <button type="button" onClick={onManageTags} className="mt-3 flex min-h-10 w-full items-center justify-center gap-2 rounded-card border border-neutral-300 bg-neutral-0 px-3 text-xs font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 active:scale-[.99]"><Settings2 size={15} />Quản lý tag mẫu</button>}
       </div>
     </div>
   );
@@ -209,8 +209,8 @@ export function ConversationPanel({ thread, parent, configured, tagCatalog, assi
 
   return (
     <>
-      <section className="flex min-h-0 min-w-0 w-full flex-col bg-white" aria-label={`Hội thoại với ${accountName(thread)}`}>
-        <header className="flex min-h-16 shrink-0 items-center justify-between border-b border-neutral-200 bg-white px-4 sm:px-5">
+      <section className="flex min-h-0 min-w-0 w-full flex-col bg-neutral-0" aria-label={`Hội thoại với ${accountName(thread)}`}>
+        <header className="flex min-h-16 shrink-0 items-center justify-between border-b border-neutral-200 bg-neutral-0 px-4 sm:px-5">
           <div className="flex min-w-0 items-center gap-3">
             <button type="button" onClick={onBack} className="icon-button flex lg:hidden" aria-label="Quay lại danh sách"><ArrowLeft size={18} /></button>
             <AccountAvatar thread={thread} />
@@ -244,12 +244,12 @@ export function ConversationPanel({ thread, parent, configured, tagCatalog, assi
             }) : <div className="py-20 text-center"><MessageCircle className="mx-auto text-neutral-300" size={38} /><p className="mt-4 text-sm font-semibold text-neutral-700">Chưa có tin nhắn</p><p className="mt-1 text-xs leading-5 text-neutral-500">Hãy bắt đầu cuộc trò chuyện với phụ huynh.</p></div>}
           </div>
         </div>
-        {!!tagCatalog.length && <div className="shrink-0 border-t border-neutral-100 bg-white px-4 pt-2" aria-label="Tag mẫu trên Composer"><div className="mx-auto flex max-w-[760px] items-center gap-1.5 overflow-x-auto pb-0.5">{tagCatalog.map((conversationTag) => {
+        {!!tagCatalog.length && <div className="shrink-0 border-t border-neutral-100 bg-neutral-0 px-4 pt-2" aria-label="Tag mẫu trên Composer"><div className="mx-auto flex max-w-[760px] items-center gap-1.5 overflow-x-auto pb-0.5">{tagCatalog.map((conversationTag) => {
               const selected = assignedTags.some((item) => item.id === conversationTag.id);
               const swatch = CHAT_TAG_COLORS.find((item) => item.value === conversationTag.color)?.swatch;
-              return <button key={conversationTag.id} type="button" onClick={() => onToggleTag(conversationTag)} disabled={tagUpdatePending} aria-pressed={selected} aria-label={`${selected ? "Bỏ" : "Gắn"} tag ${conversationTag.label}`} className={`flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold transition active:scale-[.97] disabled:opacity-50 ${selected ? `${CHAT_TAG_STYLES[conversationTag.color]} border-transparent` : "border-neutral-300 bg-white text-neutral-600 hover:bg-neutral-50"}`}>{!selected && <span className={`size-2 rounded-full ${swatch}`} />}{conversationTag.label}</button>;
-            })}{onManageTags && <button type="button" onClick={onManageTags} aria-label="Quản lý tag mẫu" className="flex size-8 shrink-0 items-center justify-center rounded-full border border-neutral-300 bg-white text-neutral-500 hover:bg-neutral-50 hover:text-neutral-800"><Settings2 size={14} /></button>}</div></div>}
-        <form onSubmit={submit} className="shrink-0 bg-white px-3 pb-3 pt-2 sm:px-4 sm:pb-4">
+              return <button key={conversationTag.id} type="button" onClick={() => onToggleTag(conversationTag)} disabled={tagUpdatePending} aria-pressed={selected} aria-label={`${selected ? "Bỏ" : "Gắn"} tag ${conversationTag.label}`} className={`flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold transition active:scale-[.97] disabled:opacity-50 ${selected ? `${CHAT_TAG_STYLES[conversationTag.color]} border-transparent` : "border-neutral-300 bg-neutral-0 text-neutral-600 hover:bg-neutral-50"}`}>{!selected && <span className={`size-2 rounded-full ${swatch}`} />}{conversationTag.label}</button>;
+            })}{onManageTags && <button type="button" onClick={onManageTags} aria-label="Quản lý tag mẫu" className="flex size-8 shrink-0 items-center justify-center rounded-full border border-neutral-300 bg-neutral-0 text-neutral-500 hover:bg-neutral-50 hover:text-neutral-800"><Settings2 size={14} /></button>}</div></div>}
+        <form onSubmit={submit} className="shrink-0 bg-neutral-0 px-3 pb-3 pt-2 sm:px-4 sm:pb-4">
           <div className="mx-auto w-full max-w-[760px]">
             {!responseWindowActive && (
               <p className="mb-2 rounded-input border-l-4 border-warning-500 bg-warning-50 px-3 py-2 text-xs leading-5 text-warning-800">

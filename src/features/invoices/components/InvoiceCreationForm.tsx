@@ -39,8 +39,8 @@ interface InvoiceCreationFormProps {
   onSubmit: (values: InvoiceCreationValues) => void;
 }
 
-const FIELD_CLASS = "min-h-11 w-full rounded-input border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-500";
-const PANEL_CLASS = "min-w-0 overflow-hidden rounded-card border border-neutral-200 bg-white";
+const FIELD_CLASS = "min-h-11 w-full rounded-input border border-neutral-300 bg-neutral-0 px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-500";
+const PANEL_CLASS = "min-w-0 overflow-hidden rounded-card border border-neutral-200 bg-neutral-0";
 
 export function InvoiceCreationForm({
   students,
@@ -155,7 +155,7 @@ export function InvoiceCreationForm({
       className="flex min-h-0 flex-1 flex-col"
     >
       <div className="min-h-0 flex-1 overflow-y-auto bg-neutral-50/70 p-4 sm:p-6">
-        <div className="mx-auto mb-4 flex max-w-[1600px] flex-col gap-3 rounded-card border border-neutral-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mx-auto mb-4 flex max-w-[1600px] flex-col gap-3 rounded-card border border-neutral-200 bg-neutral-0 p-3 sm:flex-row sm:items-center sm:justify-between">
           <div><p className="text-sm font-bold text-neutral-900">Loại hóa đơn</p><p className="mt-0.5 text-xs text-neutral-500">Chọn cách tính học phí trước khi chọn người học.</p></div>
           <div role="tablist" aria-label="Chọn loại hóa đơn" className="grid grid-cols-2 gap-1 rounded-input border border-neutral-200 bg-neutral-50 p-1">
             <ModeTab active={billingMode === "class"} onClick={() => changeBillingMode("class")}>Theo lớp học</ModeTab>
@@ -191,7 +191,7 @@ export function InvoiceCreationForm({
                     return (
                       <tr key={item.id} className={selected ? "bg-primary-50" : "hover:bg-neutral-50"}>
                         <td className="px-4 py-3"><p className="font-bold text-neutral-900">{item.name}</p>{association && <p className="mt-0.5 line-clamp-1 text-xs text-neutral-500">{association}</p>}<p className="mt-0.5 text-xs text-neutral-500">{studentCount} học sinh / {formatVnd(amount)}{billingMode === "class" ? "/buổi" : ""}</p></td>
-                        <td className="px-4 py-3 text-right"><button type="button" aria-pressed={selected} aria-label={`${selected ? "Đã chọn" : "Chọn"} ${targetLabel} ${item.name}`} onClick={() => selectTarget(item.id)} className={`min-h-9 rounded-input border px-3 text-xs font-bold transition ${selected ? "border-primary-600 bg-primary-600 text-white" : "border-neutral-300 bg-white text-primary-700 hover:border-primary-300 hover:bg-primary-50"}`}>{selected ? "Đã chọn" : billingMode === "class" ? "Chọn lớp" : "Chọn"}</button></td>
+                        <td className="px-4 py-3 text-right"><button type="button" aria-pressed={selected} aria-label={`${selected ? "Đã chọn" : "Chọn"} ${targetLabel} ${item.name}`} onClick={() => selectTarget(item.id)} className={`min-h-9 rounded-input border px-3 text-xs font-bold transition ${selected ? "border-primary-600 bg-primary-600 text-white" : "border-neutral-300 bg-neutral-0 text-primary-700 hover:border-primary-300 hover:bg-primary-50"}`}>{selected ? "Đã chọn" : billingMode === "class" ? "Chọn lớp" : "Chọn"}</button></td>
                       </tr>
                     );
                   })}
@@ -226,7 +226,7 @@ export function InvoiceCreationForm({
         </div>
       </div>
 
-      <footer className="flex flex-col gap-3 border-t border-neutral-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+      <footer className="flex flex-col gap-3 border-t border-neutral-200 bg-neutral-0 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div><p aria-live="polite" className="text-xs text-neutral-500">{selectedStudents.length} học sinh đã chọn.</p>{isError && <p role="alert" className="mt-1 text-xs font-semibold text-danger-700">Không thể tạo hóa đơn. Dữ liệu vẫn được giữ lại.</p>}</div>
         <div className="grid grid-cols-2 gap-2 sm:flex"><Button type="button" onClick={onCancel}>Hủy</Button><Button type="submit" variant="primary" disabled={!canSubmit || isPending}>{isPending ? "Đang tạo..." : `Tạo ${selectedStudents.length || ""} hóa đơn`}</Button></div>
       </footer>
@@ -235,7 +235,7 @@ export function InvoiceCreationForm({
 }
 
 function ModeTab({ active, children, onClick }: { active: boolean; children: React.ReactNode; onClick: () => void }) {
-  return <button type="button" role="tab" aria-selected={active} onClick={onClick} className={`min-h-10 rounded-lg px-4 text-xs font-bold transition ${active ? "bg-white text-primary-700 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}>{children}</button>;
+  return <button type="button" role="tab" aria-selected={active} onClick={onClick} className={`min-h-10 rounded-lg px-4 text-xs font-bold transition ${active ? "bg-neutral-0 text-primary-700 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}>{children}</button>;
 }
 
 function PanelHeader({ description, icon, id, title }: { description: string; icon: React.ReactNode; id: string; title: string }) {

@@ -5,7 +5,7 @@ export function RoleShowcase() {
   const [activeRole, setActiveRole] = useState<"parent" | "student" | "teacher">("parent");
 
   return (
-    <section id="mobile-app" className="py-20 bg-white border-y border-slate-200/80">
+    <section id="mobile-app" className="py-20 bg-neutral-0 border-y border-slate-200/80">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
           <span className="text-xs font-bold tracking-widest text-[#E54B4B] uppercase">Trải Nghiệm Đỉnh Cao Trên Smartphone</span>
@@ -67,14 +67,14 @@ export function RoleShowcase() {
                       <span className="font-bold text-sm text-[#0F2942]">EduMatrix Parent</span>
                       <span className="text-[10px] font-bold text-[#E54B4B] bg-[#E54B4B]/10 px-2 py-0.5 rounded-full">Phụ Huynh</span>
                     </div>
-                    <div className="p-3 bg-white rounded-xl shadow-sm border border-slate-200 space-y-2">
+                    <div className="p-3 bg-neutral-0 rounded-xl shadow-sm border border-slate-200 space-y-2">
                       <div className="flex items-center justify-between text-xs">
                         <span className="font-bold text-[#0F2942]">Con: Nguyễn Văn An</span>
                         <span className="text-[10px] text-emerald-600 font-bold">Đã Có Mặt</span>
                       </div>
                       <div className="text-[11px] text-slate-600">Điểm danh tiết 1 lúc 07:15 sáng hôm nay.</div>
                     </div>
-                    <div className="p-3 bg-white rounded-xl shadow-sm border border-slate-200 space-y-1">
+                    <div className="p-3 bg-neutral-0 rounded-xl shadow-sm border border-slate-200 space-y-1">
                       <div className="text-xs font-bold text-[#0F2942]">📊 Điểm Số Mới Cập Nhật</div>
                       <div className="text-[11px] text-slate-600">Kiểm tra Toán 15P: <strong className="text-[#E54B4B]">9.5 Điểm</strong></div>
                     </div>
@@ -91,7 +91,7 @@ export function RoleShowcase() {
                       <div className="text-xs font-bold">Lịch Học Hôm Nay</div>
                       <div className="text-[11px] text-slate-300">07:30 - Toán | 09:15 - Vật Lý</div>
                     </div>
-                    <div className="p-3 bg-white rounded-xl shadow-sm border border-slate-200 space-y-1">
+                    <div className="p-3 bg-neutral-0 rounded-xl shadow-sm border border-slate-200 space-y-1">
                       <div className="text-xs font-bold text-[#0F2942]">📝 Bài Tập Cần Nộp</div>
                       <div className="text-[11px] text-slate-600">Đề ôn tập Vật Lý 10 (Hạn: 22:00 Hôm nay)</div>
                     </div>
@@ -104,7 +104,7 @@ export function RoleShowcase() {
                       <span className="font-bold text-sm text-[#0F2942]">EduMatrix Teacher</span>
                       <span className="text-[10px] font-bold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">Giáo Viên</span>
                     </div>
-                    <div className="p-3 bg-white rounded-xl shadow-sm border border-slate-200 space-y-2">
+                    <div className="p-3 bg-neutral-0 rounded-xl shadow-sm border border-slate-200 space-y-2">
                       <div className="text-xs font-bold text-[#0F2942]">Điểm Danh Lớp 10A1</div>
                       <div className="text-[11px] text-slate-600">Có mặt: 34/35 | Vắng có phép: 1</div>
                       <button className="w-full py-1.5 bg-[#E54B4B] text-white rounded-lg text-xs font-bold">Xác Nhận Sỉ Số</button>

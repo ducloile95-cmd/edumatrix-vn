@@ -94,7 +94,7 @@ function MultiSelect({
         aria-expanded={open}
         aria-labelledby={labelId}
         onClick={() => setOpen((current) => !current)}
-        className="flex min-h-touch w-full items-center justify-between gap-3 rounded-input border border-neutral-300 bg-white px-3 text-left text-sm outline-none transition hover:border-primary-300 focus-visible:border-primary-500 focus-visible:ring-2 focus-visible:ring-primary-100"
+        className="flex min-h-touch w-full items-center justify-between gap-3 rounded-input border border-neutral-300 bg-neutral-0 px-3 text-left text-sm outline-none transition hover:border-primary-300 focus-visible:border-primary-500 focus-visible:ring-2 focus-visible:ring-primary-100"
       >
         <span className={selectedLabels.length ? "truncate text-neutral-800" : "text-neutral-400"}>
           {selectedLabels.join(", ") || "Chọn lựa chọn"}
@@ -105,7 +105,7 @@ function MultiSelect({
         </span>
       </button>
       {open && (
-        <div role="listbox" aria-multiselectable="true" aria-labelledby={labelId} className="absolute bottom-full inset-x-0 z-40 mb-1 max-h-52 overflow-y-auto rounded-xl border border-neutral-200 bg-white p-1.5 shadow-xl">
+        <div role="listbox" aria-multiselectable="true" aria-labelledby={labelId} className="absolute bottom-full inset-x-0 z-40 mb-1 max-h-52 overflow-y-auto rounded-xl border border-neutral-200 bg-neutral-0 p-1.5 shadow-xl">
           {options.length === 0 && <p className="px-3 py-2 text-xs text-neutral-500">Chưa có lựa chọn phù hợp.</p>}
           {options.map((option) => {
             const selected = value.includes(option.value);
@@ -277,7 +277,7 @@ export function ClassForm({ editingClass, onDone }: ClassFormProps) {
         </div>
 
         <div className="grid content-start gap-3 p-3 xl:min-h-0 xl:overflow-hidden">
-          <section className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+          <section className="rounded-2xl border border-neutral-200 bg-neutral-0 p-4 shadow-sm">
             <FormSectionHeader icon={<BookOpen size={18} />} title="Thông tin lớp học" description="Thông tin nhận diện và trạng thái vận hành của lớp." />
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="sm:col-span-2">
@@ -304,7 +304,7 @@ export function ClassForm({ editingClass, onDone }: ClassFormProps) {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+          <section className="rounded-2xl border border-neutral-200 bg-neutral-0 p-4 shadow-sm">
             <FormSectionHeader icon={<MapPin size={18} />} title="Lịch và địa điểm" description="Lịch học thông minh được đồng bộ trực tiếp từ bảng bên trái." />
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
@@ -326,7 +326,7 @@ export function ClassForm({ editingClass, onDone }: ClassFormProps) {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+          <section className="rounded-2xl border border-neutral-200 bg-neutral-0 p-4 shadow-sm">
             <FormSectionHeader icon={<UsersRound size={18} />} title="Môn học & Phân công" description="Các danh sách hỗ trợ chọn nhiều lựa chọn trong cùng một dropdown." />
             <div className="grid gap-3 sm:grid-cols-2">
               <div>

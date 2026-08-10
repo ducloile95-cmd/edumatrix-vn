@@ -1,93 +1,21 @@
-import { useState } from "react";
+import { LanguageSegmentedControl, ThemeSegmentedControl } from "@/features/preferences/components/AppearanceControls";
+import { useAppearance } from "@/features/preferences/useAppearance";
 
-type Theme = "light" | "dark" | "system";
-type Language = "vi" | "en";
-interface AppearancePrefs {
-  theme: Theme;
-  language: Language;
-}
-
-const THEME_OPTIONS: { value: Theme; label: string; available: boolean }[] = [
-  { value: "light", label: "Sáng", available: true },
-  { value: "dark", label: "Tối", available: false },
-  { value: "system", label: "Theo hệ thống", available: false },
-];
-
-const STORAGE_KEY = "edumatrix-appearance-prefs";
-const DEFAULT_PREFS: AppearancePrefs = { theme: "light", language: "vi" };
-
-function loadPrefs(): AppearancePrefs {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const stored = { ...DEFAULT_PREFS, ...(JSON.parse(raw) as Partial<AppearancePrefs>) };
-      return { ...stored, theme: stored.theme === "light" ? "light" : DEFAULT_PREFS.theme };
-    }
-  } catch {
-    // localStorage khong kha dung (private mode, quota...) - dung mac dinh.
-  }
-  return DEFAULT_PREFS;
-}
-
-/**
- * Tab "Giao diện" - chi luu tren trinh duyet (localStorage), CHUA co dark mode
- * / i18n thuc su ap dung toan app (khong co ha tang theme-provider / i18n
- * hien tai). Ghi ro trong UI de khong "demo gia" chuc nang chua lam that.
- */
 export function AppearanceTab() {
-  const [prefs, setPrefs] = useState<AppearancePrefs>(loadPrefs);
-  const [savedAt, setSavedAt] = useState<number | null>(null);
-
-  function save(next: AppearancePrefs) {
-    setPrefs(next);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    setSavedAt(Date.now());
-  }
+  const { language } = useAppearance();
+  const vi = language === "vi";
 
   return (
-    <div>
-      <p className="mb-4 rounded-input border border-warning-100 bg-warning-50 px-3 py-2 text-xs text-warning-700">
-        Giao diện tối, chế độ theo hệ thống và tiếng Anh chưa được hỗ trợ; các lựa chọn này được ghi rõ là sắp ra mắt.
-      </p>
+    <div className="max-w-2xl space-y-4">
+      <section className="rounded-card border border-neutral-200 bg-neutral-0 p-4 shadow-[var(--shadow-1)]" aria-label={vi ? "Lựa chọn giao diện" : "Theme selection"}>
+        <ThemeSegmentedControl />
+        <p className="mt-2 text-xs leading-5 text-neutral-500">{vi ? "Chế độ Sáng hoặc Tối được áp dụng ngay trên toàn bộ hệ thống." : "Light or Dark mode applies immediately across the entire system."}</p>
+      </section>
 
-      <div className="mb-5">
-        <p className="mb-2 text-sm font-medium text-neutral-700">Giao diện</p>
-        <div className="grid grid-cols-3 gap-2 sm:max-w-md">
-          {THEME_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              aria-pressed={prefs.theme === opt.value}
-              onClick={() => opt.available && save({ ...prefs, theme: opt.value })}
-              disabled={!opt.available}
-              className={`rounded-card border px-3 py-3 text-center text-sm font-medium transition ${
-                prefs.theme === opt.value
-                  ? "border-primary-500 bg-primary-50 text-primary-700"
-                  : "border-neutral-200 text-neutral-600 hover:border-neutral-300 disabled:cursor-not-allowed disabled:bg-neutral-50 disabled:text-neutral-400"
-              }`}
-            >
-              {opt.label}{!opt.available && <span className="mt-1 block text-3xs font-semibold uppercase">Sắp ra mắt</span>}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="max-w-xs">
-        <label className="mb-2 block text-sm font-medium text-neutral-700" htmlFor="settings-language">
-          Ngôn ngữ
-        </label>
-        <select
-          id="settings-language"
-          value={prefs.language}
-          onChange={(e) => save({ ...prefs, language: e.target.value as Language })}
-          className="min-h-touch w-full rounded-input border border-neutral-300 px-3 text-sm"
-        >
-          <option value="vi">Tiếng Việt</option>
-          <option value="en">English</option>
-        </select>
-      </div>
-
-      {savedAt && <p className="mt-3 text-xs text-success-700">Đã lưu lựa chọn.</p>}
+      <section className="rounded-card border border-neutral-200 bg-neutral-0 p-4 shadow-[var(--shadow-1)]" aria-label={vi ? "Lựa chọn ngôn ngữ" : "Language selection"}>
+        <LanguageSegmentedControl />
+        <p className="mt-2 text-xs leading-5 text-neutral-500">{vi ? "Ngôn ngữ được đồng bộ cho màn hình đăng nhập và cả ba vai trò." : "Language is synchronized for sign-in and all three roles."}</p>
+      </section>
     </div>
   );
 }

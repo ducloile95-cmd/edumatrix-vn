@@ -87,7 +87,7 @@ export default function LessonPlansPage() {
   return (
     <div className="flex flex-col h-full bg-neutral-50">
       {/* Workspace Tabs Header */}
-      <div className="shrink-0 bg-white border-b border-neutral-200 px-6 pt-4">
+      <div className="shrink-0 bg-neutral-0 border-b border-neutral-200 px-6 pt-4">
         <h1 className="text-xl font-bold text-neutral-800 mb-2">Quản lý Giáo án & Học liệu</h1>
         <Tabs label="Lesson Plan Workspaces">
           <Tab active={activeWorkspace === "teaching"} onClick={() => changeWorkspace("teaching")}>

@@ -34,7 +34,7 @@ export function SearchInput({
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         aria-label={accessibleName}
-        className="min-h-touch w-full rounded-input border border-neutral-300 bg-white pl-10 pr-10 text-sm text-neutral-800 outline-none transition placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+        className="min-h-touch w-full rounded-input border border-neutral-300 bg-neutral-0 pl-10 pr-10 text-sm text-neutral-800 outline-none transition placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
       />
       {value && (
         <button

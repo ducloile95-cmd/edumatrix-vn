@@ -63,4 +63,4 @@ export const DATA_LIST_SCROLL_ALWAYS =
   "min-h-0 flex-1 overflow-x-auto overflow-y-scroll overscroll-contain [scrollbar-gutter:stable]";
 
 export const DATA_LIST_FOOTER =
-  "shrink-0 border-t border-neutral-100 bg-white px-4 py-3 sm:px-5";
+  "shrink-0 border-t border-neutral-100 bg-neutral-0 px-4 py-3 sm:px-5";

@@ -79,7 +79,7 @@ function CurriculumItemRow({
   };
 
   return (
-    <div className="flex items-center justify-between gap-4 rounded-card border border-neutral-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.01)] hover:border-neutral-300 transition-colors">
+    <div className="flex items-center justify-between gap-4 rounded-card border border-neutral-200 bg-neutral-0 p-4 shadow-[0_1px_2px_rgba(0,0,0,0.01)] hover:border-neutral-300 transition-colors">
       {/* Sequence controls */}
       <div className="flex flex-col items-center gap-1 shrink-0">
         <button
@@ -133,7 +133,7 @@ function CurriculumItemRow({
             value={item.standardLessonId || ""}
             onChange={(e) => handleUpdateItem(item.id, "standardLessonId", e.target.value || null)}
             disabled={status !== "draft"}
-            className="flex-1 rounded-input border border-neutral-200 bg-white px-2 py-1 text-xs focus:border-primary-500 focus:outline-none font-medium"
+            className="flex-1 rounded-input border border-neutral-200 bg-neutral-0 px-2 py-1 text-xs focus:border-primary-500 focus:outline-none font-medium"
           >
             <option value="">-- Chọn bài học chuẩn --</option>
             {standardLessons
@@ -304,12 +304,12 @@ export function CourseCurriculumWorkspace() {
 
       {/* Main panel */}
       {!selectedCourseId ? (
-        <div className="flex flex-col items-center justify-center p-12 text-neutral-500 border border-neutral-200 rounded-card bg-white shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+        <div className="flex flex-col items-center justify-center p-12 text-neutral-500 border border-neutral-200 rounded-card bg-neutral-0 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
           <Play className="mb-4 h-12 w-12 text-primary-400 animate-pulse" />
           <p className="text-sm font-medium">Vui lòng chọn một khóa học để xem và thiết lập chương trình buổi học.</p>
         </div>
       ) : !activeCurriculum ? (
-        <div className="flex flex-col items-center justify-center p-12 text-neutral-500 border border-neutral-200 rounded-card bg-white shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+        <div className="flex flex-col items-center justify-center p-12 text-neutral-500 border border-neutral-200 rounded-card bg-neutral-0 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
           <AlertTriangle className="mb-4 h-12 w-12 text-yellow-500" />
           <p className="text-sm font-medium">Khóa học này chưa được cấu hình chương trình.</p>
           <Button
@@ -321,7 +321,7 @@ export function CourseCurriculumWorkspace() {
           </Button>
         </div>
       ) : (
-        <DataListPanel className="rounded-card border border-neutral-200 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.02)] min-h-0">
+        <DataListPanel className="rounded-card border border-neutral-200 bg-neutral-0 shadow-[0_1px_3px_rgba(0,0,0,0.02)] min-h-0">
           <div className="shrink-0 border-b border-neutral-200 px-4 py-4 sm:px-5">
             <h2 className="text-base font-semibold text-neutral-900">Chi tiết chương trình khóa học</h2>
             <p className="mt-0.5 text-xs text-neutral-500">
@@ -331,7 +331,7 @@ export function CourseCurriculumWorkspace() {
 
           <div className="flex-1 min-h-0 p-4 sm:p-5 grid grid-cols-1 gap-6 lg:grid-cols-3 bg-neutral-50/30">
             {/* Left panel: Version metadata */}
-            <div className="flex flex-col rounded-card border border-neutral-200 bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.01)] h-fit">
+            <div className="flex flex-col rounded-card border border-neutral-200 bg-neutral-0 p-5 shadow-[0_1px_2px_rgba(0,0,0,0.01)] h-fit">
               <h3 className="mb-4 text-sm font-bold text-neutral-800 border-b border-neutral-100 pb-2">Thông tin chương trình</h3>
               <div className="space-y-4">
                 <div>
@@ -381,7 +381,7 @@ export function CourseCurriculumWorkspace() {
             </div>
 
             {/* Right panel: Items sequence */}
-            <div className="lg:col-span-2 flex flex-col rounded-card border border-neutral-200 bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.01)] min-h-0 h-full">
+            <div className="lg:col-span-2 flex flex-col rounded-card border border-neutral-200 bg-neutral-0 p-5 shadow-[0_1px_2px_rgba(0,0,0,0.01)] min-h-0 h-full">
               <h3 className="shrink-0 mb-3 text-sm font-bold text-neutral-800 border-b border-neutral-100 pb-2">Danh sách buổi học</h3>
               
               <div className="flex-1 overflow-y-auto pr-1 space-y-3 [scrollbar-gutter:stable] min-h-0">
@@ -422,7 +422,7 @@ export function CourseCurriculumWorkspace() {
               value={draftTitle}
               onChange={(e) => setDraftTitle(e.target.value)}
               placeholder="Ví dụ: Chương trình học Kỳ II - v2"
-              className="min-h-touch w-full rounded-input border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 bg-white font-medium"
+              className="min-h-touch w-full rounded-input border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 bg-neutral-0 font-medium"
             />
           </div>
           <div className="flex justify-end gap-3 pt-2">

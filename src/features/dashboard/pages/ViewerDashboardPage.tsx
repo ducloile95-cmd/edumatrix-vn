@@ -195,7 +195,7 @@ export default function ViewerDashboardPage() {
             onSelect={selectStudent}
           />
 
-          <section aria-label="Hồ sơ học tập" className="order-1 rounded-card border border-primary-100 bg-white shadow-[var(--shadow-1)]">
+          <section aria-label="Hồ sơ học tập" className="order-1 rounded-card border border-primary-100 bg-neutral-0 shadow-[var(--shadow-1)]">
             <div className="grid lg:grid-cols-[1fr_280px]">
               <div className="p-5 sm:p-6">
                 <div className="flex items-start gap-4">
@@ -237,7 +237,7 @@ export default function ViewerDashboardPage() {
                   <summary className="motion-control grid size-[30px] cursor-pointer list-none place-items-center rounded-full border border-white/40 bg-white/10 text-white hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white active:scale-[.96] [&::-webkit-details-marker]:hidden" aria-label="Xem cách tính xếp loại">
                     <Info size={16} aria-hidden="true" />
                   </summary>
-                  <div className="absolute right-0 top-10 z-30 w-[316px] max-w-[calc(100vw-2rem)] rounded-modal border border-neutral-200 bg-white p-4 text-neutral-900 shadow-[var(--shadow-3)]">
+                  <div className="absolute right-0 top-10 z-30 w-[316px] max-w-[calc(100vw-2rem)] rounded-modal border border-neutral-200 bg-neutral-0 p-4 text-neutral-900 shadow-[var(--shadow-3)]">
                     <strong className="block text-sm leading-5">Cách tính xếp loại</strong>
                     <p className="mt-1.5 text-2xs leading-4 text-neutral-500">Dựa trên điểm trung bình của các bài đánh giá đã được giáo viên công bố.</p>
                     <div className="mt-3 space-y-0.5">
@@ -312,7 +312,7 @@ export default function ViewerDashboardPage() {
 
           <section
             aria-label="Việc cần quan tâm"
-            className="order-3 rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)]"
+            className="order-3 rounded-card border border-neutral-200 bg-neutral-0 shadow-[var(--shadow-1)]"
           >
             <div className="grid divide-y divide-neutral-100 lg:grid-cols-4 lg:divide-x lg:divide-y-0">
               <DashboardList

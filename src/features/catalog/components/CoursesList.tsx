@@ -81,7 +81,7 @@ export function CoursesList({ canManage = true, onEdit, onAdd, subjectFilter, on
   const hasRows = !isLoading && !isError && filtered.length > 0;
 
   return (
-    <DataListPanel className="rounded-card border border-neutral-200 bg-white">
+    <DataListPanel className="rounded-card border border-neutral-200 bg-neutral-0">
       <div className="shrink-0 border-b border-neutral-200 px-4 py-4 sm:px-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>

@@ -31,7 +31,7 @@ export function MonthGrid({ month, sessionCountByDay, today, onSelectDate }: Mon
             key={key}
             type="button"
             onClick={() => onSelectDate(day)}
-            className={`flex min-h-[92px] flex-col gap-1.5 bg-white p-1.5 text-left transition hover:bg-neutral-50 ${
+            className={`flex min-h-[92px] flex-col gap-1.5 bg-neutral-0 p-1.5 text-left transition hover:bg-neutral-50 ${
               !inMonth ? "bg-neutral-50 text-neutral-400" : ""
             } ${isToday ? "bg-primary-50 hover:bg-primary-50" : ""}`}
           >

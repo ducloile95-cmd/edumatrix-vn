@@ -57,6 +57,14 @@ describe("teacher list query scope", () => {
     )));
   });
 
+  test("students require a teacherIds array-contains constraint", async () => {
+    await assertFails(getDocs(query(collection(teacherDb(), "students"))));
+    await assertSucceeds(getDocs(query(
+      collection(teacherDb(), "students"),
+      where("teacherIds", "array-contains", TEACHER_UID),
+    )));
+  });
+
   test("assignments require an assigned class constraint", async () => {
     await assertFails(getDocs(query(collection(teacherDb(), "assignments"))));
     await assertSucceeds(getDocs(query(

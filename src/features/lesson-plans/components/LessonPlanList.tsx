@@ -111,7 +111,7 @@ export function LessonPlanList({ onEdit, onCreateNew }: LessonPlanListProps) {
           </p>
           <div className="space-y-2">
             {gapSessions.map((session) => (
-              <div key={session.id} className="flex flex-wrap items-center justify-between gap-2 rounded-input border border-warning-100 bg-white px-3 py-2">
+              <div key={session.id} className="flex flex-wrap items-center justify-between gap-2 rounded-input border border-warning-100 bg-neutral-0 px-3 py-2">
                 <div>
                   <p className="text-sm font-semibold text-neutral-900">
                     {classById.get(session.classId)?.name ?? "Lớp"} · {formatSessionLabel(session)}
@@ -124,7 +124,7 @@ export function LessonPlanList({ onEdit, onCreateNew }: LessonPlanListProps) {
         </div>
       )}
 
-      <DataListPanel className="rounded-card border border-neutral-200 bg-white">
+      <DataListPanel className="rounded-card border border-neutral-200 bg-neutral-0">
         <div className="shrink-0 border-b border-neutral-200 px-4 py-4 sm:px-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>

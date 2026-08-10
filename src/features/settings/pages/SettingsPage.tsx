@@ -21,7 +21,7 @@ export default function SettingsPage() {
               <Tab key={tab.value} active={activeTab === tab.value} onClick={() => setActiveTab(tab.value)}>{tab.label}</Tab>
             ))}
           </Tabs>
-          <div className="rounded-card border border-neutral-200 bg-white p-5">
+          <div className="rounded-card border border-neutral-200 bg-neutral-0 p-5">
             {activeTab === "notifications" ? <NotificationsTab /> : <AppearanceTab />}
           </div>
         </div>

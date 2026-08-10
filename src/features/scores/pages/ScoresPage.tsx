@@ -201,20 +201,20 @@ export default function ScoresPage({ embedded = false, onDirtyChange }: ScoresPa
       )}
 
       <div className="grid items-start gap-4 xl:grid-cols-[290px_minmax(0,1fr)]">
-        <aside className="rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)]">
+        <aside className="rounded-card border border-neutral-200 bg-neutral-0 shadow-[var(--shadow-1)]">
           <div className="flex items-center justify-between border-b border-neutral-200 px-4 py-3">
             <h2 className="font-bold text-neutral-900">Thiết lập sổ điểm</h2>
             {klass.data && <span className="rounded-full bg-neutral-100 px-2 py-1 text-xs font-semibold text-neutral-600">{klass.data.name}</span>}
           </div>
           <div className="space-y-4 p-4">
             <Field label="Lớp học" htmlFor="score-class">
-              <select id="score-class" value={classId} onChange={(event) => changeClass(event.target.value)} className="min-h-touch w-full rounded-input border border-neutral-300 bg-white px-3">
+              <select id="score-class" value={classId} onChange={(event) => changeClass(event.target.value)} className="min-h-touch w-full rounded-input border border-neutral-300 bg-neutral-0 px-3">
                 <option value="">Chọn lớp</option>
                 {classes.data?.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
               </select>
             </Field>
             <Field label="Môn học" htmlFor="score-subject" help="Danh sách lấy từ môn đã gán cho lớp.">
-              <select id="score-subject" disabled={!classId} value={meta.subjectId} onChange={(event) => updateMeta({ subjectId: event.target.value })} className="min-h-touch w-full rounded-input border border-neutral-300 bg-white px-3 disabled:opacity-50">
+              <select id="score-subject" disabled={!classId} value={meta.subjectId} onChange={(event) => updateMeta({ subjectId: event.target.value })} className="min-h-touch w-full rounded-input border border-neutral-300 bg-neutral-0 px-3 disabled:opacity-50">
                 <option value="">Chọn môn</option>
                 {classSubjects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
               </select>
@@ -224,7 +224,7 @@ export default function ScoresPage({ embedded = false, onDirtyChange }: ScoresPa
             </Field>
             <div className="grid grid-cols-[1fr_90px] gap-3">
               <Field label="Loại đánh giá" htmlFor="score-type">
-                <select id="score-type" value={meta.type} onChange={(event) => updateMeta({ type: event.target.value as AssessmentType })} className="min-h-touch w-full rounded-input border border-neutral-300 bg-white px-3">
+                <select id="score-type" value={meta.type} onChange={(event) => updateMeta({ type: event.target.value as AssessmentType })} className="min-h-touch w-full rounded-input border border-neutral-300 bg-neutral-0 px-3">
                   {Object.entries(ASSESSMENT_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                 </select>
               </Field>
@@ -235,7 +235,7 @@ export default function ScoresPage({ embedded = false, onDirtyChange }: ScoresPa
           </div>
         </aside>
 
-        <section className="min-w-0 overflow-hidden rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)]">
+        <section className="min-w-0 overflow-hidden rounded-card border border-neutral-200 bg-neutral-0 shadow-[var(--shadow-1)]">
           <div className="flex flex-col gap-3 border-b border-neutral-200 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-lg font-bold text-neutral-900">{klass.data ? `Sổ điểm ${klass.data.name}` : "Chọn lớp để mở sổ điểm"}</h2>
@@ -272,14 +272,14 @@ export default function ScoresPage({ embedded = false, onDirtyChange }: ScoresPa
                       const average = publishedScores.length ? publishedScores.reduce((sum, score) => sum + score.score / score.maxScore * 10, 0) / publishedScores.length : null;
                       return (
                         <tr key={student.id} className="hover:bg-neutral-50/70">
-                          <td className="sticky left-0 z-[1] border-b border-neutral-100 bg-white px-4 py-3 font-semibold">{student.fullName}<span className="block text-xs font-normal text-neutral-500">{student.studentCode}</span></td>
+                          <td className="sticky left-0 z-[1] border-b border-neutral-100 bg-neutral-0 px-4 py-3 font-semibold">{student.fullName}<span className="block text-xs font-normal text-neutral-500">{student.studentCode}</span></td>
                           {columns.map(([key]) => {
                             const score = scoreByCell.get(`${key}|${student.id}`);
                             const editable = key === currentKey;
-                            return <td key={key} className={`border-b border-neutral-100 px-3 py-2 text-center font-semibold tabular-nums ${editable ? "bg-warning-50" : ""}`}>{editable ? <input aria-label={`Điểm ${student.fullName}`} type="number" min={0} max={meta.max} value={entries[student.id]?.score ?? ""} onChange={(event) => updateEntry(student.id, { score: event.target.value })} className="min-h-10 w-20 rounded-input border border-neutral-300 bg-white px-2 text-center" /> : score?.score ?? "--"}</td>;
+                            return <td key={key} className={`border-b border-neutral-100 px-3 py-2 text-center font-semibold tabular-nums ${editable ? "bg-warning-50" : ""}`}>{editable ? <input aria-label={`Điểm ${student.fullName}`} type="number" min={0} max={meta.max} value={entries[student.id]?.score ?? ""} onChange={(event) => updateEntry(student.id, { score: event.target.value })} className="min-h-10 w-20 rounded-input border border-neutral-300 bg-neutral-0 px-2 text-center" /> : score?.score ?? "--"}</td>;
                           })}
-                          {currentKey && !columns.some(([key]) => key === currentKey) && <td className="border-b border-primary-50 bg-primary-50/60 px-3 py-2 text-center"><input aria-label={`Điểm ${student.fullName}`} type="number" min={0} max={meta.max} value={entries[student.id]?.score ?? ""} onChange={(event) => updateEntry(student.id, { score: event.target.value })} className="min-h-10 w-20 rounded-input border border-neutral-300 bg-white px-2 text-center" /></td>}
-                          {currentKey && <td className="border-b border-neutral-100 px-3 py-2"><input aria-label={`Nhận xét ${student.fullName}`} value={entries[student.id]?.comment ?? ""} onChange={(event) => updateEntry(student.id, { comment: event.target.value })} placeholder="Nhận xét" className="min-h-10 w-full rounded-input border border-neutral-300 bg-white px-2" /></td>}
+                          {currentKey && !columns.some(([key]) => key === currentKey) && <td className="border-b border-primary-50 bg-primary-50/60 px-3 py-2 text-center"><input aria-label={`Điểm ${student.fullName}`} type="number" min={0} max={meta.max} value={entries[student.id]?.score ?? ""} onChange={(event) => updateEntry(student.id, { score: event.target.value })} className="min-h-10 w-20 rounded-input border border-neutral-300 bg-neutral-0 px-2 text-center" /></td>}
+                          {currentKey && <td className="border-b border-neutral-100 px-3 py-2"><input aria-label={`Nhận xét ${student.fullName}`} value={entries[student.id]?.comment ?? ""} onChange={(event) => updateEntry(student.id, { comment: event.target.value })} placeholder="Nhận xét" className="min-h-10 w-full rounded-input border border-neutral-300 bg-neutral-0 px-2" /></td>}
                           <td className="border-b border-neutral-100 px-3 py-3 text-center font-bold tabular-nums text-primary-700">{average == null ? "--" : average.toFixed(1)}</td>
                         </tr>
                       );
@@ -297,7 +297,7 @@ export default function ScoresPage({ embedded = false, onDirtyChange }: ScoresPa
                 ))}
               </div>
 
-              <div className="sticky bottom-0 flex flex-col gap-3 border-t border-neutral-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="sticky bottom-0 flex flex-col gap-3 border-t border-neutral-200 bg-neutral-0 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="text-sm text-neutral-600"><strong>{dirtyCount} thay đổi chưa lưu.</strong>{incompleteCount > 0 && <span className="ml-1 text-warning-700">{incompleteCount} nhận xét chưa có điểm sẽ không được lưu.</span>}</div>
                 <div className="flex gap-2">
                   {dirty && <Button icon={<RotateCcw size={17} />} onClick={() => { setEntries(baseline); save.reset(); }}>Hoàn tác</Button>}

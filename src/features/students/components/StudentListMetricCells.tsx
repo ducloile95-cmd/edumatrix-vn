@@ -54,14 +54,14 @@ export function ScoreRing({
   };
 
   return (
-    <div className="flex min-w-0 items-center gap-2 rounded-input border border-neutral-200 bg-white px-2 py-1.5">
+    <div className="flex min-w-0 items-center gap-2 rounded-input border border-neutral-200 bg-neutral-0 px-2 py-1.5">
       <div
         className="grid size-9 shrink-0 place-items-center rounded-full transition"
         style={{
           background: `conic-gradient(${palette.accent} ${value ?? 0}%, ${palette.bg} 0)`,
         }}
       >
-        <div className="grid size-6 place-items-center rounded-full bg-white">
+        <div className="grid size-6 place-items-center rounded-full bg-neutral-0">
           <span className={`text-2xs font-bold ${palette.text}`}>{grade ?? (value === null ? "--" : value)}</span>
         </div>
       </div>

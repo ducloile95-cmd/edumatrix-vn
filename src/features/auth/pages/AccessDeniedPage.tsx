@@ -114,7 +114,7 @@ function Notice({ body, title, tone }: { body: string; title: string; tone: "dan
 
 function Declared({ request }: { request: LinkRequest }) {
   return (
-    <div className="rounded-card border border-neutral-200 bg-white p-4">
+    <div className="rounded-card border border-neutral-200 bg-neutral-0 p-4">
       <p className="text-xs font-semibold text-neutral-500">Đã khai báo</p>
       <ul className="mt-2 grid gap-1 text-sm text-neutral-700">
         {request.children.map((child, index) => (

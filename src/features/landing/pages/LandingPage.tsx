@@ -21,7 +21,7 @@ export default function LandingPage() {
       {/* ------------------------------------------------------------- */}
       {/* NAVBAR SECTION                                                */}
       {/* ------------------------------------------------------------- */}
-      <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-slate-200/80 transition-all">
+      <header className="sticky top-0 z-50 bg-neutral-0/90 backdrop-blur-md border-b border-slate-200/80 transition-all">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           {/* Brand Logo */}
           <Link to="/" className="hover:opacity-90 transition-opacity">
@@ -66,7 +66,7 @@ export default function LandingPage() {
       {/* ------------------------------------------------------------- */}
       {/* 1. HERO SECTION                                               */}
       {/* ------------------------------------------------------------- */}
-      <section className="relative pt-12 pb-20 md:pt-16 md:pb-28 overflow-hidden bg-gradient-to-b from-white via-slate-50 to-[#F8FAFC]">
+      <section className="relative pt-12 pb-20 md:pt-16 md:pb-28 overflow-hidden bg-gradient-to-b from-neutral-0 via-slate-50 to-[#F8FAFC]">
         {/* Subtle Brand Color Accent Blobs */}
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-[#0F2942]/5 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute top-1/3 right-10 w-[300px] h-[300px] bg-[#E54B4B]/10 rounded-full blur-3xl pointer-events-none" />
@@ -101,7 +101,7 @@ export default function LandingPage() {
                 </Link>
                 <Link
                   to={ROUTES.LOGIN}
-                  className="w-full sm:w-auto px-7 py-3.5 text-base font-bold text-[#0F2942] bg-white border-2 border-slate-200 hover:border-[#0F2942] rounded-xl shadow-sm transition-all duration-200 text-center flex items-center justify-center gap-2"
+                  className="w-full sm:w-auto px-7 py-3.5 text-base font-bold text-[#0F2942] bg-neutral-0 border-2 border-slate-200 hover:border-[#0F2942] rounded-xl shadow-sm transition-all duration-200 text-center flex items-center justify-center gap-2"
                 >
                   Đăng Nhập Hệ Thống
                 </Link>
@@ -191,7 +191,7 @@ export default function LandingPage() {
                 {/* Overlapping Mobile Device Mockup */}
                 <div className="absolute -bottom-6 -right-2 sm:-right-6 w-48 sm:w-56 bg-slate-900 rounded-[2.5rem] p-2.5 shadow-2xl border-4 border-slate-700 transform -rotate-3 hover:rotate-0 transition-transform duration-300">
                   <div className="w-16 h-3 bg-slate-800 rounded-full mx-auto mb-2" />
-                  <div className="bg-white rounded-[2rem] p-3 text-slate-900 space-y-3 font-sans">
+                  <div className="bg-neutral-0 rounded-[2rem] p-3 text-slate-900 space-y-3 font-sans">
                     <div className="flex items-center justify-between border-b pb-2">
                       <div className="text-xs font-bold text-[#0F2942]">EduMatrix Mobile</div>
                       <Bell className="w-3.5 h-3.5 text-[#E54B4B]" />
@@ -216,7 +216,7 @@ export default function LandingPage() {
       {/* ------------------------------------------------------------- */}
       {/* 2. ECOSYSTEM OVERVIEW SECTION                                 */}
       {/* ------------------------------------------------------------- */}
-      <section id="ecosystem" className="py-20 bg-white border-y border-slate-200/80">
+      <section id="ecosystem" className="py-20 bg-neutral-0 border-y border-slate-200/80">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto space-y-4">
             <h2 className="text-xs font-bold tracking-widest text-[#E54B4B] uppercase">Hệ Sinh Thái Đồng Bộ</h2>
@@ -332,7 +332,7 @@ export default function LandingPage() {
             </div>
 
             {/* Cell 2: Metric Stat Card */}
-            <div className="bg-white rounded-3xl p-8 border border-slate-200/80 shadow-md flex flex-col justify-between">
+            <div className="bg-neutral-0 rounded-3xl p-8 border border-slate-200/80 shadow-md flex flex-col justify-between">
               <div className="space-y-2">
                 <div className="w-10 h-10 rounded-xl bg-[#E54B4B]/10 text-[#E54B4B] flex items-center justify-center">
                   <Star className="w-5 h-5" />
@@ -346,7 +346,7 @@ export default function LandingPage() {
             </div>
 
             {/* Cell 3: Security & Privacy */}
-            <div className="bg-white rounded-3xl p-8 border border-slate-200/80 shadow-md flex flex-col justify-between">
+            <div className="bg-neutral-0 rounded-3xl p-8 border border-slate-200/80 shadow-md flex flex-col justify-between">
               <div className="space-y-3">
                 <div className="w-10 h-10 rounded-xl bg-[#0F2942]/10 text-[#0F2942] flex items-center justify-center">
                   <ShieldCheck className="w-5 h-5 text-[#0F2942]" />

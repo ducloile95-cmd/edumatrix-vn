@@ -18,7 +18,7 @@ interface StudentFormProps {
 const inputClass =
   "min-h-touch w-full rounded-input border border-neutral-300 px-3 text-sm text-neutral-900 outline-none transition placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:bg-neutral-100 disabled:text-neutral-400";
 
-const sectionClass = "flex h-full min-w-0 flex-col overflow-hidden rounded-card border border-neutral-200 bg-white shadow-[0_1px_2px_rgba(28,51,137,.04)]";
+const sectionClass = "flex h-full min-w-0 flex-col overflow-hidden rounded-card border border-neutral-200 bg-neutral-0 shadow-[0_1px_2px_rgba(28,51,137,.04)]";
 
 export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
   const queryClient = useQueryClient();
@@ -210,7 +210,7 @@ export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
               ))}
             </select>
           </Field>
-          <div className="rounded-input border border-neutral-200 bg-white px-3 py-2 text-xs leading-5 text-neutral-500">
+          <div className="rounded-input border border-neutral-200 bg-neutral-0 px-3 py-2 text-xs leading-5 text-neutral-500">
             Khi chọn lớp, hệ thống tự tạo ghi danh, thêm học sinh vào lớp và đồng bộ giáo viên phụ trách.
           </div>
         </div>

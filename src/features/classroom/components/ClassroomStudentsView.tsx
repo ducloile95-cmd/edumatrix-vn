@@ -61,7 +61,7 @@ export function ClassroomStudentsView({
   return (
     <>
 {active && <div className="grid gap-4 xl:grid-cols-[minmax(620px,1.4fr)_minmax(340px,.6fr)]">
-        <section className="overflow-hidden rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)]">
+        <section className="overflow-hidden rounded-card border border-neutral-200 bg-neutral-0 shadow-[var(--shadow-1)]">
           <div className="flex flex-col gap-4 border-b border-neutral-200 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
             <h2 className="text-lg font-bold">Ghi nhận học sinh</h2>
             <div className="grid grid-cols-2 gap-2">
@@ -71,7 +71,7 @@ export function ClassroomStudentsView({
           </div>
           {classStudents.length ? <ul className="space-y-3 bg-neutral-50/80 p-3 sm:p-4">{classStudents.map((student, index) => {
             const entry = entries[student.id];
-            return <li key={student.id} className="overflow-hidden rounded-card border border-neutral-200 bg-white shadow-[0_1px_2px_rgba(28,51,137,.04)]">
+            return <li key={student.id} className="overflow-hidden rounded-card border border-neutral-200 bg-neutral-0 shadow-[0_1px_2px_rgba(28,51,137,.04)]">
               <div className="flex items-center gap-3 border-b border-neutral-100 px-4 py-3">
                 <span className="grid size-9 shrink-0 place-items-center rounded-input bg-neutral-100 text-xs font-black tabular-nums text-neutral-500">{String(index + 1).padStart(2, "0")}</span>
                 <div className="min-w-0 flex-1"><p className="truncate font-bold text-neutral-950">{student.fullName}</p><p className="mt-0.5 text-xs text-neutral-500">{student.studentCode}</p></div>
@@ -82,14 +82,14 @@ export function ClassroomStudentsView({
                 <OptionGroup kind="homework" icon={<BookOpenCheck size={16} />} label="Bài tập buổi trước" helper="Mức độ hoàn thành bài đã giao" options={HOMEWORK_OPTIONS} value={entry?.previousHomeworkStatus ?? "not_assigned"} disabled={isPublished} onChange={(value) => updateEntry(student.id, { previousHomeworkStatus: value as PreviousHomeworkStatus })} />
                 <label className="md:col-span-2">
                   <span className="mb-1.5 flex items-center gap-1.5 text-xs font-bold text-neutral-600"><MessageSquareText size={14} /> Nhận xét cá nhân <span className="font-normal text-neutral-400">(không bắt buộc)</span></span>
-                  <input aria-label={`Nhận xét ${student.fullName}`} value={entry?.individualComment ?? ""} disabled={isPublished} onChange={(event) => updateEntry(student.id, { individualComment: event.target.value })} placeholder="Chỉ nhập khi học sinh cần chú ý, ví dụ: nghỉ không phép hoặc chưa hoàn thành bài" className="min-h-10 w-full rounded-input border border-neutral-300 bg-neutral-50/60 px-3 text-sm outline-none transition focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-100 disabled:cursor-not-allowed disabled:opacity-60" />
+                  <input aria-label={`Nhận xét ${student.fullName}`} value={entry?.individualComment ?? ""} disabled={isPublished} onChange={(event) => updateEntry(student.id, { individualComment: event.target.value })} placeholder="Chỉ nhập khi học sinh cần chú ý, ví dụ: nghỉ không phép hoặc chưa hoàn thành bài" className="min-h-10 w-full rounded-input border border-neutral-300 bg-neutral-50/60 px-3 text-sm outline-none transition focus:border-primary-500 focus:bg-neutral-0 focus:ring-2 focus:ring-primary-100 disabled:cursor-not-allowed disabled:opacity-60" />
                 </label>
               </div>
             </li>;
           })}</ul> : <div className="p-6"><EmptyState title="Lớp chưa có học sinh" /></div>}
         </section>
 
-        <aside className="h-fit overflow-hidden rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)]">
+        <aside className="h-fit overflow-hidden rounded-card border border-neutral-200 bg-neutral-0 shadow-[var(--shadow-1)]">
           <div className="border-b border-neutral-100 p-4"><h2 className="text-lg font-bold">Nhật ký buổi học</h2><p className="mt-1 text-xs text-neutral-500">Bản nháp chưa được gửi cho phụ huynh.</p></div>
           <div className="space-y-4 p-4">
             <section aria-labelledby="linked-lesson-plan-title" className="overflow-hidden rounded-card border border-primary-200 bg-primary-50/50">
@@ -111,7 +111,7 @@ export function ClassroomStudentsView({
                   )}
                 </div>
               </div>
-              <div className="border-t border-primary-100 bg-white/70 p-2.5">
+              <div className="border-t border-primary-100 bg-neutral-0/70 p-2.5">
                 {lessonPlan.data ? (
                   <Button size="sm" className="w-full" onClick={() => setLessonPlanOpen(true)} icon={<Eye size={15} />}>Xem giáo án</Button>
                 ) : (

@@ -67,7 +67,7 @@ export function PlatformShowcase() {
         </div>
     
         {/* Web Dashboard Display Card */}
-        <div id="web-platform-panel" role="tabpanel" aria-labelledby={`web-tab-${activeWebTab}`} className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden">
+        <div id="web-platform-panel" role="tabpanel" aria-labelledby={`web-tab-${activeWebTab}`} className="bg-neutral-0 rounded-2xl border border-slate-200 shadow-xl overflow-hidden">
           <div className="p-6 md:p-8 bg-[#0F2942] text-white">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
               <div className="lg:col-span-5 space-y-4">
@@ -122,7 +122,7 @@ export function PlatformShowcase() {
                 <div className="pt-2">
                   <Link
                     to={ROUTES.LOGIN}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-white text-[#0F2942] font-bold text-sm hover:bg-slate-100 transition-colors"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-neutral-0 text-[#0F2942] font-bold text-sm hover:bg-slate-100 transition-colors"
                   >
                     Xem Giao Diện Web Thật
                     <ChevronRight className="w-4 h-4 text-[#E54B4B]" />

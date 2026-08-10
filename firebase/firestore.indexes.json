@@ -29,6 +29,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "assignedTeacherIds", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "studentId", "order": "ASCENDING" },
         { "fieldPath": "lastMessageAt", "order": "DESCENDING" }
       ]
     },

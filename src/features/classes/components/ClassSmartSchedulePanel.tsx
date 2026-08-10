@@ -40,7 +40,7 @@ interface ClassSmartSchedulePanelProps {
   recurrencePreview: ReturnType<typeof generateRecurringSessions> | null;
 }
 
-const FIELD_CLASS = "min-h-touch w-full rounded-input border border-neutral-300 bg-white px-3 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100";
+const FIELD_CLASS = "min-h-touch w-full rounded-input border border-neutral-300 bg-neutral-0 px-3 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100";
 
 export function ClassSmartSchedulePanel({
   expectedSessionCount,
@@ -83,7 +83,7 @@ export function ClassSmartSchedulePanel({
   };
 
   return (
-    <section className="flex h-full min-h-0 flex-col rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+    <section className="flex h-full min-h-0 flex-col rounded-2xl border border-neutral-200 bg-neutral-0 p-4 shadow-sm">
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary-50 text-primary-700"><Sparkles size={18} /></span>
@@ -110,7 +110,7 @@ export function ClassSmartSchedulePanel({
                 {WEEKDAYS.map(({ day, short, full }) => {
                   const checked = recurrence.daysOfWeek.includes(day);
                   return (
-                    <button key={day} type="button" disabled={readOnly} aria-label={full} aria-pressed={checked} onClick={() => toggleDay(day)} className={`min-h-9 rounded-lg border text-xs font-bold transition disabled:cursor-default ${checked ? "border-primary-500 bg-primary-500 text-white" : "border-neutral-300 bg-white text-neutral-600 hover:border-primary-300 hover:text-primary-700"}`}>
+                    <button key={day} type="button" disabled={readOnly} aria-label={full} aria-pressed={checked} onClick={() => toggleDay(day)} className={`min-h-9 rounded-lg border text-xs font-bold transition disabled:cursor-default ${checked ? "border-primary-500 bg-primary-500 text-white" : "border-neutral-300 bg-neutral-0 text-neutral-600 hover:border-primary-300 hover:text-primary-700"}`}>
                       {short}
                     </button>
                   );
@@ -127,11 +127,11 @@ export function ClassSmartSchedulePanel({
             </div>
           </div>
 
-          <div className="min-w-0 rounded-xl border border-neutral-200 bg-white p-3">
+          <div className="min-w-0 rounded-xl border border-neutral-200 bg-neutral-0 p-3">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <div><p className="flex items-center gap-1.5 text-xs font-semibold text-neutral-500"><CalendarDays size={14} /> Lịch tháng tương tác</p><h4 className="mt-0.5 text-base font-black text-neutral-950">Tháng {format(visibleMonth, "MM / yyyy")}</h4></div>
               <div className="flex items-center gap-1.5">
-                <button type="button" onClick={goToStartMonth} disabled={!recurrence.startDate} className="min-h-9 cursor-pointer rounded-lg border border-neutral-300 bg-white px-3 text-xs font-semibold text-neutral-600 transition hover:border-primary-300 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-50">Tháng bắt đầu</button>
+                <button type="button" onClick={goToStartMonth} disabled={!recurrence.startDate} className="min-h-9 cursor-pointer rounded-lg border border-neutral-300 bg-neutral-0 px-3 text-xs font-semibold text-neutral-600 transition hover:border-primary-300 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-50">Tháng bắt đầu</button>
                 <button type="button" aria-label="Tháng trước" onClick={() => setVisibleMonth((month) => subMonths(month, 1))} className="grid size-9 cursor-pointer place-items-center rounded-lg border border-neutral-300 text-neutral-600 transition hover:border-primary-300 hover:text-primary-700"><ChevronLeft size={17} /></button>
                 <button type="button" aria-label="Tháng sau" onClick={() => setVisibleMonth((month) => addMonths(month, 1))} className="grid size-9 cursor-pointer place-items-center rounded-lg border border-neutral-300 text-neutral-600 transition hover:border-primary-300 hover:text-primary-700"><ChevronRight size={17} /></button>
               </div>

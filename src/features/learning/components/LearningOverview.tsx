@@ -138,7 +138,7 @@ export function LearningOverview({ onOpenAssignments }: { onOpenAssignments: () 
         </ChartPanel>
       </section>
 
-      <section className="overflow-hidden rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)]">
+      <section className="overflow-hidden rounded-card border border-neutral-200 bg-neutral-0 shadow-[var(--shadow-1)]">
         <div className="flex items-center justify-between border-b border-neutral-200 px-5 py-4"><div><h2 className="text-sm font-semibold">Việc cần xử lý</h2><p className="mt-1 text-xs text-neutral-500">Bài nộp chưa được phản hồi</p></div><span className="rounded-full bg-warning-50 px-2.5 py-1 text-xs font-semibold text-warning-700">{pending.length} bài</span></div>
         {pending.length ? <ul className="grid divide-y divide-neutral-200 lg:grid-cols-2 lg:divide-x lg:divide-y-0">{pending.map(({ item, summary }) => <li key={item.id} className="flex items-center justify-between gap-3 px-5 py-4"><div><p className="text-sm font-medium text-neutral-900">{item.title}</p><p className="text-xs text-neutral-500">{(summary?.submittedCount ?? 0) - (summary?.gradedCount ?? 0) - (summary?.redoCount ?? 0)} bài nộp đang chờ</p></div><button type="button" onClick={onOpenAssignments} className="min-h-touch rounded-input border border-neutral-300 px-3 text-xs font-semibold text-primary-700 transition hover:border-primary-300 hover:bg-primary-50 active:scale-[.98]">Mở</button></li>)}</ul> : <div className="p-8 text-center text-sm text-neutral-500">Không có bài nộp đang chờ chấm.</div>}
       </section>

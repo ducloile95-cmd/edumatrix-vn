@@ -398,6 +398,12 @@ describe("chat and message outbox", () => {
   test("Teacher chi doc thread duoc phan cong", async () => {
     await assertSucceeds(getDoc(doc(asTeacher(), "chat_threads", "thread_assigned")));
     await assertFails(getDoc(doc(asTeacher(), "chat_threads", "thread_other")));
+    await assertSucceeds(getDocs(query(
+      collection(asTeacher(), "chat_threads"),
+      where("assignedTeacherIds", "array-contains", TEACHER_UID),
+      where("studentId", "==", "student_001"),
+    )));
+    await assertFails(getDocs(collection(asTeacher(), "chat_threads")));
   });
 
   test("Teacher doc message trong thread duoc phan cong", async () => {

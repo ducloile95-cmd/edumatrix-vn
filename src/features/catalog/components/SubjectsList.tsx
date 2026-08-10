@@ -61,7 +61,7 @@ export function SubjectsList({ canManage = true, onEdit, onAdd, selectedSubjectI
     : "sm:grid-cols-[minmax(0,1fr)_100px_64px]";
 
   return (
-    <DataListPanel className="rounded-card border border-neutral-200 bg-white">
+    <DataListPanel className="rounded-card border border-neutral-200 bg-neutral-0">
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-neutral-200 px-4 py-4 sm:px-5">
         <h2 className="text-base font-semibold text-neutral-900">Môn học</h2>
         {canManage && (
@@ -119,7 +119,7 @@ export function SubjectsList({ canManage = true, onEdit, onAdd, selectedSubjectI
                   <div
                     key={subject.id}
                     role="row"
-                    className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 border-b border-neutral-100 px-3 py-3 transition-colors last:border-b-0 sm:gap-2 sm:px-0 sm:py-0 ${tableGridClass} ${isSelected ? "bg-primary-50" : "bg-white hover:bg-neutral-50/70"}`}
+                    className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 border-b border-neutral-100 px-3 py-3 transition-colors last:border-b-0 sm:gap-2 sm:px-0 sm:py-0 ${tableGridClass} ${isSelected ? "bg-primary-50" : "bg-neutral-0 hover:bg-neutral-50/70"}`}
                   >
                     <div role="cell" className="min-w-0 sm:px-3 sm:py-3">
                       <button
@@ -150,7 +150,7 @@ export function SubjectsList({ canManage = true, onEdit, onAdd, selectedSubjectI
                         <button
                           type="button"
                           onClick={() => onEdit(subject)}
-                          className="min-h-touch whitespace-nowrap rounded-input border border-neutral-300 bg-white px-3 text-xs font-medium text-neutral-700 transition hover:border-primary-300 hover:text-primary-700 active:scale-[.98]"
+                          className="min-h-touch whitespace-nowrap rounded-input border border-neutral-300 bg-neutral-0 px-3 text-xs font-medium text-neutral-700 transition hover:border-primary-300 hover:text-primary-700 active:scale-[.98]"
                         >
                           Sửa
                         </button>
@@ -163,7 +163,7 @@ export function SubjectsList({ canManage = true, onEdit, onAdd, selectedSubjectI
                             })
                           }
                           disabled={statusMutation.isPending}
-                          className="min-h-touch whitespace-nowrap rounded-input border border-neutral-300 bg-white px-3 text-xs font-medium text-neutral-700 transition hover:border-primary-300 hover:text-primary-700 active:scale-[.98] disabled:opacity-40"
+                          className="min-h-touch whitespace-nowrap rounded-input border border-neutral-300 bg-neutral-0 px-3 text-xs font-medium text-neutral-700 transition hover:border-primary-300 hover:text-primary-700 active:scale-[.98] disabled:opacity-40"
                         >
                           {subject.status === "active" ? "Lưu trữ" : "Kích hoạt lại"}
                         </button>

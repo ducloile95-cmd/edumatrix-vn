@@ -203,7 +203,7 @@ export function StudentsList() {
         </div>
       </FilterToolbar>
 
-      <DataListPanel className="rounded-card border border-neutral-200 bg-white">
+      <DataListPanel className="rounded-card border border-neutral-200 bg-neutral-0">
         <div className="shrink-0 border-b border-neutral-200 px-4 py-4 sm:px-5">
           <h2 className="text-xl font-semibold text-neutral-900">Danh sách học sinh</h2>
         </div>
@@ -231,7 +231,7 @@ export function StudentsList() {
                 summary,
               }) => (
                 <li key={student.id}>
-                  <article className="rounded-card border border-neutral-200 bg-white p-3 shadow-sm">
+                  <article className="rounded-card border border-neutral-200 bg-neutral-0 p-3 shadow-sm">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <h3 className="truncate text-sm font-semibold text-neutral-900">
@@ -358,7 +358,7 @@ export function StudentsList() {
                         <button
                           type="button"
                           onClick={() => setViewingStudent(student)}
-                          className="min-h-touch rounded-input border border-neutral-300 bg-white px-3 text-2xs font-semibold text-neutral-700 transition hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 active:scale-[.98]"
+                          className="min-h-touch rounded-input border border-neutral-300 bg-neutral-0 px-3 text-2xs font-semibold text-neutral-700 transition hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 active:scale-[.98]"
                         >
                           Thông tin
                         </button>

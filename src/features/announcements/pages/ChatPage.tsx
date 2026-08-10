@@ -34,7 +34,7 @@ export default function ChatPage() {
 
   return (
     <>
-      <div className="flex h-[calc(100dvh-112px)] min-h-[620px] flex-col overflow-hidden border border-neutral-200 bg-white">
+      <div className="flex h-[calc(100dvh-112px)] min-h-[620px] flex-col overflow-hidden border border-neutral-200 bg-neutral-0">
         {threads.isLoading ? <div className="p-5"><LoadingSkeleton rows={7} /></div> : threads.isError ? <div className="p-5"><ErrorState message="Không tải được hội thoại." onRetry={() => threads.refetch()} /></div> : <Conversations threads={threads.data ?? []} configured={configured} initialPickerOpen={initialPickerOpen} role={role} uid={uid} onOpenTemplates={() => setTemplatesOpen(true)} />}
       </div>
       <UtilityTemplatesModal open={templatesOpen} onClose={() => setTemplatesOpen(false)} role={role} />

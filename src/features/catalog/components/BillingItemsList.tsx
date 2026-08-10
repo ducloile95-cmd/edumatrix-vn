@@ -50,7 +50,7 @@ export function BillingItemsList({ canManage, onAdd, onEdit }: BillingItemsListP
   const hasRows = !items.isLoading && !items.isError && filtered.length > 0;
 
   return (
-    <DataListPanel className="rounded-card border border-neutral-200 bg-white">
+    <DataListPanel className="rounded-card border border-neutral-200 bg-neutral-0">
       <div className="shrink-0 border-b border-neutral-200 p-4 sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div><h2 className="text-base font-bold text-neutral-900">Đồ dùng học tập</h2><p className="mt-1 text-sm text-neutral-500">Danh mục khoản thu gắn với khóa học và môn học.</p></div>

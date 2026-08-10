@@ -1089,7 +1089,9 @@ service cloud.firestore {
     // tu sua duoc).
 
     match /students/{studentId} {
-      allow read: if isAdmin() || isAssignedTeacherForStudent(studentId) || ownsStudent(studentId);
+      allow read: if isAdmin() || (
+        isTeacher() && request.auth.uid in resource.data.teacherIds
+      ) || ownsStudent(studentId);
       allow create: if (
         isAdmin() ||
         (

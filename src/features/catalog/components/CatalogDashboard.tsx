@@ -221,7 +221,7 @@ export function CatalogDashboard({ canManage = false, onCreateCourseForSubject }
                   {canManage && <button
                     type="button"
                     onClick={() => onCreateCourseForSubject(subject.id)}
-                    className="min-h-touch rounded-input border border-neutral-300 bg-white px-3 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
+                    className="min-h-touch rounded-input border border-neutral-300 bg-neutral-0 px-3 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
                   >
                     Thêm khóa học
                   </button>}

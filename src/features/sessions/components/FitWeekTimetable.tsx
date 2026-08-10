@@ -20,7 +20,7 @@ const BAND_META: Record<DayBand, { label: string; range: string }> = {
 };
 
 const STATUS_TONE: Record<SessionStatus, { border: string; bg: string; pillBg: string; label: string }> = {
-  scheduled: { border: "border-info-500", bg: "bg-white", pillBg: "bg-info-700", label: "Lên lịch" },
+  scheduled: { border: "border-info-500", bg: "bg-neutral-0", pillBg: "bg-info-700", label: "Lên lịch" },
   rescheduled: { border: "border-warning-500", bg: "bg-warning-50", pillBg: "bg-warning-700", label: "Học bù" },
   completed: { border: "border-success-500", bg: "bg-success-50", pillBg: "bg-success-700", label: "Đã học" },
   cancelled: { border: "border-danger-500", bg: "bg-danger-50", pillBg: "bg-danger-700", label: "Đã hủy" },
@@ -133,7 +133,7 @@ export function FitWeekTimetable({ days, sessions, today, onSessionClick, onSess
               <div
                 key={dayKey(day)}
                 className={`grid grid-rows-[0.9fr_1.05fr_1.2fr] border-r border-neutral-200 last:border-r-0 ${
-                  isToday ? "bg-primary-50/30" : "bg-white"
+                  isToday ? "bg-primary-50/30" : "bg-neutral-0"
                 }`}
               >
                 {BANDS.map((band) => {

@@ -97,7 +97,7 @@ export function AttendanceOverview({ onJumpToSession }: AttendanceOverviewProps)
           </p>
           <div className="space-y-2">
             {data.gapSessions.map((session) => (
-              <div key={session.id} className="flex flex-wrap items-center justify-between gap-2 rounded-input border border-warning-100 bg-white px-3 py-2">
+              <div key={session.id} className="flex flex-wrap items-center justify-between gap-2 rounded-input border border-warning-100 bg-neutral-0 px-3 py-2">
                 <p className="text-sm font-semibold text-neutral-900">
                   {classById.get(session.classId)?.name ?? "Lớp"} · {formatSessionLabel(session)}
                 </p>

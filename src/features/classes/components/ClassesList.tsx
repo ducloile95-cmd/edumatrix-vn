@@ -44,7 +44,7 @@ const STATUS_FILTERS: { value: ClassStatus | "all"; label: string }[] = [
   { value: "cancelled", label: "Đã hủy" },
 ];
 
-const ROW_ICON_ACTION = "grid size-10 shrink-0 place-items-center rounded-input border border-neutral-200 bg-white text-neutral-500 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700";
+const ROW_ICON_ACTION = "grid size-10 shrink-0 place-items-center rounded-input border border-neutral-200 bg-neutral-0 text-neutral-500 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700";
 
 export function ClassesList({ onDelete, onEdit, canDelete = false, canEdit = false, primaryAction }: ClassesListProps) {
   const [search, setSearch] = useState("");
@@ -94,7 +94,7 @@ export function ClassesList({ onDelete, onEdit, canDelete = false, canEdit = fal
   const { page, pageSize, pageItems, setPage } = usePagination(filtered);
 
   const filterToolbar = (
-    <section aria-label="Tìm kiếm và lọc lớp học" className="mb-3 rounded-card border border-neutral-200 bg-white p-3 shadow-[var(--shadow-1)] sm:p-4">
+    <section aria-label="Tìm kiếm và lọc lớp học" className="mb-3 rounded-card border border-neutral-200 bg-neutral-0 p-3 shadow-[var(--shadow-1)] sm:p-4">
       <div className="grid gap-3 md:grid-cols-[minmax(320px,1fr)_200px_auto] md:items-end">
         <FilterField label="Tìm kiếm" htmlFor="class-search">
           <SearchInput
@@ -132,7 +132,7 @@ export function ClassesList({ onDelete, onEdit, canDelete = false, canEdit = fal
     <div>
       {filterToolbar}
 
-      <DataListPanel className="rounded-card border border-neutral-200 bg-white">
+      <DataListPanel className="rounded-card border border-neutral-200 bg-neutral-0">
         <div className="flex shrink-0 items-center justify-between gap-4 border-b border-neutral-200 px-4 py-3 sm:px-5">
           <div>
             <h2 className="text-base font-semibold text-neutral-900">Danh sách lớp học</h2>

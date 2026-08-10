@@ -71,7 +71,7 @@ export function Composer({ configured, actorUid, actorName }: ComposerProps) {
 
   return (
     <div className="grid gap-5 lg:grid-cols-[1.15fr_.85fr] lg:items-start xl:gap-6">
-      <section className="rounded-card border border-neutral-200 bg-white">
+      <section className="rounded-card border border-neutral-200 bg-neutral-0">
         <header className="border-b border-neutral-200 px-5 py-4">
           <h2 className="flex items-center gap-2 text-sm font-bold"><Facebook size={16} className="text-primary-700" />Soạn bài Fanpage</h2>
           <p className="mt-1 text-xs text-neutral-500">Chỉ Admin được phép sử dụng chức năng này.</p>
@@ -166,7 +166,7 @@ export function Composer({ configured, actorUid, actorName }: ComposerProps) {
         </form>
       </section>
 
-      <section className="rounded-card border border-neutral-200 bg-white lg:sticky lg:top-5">
+      <section className="rounded-card border border-neutral-200 bg-neutral-0 lg:sticky lg:top-5">
         <header className="border-b border-neutral-200 px-5 py-4">
           <h2 className="text-sm font-bold">Bản xem trước</h2>
         </header>

@@ -16,7 +16,7 @@ export function BottomNavigation({ onMoreClick }: { onMoreClick: () => void }) {
   return (
     <nav
       aria-label="Điều hướng mobile"
-      className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-neutral-200 bg-white/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgba(28,26,21,.06)] backdrop-blur md:hidden"
+      className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-neutral-200 bg-neutral-0/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgba(28,26,21,.06)] backdrop-blur md:hidden"
     >
       {items.map((item) => (
         <NavLink

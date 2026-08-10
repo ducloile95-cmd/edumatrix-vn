@@ -118,7 +118,7 @@ export function MetaPageConnectDialog({ open, onClose, onConnected }: MetaPageCo
           ))}
         </ol>
 
-        <section className="min-h-[300px] rounded-card border border-neutral-200 bg-white p-5">
+        <section className="min-h-[300px] rounded-card border border-neutral-200 bg-neutral-0 p-5">
           {step === "intro" && (
             <>
               <span className="flex size-12 items-center justify-center rounded-input bg-[#1877F2] text-white"><Facebook size={24} /></span>

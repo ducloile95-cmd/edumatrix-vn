@@ -4,6 +4,7 @@ import { Eye, EyeOff, GraduationCap, Users } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { ROUTES } from "@/constants/routes";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { LanguageSegmentedControl } from "@/features/preferences/components/AppearanceControls";
 import { activateAccount, authErrorMessage, resetPassword, signInEmail, signInGoogle } from "@/services/firebase/auth";
 import bgUrl from "@/assets/login-bg.svg";
 
@@ -100,7 +101,7 @@ export default function LoginPage() {
     mode === "login" ? "Đăng nhập" : mode === "forgot" ? "Gửi liên kết" : "Kích hoạt tài khoản";
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-neutral-100 p-4 sm:p-6">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-neutral-100 p-4 sm:p-6">
       <div className="login-card-enter grid w-full max-w-5xl overflow-hidden rounded-modal border border-neutral-200 bg-neutral-0 shadow-[0_18px_50px_rgba(27,46,110,0.14)] lg:grid-cols-2">
         {/* ===== FORM ===== */}
         <div className="flex flex-col p-7 sm:p-9">
@@ -196,16 +197,19 @@ export default function LoginPage() {
             )}
           </form>
 
-          <div className="mt-6 flex items-center justify-between border-t border-neutral-100 pt-4 text-2xs text-neutral-500">
+          <div className="mt-6 flex flex-col items-center gap-3 border-t border-neutral-100 pt-4 text-2xs text-neutral-500 sm:flex-row sm:justify-between">
             <span>© 2026 EduMatrix VN</span>
-            <span className="flex gap-3">
-              <Link to={ROUTES.PRIVACY_POLICY} className="hover:text-neutral-700">
-                Chính sách bảo mật
-              </Link>
-              <Link to={ROUTES.DATA_DELETION} className="hover:text-neutral-700">
-                Xóa dữ liệu
-              </Link>
-            </span>
+            <div className="grid w-full max-w-[320px] grid-cols-[minmax(0,1fr)_122px] items-center gap-3">
+              <span className="flex items-center justify-end gap-3">
+                <Link to={ROUTES.PRIVACY_POLICY} className="hover:text-neutral-700">
+                  Chính sách bảo mật
+                </Link>
+                <Link to={ROUTES.DATA_DELETION} className="hover:text-neutral-700">
+                  Xóa dữ liệu
+                </Link>
+              </span>
+              <LanguageSegmentedControl compact showLabel={false} />
+            </div>
           </div>
         </div>
 

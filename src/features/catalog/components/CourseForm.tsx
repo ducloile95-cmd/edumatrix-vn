@@ -105,8 +105,8 @@ export function CourseForm({ editingCourse, presetSubjectId, onDone }: CourseFor
 
   const activeSubjects = subjects?.filter((s) => s.status === "active") ?? [];
   const activeTeachers = (teachers ?? []).filter((teacher) => teacher.status === "active");
-  const inputClass = "min-h-touch w-full rounded-input border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100";
-  const sectionClass = "flex min-w-0 flex-col rounded-card border border-neutral-200 bg-white shadow-[0_1px_2px_rgba(28,51,137,.04)]";
+  const inputClass = "min-h-touch w-full rounded-input border border-neutral-300 bg-neutral-0 px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100";
+  const sectionClass = "flex min-w-0 flex-col rounded-card border border-neutral-200 bg-neutral-0 shadow-[0_1px_2px_rgba(28,51,137,.04)]";
 
   return (
     <form onSubmit={handleSubmit((values) => mutation.mutate(values))} className="grid items-stretch gap-4 lg:grid-cols-[minmax(0,1.08fr)_minmax(320px,.92fr)]">

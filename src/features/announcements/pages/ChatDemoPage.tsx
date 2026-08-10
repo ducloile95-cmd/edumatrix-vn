@@ -107,7 +107,7 @@ function ThreadList({ selected, tags, onSelect }: { selected: string; tags: Reco
   }), [filter, search]);
 
   return (
-    <aside className="flex min-h-0 w-full flex-col border-r border-neutral-200 bg-white" aria-label="Danh sách hội thoại">
+    <aside className="flex min-h-0 w-full flex-col border-r border-neutral-200 bg-neutral-0" aria-label="Danh sách hội thoại">
       <div className="border-b border-neutral-200 px-4 pb-3 pt-4">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
@@ -120,7 +120,7 @@ function ThreadList({ selected, tags, onSelect }: { selected: string; tags: Reco
         <label className="relative block">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" size={17} aria-hidden="true" />
           <span className="sr-only">Tìm hội thoại</span>
-          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm phụ huynh" className="min-h-11 w-full rounded-card border border-neutral-300 bg-neutral-50 pl-10 pr-3 text-sm text-neutral-800 outline-none transition-colors placeholder:text-neutral-400 focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-100" />
+          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm phụ huynh" className="min-h-11 w-full rounded-card border border-neutral-300 bg-neutral-50 pl-10 pr-3 text-sm text-neutral-800 outline-none transition-colors placeholder:text-neutral-400 focus:border-primary-500 focus:bg-neutral-0 focus:ring-2 focus:ring-primary-100" />
         </label>
         <div className="mt-3 flex gap-1.5 overflow-x-auto" aria-label="Lọc hội thoại">
           {FILTERS.map((item) => (
@@ -135,7 +135,7 @@ function ThreadList({ selected, tags, onSelect }: { selected: string; tags: Reco
           <button key={thread.id} type="button" onClick={() => onSelect(thread.id)} aria-current={selected === thread.id ? "true" : undefined} className={`flex min-h-[76px] w-full gap-3 px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500 ${selected === thread.id ? "bg-primary-50" : "hover:bg-neutral-50"}`}>
             <span className={`relative flex size-11 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${thread.connected ? "bg-primary-100 text-primary-700" : "bg-neutral-100 text-neutral-500"}`}>
               {initials(thread.parentName)}
-              {thread.connected && <span className="absolute bottom-0 right-0 size-3 rounded-full border-2 border-white bg-success-500" aria-label="Đã kết nối" />}
+              {thread.connected && <span className="absolute bottom-0 right-0 size-3 rounded-full border-2 border-neutral-0 bg-success-500" aria-label="Đã kết nối" />}
             </span>
             <span className="min-w-0 flex-1">
               <span className="flex items-baseline justify-between gap-2">
@@ -201,7 +201,7 @@ function ContactDetails({ thread, tags, onRemoveTag, onManageTags }: { thread: T
           </div>
         ) : <p className="mt-2 text-xs leading-5 text-neutral-500">Chưa có tag.</p>}
         <p className="mt-2 text-xs leading-5 text-neutral-500">Gắn tag nhanh tại thanh phía trên ô nhập tin nhắn.</p>
-        <button type="button" onClick={onManageTags} className="mt-3 flex min-h-10 w-full items-center justify-center gap-2 rounded-card border border-neutral-300 bg-white px-3 text-xs font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 active:scale-[.99]"><SlidersHorizontal size={15} />Quản lý tag mẫu</button>
+        <button type="button" onClick={onManageTags} className="mt-3 flex min-h-10 w-full items-center justify-center gap-2 rounded-card border border-neutral-300 bg-neutral-0 px-3 text-xs font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 active:scale-[.99]"><SlidersHorizontal size={15} />Quản lý tag mẫu</button>
       </section>
       <section className="mt-5 border-t border-neutral-200 pt-4">
         <h3 className="text-sm font-semibold text-neutral-900">Kết nối</h3>
@@ -232,7 +232,7 @@ function TagManager({ open, tags, onClose, onAdd, onRemove }: { open: boolean; t
     <>
       <Modal open={open && !creating} onClose={onClose} title="Quản lý tag hội thoại" size="md">
         <div className="flex gap-2">
-          <label className="relative min-w-0 flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={17} /><span className="sr-only">Tìm tag mẫu</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm tag mẫu" className="min-h-11 w-full rounded-card border border-neutral-300 bg-white pl-10 pr-3 text-sm outline-none placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-100" /></label>
+          <label className="relative min-w-0 flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={17} /><span className="sr-only">Tìm tag mẫu</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm tag mẫu" className="min-h-11 w-full rounded-card border border-neutral-300 bg-neutral-0 pl-10 pr-3 text-sm outline-none placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-100" /></label>
           <button type="button" onClick={() => setCreating(true)} className="flex min-h-11 shrink-0 items-center gap-2 rounded-card bg-primary-600 px-3.5 text-sm font-semibold text-white transition hover:bg-primary-700 active:scale-[.98]"><Plus size={17} />Thêm tag</button>
         </div>
         <div className="mt-4 overflow-hidden rounded-card border border-neutral-200">
@@ -247,7 +247,7 @@ function TagManager({ open, tags, onClose, onAdd, onRemove }: { open: boolean; t
       </Modal>
       <Modal open={open && creating} onClose={() => setCreating(false)} title="Thêm tag mẫu" size="sm">
         <form onSubmit={saveTag}>
-          <label className="block text-sm font-medium text-neutral-700">Tên tag<input value={tagInput} onChange={(event) => setTagInput(event.target.value)} maxLength={24} autoFocus placeholder="Nhập tên tag" className="mt-2 min-h-11 w-full rounded-card border border-neutral-300 bg-white px-3 text-sm outline-none placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-100" /></label>
+          <label className="block text-sm font-medium text-neutral-700">Tên tag<input value={tagInput} onChange={(event) => setTagInput(event.target.value)} maxLength={24} autoFocus placeholder="Nhập tên tag" className="mt-2 min-h-11 w-full rounded-card border border-neutral-300 bg-neutral-0 px-3 text-sm outline-none placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-100" /></label>
           <fieldset className="mt-5"><legend className="text-sm font-medium text-neutral-700">Màu tag</legend><div className="mt-2 flex gap-1">{TAG_COLORS.map((color) => (
             <button key={color.value} type="button" onClick={() => setTagColor(color.value)} aria-label={`Chọn màu ${color.label}`} aria-pressed={tagColor === color.value} className={`flex size-10 items-center justify-center rounded-card transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 ${tagColor === color.value ? "bg-neutral-100 ring-1 ring-neutral-300" : "hover:bg-neutral-100"}`}><span className={`size-6 rounded-md ${color.swatch}`} /></button>
           ))}</div></fieldset>
@@ -276,8 +276,8 @@ function Conversation({ thread, messages, tagCatalog, tags, onBack, onInfo, onSe
     sendDraft();
   };
   return (
-    <section className="flex min-h-0 min-w-0 w-full flex-col bg-white" aria-label={`Hội thoại với ${thread.parentName}`}>
-      <header className="flex min-h-16 shrink-0 items-center justify-between border-b border-neutral-200 bg-white px-4 sm:px-5">
+    <section className="flex min-h-0 min-w-0 w-full flex-col bg-neutral-0" aria-label={`Hội thoại với ${thread.parentName}`}>
+      <header className="flex min-h-16 shrink-0 items-center justify-between border-b border-neutral-200 bg-neutral-0 px-4 sm:px-5">
         <div className="flex min-w-0 items-center gap-3">
           <button type="button" onClick={onBack} aria-label="Quay lại danh sách" className="icon-button flex lg:hidden"><ArrowLeft size={19} /></button>
           <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-semibold text-primary-700">{initials(thread.parentName)}</span>
@@ -315,19 +315,19 @@ function Conversation({ thread, messages, tagCatalog, tags, onBack, onInfo, onSe
           }) : <div className="py-20 text-center"><MessageCircle className="mx-auto text-neutral-300" size={38} /><p className="mt-4 text-sm font-semibold text-neutral-700">Chưa có tin nhắn</p><p className="mt-1 text-xs leading-5 text-neutral-500">Hãy bắt đầu cuộc trò chuyện với phụ huynh.</p></div>}
         </div>
       </div>
-      <div className="shrink-0 border-t border-neutral-100 bg-white px-4 pt-2" aria-label="Tag mẫu trên Composer">
+      <div className="shrink-0 border-t border-neutral-100 bg-neutral-0 px-4 pt-2" aria-label="Tag mẫu trên Composer">
           <div className="mx-auto flex max-w-[760px] items-center gap-1.5 overflow-x-auto pb-0.5">
             {tagCatalog.map((tag) => {
               const selected = tags.some((item) => item.label === tag.label);
-              return <button key={tag.label} type="button" onClick={() => onToggleTag(tag)} aria-pressed={selected} aria-label={`${selected ? "Bỏ" : "Gắn"} tag ${tag.label}`} className={`flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold transition active:scale-[.97] ${selected ? `${TAG_STYLES[tag.color]} border-transparent` : "border-neutral-300 bg-white text-neutral-600 hover:bg-neutral-50"}`}>
+              return <button key={tag.label} type="button" onClick={() => onToggleTag(tag)} aria-pressed={selected} aria-label={`${selected ? "Bỏ" : "Gắn"} tag ${tag.label}`} className={`flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold transition active:scale-[.97] ${selected ? `${TAG_STYLES[tag.color]} border-transparent` : "border-neutral-300 bg-neutral-0 text-neutral-600 hover:bg-neutral-50"}`}>
                 {!selected && <span className={`size-2 rounded-full ${TAG_DOT_STYLES[tag.color]}`} aria-hidden="true" />}
                 {tag.label}
               </button>;
             })}
-            <button type="button" onClick={onManageTags} aria-label="Quản lý tag mẫu" className="flex size-8 shrink-0 items-center justify-center rounded-full border border-neutral-300 bg-white text-neutral-500 transition-colors hover:bg-neutral-50 hover:text-neutral-800"><SlidersHorizontal size={14} /></button>
+            <button type="button" onClick={onManageTags} aria-label="Quản lý tag mẫu" className="flex size-8 shrink-0 items-center justify-center rounded-full border border-neutral-300 bg-neutral-0 text-neutral-500 transition-colors hover:bg-neutral-50 hover:text-neutral-800"><SlidersHorizontal size={14} /></button>
           </div>
         </div>
-      <form onSubmit={submit} className="shrink-0 bg-white px-3 pb-3 pt-2 sm:px-4 sm:pb-4">
+      <form onSubmit={submit} className="shrink-0 bg-neutral-0 px-3 pb-3 pt-2 sm:px-4 sm:pb-4">
         <div className="mx-auto flex max-w-[760px] items-end gap-2">
           <label className="min-w-0 flex-1 rounded-[20px] bg-neutral-100 px-4"><span className="sr-only">Soạn tin nhắn</span><textarea value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={handleComposerKeyDown} aria-describedby="chat-composer-help" rows={1} maxLength={2000} disabled={!thread.connected} placeholder={thread.connected ? "Aa" : "Chưa thể gửi tin nhắn"} className="max-h-28 min-h-11 w-full resize-none overflow-y-auto bg-transparent py-2.5 text-sm leading-6 text-neutral-800 outline-none [field-sizing:content] placeholder:text-neutral-500 focus-visible:ring-0 focus-visible:ring-offset-0 disabled:cursor-not-allowed" /></label>
           <button type="submit" disabled={!draft.trim() || !thread.connected} aria-label="Gửi tin nhắn demo" className="flex size-11 shrink-0 items-center justify-center rounded-full bg-transparent text-primary-600 transition-colors hover:bg-primary-50 active:scale-[.97] disabled:cursor-not-allowed disabled:text-neutral-300"><Send size={20} /></button>
@@ -372,10 +372,10 @@ export default function ChatDemoPage() {
 
   return (
     <>
-      <div className="grid h-[calc(100dvh-112px)] min-h-[620px] overflow-hidden border border-neutral-200 bg-white lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)_288px]">
+      <div className="grid h-[calc(100dvh-112px)] min-h-[620px] overflow-hidden border border-neutral-200 bg-neutral-0 lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)_288px]">
           <div className={`${mobileOpen ? "hidden" : "flex"} min-h-0 min-w-0 lg:flex`}><ThreadList selected={selected} tags={tags} onSelect={(id) => { setSelected(id); setMobileOpen(true); }} /></div>
           <div className={`${mobileOpen ? "flex" : "hidden"} min-h-0 min-w-0 lg:flex`}><Conversation thread={thread} messages={messages[thread.id] ?? []} tagCatalog={tagCatalog} tags={tags[thread.id] ?? []} onBack={() => setMobileOpen(false)} onInfo={() => setInfoOpen(true)} onSend={send} onToggleTag={toggleTag} onManageTags={openTagManager} /></div>
-          <aside className="hidden min-h-0 overflow-y-auto border-l border-neutral-200 bg-white p-5 xl:block"><ContactDetails thread={thread} tags={tags[thread.id] ?? []} onRemoveTag={removeTag} onManageTags={openTagManager} /></aside>
+          <aside className="hidden min-h-0 overflow-y-auto border-l border-neutral-200 bg-neutral-0 p-5 xl:block"><ContactDetails thread={thread} tags={tags[thread.id] ?? []} onRemoveTag={removeTag} onManageTags={openTagManager} /></aside>
       </div>
       <Modal open={infoOpen} onClose={() => setInfoOpen(false)} title="Thông tin hội thoại" size="sm"><ContactDetails thread={thread} tags={tags[thread.id] ?? []} onRemoveTag={removeTag} onManageTags={openTagManager} /></Modal>
       <TagManager open={tagManagerOpen} tags={tagCatalog} onClose={() => setTagManagerOpen(false)} onAdd={addCatalogTag} onRemove={removeCatalogTag} />
