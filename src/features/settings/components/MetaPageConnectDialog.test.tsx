@@ -23,6 +23,9 @@ vi.mock("@/services/integrations/messenger", () => ({
 }));
 
 describe("MetaPageConnectDialog polling", () => {
+  const popupReplace = vi.fn();
+  const popupClose = vi.fn();
+
   beforeEach(() => {
     vi.useFakeTimers();
     integrationMocks.startConnection.mockResolvedValue({
@@ -35,7 +38,10 @@ describe("MetaPageConnectDialog polling", () => {
       pages: [],
       error: null,
     });
-    vi.spyOn(window, "open").mockReturnValue({} as Window);
+    vi.spyOn(window, "open").mockReturnValue({
+      close: popupClose,
+      location: { replace: popupReplace },
+    } as unknown as Window);
   });
 
   afterEach(() => {
@@ -64,10 +70,13 @@ describe("MetaPageConnectDialog polling", () => {
     });
 
     expect(window.open).toHaveBeenCalledWith(
-      "https://facebook.example/authorize",
+      "about:blank",
       "edumatrix-meta-connect",
       "popup,width=620,height=760",
     );
+    expect(popupReplace).toHaveBeenCalledWith("https://facebook.example/authorize");
+    expect(screen.getByRole("link", { name: "Mở Facebook lại" }).getAttribute("href"))
+      .toBe("https://facebook.example/authorize");
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(2_500);
