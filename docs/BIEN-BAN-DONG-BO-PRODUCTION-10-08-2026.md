@@ -4,8 +4,8 @@
 
 - Cloudflare account đang đăng nhập: `ducloile99@gmail.com`.
 - Worker chuẩn: `https://edumatrix-messenger-production.ducloile99.workers.dev`.
-- Cloudflare Worker version: `de0847d6-b89e-4617-a27b-10ac5b221208`.
-- Release Git trên `/health`: `be75ebccb8bd`.
+- Mốc rollout Worker ban đầu: version `de0847d6-b89e-4617-a27b-10ac5b221208`, release Git `be75ebccb8bd`.
+- Sau mỗi commit tài liệu hoặc mã tiếp theo, phải chạy lại `npm run deploy:prod` và `npm run verify:prod` để `/health` khớp HEAD cuối cùng.
 - Firebase project: `edumatrix-vn-576b1`.
 - Firebase Hosting: `https://edumatrix-vn-576b1.web.app`.
 - Firestore rules và indexes đã triển khai thành công.
