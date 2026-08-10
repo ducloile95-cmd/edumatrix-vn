@@ -449,6 +449,26 @@ describe("admin settings", () => {
     }));
   });
 
+  test("Admin giu duoc trang thai webhook khi sua cau hinh cong khai", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), "settings", "integrations"), {
+      facebookPageId: "page-id",
+      facebookPageName: "Edumatrix",
+      facebookConnectionStatus: "connected",
+      facebookUtilityMessagingPermission: "missing",
+      facebookWebhookSubscriptionStatus: "verified",
+      facebookWebhookSubscribedFields: ["messages", "messaging_postbacks", "messaging_referrals"],
+      facebookWebhookVerifiedAt: Timestamp.now(),
+      facebookConnectedAt: Timestamp.now(),
+      driveFolderId: "folder-id",
+      webhookUrl: "https://worker.example/webhook",
+      updatedAt: Timestamp.now(),
+    }));
+    await assertSucceeds(setDoc(doc(asAdmin(), "settings", "integrations"), {
+      driveFolderId: "new-folder-id",
+      updatedAt: serverTimestamp(),
+    }, { merge: true }));
+  });
+
   test("Admin khong luu field secret ngoai schema", async () => {
     await assertFails(setDoc(doc(asAdmin(), "settings", "integrations"), {
       facebookPageId: "page-id",
