@@ -122,7 +122,7 @@ async function listAttendancePages(
 ): Promise<Array<AttendanceDoc & { id: string }>> {
   const documents = await listAllQueryDocuments(
     COLLECTIONS.ATTENDANCE,
-    [...constraints, orderBy(documentId())],
+    constraints,
     pageSize,
   );
   return documents.map((item) => ({ id: item.id, ...(item.data() as AttendanceDoc) }));
