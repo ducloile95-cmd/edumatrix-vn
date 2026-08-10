@@ -48,7 +48,6 @@ export interface SendBody {
   parameters?: Record<string, string>;
 }
 export interface LinkConversationBody { psid?: string; studentId?: string }
-export interface PostBody { message: string; link?: string; imageUrls?: string[] }
 export interface InboundMessage { psid: string; pageId: string; text: string; messageId: string; timestamp: number }
 export interface UtilityTemplateStatus {
   pageId: string;
@@ -70,7 +69,6 @@ export const META_OAUTH_SCOPES = [
   "pages_manage_metadata",
   "pages_messaging",
   "pages_read_engagement",
-  "pages_manage_posts",
 ] as const;
 export const META_UTILITY_OAUTH_SCOPE = "page_utility_messaging";
 export const META_WEBHOOK_FIELDS = ["messages", "messaging_postbacks", "messaging_referrals"] as const;
@@ -1028,65 +1026,6 @@ async function handleLinkConversation(request: Request, env: Env): Promise<Respo
   return new Response(JSON.stringify({ ok: true, threadId: id }), { headers: corsHeaders(env, request) });
 }
 
-export function validPostImages(value: unknown): boolean {
-  if (value == null) return true;
-  return Array.isArray(value) && value.length <= 4 && value.every((url) => typeof url === "string" && /^https?:\/\//i.test(url));
-}
-
-/** Graph API tu choi khi gui ca `link` va `attached_media` trong cung mot bai -> khi co anh, noi link vao cuoi message (van bam duoc). */
-export function buildFeedPayload(body: PostBody, photoIds: string[]): Record<string, unknown> {
-  const payload: Record<string, unknown> = { message: body.message };
-  if (photoIds.length) {
-    payload.attached_media = photoIds.map((photoId) => ({ media_fbid: photoId }));
-    if (body.link) payload.message = `${body.message}\n${body.link}`;
-  } else if (body.link) {
-    payload.link = body.link;
-  }
-  return payload;
-}
-
-async function uploadPhoto(imageUrl: string, env: Env): Promise<string> {
-  const pageAccess = await configuredPageAccess(env);
-  const pageNode = encodeURIComponent(pageAccess.pageId || "me");
-  const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/${pageNode}/photos`;
-  const response = await fetch(url, { method: "POST", headers: { authorization: `Bearer ${pageAccess.token}`, "content-type": "application/json" }, body: JSON.stringify({ url: imageUrl, published: false }) });
-  const data = await response.json<Record<string, unknown>>();
-  if (!response.ok || typeof data.id !== "string") throw new Error(`meta_photo_${metaErrorCode(data, response.status)}`);
-  return data.id;
-}
-
-export async function postGraph(body: PostBody, env: Env): Promise<{ id?: string }> {
-  const photoIds = await Promise.all((body.imageUrls ?? []).map((imageUrl) => uploadPhoto(imageUrl, env)));
-  const pageAccess = await configuredPageAccess(env);
-  const pageNode = encodeURIComponent(pageAccess.pageId || "me");
-  const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/${pageNode}/feed`;
-  const response = await fetch(url, { method: "POST", headers: { authorization: `Bearer ${pageAccess.token}`, "content-type": "application/json" }, body: JSON.stringify(buildFeedPayload(body, photoIds)) });
-  const data = await response.json<Record<string, unknown>>();
-  if (!response.ok) throw new Error(`meta_${metaErrorCode(data, response.status)}`);
-  return data;
-}
-
-async function handlePost(request: Request, env: Env): Promise<Response> {
-  const idToken = extractBearer(request.headers.get("authorization"));
-  if (!idToken) return new Response(JSON.stringify({ error: "missing_bearer_token" }), { status: 401, headers: corsHeaders(env, request) });
-  const claims = await verifyFirebaseToken(idToken, env);
-  const profile = await requireStaff(claims.sub, idToken, env);
-  if (profile.role !== "admin") return new Response(JSON.stringify({ error: "admin_required" }), { status: 403, headers: corsHeaders(env, request) });
-  const body = await request.json<PostBody>();
-  if (!body.message?.trim() || body.message.length > 5000) return new Response(JSON.stringify({ error: "invalid_post" }), { status: 400, headers: corsHeaders(env, request) });
-  if (!validPostImages(body.imageUrls)) return new Response(JSON.stringify({ error: "invalid_post_images" }), { status: 400, headers: corsHeaders(env, request) });
-  const serviceToken = await serviceAccessToken(env);
-  const id = crypto.randomUUID();
-  try {
-    const result = await postGraph(body, env);
-    await writeDocument("message_outbox", id, { type: "page_post", studentId: null, recipientPsid: "page", content: body.message, status: "sent", metaMessageId: result.id ?? null, actorUid: claims.sub, createdAt: new Date() }, serviceToken, env);
-    return new Response(JSON.stringify({ id, status: "sent", postId: result.id }), { headers: corsHeaders(env, request) });
-  } catch (error) {
-    await writeDocument("message_outbox", id, { type: "page_post", studentId: null, recipientPsid: "page", content: body.message, status: "failed", error: String(error).slice(0, 240), actorUid: claims.sub, createdAt: new Date() }, serviceToken, env);
-    return new Response(JSON.stringify({ id, status: "failed", error: publicErrorCode(error) }), { status: 502, headers: corsHeaders(env, request) });
-  }
-}
-
 async function handleCreateReferral(request: Request, env: Env): Promise<Response> {
   const idToken = extractBearer(request.headers.get("authorization"));
   if (!idToken) return new Response(JSON.stringify({ error: "missing_bearer_token" }), { status: 401, headers: corsHeaders(env, request) });
@@ -1364,7 +1303,6 @@ export default {
         environment: env.ALLOWED_ORIGIN.includes("localhost") ? "development" : "production",
       }), { headers: corsHeaders(env, request) });
       else if (path === "/api/messenger/send" && request.method === "POST") response = await handleSend(request, env);
-      else if (path === "/api/messenger/post" && request.method === "POST") response = await handlePost(request, env);
       else if (path === "/api/messenger/referral" && request.method === "POST") response = await handleCreateReferral(request, env);
       else if (path === "/api/messenger/link" && request.method === "POST") response = await handleLinkConversation(request, env);
       else if (path === "/api/messenger/sync-contexts" && request.method === "POST") response = await handleSyncConversationContexts(request, env);

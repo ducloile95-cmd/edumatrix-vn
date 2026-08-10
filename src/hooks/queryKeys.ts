@@ -34,7 +34,6 @@ export const queryKeys = {
   invoices: () => ["invoices"] as const,
   payments: () => ["payments"] as const,
   settings: (docId: string) => ["settings", docId] as const,
-  fanpagePosts: () => ["fanpage-posts"] as const,
   chatThreads: () => ["chat-threads"] as const,
   chatTags: () => ["chat-tags"] as const,
   student: (id: string) => ["student", id] as const,

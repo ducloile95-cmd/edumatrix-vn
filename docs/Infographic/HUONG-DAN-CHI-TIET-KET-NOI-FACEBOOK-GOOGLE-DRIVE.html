@@ -278,7 +278,7 @@ npm run dev</code></pre></div>
 
       <section class="section guide" id="facebook" data-platform="meta">
         <div class="section-header"><h2>Kết nối Facebook / Meta</h2><p>Mục tiêu cuối: Worker có thể nhận webhook, gửi Messenger, tạo referral và đăng nội dung Fanpage mà không lộ token.</p></div>
-        <div class="callout"><p><strong>Phạm vi mã nguồn:</strong> Worker đang dùng Graph API <code>v22.0</code> với các endpoint <code>/api/messenger/send</code>, <code>/api/messenger/post</code>, <code>/api/messenger/referral</code> và <code>/webhook</code>.</p></div>
+        <div class="callout"><p><strong>Phạm vi mã nguồn:</strong> Worker dùng Graph API cho các endpoint <code>/api/messenger/send</code>, <code>/api/messenger/referral</code> và <code>/webhook</code>.</p></div>
 
         <div class="stage">
           <div class="stage-title"><span>GIAI ĐOẠN A</span><h3>Tạo Meta App và nối Facebook Page</h3></div>
@@ -329,7 +329,7 @@ npm run deploy:prod</code></pre></div>
           <div class="steps">
             <div class="step"><input type="checkbox" id="m12" data-step="meta"><label for="m12"><strong>Thêm webhook callback</strong><small>Callback URL: <code>https://&lt;worker-url&gt;/webhook</code>. Verify Token phải trùng tuyệt đối với <code>META_WEBHOOK_VERIFY_TOKEN</code>.</small></label></div>
             <div class="step"><input type="checkbox" id="m13" data-step="meta"><label for="m13"><strong>Đăng ký Page và webhook fields</strong><small>Chọn <code>messages</code>, <code>messaging_postbacks</code>, <code>messaging_referrals</code>; kiểm tra Page đã được subscribe vào app.</small></label></div>
-            <div class="step"><input type="checkbox" id="m14" data-step="meta"><label for="m14"><strong>Rà soát permission và App Review</strong><small>Messenger thường cần <code>pages_messaging</code>; đăng Page cần <code>pages_manage_posts</code> và <code>pages_read_engagement</code>; quản lý subscription có thể cần <code>pages_manage_metadata</code>.</small></label></div>
+            <div class="step"><input type="checkbox" id="m14" data-step="meta"><label for="m14"><strong>Rà soát permission và App Review</strong><small>Messenger cần <code>pages_messaging</code>; quản lý subscription cần <code>pages_manage_metadata</code>. Chỉ xin các quyền Worker đang sử dụng.</small></label></div>
           </div>
           <div class="callout warning"><p><strong>Development mode chỉ phục vụ tài khoản có vai trò trong App.</strong> Muốn người dùng thật tương tác, phải hoàn thiện Privacy Policy, Data Deletion, App Review và chuyển App sang Live theo yêu cầu hiện hành của Meta.</p></div>
         </div>

@@ -15,7 +15,6 @@ const FRIENDLY_ERRORS: Record<string, string> = {
   student_not_found: "Không tìm thấy học sinh.",
   staff_required: "Tài khoản của bạn không có quyền gửi Messenger.",
   missing_bearer_token: "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.",
-  invalid_post_images: "Danh sách ảnh không hợp lệ (tối đa 4 URL, phải bắt đầu bằng http/https).",
   utility_disabled: "Thông báo tiện ích đang tắt trong hệ thống.",
   utility_parameters_invalid: "Thông tin của mẫu thông báo chưa đầy đủ hoặc không hợp lệ.",
   utility_template_not_allowed: "Tài khoản của bạn không được phép sử dụng mẫu thông báo này.",
@@ -82,7 +81,6 @@ interface MessengerResponse {
   status: "sent" | "failed";
   sent?: number;
   total?: number;
-  postId?: string;
 }
 
 async function workerRequest<T>(path: string, input: unknown): Promise<T> {
@@ -165,19 +163,5 @@ export async function sendMessenger(input: SendMessengerInput): Promise<SendMess
     return { sent: true, id: data.id, status: data.status, sentCount: data.sent, total: data.total };
   } catch (error) {
     return { sent: false, ...failure(error) };
-  }
-}
-
-export interface PostPageInput { message: string; link?: string; imageUrls?: string[]; }
-export type PostToPageResult =
-  | { posted: true; id: string; status: "sent" | "failed"; postId?: string }
-  | { posted: false; reason: MessengerFailureReason; message: string };
-
-export async function postToPage(input: PostPageInput): Promise<PostToPageResult> {
-  try {
-    const data = await workerRequest<MessengerResponse>("/api/messenger/post", input);
-    return { posted: true, id: data.id, status: data.status, postId: data.postId };
-  } catch (error) {
-    return { posted: false, ...failure(error) };
   }
 }

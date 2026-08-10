@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import worker, { assertStudentScope, buildFeedPayload, buildMessengerPayload, buildUtilityPayload, checkMetaUtilityPermission, corsHeaders, extractBearer, extractInboundMessages, extractReferralLinks, extractUtilityTemplateStatuses, firebaseCertificates, isMessengerTagShape, markWebhookMessageProcessed, META_OAUTH_SCOPES, META_UTILITY_OAUTH_SCOPE, META_WEBHOOK_FIELDS, metaErrorCode, metaOAuthCompletionErrorMessage, metaOAuthErrorMessage, metaOAuthScopes, metaUtilityPermissionStatus, parseMessengerProfile, postGraph, publicErrorCode, referralClaimUid, referralTargetAllowed, resetFirebaseCachesForTest, safeConnectOrigin, sendGraph, serviceAccessToken, subscribePageWebhooks, validPostImages, validUtilityParameters, verifyMetaSignature, webhookMessageProcessed, type Env } from "../src/index";
+import worker, { assertStudentScope, buildMessengerPayload, buildUtilityPayload, checkMetaUtilityPermission, corsHeaders, extractBearer, extractInboundMessages, extractReferralLinks, extractUtilityTemplateStatuses, firebaseCertificates, isMessengerTagShape, markWebhookMessageProcessed, META_OAUTH_SCOPES, META_UTILITY_OAUTH_SCOPE, META_WEBHOOK_FIELDS, metaErrorCode, metaOAuthCompletionErrorMessage, metaOAuthErrorMessage, metaOAuthScopes, metaUtilityPermissionStatus, parseMessengerProfile, publicErrorCode, referralClaimUid, referralTargetAllowed, resetFirebaseCachesForTest, safeConnectOrigin, sendGraph, serviceAccessToken, subscribePageWebhooks, validUtilityParameters, verifyMetaSignature, webhookMessageProcessed, type Env } from "../src/index";
 const env={FIREBASE_PROJECT_ID:"project",FIREBASE_CLIENT_EMAIL:"email",FIREBASE_PRIVATE_KEY:"key",META_APP_ID:"app-id",META_PAGE_ACCESS_TOKEN:"token",META_APP_SECRET:"app-secret",META_WEBHOOK_VERIFY_TOKEN:"verify-me",META_GRAPH_VERSION:"v25.0",META_PAGE_ID:"page-id",ALLOWED_ORIGIN:"http://localhost:5173"}satisfies Env;
 describe("messenger worker",()=>{
 afterEach(()=>{vi.restoreAllMocks();resetFirebaseCachesForTest()});
@@ -89,19 +89,6 @@ test("sends Messenger token in Authorization header, never the URL",async()=>{
   expect(String(url)).not.toContain("access_token");
   expect(new Headers(init?.headers).get("authorization")).toBe("Bearer token");
 });
-test("sends Page post token in Authorization header, never the URL",async()=>{
-  const fetchMock=vi.spyOn(globalThis,"fetch").mockImplementation(async()=>new Response(JSON.stringify({id:"post"}),{status:200,headers:{"content-type":"application/json"}}));
-  await postGraph({message:"Thong bao",imageUrls:["https://cdn.example/photo.jpg"]},env);
-  expect(fetchMock).toHaveBeenCalledTimes(2);
-  expect(fetchMock.mock.calls.map(([url])=>String(url))).toEqual([
-    "https://graph.facebook.com/v25.0/page-id/photos",
-    "https://graph.facebook.com/v25.0/page-id/feed",
-  ]);
-  for (const [url,init] of fetchMock.mock.calls) {
-    expect(String(url)).not.toContain("access_token");
-    expect(new Headers(init?.headers).get("authorization")).toBe("Bearer token");
-  }
-});
 test("caches Firebase public certificates",async()=>{
   const fetchMock=vi.spyOn(globalThis,"fetch").mockResolvedValue(new Response(JSON.stringify({kid:"certificate"}),{status:200,headers:{"cache-control":"public, max-age=3600","content-type":"application/json"}}));
   expect(await firebaseCertificates()).toEqual({kid:"certificate"});
@@ -175,7 +162,7 @@ test("webhook challenge",async()=>expect(await(await worker.fetch(new Request("h
 test("rejects wrong verify token",async()=>expect((await worker.fetch(new Request("https://worker/webhook?hub.mode=subscribe&hub.verify_token=wrong&hub.challenge=123"),env)).status).toBe(403));
 test("send requires auth",async()=>expect((await worker.fetch(new Request("https://worker/api/messenger/send",{method:"POST"}),env)).status).toBe(401));
 test("thread context sync requires auth",async()=>expect((await worker.fetch(new Request("https://worker/api/messenger/sync-contexts",{method:"POST"}),env)).status).toBe(401));
-test("post requires auth",async()=>expect((await worker.fetch(new Request("https://worker/api/messenger/post",{method:"POST"}),env)).status).toBe(401));
+test("Page posting endpoint is not exposed",async()=>expect((await worker.fetch(new Request("https://worker/api/messenger/post",{method:"POST"}),env)).status).toBe(404));
 test("Meta connect start requires auth",async()=>{
   const response=await worker.fetch(new Request("https://worker/api/meta/connect/start",{method:"POST",headers:{origin:"http://localhost:5173"}}),env);
   expect(response.status).toBe(401);
@@ -189,17 +176,14 @@ test("does not emit an allow-origin header for a disallowed origin",async()=>{
   expect(response.status).toBe(204);
   expect(response.headers.get("access-control-allow-origin")).toBeNull();
 });
-test.each(["/api/messenger/post","/api/messenger/referral"])("returns the matching secondary production origin for %s",async(path)=>{
+test("returns the matching secondary production origin for referrals",async()=>{
   const productionEnv={...env,ALLOWED_ORIGIN:"https://edumatrix-vn-576b1.web.app,https://edumatrix.id.vn"}satisfies Env;
-  const response=await worker.fetch(new Request(`https://worker${path}`,{method:"POST",headers:{origin:"https://edumatrix.id.vn"}}),productionEnv);
+  const response=await worker.fetch(new Request("https://worker/api/messenger/referral",{method:"POST",headers:{origin:"https://edumatrix.id.vn"}}),productionEnv);
   expect(response.status).toBe(401);
   expect(response.headers.get("access-control-allow-origin")).toBe("https://edumatrix.id.vn");
 });
-test("validates post image urls",()=>{expect(validPostImages(undefined)).toBe(true);expect(validPostImages(["https://a/1.jpg","http://b/2.png"])).toBe(true);expect(validPostImages(["ftp://a/1.jpg"])).toBe(false);expect(validPostImages(["https://a/1.jpg","https://a/2.jpg","https://a/3.jpg","https://a/4.jpg","https://a/5.jpg"])).toBe(false);expect(validPostImages("https://a/1.jpg")).toBe(false)});
-test("builds plain feed payload with link",()=>expect(buildFeedPayload({message:"Hi",link:"https://x.vn"},[])).toEqual({message:"Hi",link:"https://x.vn"}));
-test("builds feed payload with attached media and folds link into message",()=>expect(buildFeedPayload({message:"Hi",link:"https://x.vn",imageUrls:["https://a/1.jpg","https://a/2.jpg"]},["ph1","ph2"])).toEqual({message:"Hi\nhttps://x.vn",attached_media:[{media_fbid:"ph1"},{media_fbid:"ph2"}]}));
 test("requests Utility permission only after its production flag is enabled",()=>{
-  expect(META_OAUTH_SCOPES).toEqual(["pages_show_list","pages_manage_metadata","pages_messaging","pages_read_engagement","pages_manage_posts"]);
+  expect(META_OAUTH_SCOPES).toEqual(["pages_show_list","pages_manage_metadata","pages_messaging","pages_read_engagement"]);
   expect(metaOAuthScopes(env)).toEqual(META_OAUTH_SCOPES);
   expect(metaOAuthScopes({...env,UTILITY_MESSAGING_ENABLED:"true"})).toEqual([...META_OAUTH_SCOPES,META_UTILITY_OAUTH_SCOPE]);
   expect(META_UTILITY_OAUTH_SCOPE).toBe("page_utility_messaging");

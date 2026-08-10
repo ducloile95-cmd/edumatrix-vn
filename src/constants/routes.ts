@@ -23,7 +23,6 @@ export const ROUTES = {
   STAFF_ASSIGNMENTS: "/app/assignments",
   STAFF_SCORES: "/app/scores",
   STAFF_INVOICES: "/app/invoices",
-  STAFF_MARKETING: "/app/marketing",
   STAFF_CHAT: "/app/chat",
   STAFF_ANNOUNCEMENTS: "/app/announcements",
   STAFF_CHAT_DEMO: "/app/chat-demo",

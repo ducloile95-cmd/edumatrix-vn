@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Bell, BookOpen, CalendarDays, ChartNoAxesCombined, ClipboardCheck, FileText,
-  FolderKanban, Home, LayoutDashboard, LayoutGrid, Library, Megaphone, Presentation,
+  FolderKanban, Home, LayoutDashboard, LayoutGrid, Library, Presentation,
   MessagesSquare, NotebookPen, Settings, UserCog, Users, Wallet,
 } from "lucide-react";
 import { ROUTES } from "@/constants/routes";
@@ -18,7 +18,7 @@ export function isNavGroup(node: NavNode): node is NavGroup {
   return "children" in node;
 }
 
-// Nhánh dùng chung cho Admin/Teacher; Admin có thêm mục quản trị (Người dùng, Marketing).
+// Nhánh dùng chung cho Admin/Teacher; Admin có thêm mục quản trị Người dùng.
 const groupLopHoc: NavGroup = {
   label: "Quản lý lớp học", icon: FolderKanban,
   children: [
@@ -40,7 +40,6 @@ const groupChucNang: NavGroup = {
   ],
 };
 
-const MARKETING: NavLeaf = { to: ROUTES.STAFF_MARKETING, label: "Marketing", icon: Megaphone };
 const TAI_CHINH: NavLeaf = { to: ROUTES.STAFF_INVOICES, label: "Tài chính", icon: Wallet };
 // Cai dat: Admin thay 4 muc, Giao vien chi thay Thong bao + Giao dien (loc theo role trong SettingsPage).
 const CAI_DAT: NavLeaf = { to: ROUTES.STAFF_SETTINGS, label: "Cài đặt", icon: Settings };
@@ -52,7 +51,7 @@ export const NAVIGATION_BY_ROLE: Record<UserRole, NavNode[]> = {
     TONG_QUAN,
     groupLopHoc,
     groupChucNang,
-    { label: "Quản lý", icon: Settings, children: [TAI_CHINH, MARKETING, { to: ROUTES.STAFF_USERS, label: "Người dùng", icon: UserCog }, CAI_DAT] },
+    { label: "Quản lý", icon: Settings, children: [TAI_CHINH, { to: ROUTES.STAFF_USERS, label: "Người dùng", icon: UserCog }, CAI_DAT] },
   ],
   [USER_ROLES.TEACHER]: [
     TONG_QUAN,

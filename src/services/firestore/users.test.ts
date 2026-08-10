@@ -1,20 +1,26 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  documentId: vi.fn(() => "__name__"), getDocs: vi.fn(), orderBy: vi.fn(),
+  getCurrentUserDoc: vi.fn(), isAdminUser: vi.fn(), isTeacherUser: vi.fn(), where: vi.fn(),
   runTransaction: vi.fn(), transactionGet: vi.fn(), transactionUpdate: vi.fn(), writeAuditLog: vi.fn(),
 }));
 
 vi.mock("firebase/firestore", () => ({
-  collection: vi.fn(), documentId: vi.fn(), getDoc: vi.fn(), getDocs: vi.fn(), limit: vi.fn(), onSnapshot: vi.fn(),
-  orderBy: vi.fn(), query: vi.fn(), where: vi.fn(), updateDoc: vi.fn(), writeBatch: vi.fn(),
+  collection: vi.fn(), documentId: mocks.documentId, getDoc: vi.fn(), getDocs: mocks.getDocs, limit: vi.fn(), onSnapshot: vi.fn(),
+  orderBy: mocks.orderBy, query: vi.fn(), where: mocks.where, updateDoc: vi.fn(), writeBatch: vi.fn(),
   doc: vi.fn((_db, name: string, id: string) => ({ id, path: `${name}/${id}` })),
   runTransaction: mocks.runTransaction, serverTimestamp: vi.fn(() => "server-time"),
 }));
 vi.mock("@/services/firebase/firestoreClient", () => ({ db: {} }));
 vi.mock("@/services/firestore/auditLog", () => ({ writeAuditLog: mocks.writeAuditLog }));
-vi.mock("@/services/firestore/authz", () => ({ getCurrentUserDoc: vi.fn(), isAdminUser: vi.fn(), isTeacherUser: vi.fn() }));
+vi.mock("@/services/firestore/authz", () => ({
+  getCurrentUserDoc: mocks.getCurrentUserDoc,
+  isAdminUser: mocks.isAdminUser,
+  isTeacherUser: mocks.isTeacherUser,
+}));
 
-import { updateUserAccount } from "./users";
+import { listUsers, listUsersByRole, updateUserAccount } from "./users";
 
 function snapshot(id: string, data: Record<string, unknown> | null) {
   return { id, ref: { id, path: `students/${id}` }, exists: () => data !== null, data: () => data };
@@ -67,5 +73,35 @@ describe("updateUserAccount", () => {
       expect.objectContaining({ path: "students/HS001" }),
       expect.objectContaining({ parentUids: [] }),
     );
+  });
+});
+
+describe("user list queries", () => {
+  beforeEach(() => {
+    mocks.documentId.mockClear(); mocks.getDocs.mockReset(); mocks.orderBy.mockClear(); mocks.where.mockClear();
+    mocks.getCurrentUserDoc.mockReset(); mocks.isAdminUser.mockReset(); mocks.isTeacherUser.mockReset();
+  });
+
+  test("uses the single-field createdAt index for stable pagination", async () => {
+    mocks.getDocs.mockResolvedValueOnce({ docs: [] });
+
+    await listUsers();
+
+    expect(mocks.orderBy).toHaveBeenCalledTimes(1);
+    expect(mocks.orderBy).toHaveBeenCalledWith("createdAt", "desc");
+    expect(mocks.documentId).not.toHaveBeenCalled();
+  });
+
+  test("lists active users by role without requiring a __name__ composite index", async () => {
+    mocks.getCurrentUserDoc.mockResolvedValueOnce({ uid: "admin-1", role: "admin" });
+    mocks.isAdminUser.mockReturnValueOnce(true);
+    mocks.isTeacherUser.mockReturnValue(false);
+    mocks.getDocs.mockResolvedValueOnce({ docs: [] });
+
+    await listUsersByRole("teacher");
+
+    expect(mocks.where).toHaveBeenCalledWith("role", "==", "teacher");
+    expect(mocks.where).toHaveBeenCalledWith("status", "==", "active");
+    expect(mocks.documentId).not.toHaveBeenCalled();
   });
 });

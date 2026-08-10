@@ -1666,23 +1666,6 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // fanpage_posts: lich su + hang cho dang bai Fanpage - client ghi truc tiep (Admin-only,
-    // Worker khong co endpoint ghi log). imageUrls chi la chuoi URL cong khai, khong co file.
-    match /fanpage_posts/{postId} {
-      allow read: if isAdmin();
-      allow create: if isAdmin() &&
-        request.resource.data.actorUid == request.auth.uid &&
-        request.resource.data.message is string && request.resource.data.message.size() > 0 &&
-        request.resource.data.status in ['sent', 'failed', 'scheduled'] &&
-        (request.resource.data.imageUrls == null ||
-          (request.resource.data.imageUrls is list && request.resource.data.imageUrls.size() <= 4));
-      allow update: if isAdmin() &&
-        resource.data.status == 'scheduled' &&
-        request.resource.data.status in ['sent', 'failed', 'canceled'] &&
-        keepsImmutable(['message', 'link', 'imageUrls', 'actorUid', 'actorName', 'createdAt', 'scheduledFor']);
-      allow delete: if false;
-    }
-
     // ---------- Mac dinh: tu choi tat ca ----------
     // Cac collection khac (sessions, lesson_plans, attendance, assignments,
     // submissions, scores, invoices, payments, announcements...) se duoc mo

@@ -725,6 +725,23 @@ describe("legacy client telemetry", () => {
   });
 });
 
+describe("removed Fanpage posting", () => {
+  test("no client role can access legacy fanpage_posts", async () => {
+    const payload = {
+      actorUid: ADMIN_UID,
+      message: "Legacy Page post",
+      status: "sent",
+      imageUrls: [],
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    };
+    await assertFails(setDoc(doc(asAdmin(), "fanpage_posts", "legacy-post"), payload));
+    await assertFails(getDoc(doc(asAdmin(), "fanpage_posts", "legacy-post")));
+    await assertFails(getDoc(doc(asTeacher(), "fanpage_posts", "legacy-post")));
+    await assertFails(getDoc(doc(asViewer(), "fanpage_posts", "legacy-post")));
+  });
+});
+
 describe("Messenger referral secrets", () => {
   test("all client roles are denied nonce and PSID reverse-index access", async () => {
     const nonceRef = doc(asAdmin(), "messenger_link_nonces", "abcdefghijklmnopqrstuv");

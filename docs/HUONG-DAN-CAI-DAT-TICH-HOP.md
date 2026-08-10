@@ -209,11 +209,10 @@ Không ghi token vào `settings/integrations` — trường `facebookPageId` tro
 | Chức năng | Quyền Meta | Mục đích |
 |---|---|---|
 | Messenger (Chat) | `pages_messaging` | Gửi trong cửa sổ 24h (`messaging_type: RESPONSE`); ngoài 24h phải dùng message tag |
-| Đăng Page (Post bài) | `pages_manage_posts`, `pages_read_engagement` | Cần **Advanced Access** qua App Review mới đăng được cho người dùng thật |
 | Quản lý webhook Page | `pages_manage_metadata` | Đăng ký/quản lý Page webhook |
 | Chọn Page | `pages_show_list` | Liệt kê Page mà người dùng quản lý |
 
-Khi App còn *Development*, chỉ tài khoản có vai trò trong App (admin/dev/tester) mới nhận tin/đăng được. Muốn dùng thật phải submit App Review và chuyển App sang *Live*. Kiểm tra lại quyền tại **App Review → Permissions and Features** trước khi go-live.
+Khi App còn *Development*, chỉ tài khoản có vai trò trong App (admin/dev/tester) mới dùng được tích hợp. Muốn dùng thật phải submit App Review và chuyển App sang *Live*. Kiểm tra lại quyền tại **App Review → Permissions and Features** trước khi go-live.
 
 ---
 
@@ -315,27 +314,6 @@ try {
 ```json
 { "studentId": "hs001", "text": "Cập nhật tài khoản học phí.", "tag": "ACCOUNT_UPDATE" }
 ```
-
-### Post bài (Page feed)
-
-**Endpoint:** `POST /api/messenger/post` · **Header:** `Authorization: Bearer <Firebase ID token>`
-
-```json
-{ "message": "Thông báo lịch nghỉ Tết...", "link": "https://edumatrix-vn.web.app/thong-bao" }
-```
-
-`link` tuỳ chọn, `message` tối đa 5000 ký tự.
-
-```ts
-import { postToPage } from "@/services/messenger/client";
-
-const res = await postToPage({ message: "Trung tâm nghỉ lễ 2/9.", link: "https://..." });
-// res = { id, status: "sent", postId: "<page-post-id>" }
-```
-
-Cần quyền `pages_manage_posts` ở mức **Advanced Access** (App Review). Nếu chưa duyệt, Meta trả lỗi quyền → Worker ghi `message_outbox` với `status: "failed"` và trả `502 { status: "failed", error: "meta_..." }`.
-
----
 
 ## 7. Kết nối Google Drive & Picker
 
@@ -496,7 +474,7 @@ Nguyên tắc chung: không đổi nhiều cấu hình cùng lúc — dùng Netw
 
 > Các mục có `[ ]`/`[x]` dưới đây là **trạng thái tài khoản Meta/Cloudflare production thật** (App Review, token, secret, webhook, gửi thử) — **không thể xác minh được từ source code**, chỉ Lợi tự làm và tick được từ máy có quyền truy cập Meta for Developers/Cloudflare dashboard. Rà lại lần cuối trước khi gộp tài liệu: 18/07/2026 — cần Lợi xác nhận lại trạng thái hiện tại. Checklist triển khai production đầy đủ hơn (mọi hạng mục, không chỉ Messenger) nằm ở `docs/CHECKLIST-TRIEN-KHAI-PRODUCTION.md`.
 
-- [ ] App Meta chuyển sang **Live**; đã submit App Review cho `pages_messaging` (+ `pages_manage_posts` nếu dùng post).
+- [ ] App Meta chuyển sang **Live**; đã submit App Review cho `pages_messaging` và các quyền Page mà Worker đang yêu cầu.
 - [ ] `META_PAGE_ACCESS_TOKEN` là **System User token** (không hết hạn).
 - [ ] Tất cả secret đã `wrangler secret put` (không nằm trong repo).
 - [x] `ALLOWED_ORIGIN` = domain production.

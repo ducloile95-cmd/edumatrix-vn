@@ -51,7 +51,7 @@ Rủi ro chính: Worker mới không nằm trong lịch sử deployment của Cl
 - Không thể kiểm tra token động từ local vì `FIREBASE_PRIVATE_KEY` trong `.dev.vars` bị thiếu phần kết thúc của private key.
 - Worker cũ có đủ tên secret cần thiết trên Cloudflare, nhưng không đọc được giá trị secret và không chứng minh được Worker mới dùng cùng secret.
 - Luồng chọn Page lưu Page access token mã hóa vào `messenger_private_config/page`, sau đó Worker ưu tiên token động và chỉ fallback sang token tĩnh.
-- Luồng OAuth hiện yêu cầu: `pages_show_list`, `pages_manage_metadata`, `pages_messaging`, `pages_read_engagement`, `pages_manage_posts`; khi Utility bật còn yêu cầu `page_utility_messaging`.
+- Luồng OAuth hiện yêu cầu: `pages_show_list`, `pages_manage_metadata`, `pages_messaging`, `pages_read_engagement`; khi Utility bật còn yêu cầu `page_utility_messaging`. Chức năng đăng Page và quyền tương ứng đã được loại bỏ.
 - Code chưa tự gọi `/{page-id}/subscribed_apps` sau khi chọn Page. Webhook subscription vì vậy phải được cấu hình thủ công hoặc bổ sung thành một bước riêng có test.
 
 ### Các lỗi/rủi ro code cần xử lý có giới hạn
