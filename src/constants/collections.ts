@@ -42,7 +42,6 @@ export const COLLECTIONS = {
   MESSENGER_CONNECTIONS: "messenger_connections",
   CHAT_THREADS: "chat_threads",
   CHAT_TAGS: "chat_tags",
-  FANPAGE_POSTS: "fanpage_posts",
 
   AUDIT_LOGS: "audit_logs",
 } as const;

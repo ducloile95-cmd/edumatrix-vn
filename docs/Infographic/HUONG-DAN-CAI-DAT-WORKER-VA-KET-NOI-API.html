@@ -333,7 +333,7 @@ npm run deploy:prod</code></pre></div>
       <section class="section guide-section" data-platform="meta" id="meta">
         <div class="section-head"><span class="section-number">04</span><div><h2>Meta Messenger</h2><p class="section-intro">Meta App kết nối với Facebook Page; webhook gọi vào Worker, còn frontend không bao giờ nhìn thấy Page Access Token.</p></div></div>
         <div class="grid-2">
-          <div class="card"><p class="card-kicker">Worker endpoints</p><p><code>POST /api/messenger/send</code><br><code>POST /api/messenger/post</code><br><code>POST /api/messenger/referral</code><br><code>GET/POST /webhook</code></p></div>
+          <div class="card"><p class="card-kicker">Worker endpoints</p><p><code>POST /api/messenger/send</code><br><code>POST /api/messenger/referral</code><br><code>GET/POST /webhook</code></p></div>
           <div class="card"><p class="card-kicker">Webhook fields</p><p><code>messages</code><br><code>messaging_postbacks</code><br><code>messaging_referrals</code></p></div>
         </div>
         <div class="card" style="margin-top:14px">
@@ -346,7 +346,7 @@ npm run deploy:prod</code></pre></div>
           <div class="step"><input type="checkbox" id="s15" data-step><label for="s15"><strong>Tạo Meta App và thêm Messenger</strong><small>Kết nối đúng Facebook Page, tạo Page Access Token và giữ token trong Worker secret.</small></label></div>
           <div class="step"><input type="checkbox" id="s16" data-step><label for="s16"><strong>Đăng ký webhook callback</strong><small>Callback: <code>https://&lt;worker-url&gt;/webhook</code>. Verify token phải trùng <code>META_WEBHOOK_VERIFY_TOKEN</code>.</small></label></div>
           <div class="step"><input type="checkbox" id="s17" data-step><label for="s17"><strong>Đăng ký các webhook fields</strong><small>Chọn messages, messaging_postbacks, messaging_referrals cho Page.</small></label></div>
-          <div class="step"><input type="checkbox" id="s18" data-step><label for="s18"><strong>Rà soát quyền và App Review</strong><small>Messenger cần <code>pages_messaging</code>; đăng bài thường cần <code>pages_manage_posts</code> và <code>pages_read_engagement</code>; webhook có thể cần <code>pages_manage_metadata</code>. Đối chiếu dashboard Meta hiện tại.</small></label></div>
+          <div class="step"><input type="checkbox" id="s18" data-step><label for="s18"><strong>Rà soát quyền và App Review</strong><small>Messenger cần <code>pages_messaging</code>; webhook cần <code>pages_manage_metadata</code>. Đối chiếu dashboard Meta hiện tại và chỉ xin quyền Worker đang sử dụng.</small></label></div>
           <div class="step"><input type="checkbox" id="s19" data-step><label for="s19"><strong>Điền định danh Meta trong frontend và Admin</strong><small><code>VITE_MESSENGER_PAGE_USERNAME</code> là username Page; Admin lưu Facebook Page ID, không lưu token.</small></label></div>
           <div class="step"><input type="checkbox" id="s20" data-step><label for="s20"><strong>Smoke test ba luồng</strong><small>Gửi tin nhắn test, tạo bài đăng test và tạo link referral từ màn hình Chat. Xem log Worker nếu lỗi.</small></label></div>
         </div>

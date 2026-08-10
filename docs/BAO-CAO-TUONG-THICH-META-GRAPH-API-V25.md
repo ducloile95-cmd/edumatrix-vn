@@ -14,8 +14,6 @@ secret trong đợt rà soát.
 | Liệt kê Page/token | `GET /v25.0/me/accounts` | `id,name,access_token,picture`; `pages_show_list` |
 | Gửi Messenger | `POST /v25.0/{page-id}/messages` | `RESPONSE`, `MESSAGE_TAG`, `UTILITY`; `pages_messaging` |
 | Hồ sơ PSID | `GET /v25.0/{psid}` | `first_name,last_name,profile_pic`; `pages_messaging` |
-| Đăng ảnh nháp | `POST /v25.0/{page-id}/photos` | `url`, `published:false`; `pages_manage_posts` |
-| Đăng Page | `POST /v25.0/{page-id}/feed` | `message`, `link` hoặc `attached_media`; `pages_manage_posts` |
 | Webhook | `/webhook` của Worker | GET challenge; POST kiểm tra `X-Hub-Signature-256` |
 
 Nguồn đối chiếu: [Meta Messenger Platform API collection](https://www.postman.com/meta/messenger-platform-api/documentation/iyp204x/messenger-platform-api),
@@ -36,8 +34,7 @@ Nguồn đối chiếu: [Meta Messenger Platform API collection](https://www.pos
    `https://edumatrix-messenger-production.edumatrix-vn.workers.dev/api/meta/connect/callback`.
 5. **App Review → Permissions and Features:** xác nhận Advanced Access cho
    `pages_show_list`, `pages_manage_metadata`, `pages_messaging`,
-   `pages_read_engagement`; thêm `pages_manage_posts` nếu dùng chức năng đăng
-   Page; chỉ thêm/bật `page_utility_messaging` sau khi Utility được duyệt.
+   `pages_read_engagement`; chỉ thêm/bật `page_utility_messaging` sau khi Utility được duyệt.
 6. Sau khi quyền OAuth thay đổi, Admin phải kết nối lại Fanpage trong EduMatrix
    để Page Access Token mới nhận scope mới. Không sửa token trong repository.
 7. Trước khi Live, dùng tài khoản App Admin/Tester chạy smoke test: nhận một tin

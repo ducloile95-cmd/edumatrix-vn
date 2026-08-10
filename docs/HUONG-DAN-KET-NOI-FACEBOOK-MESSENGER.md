@@ -244,10 +244,9 @@ Các chức năng của dự án liên quan đến các quyền sau:
 | Gửi và nhận Messenger | `pages_messaging` |
 | Quản lý subscription webhook Page | `pages_manage_metadata` |
 | Chọn/liệt kê Page | `pages_show_list` |
-| Đăng bài lên Page | `pages_manage_posts` |
 | Đọc tương tác Page | `pages_read_engagement` |
 
-Trong giai đoạn đầu, mục tiêu chính là Messenger Chat. Các quyền đăng bài Page có thể cần Advanced Access/App Review riêng và không nên được xem là điều kiện để hoàn thành kiểm thử Chat cơ bản.
+Hệ thống hiện chỉ tích hợp Messenger Chat, không yêu cầu quyền đăng bài Page.
 
 ### 2.6. Kiểm tra token bằng Access Token Debugger
 
@@ -834,7 +833,7 @@ Chỉ thực hiện sau khi Bước 7 đạt.
 2. Bổ sung hướng dẫn hoặc URL **User Data Deletion**.
 3. Kiểm tra App Domains và thông tin doanh nghiệp.
 4. Vào **App Review → Permissions and Features**.
-5. Xin quyền/Advanced Access cần thiết, tối thiểu xem xét `pages_messaging`; nếu đăng bài Page thì xem xét thêm `pages_manage_posts` và `pages_read_engagement`.
+5. Xin quyền/Advanced Access cần thiết cho `pages_messaging` và các quyền Page đang được Worker yêu cầu.
 6. Chuẩn bị video/screencast và tài khoản test nếu Meta yêu cầu khi review.
 7. Chỉ chuyển App sang **Live** sau khi các yêu cầu được chấp thuận và smoke test lại.
 

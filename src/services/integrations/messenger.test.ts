@@ -4,7 +4,7 @@ vi.mock("@/services/firebase/authClient", () => ({
   auth: { currentUser: { getIdToken: vi.fn().mockResolvedValue("firebase-id-token") } },
 }));
 
-import { createMessengerInviteLink, friendlyMessengerError, postToPage, sendMessenger, syncMessengerThreadContexts } from "@/services/integrations/messenger";
+import { createMessengerInviteLink, friendlyMessengerError, sendMessenger, syncMessengerThreadContexts } from "@/services/integrations/messenger";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -51,14 +51,6 @@ describe("Messenger integration adapter", () => {
       "https://messenger.example.workers.dev/api/messenger/send",
       expect.objectContaining({ body: JSON.stringify(input) }),
     );
-  });
-
-  test("does not retry a failed mutation and keeps Worker error code", async () => {
-    vi.stubEnv("VITE_MESSENGER_WORKER_URL", "https://messenger.example.workers.dev");
-    const fetchMock = vi.fn().mockResolvedValue(new Response('{"error":"student_scope_denied"}', { status: 403 }));
-    vi.stubGlobal("fetch", fetchMock);
-    await expect(postToPage({ message: "Thong bao" })).resolves.toMatchObject({ posted: false, reason: "error" });
-    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   test("reports missing Worker configuration without a network call", async () => {

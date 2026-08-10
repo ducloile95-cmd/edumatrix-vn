@@ -12,11 +12,10 @@ App ID: `1028280243271801`
 - Data Deletion: `https://edumatrix.id.vn/data-deletion`
 - Messenger Worker health: hoạt động.
 - Utility production flag: `false`.
-- Hồ sơ giữ 6 quyền:
+- Hồ sơ giữ 5 quyền:
   - `pages_show_list`
   - `pages_manage_metadata`
 - `page_utility_messaging`
-  - `pages_manage_posts`
   - `pages_messaging`
   - `pages_read_engagement`
 
@@ -88,11 +87,11 @@ Valid OAuth Redirect URIs:
 https://edumatrix-messenger-production.edumatrix-vn.workers.dev/api/meta/connect/callback
 ```
 
-Quyền mà hộp thoại OAuth đang yêu cầu (khớp đúng sáu quyền trong hồ sơ):
+Quyền mà hộp thoại OAuth đang yêu cầu (khớp đúng năm quyền trong hồ sơ):
 
 ```text
 pages_show_list, pages_manage_metadata, pages_messaging, pages_read_engagement,
-page_utility_messaging, pages_manage_posts
+page_utility_messaging
 ```
 
 Admin phải **kết nối lại Fanpage** sau thay đổi này thì Page Access Token mới mang

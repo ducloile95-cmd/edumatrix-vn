@@ -273,10 +273,9 @@ Các quyền liên quan đến dự án:
 | Gửi và nhận Messenger | `pages_messaging` |
 | Quản lý đăng ký Webhook Page | `pages_manage_metadata` |
 | Hiển thị/chọn Page | `pages_show_list` |
-| Đăng bài lên Page | `pages_manage_posts` |
 | Đọc tương tác Page | `pages_read_engagement` |
 
-Trong giai đoạn đầu, chỉ tập trung hoàn thành Messenger Chat. Chức năng đăng bài cần quyền và quy trình xét duyệt riêng.
+Hệ thống hiện chỉ tích hợp Messenger Chat, không yêu cầu quyền đăng bài Page.
 
 ### Checkpoint Phần C
 
@@ -725,12 +724,9 @@ Chỉ thực hiện phần này sau khi toàn bộ kiểm thử ở Development 
 3. Kiểm tra email liên hệ của ứng dụng.
 4. Mở **App Review → Permissions and Features**.
 5. Xin quyền `pages_messaging`.
-6. Nếu dùng đăng bài, xin thêm:
-   - `pages_manage_posts`;
-   - `pages_read_engagement`.
-7. Chuẩn bị video quay lại luồng sử dụng thực tế.
-8. Giải thích rõ EduMatrix dùng quyền để giáo viên/Admin liên hệ phụ huynh.
-9. Gửi yêu cầu xét duyệt.
+6. Chuẩn bị video quay lại luồng sử dụng thực tế.
+7. Giải thích rõ EduMatrix dùng quyền để giáo viên/Admin liên hệ phụ huynh.
+8. Gửi yêu cầu xét duyệt.
 
 Trong Development mode, thông thường chỉ người có vai trò Admin, Developer hoặc Tester của App sử dụng được. Người dùng thật chỉ nên được mở sau khi các quyền cần thiết được duyệt.
 
@@ -932,4 +928,3 @@ FIREBASE_PRIVATE_KEY
 - `workers/messenger/.dev.vars.example` — mẫu tên biến cho Worker local.
 - `workers/messenger/wrangler.jsonc` — cấu hình Cloudflare Worker.
 - `.env.example` — mẫu biến môi trường frontend.
-
