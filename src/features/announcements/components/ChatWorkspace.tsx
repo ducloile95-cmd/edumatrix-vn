@@ -9,7 +9,7 @@ import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
 import { Modal } from "@/components/ui/Modal";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { createChatTag, deleteChatTag, listChatTags, listMessageOutbox, setChatThreadTags } from "@/services/firestore/chat";
+import { createChatTag, deleteChatTag, listChatTags, listMessageOutbox, markChatThreadRead, setChatThreadTags } from "@/services/firestore/chat";
 import { listStudents } from "@/services/firestore/students";
 import { listUsersByIds } from "@/services/firestore/users";
 import { isMessengerInviteConfigured, MessengerSendError, sendMessenger, type UtilityTemplateKey } from "@/services/integrations/messenger";
@@ -391,6 +391,16 @@ export function Conversations({ threads, configured, initialPickerOpen = false, 
     onError: (_error, _variables, context) => queryClient.setQueryData(threadQueryKey, context?.previous),
     onSettled: () => queryClient.invalidateQueries({ queryKey: threadQueryKey }),
   });
+  const markRead = useMutation({
+    mutationFn: (threadId: string) => markChatThreadRead(threadId),
+    onMutate: async (threadId) => {
+      await queryClient.cancelQueries({ queryKey: threadQueryKey });
+      const previous = queryClient.getQueryData<Thread[]>(threadQueryKey);
+      queryClient.setQueryData<Thread[]>(threadQueryKey, (current) => current?.map((thread) => thread.id === threadId ? { ...thread, unreadStaffCount: 0 } : thread));
+      return { previous };
+    },
+    onError: (_error, _threadId, context) => queryClient.setQueryData(threadQueryKey, context?.previous),
+  });
   const createTag = useMutation({ mutationFn: ({ label, color }: { label: string; color: ChatTagColor }) => createChatTag(label, color, uid), onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.chatTags() }) });
   const removeCatalogTag = useMutation({ mutationFn: deleteChatTag, onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.chatTags() }) });
   const tagCatalog = tagsQuery.data ?? [];
@@ -441,6 +451,7 @@ export function Conversations({ threads, configured, initialPickerOpen = false, 
             {([["all", "Tất cả"], ["unread", "Chưa đọc"], ["attention", "Cần xử lý"]] as const).map(([value, label]) => <button key={value} type="button" onClick={() => setFilter(value)} aria-pressed={filter === value} className={`min-h-9 shrink-0 rounded-card px-3 text-xs font-semibold transition-colors active:scale-[.98] ${filter === value ? "bg-primary-600 text-white" : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200 hover:text-neutral-900"}`}>{label}</button>)}
           </div>
           {tagsQuery.isError && <p role="alert" className="text-xs font-semibold text-danger-700">Không tải được tag hội thoại.</p>}
+          {markRead.isError && <p role="alert" className="mt-2 text-xs font-semibold text-danger-700">Không thể cập nhật trạng thái đã đọc.</p>}
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto py-1">
           {!threads.length ? (
@@ -448,7 +459,7 @@ export function Conversations({ threads, configured, initialPickerOpen = false, 
           ) : !filtered.length ? (
             <div className="px-5 py-14 text-center"><Search className="mx-auto text-neutral-300" size={28} /><p className="mt-3 text-sm font-semibold text-neutral-700">Không có hội thoại phù hợp</p><p className="mt-1 text-xs text-neutral-500">Thử đổi từ khóa hoặc bộ lọc.</p></div>
           ) : filtered.map((thread) => (
-            <button key={thread.id} type="button" onClick={() => { setSelectedId(thread.id); setMobileThreadOpen(true); }} aria-current={thread.id === selectedId ? "true" : undefined} className={`flex min-h-[76px] w-full gap-3 px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500 ${thread.id === selectedId ? "bg-primary-50" : "hover:bg-neutral-50"}`}>
+            <button key={thread.id} type="button" onClick={() => { setSelectedId(thread.id); setMobileThreadOpen(true); if (thread.unreadStaffCount > 0) markRead.mutate(thread.id); }} aria-current={thread.id === selectedId ? "true" : undefined} className={`flex min-h-[76px] w-full gap-3 px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500 ${thread.id === selectedId ? "bg-primary-50" : "hover:bg-neutral-50"}`}>
               <span className="relative shrink-0"><AccountAvatar thread={thread} />{thread.linkStatus !== "unlinked" && thread.status !== "blocked" && <span className="absolute bottom-0 right-0 size-3 rounded-full border-2 border-white bg-success-500" aria-label="Đã kết nối" />}</span>
               <span className="min-w-0 flex-1"><span className="flex items-baseline justify-between gap-2"><b className="truncate text-sm font-semibold leading-5 text-neutral-900">{accountName(thread)}</b><span className="shrink-0 text-2xs text-neutral-400">{time(thread.lastMessageAt)}</span></span><span className={`mt-1 block truncate text-xs leading-5 ${thread.unreadStaffCount ? "font-semibold text-neutral-800" : "text-neutral-500"}`}>{thread.lastMessagePreview}</span>{assignedTagsFor(thread).length > 0 && <span className="mt-1.5 flex flex-wrap gap-1">{assignedTagsFor(thread).slice(0, 2).map((tag) => <span key={tag.id} className={`rounded px-1.5 py-0.5 text-3xs font-semibold leading-4 ${CHAT_TAG_STYLES[tag.color]}`}>{tag.label}</span>)}{assignedTagsFor(thread).length > 2 && <span className="px-1 py-0.5 text-3xs font-semibold text-neutral-500">+{assignedTagsFor(thread).length - 2}</span>}</span>}</span>
               <span className="flex w-5 shrink-0 flex-col items-center justify-end gap-1.5">{thread.unreadStaffCount > 0 && <span className="flex size-5 items-center justify-center rounded-full bg-primary-600 text-2xs font-bold text-white">{thread.unreadStaffCount}</span>}{(thread.status === "blocked" || thread.linkStatus === "unlinked") && <AlertTriangle size={15} className="text-warning-700" />}</span>
@@ -457,7 +468,7 @@ export function Conversations({ threads, configured, initialPickerOpen = false, 
         </div>
       </aside>
       <div className={`${mobileThreadOpen ? "flex" : "hidden lg:flex"} min-h-0 min-w-0`}>
-        {selected ? <ConversationPanel thread={selected} parent={parentFor(selected)} configured={configured} tagCatalog={tagCatalog} assignedTags={assignedTagsFor(selected)} tagUpdatePending={assignTags.isPending} onBack={() => setMobileThreadOpen(false)} onToggleTag={(tag) => toggleTag(selected, tag)} onManageTags={role === "admin" ? () => setTagManagerOpen(true) : undefined} /> : (
+        {selected ? <ConversationPanel thread={selected} parent={parentFor(selected)} configured={configured} tagCatalog={tagCatalog} assignedTags={assignedTagsFor(selected)} tagUpdatePending={assignTags.isPending} canDelete={role === "admin"} onBack={() => setMobileThreadOpen(false)} onToggleTag={(tag) => toggleTag(selected, tag)} onManageTags={role === "admin" ? () => setTagManagerOpen(true) : undefined} /> : (
           <div className="flex min-h-0 flex-1 items-center justify-center bg-neutral-50 p-6 text-center"><div><MessageCircle className="mx-auto text-neutral-300" size={36} /><p className="mt-3 text-sm font-semibold">Chưa có hội thoại Messenger</p><p className="mt-1 text-sm text-neutral-500">Chọn &quot;Nhắn mới&quot; để bắt đầu.</p></div></div>
         )}
       </div>

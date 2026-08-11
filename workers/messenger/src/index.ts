@@ -48,6 +48,7 @@ export interface SendBody {
   parameters?: Record<string, string>;
 }
 export interface LinkConversationBody { psid?: string; studentId?: string }
+export interface DeleteConversationBody { threadId?: string }
 export interface InboundMessage { psid: string; pageId: string; text: string; messageId: string; timestamp: number }
 export interface UtilityTemplateStatus {
   pageId: string;
@@ -70,10 +71,16 @@ export const META_OAUTH_SCOPES = [
   "pages_messaging",
   "pages_read_engagement",
 ] as const;
-export const META_UTILITY_OAUTH_SCOPE = "page_utility_messaging";
+export const META_UTILITY_OAUTH_SCOPE = "pages_utility_messaging";
 export const META_WEBHOOK_FIELDS = ["messages", "messaging_postbacks", "messaging_referrals"] as const;
+export const META_UTILITY_WEBHOOK_FIELD = "message_template_status_update" as const;
 export function metaOAuthScopes(env: Env): readonly string[] {
   return env.UTILITY_MESSAGING_ENABLED === "true" ? [...META_OAUTH_SCOPES, META_UTILITY_OAUTH_SCOPE] : META_OAUTH_SCOPES;
+}
+export function metaWebhookFields(env: Env): readonly string[] {
+  return env.UTILITY_MESSAGING_ENABLED === "true"
+    ? [...META_WEBHOOK_FIELDS, META_UTILITY_WEBHOOK_FIELD]
+    : META_WEBHOOK_FIELDS;
 }
 export function metaOAuthErrorMessage(error: string, reason: string): string {
   return error === "access_denied" || reason === "user_denied"
@@ -108,7 +115,8 @@ export async function checkMetaUtilityPermission(accessToken: string, env: Env):
 export async function subscribePageWebhooks(page: MetaManagedPage, env: Env): Promise<string[]> {
   const endpoint = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/${encodeURIComponent(page.id)}/subscribed_apps`;
   const subscribeUrl = new URL(endpoint);
-  subscribeUrl.searchParams.set("subscribed_fields", META_WEBHOOK_FIELDS.join(","));
+  const requiredFields = metaWebhookFields(env);
+  subscribeUrl.searchParams.set("subscribed_fields", requiredFields.join(","));
   const headers = { authorization: `Bearer ${page.access_token}` };
   const subscribeResponse = await fetch(subscribeUrl, { method: "POST", headers });
   const subscribeData = await subscribeResponse.json<Record<string, unknown>>();
@@ -120,7 +128,7 @@ export async function subscribePageWebhooks(page: MetaManagedPage, env: Env): Pr
   const fields = Array.isArray(app?.subscribed_fields)
     ? app.subscribed_fields.filter((field): field is string => typeof field === "string")
     : [];
-  if (!verifyResponse.ok || !META_WEBHOOK_FIELDS.every((field) => fields.includes(field))) {
+  if (!verifyResponse.ok || !requiredFields.every((field) => fields.includes(field))) {
     throw new Error("meta_webhook_subscription_unverified");
   }
   return fields;
@@ -228,6 +236,8 @@ export function publicErrorCode(error: unknown): string {
     "admin_required",
     "firebase_keys_unavailable",
     "firestore_write_failed",
+    "firestore_delete_failed",
+    "invalid_thread_id",
     "invalid_message",
     "invalid_message_tag",
     "utility_disabled",
@@ -244,6 +254,7 @@ export function publicErrorCode(error: unknown): string {
     "student_not_found",
     "student_scope_denied",
     "unlinked_conversation_not_found",
+    "conversation_not_found",
   ]);
   return known.has(message) ? message : "internal_error";
 }
@@ -252,6 +263,8 @@ function errorStatus(error: unknown): number {
   const code = publicErrorCode(error);
   if (code === "missing_bearer_token") return 401;
   if (code === "admin_required" || code === "staff_required" || code === "origin_not_allowed") return 403;
+  if (code === "invalid_thread_id") return 400;
+  if (code === "conversation_not_found") return 404;
   return 500;
 }
 
@@ -435,6 +448,16 @@ function fieldTimestamp(document: unknown, name: string): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+function fieldInteger(document: unknown, name: string): number {
+  const value = (document as { fields?: Record<string, { integerValue?: string; doubleValue?: number }> })?.fields?.[name];
+  const parsed = Number(value?.integerValue ?? value?.doubleValue ?? 0);
+  return Number.isFinite(parsed) ? Math.max(0, Math.trunc(parsed)) : 0;
+}
+
+export function nextUnreadStaffCount(document: unknown, direction: "inbound" | "outbound"): number {
+  return direction === "inbound" ? fieldInteger(document, "unreadStaffCount") + 1 : 0;
+}
+
 export async function serviceAccessToken(env: Env): Promise<string> {
   const cacheKey = `${env.FIREBASE_PROJECT_ID}:${env.FIREBASE_CLIENT_EMAIL}`;
   const now = Date.now();
@@ -545,6 +568,48 @@ async function updateDocumentFields(collectionPath: string, id: string, data: Re
   Object.keys(data).forEach((key) => url.searchParams.append("updateMask.fieldPaths", key));
   const response = await fetch(url, { method: "PATCH", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify({ fields: firestoreFields(data) }) });
   if (!response.ok) throw new Error("firestore_write_failed");
+}
+
+export function validChatThreadId(value: unknown): value is string {
+  return typeof value === "string" && /^[A-Za-z0-9_-]{1,180}$/.test(value);
+}
+
+async function listConversationMessageNames(threadId: string, token: string, env: Env): Promise<string[]> {
+  const names: string[] = [];
+  let pageToken = "";
+  do {
+    const url = new URL(`https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/chat_threads/${encodeURIComponent(threadId)}/messages`);
+    url.searchParams.set("pageSize", "500");
+    if (pageToken) url.searchParams.set("pageToken", pageToken);
+    const response = await fetch(url, { headers: { authorization: `Bearer ${token}` } });
+    if (!response.ok) throw new Error("firestore_delete_failed");
+    const data = await response.json<{ documents?: Array<{ name?: string }>; nextPageToken?: string }>();
+    names.push(...(data.documents ?? []).flatMap((document) => document.name ? [document.name] : []));
+    pageToken = data.nextPageToken ?? "";
+  } while (pageToken);
+  return names;
+}
+
+async function commitDocumentDeletes(names: string[], token: string, env: Env): Promise<void> {
+  for (let offset = 0; offset < names.length; offset += 500) {
+    const response = await fetch(`https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:commit`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ writes: names.slice(offset, offset + 500).map((name) => ({ delete: name })) }),
+    });
+    if (!response.ok) throw new Error("firestore_delete_failed");
+  }
+}
+
+export async function deleteChatConversation(threadId: string, token: string, env: Env): Promise<number> {
+  if (!validChatThreadId(threadId)) throw new Error("invalid_thread_id");
+  if (!await readDocument("chat_threads", threadId, token, env)) throw new Error("conversation_not_found");
+  const messageNames = await listConversationMessageNames(threadId, token, env);
+  await commitDocumentDeletes([
+    ...messageNames,
+    `projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/chat_threads/${threadId}`,
+  ], token, env);
+  return messageNames.length;
 }
 
 function documentUpdateTime(document: unknown): string | undefined {
@@ -716,6 +781,14 @@ async function handleSyncConversationContexts(request: Request, env: Env): Promi
   return new Response(JSON.stringify({ ok: true, updated }), { headers: corsHeaders(env, request) });
 }
 
+async function handleDeleteConversation(request: Request, env: Env): Promise<Response> {
+  await requireAdminRequest(request, env);
+  const body = await request.json<DeleteConversationBody>();
+  if (!validChatThreadId(body.threadId)) throw new Error("invalid_thread_id");
+  const deletedMessages = await deleteChatConversation(body.threadId, await serviceAccessToken(env), env);
+  return new Response(JSON.stringify({ ok: true, deletedMessages }), { headers: corsHeaders(env, request) });
+}
+
 export async function assertStudentScope(profile: StaffProfile, uid: string, context: ThreadContext | null): Promise<void> {
   if (!context) throw new Error("student_not_found");
   if (profile.role === "teacher" && !context.assignedTeacherIds.includes(uid)) throw new Error("student_scope_denied");
@@ -846,7 +919,7 @@ async function writeChatEvent(input: { context: ThreadContext; parentUid: string
     lastMessagePreview: input.text.slice(0, 160), lastMessageDirection: input.direction,
     lastMessageAt: input.occurredAt,
     responseWindowEndsAt,
-    unreadStaffCount: input.direction === "inbound" ? 1 : 0,
+    unreadStaffCount: nextUnreadStaffCount(existingThread, input.direction),
     status: "open", updatedAt: new Date(),
     linkStatus: "linked",
     facebookName: input.messengerProfile?.name ?? fieldString(existingThread, "facebookName"),
@@ -861,13 +934,14 @@ async function writeChatEvent(input: { context: ThreadContext; parentUid: string
 
 async function writeUnlinkedInbound(message: InboundMessage, profile: MessengerProfile, serviceToken: string, env: Env): Promise<void> {
   const id = `messenger_unlinked_${message.psid}`.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 180);
+  const existingThread = await readDocument("chat_threads", id, serviceToken, env);
   await writeDocument("chat_threads", id, {
     channel: "messenger", parentUid: "", parentName: profile.name ?? "Facebook chưa liên kết",
     studentId: "", studentName: "Chưa chọn học sinh", classId: "", className: "",
     assignedTeacherIds: [], messengerPsid: message.psid, pageId: message.pageId,
     lastMessagePreview: message.text.slice(0, 160), lastMessageDirection: "inbound",
     lastMessageAt: new Date(message.timestamp), responseWindowEndsAt: new Date(message.timestamp + 24 * 60 * 60 * 1000),
-    unreadStaffCount: 1, status: "open", linkStatus: "unlinked", updatedAt: new Date(),
+    unreadStaffCount: nextUnreadStaffCount(existingThread, "inbound"), status: "open", linkStatus: "unlinked", updatedAt: new Date(),
     facebookName: profile.name, facebookAvatarUrl: profile.avatarUrl,
   }, serviceToken, env);
   await writeDocument(`chat_threads/${id}/messages`, message.messageId, {
@@ -1306,6 +1380,7 @@ export default {
       else if (path === "/api/messenger/referral" && request.method === "POST") response = await handleCreateReferral(request, env);
       else if (path === "/api/messenger/link" && request.method === "POST") response = await handleLinkConversation(request, env);
       else if (path === "/api/messenger/sync-contexts" && request.method === "POST") response = await handleSyncConversationContexts(request, env);
+      else if (path === "/api/messenger/conversation/delete" && request.method === "POST") response = await handleDeleteConversation(request, env);
       else if (path === "/api/meta/connect/start" && request.method === "POST") response = await handleMetaConnectStart(request, env);
       else if (path === "/api/meta/connect/callback" && request.method === "GET") response = await handleMetaConnectCallback(request, env);
       else if (path === "/api/meta/connect/status" && request.method === "POST") response = await handleMetaConnectStatus(request, env);

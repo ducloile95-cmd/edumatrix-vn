@@ -32,7 +32,7 @@ beforeEach(async () => {
     }
     await setDoc(doc(db, "chat_tags", "tag-red"), { label: "Chưa mua", color: "red", createdBy: ADMIN_UID, createdAt: Timestamp.now(), updatedAt: Timestamp.now() });
     await setDoc(doc(db, "students", "student-1"), { teacherIds: [TEACHER_UID] });
-    await setDoc(doc(db, "chat_threads", "thread-1"), { studentId: "student-1", assignedTeacherIds: [TEACHER_UID], tagIds: [], lastMessagePreview: "Tin nhắn", updatedAt: Timestamp.now() });
+    await setDoc(doc(db, "chat_threads", "thread-1"), { studentId: "student-1", assignedTeacherIds: [TEACHER_UID], tagIds: [], unreadStaffCount: 2, lastMessagePreview: "Tin nhắn", updatedAt: Timestamp.now() });
   });
 });
 
@@ -57,6 +57,11 @@ describe("conversation tag assignment", () => {
   test("assigned teachers can update only tagIds and updatedAt", async () => {
     await assertSucceeds(updateDoc(doc(as(TEACHER_UID), "chat_threads", "thread-1"), { tagIds: ["tag-red"], updatedAt: serverTimestamp() }));
     await assertFails(updateDoc(doc(as(TEACHER_UID), "chat_threads", "thread-1"), { tagIds: ["tag-red"], lastMessagePreview: "Đã sửa", updatedAt: serverTimestamp() }));
+  });
+
+  test("staff can clear unread state but cannot forge an unread count", async () => {
+    await assertSucceeds(updateDoc(doc(as(TEACHER_UID), "chat_threads", "thread-1"), { unreadStaffCount: 0, updatedAt: serverTimestamp() }));
+    await assertFails(updateDoc(doc(as(ADMIN_UID), "chat_threads", "thread-1"), { unreadStaffCount: 5, updatedAt: serverTimestamp() }));
   });
 
   test("viewers cannot tag conversations", async () => {

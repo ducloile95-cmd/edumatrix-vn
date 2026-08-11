@@ -37,7 +37,7 @@ if (frontendUtility !== workerUtility) {
 }
 
 if (frontendUtility !== "false") {
-  throw new Error("Utility Messaging must remain disabled until Meta grants page_utility_messaging.");
+  throw new Error("Utility Messaging must remain disabled until Meta grants pages_utility_messaging.");
 }
 
 if (workerUrl !== canonicalWorkerUrl) {

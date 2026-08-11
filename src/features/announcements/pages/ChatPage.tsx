@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
 import {
@@ -7,7 +7,7 @@ import {
   UtilityTemplatesModal,
 } from "@/features/announcements/components/ChatWorkspace";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { listChatThreads } from "@/services/firestore/chat";
+import { listChatThreads, subscribeChatThreads } from "@/services/firestore/chat";
 import { syncMessengerThreadContexts } from "@/services/integrations/messenger";
 
 export default function ChatPage() {
@@ -17,8 +17,10 @@ export default function ChatPage() {
   const configured = Boolean(import.meta.env.VITE_MESSENGER_WORKER_URL?.trim());
   const initialPickerOpen = new URLSearchParams(window.location.search).get("create") === "message";
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  const queryClient = useQueryClient();
+  const threadQueryKey = useMemo(() => ["chat-threads", role, uid] as const, [role, uid]);
   const threads = useQuery({
-    queryKey: ["chat-threads", role, uid],
+    queryKey: threadQueryKey,
     queryFn: async () => {
       if (configured) {
         try {
@@ -31,6 +33,16 @@ export default function ChatPage() {
     },
     enabled: Boolean(uid),
   });
+
+  useEffect(() => {
+    if (!uid) return;
+    return subscribeChatThreads(
+      role,
+      uid,
+      (items) => queryClient.setQueryData(threadQueryKey, items),
+      (error) => console.warn("Messenger realtime subscription failed", error),
+    );
+  }, [queryClient, role, threadQueryKey, uid]);
 
   return (
     <>

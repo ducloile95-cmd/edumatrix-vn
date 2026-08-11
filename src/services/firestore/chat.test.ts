@@ -30,7 +30,7 @@ vi.mock("firebase/firestore", () => ({
 
 vi.mock("@/services/firebase/firestoreClient", () => ({ db: {} }));
 
-import { deleteChatTag, listChatThreads, setChatThreadTags } from "@/services/firestore/chat";
+import { deleteChatTag, listChatThreads, markChatThreadRead, setChatThreadTags } from "@/services/firestore/chat";
 
 describe("chat tags", () => {
   beforeEach(() => {
@@ -68,6 +68,15 @@ describe("chat tags", () => {
 
     expect(mocks.updateDoc).toHaveBeenCalledWith("chat_threads/thread-1", {
       tagIds: ["tag-1", "tag-2"],
+      updatedAt: "server-time",
+    });
+  });
+
+  test("marks a conversation as read without changing its messages", async () => {
+    await markChatThreadRead("thread-1");
+
+    expect(mocks.updateDoc).toHaveBeenCalledWith("chat_threads/thread-1", {
+      unreadStaffCount: 0,
       updatedAt: "server-time",
     });
   });
