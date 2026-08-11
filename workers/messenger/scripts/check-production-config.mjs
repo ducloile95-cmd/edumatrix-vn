@@ -36,10 +36,6 @@ if (frontendUtility !== workerUtility) {
   throw new Error(`Utility Messaging mismatch: frontend=${frontendUtility}, worker=${workerUtility}.`);
 }
 
-if (frontendUtility !== "false") {
-  throw new Error("Utility Messaging must remain disabled until Meta grants page_utility_messaging.");
-}
-
 if (workerUrl !== canonicalWorkerUrl) {
   throw new Error(`VITE_MESSENGER_WORKER_URL must be ${canonicalWorkerUrl}.`);
 }

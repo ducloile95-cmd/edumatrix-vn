@@ -7,23 +7,27 @@ import ChatPage from "@/features/announcements/pages/ChatPage";
 import { renderWithQueryClient } from "@/test/renderWithQueryClient";
 
 const serviceMocks = vi.hoisted(() => ({
+  authRole: "teacher" as "admin" | "teacher",
   listChatThreads: vi.fn(),
   listChatTags: vi.fn(),
   listMessageOutbox: vi.fn(),
   createChatTag: vi.fn(),
   deleteChatTag: vi.fn(),
   setChatThreadTags: vi.fn(),
+  markChatThreadRead: vi.fn(),
   listStudents: vi.fn(),
   listUsersByIds: vi.fn(),
   sendMessenger: vi.fn(),
+  deleteMessengerConversation: vi.fn(),
   syncMessengerThreadContexts: vi.fn(),
   subscribeChatMessages: vi.fn(),
+  subscribeChatThreads: vi.fn(),
 }));
 
 vi.mock("@/features/auth/hooks/useAuth", () => ({
   useAuth: () => ({
     firebaseUser: { uid: "teacher-1" },
-    userDoc: { role: "teacher" },
+    userDoc: { role: serviceMocks.authRole },
   }),
 }));
 
@@ -39,7 +43,9 @@ vi.mock("@/services/firestore/chat", () => ({
   createChatTag: serviceMocks.createChatTag,
   deleteChatTag: serviceMocks.deleteChatTag,
   setChatThreadTags: serviceMocks.setChatThreadTags,
+  markChatThreadRead: serviceMocks.markChatThreadRead,
   subscribeChatMessages: serviceMocks.subscribeChatMessages,
+  subscribeChatThreads: serviceMocks.subscribeChatThreads,
 }));
 
 vi.mock("@/services/firestore/students", () => ({
@@ -65,6 +71,7 @@ vi.mock("@/services/integrations/messenger", () => {
     isMessengerInviteConfigured: () => false,
     linkMessengerConversation: vi.fn(),
     MessengerSendError,
+    deleteMessengerConversation: serviceMocks.deleteMessengerConversation,
     messengerPageUrl: () => null,
     sendMessenger: serviceMocks.sendMessenger,
     syncMessengerThreadContexts: serviceMocks.syncMessengerThreadContexts,
@@ -90,6 +97,7 @@ const thread = {
 
 describe("ChatPage messaging", () => {
   beforeEach(() => {
+    serviceMocks.authRole = "teacher";
     window.history.replaceState({}, "", "/app/chat");
     vi.stubEnv("VITE_MESSENGER_WORKER_URL", "https://worker.example");
     serviceMocks.listChatThreads.mockResolvedValue([thread]);
@@ -97,6 +105,7 @@ describe("ChatPage messaging", () => {
     serviceMocks.createChatTag.mockResolvedValue(undefined);
     serviceMocks.deleteChatTag.mockResolvedValue(undefined);
     serviceMocks.setChatThreadTags.mockResolvedValue(undefined);
+    serviceMocks.markChatThreadRead.mockResolvedValue(undefined);
     serviceMocks.listMessageOutbox.mockResolvedValue([]);
     serviceMocks.listStudents.mockResolvedValue([]);
     serviceMocks.listUsersByIds.mockResolvedValue([{ uid: "parent-1", displayName: "Phụ huynh An", email: "phuhuynhan@example.com", phone: "0901234567" }]);
@@ -106,10 +115,12 @@ describe("ChatPage messaging", () => {
         return vi.fn();
       },
     );
+    serviceMocks.subscribeChatThreads.mockReturnValue(vi.fn());
     serviceMocks.sendMessenger.mockResolvedValue({
       sent: true,
       status: "sent",
     });
+    serviceMocks.deleteMessengerConversation.mockResolvedValue(2);
   });
 
   afterEach(() => {
@@ -213,6 +224,41 @@ describe("ChatPage messaging", () => {
 
     fireEvent.change(screen.getByPlaceholderText("ACCOUNT_UPDATE"), { target: { value: "ACCOUNT_UPDATE" } });
     await waitFor(() => expect(composer).toHaveProperty("disabled", false));
+  });
+
+  test("lets an admin confirm and delete a conversation", async () => {
+    serviceMocks.authRole = "admin";
+    renderWithQueryClient(<ChatPage />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Xóa cuộc hội thoại" }));
+    fireEvent.click(screen.getByRole("button", { name: "Xóa hội thoại" }));
+
+    await waitFor(() => expect(serviceMocks.deleteMessengerConversation).toHaveBeenCalledWith("thread-1"));
+    expect(screen.queryByLabelText("Soạn tin nhắn")).toBeNull();
+  });
+
+  test("marks an unread conversation as read when staff opens it", async () => {
+    serviceMocks.listChatThreads.mockResolvedValue([{ ...thread, unreadStaffCount: 3 }]);
+    renderWithQueryClient(<ChatPage />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /Facebook An/ }));
+
+    await waitFor(() => expect(serviceMocks.markChatThreadRead).toHaveBeenCalledWith("thread-1"));
+    expect(screen.queryByText("3")).toBeNull();
+  });
+
+  test("uses the full conversation width and keeps tag settings outside the tag scroll rail", async () => {
+    serviceMocks.authRole = "admin";
+    serviceMocks.listChatTags.mockResolvedValue([{ id: "tag-green", label: "Học viên mới", color: "green", createdBy: "admin-1", createdAt: null, updatedAt: null }]);
+    renderWithQueryClient(<ChatPage />);
+
+    const composer = await screen.findByRole("form", { name: "Trình soạn tin nhắn" });
+    const tagBar = screen.getByLabelText("Tag mẫu trên Composer");
+    const scrollRail = within(tagBar).getByLabelText("Danh sách tag mẫu");
+    const settings = within(tagBar).getByRole("button", { name: "Quản lý tag mẫu" });
+
+    expect(composer.firstElementChild?.className).toBe("w-full");
+    expect(scrollRail.contains(settings)).toBe(false);
   });
 });
 

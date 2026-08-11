@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import worker, { assertStudentScope, buildMessengerPayload, buildUtilityPayload, checkMetaUtilityPermission, corsHeaders, extractBearer, extractInboundMessages, extractReferralLinks, extractUtilityTemplateStatuses, firebaseCertificates, isMessengerTagShape, markWebhookMessageProcessed, META_OAUTH_SCOPES, META_UTILITY_OAUTH_SCOPE, META_WEBHOOK_FIELDS, metaErrorCode, metaOAuthCompletionErrorMessage, metaOAuthErrorMessage, metaOAuthScopes, metaUtilityPermissionStatus, parseMessengerProfile, publicErrorCode, referralClaimUid, referralTargetAllowed, resetFirebaseCachesForTest, safeConnectOrigin, sendGraph, serviceAccessToken, subscribePageWebhooks, validUtilityParameters, verifyMetaSignature, webhookMessageProcessed, type Env } from "../src/index";
+import worker, { assertStudentScope, buildMessengerPayload, buildUtilityPayload, checkMetaUtilityPermission, corsHeaders, deleteChatConversation, extractBearer, extractInboundMessages, extractReferralLinks, extractUtilityTemplateStatuses, firebaseCertificates, isMessengerTagShape, markWebhookMessageProcessed, META_OAUTH_SCOPES, META_UTILITY_OAUTH_SCOPE, META_UTILITY_WEBHOOK_FIELD, META_WEBHOOK_FIELDS, metaErrorCode, metaOAuthCompletionErrorMessage, metaOAuthErrorMessage, metaOAuthScopes, metaUtilityPermissionStatus, metaWebhookFields, nextUnreadStaffCount, parseMessengerProfile, publicErrorCode, referralClaimUid, referralTargetAllowed, resetFirebaseCachesForTest, safeConnectOrigin, sendGraph, serviceAccessToken, subscribePageWebhooks, validChatThreadId, validUtilityParameters, verifyMetaSignature, webhookMessageProcessed, type Env } from "../src/index";
 const env={FIREBASE_PROJECT_ID:"project",FIREBASE_CLIENT_EMAIL:"email",FIREBASE_PRIVATE_KEY:"key",META_APP_ID:"app-id",META_PAGE_ACCESS_TOKEN:"token",META_APP_SECRET:"app-secret",META_WEBHOOK_VERIFY_TOKEN:"verify-me",META_GRAPH_VERSION:"v25.0",META_PAGE_ID:"page-id",ALLOWED_ORIGIN:"http://localhost:5173"}satisfies Env;
 describe("messenger worker",()=>{
 afterEach(()=>{vi.restoreAllMocks();resetFirebaseCachesForTest()});
@@ -34,6 +34,26 @@ test("extracts utility template status updates without retaining the full payloa
 test("ignores unrelated or incomplete template status changes",()=>expect(extractUtilityTemplateStatuses({entry:[{id:"page-1",changes:[{field:"feed",value:{name:"x"}},{field:"messenger_template_status_update",value:{status:"APPROVED"}}]}]})).toEqual([]));
 test("parses Messenger account name and secure avatar",()=>{expect(parseMessengerProfile({first_name:"Le",last_name:"Loi",profile_pic:"https://cdn.example/avatar.jpg"})).toEqual({name:"Le Loi",avatarUrl:"https://cdn.example/avatar.jpg"});expect(parseMessengerProfile({first_name:"Le",profile_pic:"http://unsafe.example/avatar.jpg"})).toEqual({name:"Le",avatarUrl:null})});
 test("ignores message echoes",()=>expect(extractInboundMessages({entry:[{messaging:[{sender:{id:"page"},recipient:{id:"psid"},message:{mid:"mid-2",text:"echo",is_echo:true}}]}]})).toEqual([]));
+test("increments unread messages for inbound events and clears them for outbound events",()=>{const thread={fields:{unreadStaffCount:{integerValue:"2"}}};expect(nextUnreadStaffCount(thread,"inbound")).toBe(3);expect(nextUnreadStaffCount(thread,"outbound")).toBe(0)});
+test("validates conversation ids before deletion",()=>{expect(validChatThreadId("messenger_thread-1")).toBe(true);expect(validChatThreadId("chat_threads/thread-1")).toBe(false);expect(validChatThreadId("")).toBe(false)});
+test("deletes a conversation and its messages without deleting Messenger mappings",async()=>{
+  const fetchMock=vi.spyOn(globalThis,"fetch")
+    .mockResolvedValueOnce(new Response(JSON.stringify({name:"projects/project/databases/(default)/documents/chat_threads/thread-1"}),{status:200}))
+    .mockResolvedValueOnce(new Response(JSON.stringify({documents:[
+      {name:"projects/project/databases/(default)/documents/chat_threads/thread-1/messages/message-1"},
+      {name:"projects/project/databases/(default)/documents/chat_threads/thread-1/messages/message-2"},
+    ]}),{status:200}))
+    .mockResolvedValueOnce(new Response(JSON.stringify({writeResults:[]}),{status:200}));
+  await expect(deleteChatConversation("thread-1","service-token",env)).resolves.toBe(2);
+  const commitBody=JSON.parse(String(fetchMock.mock.calls[2][1]?.body));
+  expect(commitBody.writes.map((write:{delete:string})=>write.delete)).toEqual([
+    "projects/project/databases/(default)/documents/chat_threads/thread-1/messages/message-1",
+    "projects/project/databases/(default)/documents/chat_threads/thread-1/messages/message-2",
+    "projects/project/databases/(default)/documents/chat_threads/thread-1",
+  ]);
+  expect(JSON.stringify(commitBody)).not.toContain("messenger_psid_links");
+  expect(JSON.stringify(commitBody)).not.toContain("messenger_connections");
+});
 test("builds response payload by default",()=>expect(buildMessengerPayload({recipientPsid:"psid",text:"Xin chao"})).toEqual({recipient:{id:"psid"},messaging_type:"RESPONSE",message:{text:"Xin chao"}}));
 test("builds tagged payload for outside-window sends",()=>expect(buildMessengerPayload({recipientPsid:"psid",text:"Cap nhat tai khoan",tag:"ACCOUNT_UPDATE"})).toEqual({recipient:{id:"psid"},messaging_type:"MESSAGE_TAG",tag:"ACCOUNT_UPDATE",message:{text:"Cap nhat tai khoan"}}));
 test("builds an allowlisted utility template payload",()=>{
@@ -186,16 +206,21 @@ test("requests Utility permission only after its production flag is enabled",()=
   expect(META_OAUTH_SCOPES).toEqual(["pages_show_list","pages_manage_metadata","pages_messaging","pages_read_engagement"]);
   expect(metaOAuthScopes(env)).toEqual(META_OAUTH_SCOPES);
   expect(metaOAuthScopes({...env,UTILITY_MESSAGING_ENABLED:"true"})).toEqual([...META_OAUTH_SCOPES,META_UTILITY_OAUTH_SCOPE]);
-  expect(META_UTILITY_OAUTH_SCOPE).toBe("page_utility_messaging");
+  expect(META_UTILITY_OAUTH_SCOPE).toBe("pages_utility_messaging");
+});
+test("subscribes to Utility template status updates only when Utility Messaging is enabled",()=>{
+  expect(metaWebhookFields(env)).toEqual(META_WEBHOOK_FIELDS);
+  expect(metaWebhookFields({...env,UTILITY_MESSAGING_ENABLED:"true"})).toEqual([...META_WEBHOOK_FIELDS,META_UTILITY_WEBHOOK_FIELD]);
+  expect(META_UTILITY_WEBHOOK_FIELD).toBe("message_template_status_update");
 });
 test("recognizes granted, missing, and unknown Utility Messaging permission states",()=>{
-  expect(metaUtilityPermissionStatus({data:[{permission:"page_utility_messaging",status:"granted"}]})).toBe("granted");
+  expect(metaUtilityPermissionStatus({data:[{permission:"pages_utility_messaging",status:"granted"}]})).toBe("granted");
   expect(metaUtilityPermissionStatus({data:[{permission:"pages_messaging",status:"granted"}]})).toBe("missing");
   expect(metaUtilityPermissionStatus({error:"unavailable"})).toBe("unknown");
 });
 test("checks Utility permission without putting the access token in the URL",async()=>{
   const secretToken="utility-secret-token";
-  const fetchMock=vi.spyOn(globalThis,"fetch").mockResolvedValue(new Response(JSON.stringify({data:[{permission:"page_utility_messaging",status:"declined"}]}),{status:200,headers:{"content-type":"application/json"}}));
+  const fetchMock=vi.spyOn(globalThis,"fetch").mockResolvedValue(new Response(JSON.stringify({data:[{permission:"pages_utility_messaging",status:"declined"}]}),{status:200,headers:{"content-type":"application/json"}}));
   await expect(checkMetaUtilityPermission(secretToken,env)).resolves.toBe("missing");
   const [url,init]=fetchMock.mock.calls[0];
   expect(String(url)).not.toContain(secretToken);
@@ -212,6 +237,15 @@ test("subscribes and verifies required Page webhook fields without exposing the 
     expect(String(url)).not.toContain(page.access_token);
     expect(new Headers(init?.headers).get("authorization")).toBe(`Bearer ${page.access_token}`);
   }
+});
+test("subscribes and verifies the Utility template status webhook when enabled",async()=>{
+  const utilityEnv={...env,UTILITY_MESSAGING_ENABLED:"true"}satisfies Env;
+  const requiredFields=[...META_WEBHOOK_FIELDS,META_UTILITY_WEBHOOK_FIELD];
+  const fetchMock=vi.spyOn(globalThis,"fetch")
+    .mockResolvedValueOnce(new Response(JSON.stringify({success:true}),{status:200,headers:{"content-type":"application/json"}}))
+    .mockResolvedValueOnce(new Response(JSON.stringify({data:[{id:utilityEnv.META_APP_ID,subscribed_fields:requiredFields}]}),{status:200,headers:{"content-type":"application/json"}}));
+  await expect(subscribePageWebhooks({id:"page-id",name:"Page",access_token:"secret"},utilityEnv)).resolves.toEqual(requiredFields);
+  expect(String(fetchMock.mock.calls[0][0])).toContain("message_template_status_update");
 });
 test("rejects a Page webhook subscription that cannot be verified",async()=>{
   vi.spyOn(globalThis,"fetch")

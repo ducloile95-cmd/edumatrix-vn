@@ -1,13 +1,13 @@
 import { useEffect, useState, type FormEvent, type KeyboardEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, ArrowLeft, Copy, History, Info, MessageCircle, Send, Settings2, WifiOff, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Copy, History, Info, MessageCircle, Send, Settings2, Trash2, WifiOff, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { Modal } from "@/components/ui/Modal";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { subscribeChatMessages } from "@/services/firestore/chat";
 import { listStudents } from "@/services/firestore/students";
-import { createMessengerInviteLink, isMessengerInviteConfigured, linkMessengerConversation, MessengerSendError, sendMessenger } from "@/services/integrations/messenger";
+import { createMessengerInviteLink, deleteMessengerConversation, isMessengerInviteConfigured, linkMessengerConversation, MessengerSendError, sendMessenger } from "@/services/integrations/messenger";
 import { queryKeys } from "@/hooks/queryKeys";
 import type { ChatMessageDoc, ChatTagDoc, ChatThreadDoc } from "@/types/chat";
 import type { UserDoc } from "@/types/user";
@@ -162,15 +162,25 @@ export function ConversationContext({ thread, parent, tags, onRemoveTag, onManag
   );
 }
 
-export function ConversationPanel({ thread, parent, configured, tagCatalog, assignedTags, tagUpdatePending, onBack, onToggleTag, onManageTags }: { thread: Thread; parent: ParentProfile; configured: boolean; tagCatalog: ChatTag[]; assignedTags: ChatTag[]; tagUpdatePending: boolean; onBack: () => void; onToggleTag: (tag: ChatTag) => void; onManageTags?: () => void }) {
+export function ConversationPanel({ thread, parent, configured, tagCatalog, assignedTags, tagUpdatePending, canDelete = false, onBack, onToggleTag, onManageTags }: { thread: Thread; parent: ParentProfile; configured: boolean; tagCatalog: ChatTag[]; assignedTags: ChatTag[]; tagUpdatePending: boolean; canDelete?: boolean; onBack: () => void; onToggleTag: (tag: ChatTag) => void; onManageTags?: () => void }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageError, setMessageError] = useState<Error | null>(null);
   const [draft, setDraft] = useState("");
   const [tag, setTag] = useState("");
   const [infoOpen, setInfoOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const queryClient = useQueryClient();
   const responseWindowEnd = thread.responseWindowEndsAt?.toDate?.();
   const responseWindowActive = Boolean(responseWindowEnd && responseWindowEnd.getTime() > Date.now());
+
+  const removeConversation = useMutation({
+    mutationFn: () => deleteMessengerConversation(thread.id),
+    onSuccess: () => {
+      setDeleteOpen(false);
+      queryClient.setQueriesData<Thread[]>({ queryKey: ["chat-threads"] }, (current) => current?.filter((item) => item.id !== thread.id));
+      onBack();
+    },
+  });
 
   useEffect(
     () => subscribeChatMessages(thread.id, (items) => { setMessages(items); setMessageError(null); }, setMessageError),
@@ -218,6 +228,7 @@ export function ConversationPanel({ thread, parent, configured, tagCatalog, assi
           </div>
           <div className="flex items-center gap-1.5">
             <StatusBadge tone={thread.status === "blocked" ? "danger" : "success"}>{thread.status === "blocked" ? "Đã chặn" : "Đã kết nối"}</StatusBadge>
+            {canDelete && <button type="button" onClick={() => { removeConversation.reset(); setDeleteOpen(true); }} className="flex min-h-9 items-center gap-1.5 rounded-input border border-danger-200 bg-neutral-0 px-2.5 text-xs font-semibold text-danger-700 transition-colors hover:bg-danger-50 active:scale-[.98]" aria-label="Xóa cuộc hội thoại"><Trash2 size={15} /><span className="hidden sm:inline">Xóa</span></button>}
             <button type="button" onClick={() => setInfoOpen(true)} className="icon-button flex xl:hidden" aria-label="Xem thông tin"><Info size={18} /></button>
           </div>
         </header>
@@ -244,13 +255,24 @@ export function ConversationPanel({ thread, parent, configured, tagCatalog, assi
             }) : <div className="py-20 text-center"><MessageCircle className="mx-auto text-neutral-300" size={38} /><p className="mt-4 text-sm font-semibold text-neutral-700">Chưa có tin nhắn</p><p className="mt-1 text-xs leading-5 text-neutral-500">Hãy bắt đầu cuộc trò chuyện với phụ huynh.</p></div>}
           </div>
         </div>
-        {!!tagCatalog.length && <div className="shrink-0 border-t border-neutral-100 bg-neutral-0 px-4 pt-2" aria-label="Tag mẫu trên Composer"><div className="mx-auto flex max-w-[760px] items-center gap-1.5 overflow-x-auto pb-0.5">{tagCatalog.map((conversationTag) => {
-              const selected = assignedTags.some((item) => item.id === conversationTag.id);
-              const swatch = CHAT_TAG_COLORS.find((item) => item.value === conversationTag.color)?.swatch;
-              return <button key={conversationTag.id} type="button" onClick={() => onToggleTag(conversationTag)} disabled={tagUpdatePending} aria-pressed={selected} aria-label={`${selected ? "Bỏ" : "Gắn"} tag ${conversationTag.label}`} className={`flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold transition active:scale-[.97] disabled:opacity-50 ${selected ? `${CHAT_TAG_STYLES[conversationTag.color]} border-transparent` : "border-neutral-300 bg-neutral-0 text-neutral-600 hover:bg-neutral-50"}`}>{!selected && <span className={`size-2 rounded-full ${swatch}`} />}{conversationTag.label}</button>;
-            })}{onManageTags && <button type="button" onClick={onManageTags} aria-label="Quản lý tag mẫu" className="flex size-8 shrink-0 items-center justify-center rounded-full border border-neutral-300 bg-neutral-0 text-neutral-500 hover:bg-neutral-50 hover:text-neutral-800"><Settings2 size={14} /></button>}</div></div>}
-        <form onSubmit={submit} className="shrink-0 bg-neutral-0 px-3 pb-3 pt-2 sm:px-4 sm:pb-4">
-          <div className="mx-auto w-full max-w-[760px]">
+        {(!!tagCatalog.length || onManageTags) && (
+          <div className="shrink-0 border-t border-neutral-100 bg-neutral-0 px-3 pt-2 sm:px-4" aria-label="Tag mẫu trên Composer">
+            <div className="flex w-full items-center gap-2">
+              <div className="min-w-0 flex-1 overflow-x-auto pb-0.5" aria-label="Danh sách tag mẫu">
+                <div className="flex w-max items-center gap-1.5">
+                  {tagCatalog.map((conversationTag) => {
+                    const selected = assignedTags.some((item) => item.id === conversationTag.id);
+                    const swatch = CHAT_TAG_COLORS.find((item) => item.value === conversationTag.color)?.swatch;
+                    return <button key={conversationTag.id} type="button" onClick={() => onToggleTag(conversationTag)} disabled={tagUpdatePending} aria-pressed={selected} aria-label={`${selected ? "Bỏ" : "Gắn"} tag ${conversationTag.label}`} className={`flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold transition active:scale-[.97] disabled:opacity-50 ${selected ? `${CHAT_TAG_STYLES[conversationTag.color]} border-transparent` : "border-neutral-300 bg-neutral-0 text-neutral-600 hover:bg-neutral-50"}`}>{!selected && <span className={`size-2 rounded-full ${swatch}`} />}{conversationTag.label}</button>;
+                  })}
+                </div>
+              </div>
+              {onManageTags && <button type="button" onClick={onManageTags} aria-label="Quản lý tag mẫu" title="Quản lý tag mẫu" className="flex size-8 shrink-0 items-center justify-center rounded-full border border-neutral-300 bg-neutral-0 text-neutral-500 transition-colors hover:bg-neutral-50 hover:text-neutral-800 active:scale-[.97]"><Settings2 size={14} /></button>}
+            </div>
+          </div>
+        )}
+        <form onSubmit={submit} aria-label="Trình soạn tin nhắn" className="shrink-0 bg-neutral-0 px-3 pb-3 pt-2 sm:px-4 sm:pb-4">
+          <div className="w-full">
             {!responseWindowActive && (
               <p className="mb-2 rounded-input border-l-4 border-warning-500 bg-warning-50 px-3 py-2 text-xs leading-5 text-warning-800">
                 Cửa sổ phản hồi 24 giờ đã hết. Chỉ gửi bằng Message Tag đúng mục đích; Utility sẽ mở sau khi Meta phê duyệt.
@@ -300,7 +322,14 @@ export function ConversationPanel({ thread, parent, configured, tagCatalog, assi
         </form>
       </section>
       <Modal open={infoOpen} onClose={() => setInfoOpen(false)} title="Thông tin hội thoại" size="sm"><ConversationContext thread={thread} parent={parent} tags={assignedTags} onRemoveTag={(tagId) => { const tagToRemove = assignedTags.find((item) => item.id === tagId); if (tagToRemove) onToggleTag(tagToRemove); }} onManageTags={onManageTags} /></Modal>
+      <Modal open={deleteOpen} onClose={() => { if (!removeConversation.isPending) setDeleteOpen(false); }} title="Xóa cuộc hội thoại" description="Hành động này không thể hoàn tác." size="sm">
+        <p className="text-sm leading-6 text-neutral-700">Toàn bộ tin nhắn trong hội thoại với <b>{accountName(thread)}</b> sẽ bị xóa. Kết nối Messenger vẫn được giữ để tin nhắn mới có thể tạo lại hội thoại.</p>
+        {removeConversation.isError && <p role="alert" className="mt-3 text-sm font-semibold text-danger-700">{removeConversation.error instanceof Error ? removeConversation.error.message : "Không xóa được hội thoại."}</p>}
+        <div className="mt-6 flex justify-end gap-2">
+          <Button type="button" onClick={() => setDeleteOpen(false)} disabled={removeConversation.isPending}>Hủy</Button>
+          <Button type="button" variant="danger" icon={<Trash2 size={16} />} loading={removeConversation.isPending} loadingLabel="Đang xóa hội thoại" onClick={() => removeConversation.mutate()}>Xóa hội thoại</Button>
+        </div>
+      </Modal>
     </>
   );
 }
-

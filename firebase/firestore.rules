@@ -1611,9 +1611,13 @@ service cloud.firestore {
           isTeacher() && request.auth.uid in resource.data.assignedTeacherIds &&
           request.auth.uid in get(/databases/$(database)/documents/students/$(resource.data.studentId)).data.teacherIds
         )) &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tagIds', 'updatedAt']) &&
-        request.resource.data.tagIds is list &&
-        request.resource.data.tagIds.size() <= 10 &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tagIds', 'unreadStaffCount', 'updatedAt']) &&
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['tagIds']) || (
+          request.resource.data.tagIds is list &&
+          request.resource.data.tagIds.size() <= 10
+        )) &&
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['unreadStaffCount']) ||
+          request.resource.data.unreadStaffCount == 0) &&
         request.resource.data.updatedAt == request.time;
       allow create, delete: if false;
 

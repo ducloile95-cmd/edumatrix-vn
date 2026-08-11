@@ -10,6 +10,9 @@ const FRIENDLY_ERRORS: Record<string, string> = {
   invalid_message: "Nội dung tin nhắn không hợp lệ (trống hoặc quá 2000 ký tự).",
   missing_recipient: "Chưa xác định được tài khoản Messenger nhận tin.",
   unlinked_conversation_not_found: "Không tìm thấy hội thoại Facebook chưa liên kết để trả lời.",
+  invalid_thread_id: "Mã hội thoại không hợp lệ.",
+  conversation_not_found: "Hội thoại không còn tồn tại hoặc đã được xóa.",
+  firestore_delete_failed: "Không thể xóa toàn bộ dữ liệu hội thoại. Vui lòng thử lại.",
   admin_required: "Chỉ Admin được trả lời tài khoản Facebook chưa liên kết học sinh.",
   student_scope_denied: "Học sinh này không thuộc lớp bạn phụ trách.",
   student_not_found: "Không tìm thấy học sinh.",
@@ -155,6 +158,11 @@ export async function linkMessengerConversation(psid: string, studentId: string)
 export async function syncMessengerThreadContexts(): Promise<number> {
   const response = await workerRequest<{ updated: number }>("/api/messenger/sync-contexts", {});
   return response.updated;
+}
+
+export async function deleteMessengerConversation(threadId: string): Promise<number> {
+  const response = await workerRequest<{ deletedMessages: number }>("/api/messenger/conversation/delete", { threadId });
+  return response.deletedMessages;
 }
 
 export async function sendMessenger(input: SendMessengerInput): Promise<SendMessengerResult> {

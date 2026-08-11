@@ -125,6 +125,13 @@ export async function setChatThreadTags(threadId: string, tagIds: string[]) {
   await updateDoc(doc(db, COLLECTIONS.CHAT_THREADS, threadId), { tagIds: uniqueTagIds, updatedAt: serverTimestamp() });
 }
 
+export async function markChatThreadRead(threadId: string) {
+  await updateDoc(doc(db, COLLECTIONS.CHAT_THREADS, threadId), {
+    unreadStaffCount: 0,
+    updatedAt: serverTimestamp(),
+  });
+}
+
 export async function listMessageOutbox(role: UserRole, uid: string): Promise<Array<MessageOutboxDoc & { id: string }>> {
   const source = collection(db, COLLECTIONS.MESSAGE_OUTBOX);
   const q = role === "admin"
