@@ -203,7 +203,7 @@ test("returns the matching secondary production origin for referrals",async()=>{
   expect(response.headers.get("access-control-allow-origin")).toBe("https://edumatrix.id.vn");
 });
 test("requests Utility permission only after its production flag is enabled",()=>{
-  expect(META_OAUTH_SCOPES).toEqual(["pages_show_list","pages_manage_metadata","pages_messaging","pages_read_engagement"]);
+  expect(META_OAUTH_SCOPES).toEqual(["pages_show_list","pages_manage_metadata","pages_messaging"]);
   expect(metaOAuthScopes(env)).toEqual(META_OAUTH_SCOPES);
   expect(metaOAuthScopes({...env,UTILITY_MESSAGING_ENABLED:"true"})).toEqual([...META_OAUTH_SCOPES,META_UTILITY_OAUTH_SCOPE]);
   expect(META_UTILITY_OAUTH_SCOPE).toBe("pages_utility_messaging");

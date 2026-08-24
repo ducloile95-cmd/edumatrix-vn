@@ -1,6 +1,6 @@
 # Hồ sơ chuẩn bị xét duyệt Meta Messenger Utility
 
-Ngày chuẩn bị: 27/07/2026
+Ngày cập nhật: 24/08/2026
 Ứng dụng: `Edumatrix_VN`
 
 ## 1. Trạng thái hiện tại
@@ -8,12 +8,13 @@ Ngày chuẩn bị: 27/07/2026
 - Ứng dụng đang hoạt động.
 - Callback webhook production đã cấu hình:
   `https://edumatrix-messenger-production.edumatrix-vn.workers.dev/webhook`
-- Các webhook Messenger cần thiết đã được đăng ký, gồm tin nhắn, trạng thái giao/đọc,
-  postback, referral và trạng thái template.
-- `pages_messaging` và `page_utility_messaging` đang ở trạng thái sẵn sàng thử nghiệm,
-  nhưng hồ sơ App Review vẫn chưa gửi.
-- Worker đã có nhánh Utility được bảo vệ bằng feature flag. Production mặc định
-  `UTILITY_MESSAGING_ENABLED=false`.
+- Các webhook Messenger cần thiết đã được đăng ký, gồm tin nhắn, postback, referral
+  và trạng thái template khi Utility được bật.
+- Theo kết quả App Review, các quyền còn lại đã được phê duyệt;
+  `pages_read_engagement` bị từ chối và không được yêu cầu lại vì không cần cho
+  chức năng Messenger cốt lõi.
+- Worker đã có nhánh Utility được bảo vệ bằng feature flag và kiểm tra trạng thái
+  quyền của Page. Cấu hình production hiện đặt `UTILITY_MESSAGING_ENABLED=true`.
 
 ## 2. Quyền đề nghị giữ trong hồ sơ Messenger
 
@@ -22,14 +23,16 @@ Chỉ giữ các quyền có thể giải thích trực tiếp bằng luồng Ed
 1. `pages_messaging`
    - Nhận tin nhắn phụ huynh gửi tới Fanpage.
    - Cho Admin/Teacher được phân quyền trả lời trong EduMatrix.
-2. `page_utility_messaging`
+2. `pages_utility_messaging`
    - Gửi template Utility đã được Meta duyệt khi ngoài cửa sổ phản hồi 24 giờ.
 3. `pages_manage_metadata`
    - Đăng ký và vận hành webhook của Page.
-4. `pages_read_engagement`
-   - Đọc thông tin Page cần thiết cho luồng kết nối và đối soát.
-5. `pages_show_list`
+4. `pages_show_list`
    - Cho quản trị viên chọn đúng Page mà họ quản lý khi kết nối.
+
+Tên và ảnh đại diện lấy từ PSID thuộc tính năng **Business Asset User Profile
+Access**, không phải `pages_read_engagement`. Chỉ yêu cầu tính năng này nếu cần
+hiển thị hồ sơ Facebook thay cho dữ liệu phụ huynh dự phòng của EduMatrix.
 
 Các quyền Ads, WhatsApp, Marketing API hoặc quyền không xuất hiện trong video kiểm thử
 Messenger cần được gỡ khỏi **hồ sơ xét duyệt lần này**. Việc này không đồng nghĩa xóa
@@ -111,9 +114,9 @@ Mỗi template cần lưu lại:
 - ngày nộp/duyệt;
 - lý do từ chối nếu có.
 
-## 7. Cổng an toàn trước khi bật production
+## 7. Cổng an toàn để giữ Utility hoạt động trên production
 
-Chỉ đổi `UTILITY_MESSAGING_ENABLED=true` sau khi đồng thời đạt:
+Chỉ giữ `UTILITY_MESSAGING_ENABLED=true` khi đồng thời đạt:
 
 - quyền Utility được Meta phê duyệt cho môi trường live;
 - ít nhất một template có trạng thái `APPROVED`;

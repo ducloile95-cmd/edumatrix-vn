@@ -69,7 +69,6 @@ export const META_OAUTH_SCOPES = [
   "pages_show_list",
   "pages_manage_metadata",
   "pages_messaging",
-  "pages_read_engagement",
 ] as const;
 export const META_UTILITY_OAUTH_SCOPE = "pages_utility_messaging";
 export const META_WEBHOOK_FIELDS = ["messages", "messaging_postbacks", "messaging_referrals"] as const;

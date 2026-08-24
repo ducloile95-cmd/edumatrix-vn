@@ -244,9 +244,11 @@ Các chức năng của dự án liên quan đến các quyền sau:
 | Gửi và nhận Messenger | `pages_messaging` |
 | Quản lý subscription webhook Page | `pages_manage_metadata` |
 | Chọn/liệt kê Page | `pages_show_list` |
-| Đọc tương tác Page | `pages_read_engagement` |
+| Gửi Utility Template đã duyệt | `pages_utility_messaging` |
 
-Hệ thống hiện chỉ tích hợp Messenger Chat, không yêu cầu quyền đăng bài Page.
+Hệ thống hiện chỉ tích hợp Messenger Chat, không yêu cầu quyền đăng bài hoặc đọc
+tương tác Page. Nếu cần tên và ảnh đại diện từ PSID, kiểm tra riêng tính năng
+Business Asset User Profile Access.
 
 ### 2.6. Kiểm tra token bằng Access Token Debugger
 
