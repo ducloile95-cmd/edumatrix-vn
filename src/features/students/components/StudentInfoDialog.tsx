@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, ChevronDown, Pencil, X } from "lucide-react";
+import { Check, ChevronDown, Pencil, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { linkParentToStudent, setStudentStatus, updateStudent } from "@/services/firestore/students";
+import { deleteStudent, linkParentToStudent, setStudentStatus, updateStudent } from "@/services/firestore/students";
 import { listUsersByIds, listUsersByRole, updateParentProfile, type ParentProfileInput } from "@/services/firestore/users";
 import { listClasses } from "@/services/firestore/classes";
 import { listCourses } from "@/services/firestore/courses";
@@ -41,6 +41,8 @@ export function StudentInfoDialog({ canManageLinks, onClose, open, student }: St
   const [activeRelation, setActiveRelation] = useState<RelationKey | null>(null);
   const [classFilter, setClassFilter] = useState<ClassFilter>(null);
   const [selectedClassIds, setSelectedClassIds] = useState<string[]>([]);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
 
   useEffect(() => {
     if (!student || !open) return;
@@ -58,6 +60,8 @@ export function StudentInfoDialog({ canManageLinks, onClose, open, student }: St
     setActiveRelation(null);
     setClassFilter(null);
     setSelectedClassIds(student.currentClassIds);
+    setDeleteOpen(false);
+    setDeleteConfirmation("");
   }, [open, student]);
 
   const parentProfilesQuery = useQuery({
@@ -196,10 +200,25 @@ export function StudentInfoDialog({ canManageLinks, onClose, open, student }: St
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!student) return;
+      await deleteStudent(student.id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["students"] });
+      queryClient.invalidateQueries({ queryKey: ["classes"] });
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["enrollments"] });
+      onClose();
+    },
+  });
+
   if (!open || !student) return null;
 
   const isActive = statusDraft === "active";
   const canSubmit = fullName.trim().length > 0 && !updateMutation.isPending;
+  const deleteConfirmed = deleteConfirmation.trim().toUpperCase() === student.studentCode.toUpperCase();
   const allClasses = classesQuery.data ?? [];
   const linkedClasses = allClasses.filter((klass) => selectedClassIds.includes(klass.id));
   const courseById = new Map((coursesQuery.data ?? []).map((course) => [course.id, course.name]));
@@ -251,7 +270,7 @@ export function StudentInfoDialog({ canManageLinks, onClose, open, student }: St
         role="dialog"
         aria-modal="true"
         aria-labelledby="student-info-title"
-        className="page-enter grid max-h-[calc(100dvh-2rem)] w-full max-w-[1120px] grid-rows-[auto_1fr_auto] overflow-hidden rounded-modal border border-neutral-200 bg-neutral-0 shadow-[var(--shadow-4)] lg:max-w-[1760px]"
+        className="page-enter relative grid max-h-[calc(100dvh-2rem)] w-full max-w-[1120px] grid-rows-[auto_1fr_auto] overflow-hidden rounded-modal border border-neutral-200 bg-neutral-0 shadow-[var(--shadow-4)] lg:max-w-[1760px]"
       >
         <header className="flex items-start justify-between gap-4 border-b border-neutral-200 bg-neutral-50 px-5 py-4">
           <div className="min-w-0">
@@ -359,7 +378,7 @@ export function StudentInfoDialog({ canManageLinks, onClose, open, student }: St
         </form>
 
         <footer className="flex flex-col gap-3 border-t border-neutral-200 bg-neutral-0 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
               role="switch"
@@ -381,6 +400,7 @@ export function StudentInfoDialog({ canManageLinks, onClose, open, student }: St
             <div>
               <p className="text-sm font-semibold text-neutral-900">{isActive ? "Đang học" : "Đã nghỉ"}</p>
             </div>
+            {canManageLinks && <Button variant="danger" className="ml-1 rounded-full px-4" icon={<Trash2 size={15} strokeWidth={1.7} />} onClick={() => { deleteMutation.reset(); setDeleteConfirmation(""); setDeleteOpen(true); }}>Xóa học sinh</Button>}
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={onClose}>
@@ -391,6 +411,8 @@ export function StudentInfoDialog({ canManageLinks, onClose, open, student }: St
             </Button>
           </div>
         </footer>
+
+        {deleteOpen && <div className="absolute inset-0 z-20 grid place-items-center bg-neutral-900/45 p-4" onMouseDown={(event) => event.stopPropagation()}><div role="alertdialog" aria-modal="true" aria-labelledby="delete-student-title" className="w-full max-w-lg rounded-[22px] bg-danger-100/80 p-1.5 ring-1 ring-danger-100"><div className="rounded-[17px] bg-neutral-0 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,.85),0_24px_70px_rgba(127,29,29,.18)]"><div className="flex items-start gap-3"><span className="grid size-11 shrink-0 place-items-center rounded-full bg-danger-50 text-danger-700 ring-1 ring-danger-100"><Trash2 size={19} strokeWidth={1.6} /></span><div><h3 id="delete-student-title" className="text-lg font-bold tracking-[-0.01em] text-neutral-900">Xóa vĩnh viễn học sinh?</h3><p className="mt-1 text-sm leading-6 text-neutral-600">Hồ sơ <strong className="text-neutral-900">{student.fullName}</strong> sẽ bị xóa trực tiếp khỏi database. Liên kết với Phụ huynh, lớp học và các bản ghi ghi danh sẽ được xóa; điểm, điểm danh và hóa đơn vẫn được giữ.</p></div></div><label className="mt-5 grid gap-1.5"><span className="text-xs font-bold text-neutral-700">Nhập <span className="font-mono text-danger-700">{student.studentCode}</span> để xác nhận</span><input autoFocus autoComplete="off" value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} className={`${INPUT_CLASS} font-mono uppercase tracking-[0.08em] focus:border-danger-500 focus:ring-danger-100`} /></label>{deleteMutation.isError && <p role="alert" className="mt-3 rounded-input bg-danger-50 px-3 py-2 text-sm font-semibold text-danger-700">{deleteMutation.error instanceof Error && deleteMutation.error.message === "STUDENT_NOT_FOUND" ? "Học sinh không còn tồn tại. Hãy tải lại danh sách." : "Không thể xóa học sinh. Kiểm tra quyền truy cập và thử lại."}</p>}<div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><Button variant="secondary" disabled={deleteMutation.isPending} onClick={() => setDeleteOpen(false)}>Giữ học sinh</Button><Button variant="danger" className="rounded-full px-5" icon={<Trash2 size={15} strokeWidth={1.7} />} loading={deleteMutation.isPending} loadingLabel="Đang xóa học sinh" disabled={!deleteConfirmed} onClick={() => deleteMutation.mutate()}>Xóa vĩnh viễn</Button></div></div></div></div>}
       </div>
     </div>,
     document.body,

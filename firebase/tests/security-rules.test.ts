@@ -286,6 +286,15 @@ describe("phan quyen Admin/Teacher", () => {
     );
   });
 
+  test("Chi Admin duoc xoa cung tai khoan nguoi khac", async () => {
+    await assertFails(deleteDoc(doc(asTeacher(), "users", ADMIN_UID)));
+    await assertSucceeds(deleteDoc(doc(asAdmin(), "users", TEACHER_UID)));
+  });
+
+  test("Admin khong duoc tu xoa tai khoan dang dang nhap", async () => {
+    await assertFails(deleteDoc(doc(asAdmin(), "users", ADMIN_UID)));
+  });
+
   test("Admin chuyen Viewer thanh Admin va go lien ket hoc sinh trong mot batch", async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(doc(ctx.firestore(), "users", VIEWER_UID), {

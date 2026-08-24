@@ -2,10 +2,11 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   getCurrentUserDoc: vi.fn(), getDocs: vi.fn(), runTransaction: vi.fn(),
-  transactionGet: vi.fn(), transactionSet: vi.fn(), transactionUpdate: vi.fn(),
+  transactionDelete: vi.fn(), transactionGet: vi.fn(), transactionSet: vi.fn(), transactionUpdate: vi.fn(),
 }));
 
 vi.mock("firebase/firestore", () => ({
+  arrayRemove: vi.fn((value) => ({ remove: value })),
   arrayUnion: vi.fn((value) => ({ union: value })),
   collection: vi.fn((_db, name: string) => name),
   doc: vi.fn((_db, name: string, id: string) => ({ id, path: `${name}/${id}` })),
@@ -16,7 +17,7 @@ vi.mock("firebase/firestore", () => ({
 vi.mock("@/services/firebase/firestoreClient", () => ({ db: {} }));
 vi.mock("@/services/firestore/authz", () => ({ getCurrentUserDoc: mocks.getCurrentUserDoc }));
 
-import { createStudentWithRelations, listStudents, setStudentStatus } from "./students";
+import { createStudentWithRelations, deleteStudent, listStudents, setStudentStatus } from "./students";
 
 function snapshot(id: string, data: Record<string, unknown> | null) {
   return { id, exists: () => data !== null, data: () => data };
@@ -102,5 +103,35 @@ describe("listStudents pagination", () => {
 
     await expect(listStudents()).resolves.toHaveLength(201);
     expect(mocks.getDocs).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("deleteStudent", () => {
+  beforeEach(() => {
+    mocks.transactionDelete.mockReset(); mocks.transactionGet.mockReset(); mocks.transactionUpdate.mockReset();
+    mocks.runTransaction.mockReset().mockImplementation(async (_db, callback) => callback({
+      delete: mocks.transactionDelete, get: mocks.transactionGet, update: mocks.transactionUpdate,
+    }));
+  });
+
+  test("hard deletes the student and removes active reverse links", async () => {
+    mocks.transactionGet
+      .mockResolvedValueOnce(snapshot("HS001", { parentUids: ["parent-1"], currentClassIds: ["class-1"] }))
+      .mockResolvedValueOnce(snapshot("parent-1", { studentIds: ["HS001"] }))
+      .mockResolvedValueOnce(snapshot("class-1", { studentIds: ["HS001"] }))
+      .mockResolvedValueOnce(snapshot("class-1_HS001", { status: "active" }));
+
+    await deleteStudent("HS001");
+
+    expect(mocks.transactionUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ path: "users/parent-1" }),
+      expect.objectContaining({ studentIds: { remove: "HS001" } }),
+    );
+    expect(mocks.transactionUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ path: "classes/class-1" }),
+      expect.objectContaining({ studentIds: { remove: "HS001" } }),
+    );
+    expect(mocks.transactionDelete).toHaveBeenCalledWith(expect.objectContaining({ path: "enrollments/class-1_HS001" }));
+    expect(mocks.transactionDelete).toHaveBeenCalledWith(expect.objectContaining({ path: "students/HS001" }));
   });
 });

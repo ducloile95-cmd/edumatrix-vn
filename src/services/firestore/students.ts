@@ -1,4 +1,5 @@
 import {
+  arrayRemove,
   arrayUnion,
   collection,
   doc,
@@ -146,6 +147,35 @@ export async function setStudentStatus(studentDocId: string, status: StudentStat
       ...(status === "inactive" ? { teacherIds: [] } : {}),
       updatedAt: serverTimestamp(),
     });
+  });
+}
+
+export async function deleteStudent(studentDocId: string): Promise<void> {
+  await runTransaction(db, async (transaction) => {
+    const studentRef = doc(db, COLLECTIONS.STUDENTS, studentDocId);
+    const studentSnap = await transaction.get(studentRef);
+    if (!studentSnap.exists()) throw new Error("STUDENT_NOT_FOUND");
+    const student = studentSnap.data() as StudentDoc;
+
+    const parentRefs = student.parentUids.map((uid) => doc(db, COLLECTIONS.USERS, uid));
+    const classRefs = student.currentClassIds.map((classId) => doc(db, COLLECTIONS.CLASSES, classId));
+    const enrollmentRefs = student.currentClassIds.map((classId) => doc(db, COLLECTIONS.ENROLLMENTS, `${classId}_${studentDocId}`));
+    const [parentSnaps, classSnaps, enrollmentSnaps] = await Promise.all([
+      Promise.all(parentRefs.map((ref) => transaction.get(ref))),
+      Promise.all(classRefs.map((ref) => transaction.get(ref))),
+      Promise.all(enrollmentRefs.map((ref) => transaction.get(ref))),
+    ]);
+
+    parentSnaps.forEach((snap, index) => {
+      if (snap.exists()) transaction.update(parentRefs[index], { studentIds: arrayRemove(studentDocId), updatedAt: serverTimestamp() });
+    });
+    classSnaps.forEach((snap, index) => {
+      if (snap.exists()) transaction.update(classRefs[index], { studentIds: arrayRemove(studentDocId), updatedAt: serverTimestamp() });
+    });
+    enrollmentSnaps.forEach((snap, index) => {
+      if (snap.exists()) transaction.delete(enrollmentRefs[index]);
+    });
+    transaction.delete(studentRef);
   });
 }
 

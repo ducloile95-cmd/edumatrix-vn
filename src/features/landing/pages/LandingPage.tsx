@@ -42,6 +42,9 @@ export default function LandingPage() {
             <a href="#smart-classroom" className="hover:text-[#0F2942] transition-colors">
               Lớp Học Thực Tế
             </a>
+            <Link to={ROUTES.SYSTEM_GUIDE} className="hover:text-[#0F2942] transition-colors">
+              Hướng Dẫn Sử Dụng
+            </Link>
           </nav>
 
           {/* Action CTAs */}
@@ -401,6 +404,7 @@ export default function LandingPage() {
               <div className="text-xs font-bold text-white uppercase tracking-wider mb-3">Hệ Thống</div>
               <ul className="space-y-2 text-xs">
                 <li><Link to={ROUTES.LOGIN} className="hover:text-white transition-colors">Đăng Nhập Quản Lý</Link></li>
+                <li><Link to={ROUTES.SYSTEM_GUIDE} className="hover:text-white transition-colors">Hướng Dẫn Sử Dụng</Link></li>
                 <li><Link to={ROUTES.PRIVACY_POLICY} className="hover:text-white transition-colors">Chính Sách Bảo Mật</Link></li>
                 <li><Link to={ROUTES.DATA_DELETION} className="hover:text-white transition-colors">Hướng Dẫn Xóa Dữ Liệu</Link></li>
               </ul>

@@ -23,6 +23,7 @@ import { listClasses } from "@/services/firestore/classes";
 import { listCourses } from "@/services/firestore/courses";
 import { createSessions, listSessions, updateSession, type CreateSessionsInput } from "@/services/firestore/sessions";
 import { listSubjects } from "@/services/firestore/subjects";
+import { listStudents } from "@/services/firestore/students";
 import { listUsersByRole } from "@/services/firestore/users";
 import { USER_ROLES } from "@/constants/roles";
 import { CreateSessionModal } from "@/features/sessions/components/CreateSessionModal";
@@ -78,6 +79,12 @@ export default function SessionsPage() {
   // hoc/giao vien/si so) - tai dung dung queryKey voi ClassesList/ClassForm nen chia se cache.
   const coursesQuery = useQuery({ queryKey: ["courses"], queryFn: listCourses, staleTime: 60_000 });
   const subjectsQuery = useQuery({ queryKey: ["subjects"], queryFn: listSubjects, staleTime: 60_000 });
+  const studentsQuery = useQuery({
+    queryKey: ["students"],
+    queryFn: listStudents,
+    enabled: !!selectedSession,
+    staleTime: 60_000,
+  });
   const teachersQuery = useQuery({
     queryKey: ["users", "teacher"],
     queryFn: () => listUsersByRole(USER_ROLES.TEACHER),
@@ -135,6 +142,12 @@ export default function SessionsPage() {
     });
     return classFilter ? list.filter((s) => s.classId === classFilter.id) : list;
   }, [visibleSessions, classById, courseById, subjectById, teacherById, classFilter]);
+
+  const selectedSessionStudents = useMemo(() => {
+    if (!selectedSession) return [];
+    const studentIds = new Set(classById.get(selectedSession.classId)?.studentIds ?? []);
+    return (studentsQuery.data ?? []).filter((student) => studentIds.has(student.id));
+  }, [classById, selectedSession, studentsQuery.data]);
 
   const monthSessionCounts = useMemo(() => {
     const map = new Map<string, number>();
@@ -304,6 +317,8 @@ export default function SessionsPage() {
 
       <SessionDetailModal
         session={selectedSession}
+        students={selectedSessionStudents}
+        studentsLoading={studentsQuery.isLoading}
         onClose={() => setSelectedSession(null)}
         isPending={updateMutation.isPending}
         onReschedule={(id, startAt, endAt) => {

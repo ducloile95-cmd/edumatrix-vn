@@ -7,7 +7,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { doc, getDoc, serverTimestamp, setDoc, Timestamp, updateDoc, writeBatch } from "firebase/firestore";
+import { deleteDoc, doc, getDoc, serverTimestamp, setDoc, Timestamp, updateDoc, writeBatch } from "firebase/firestore";
 
 /**
  * Emulator test cho Firestore Security Rules cua subjects/students/courses/
@@ -359,6 +359,12 @@ describe("students - ownership", () => {
       }),
     );
   });
+
+  test("Chi Admin duoc xoa cung hoc sinh", async () => {
+    await assertFails(deleteDoc(doc(asTeacher(), "students", STUDENT_OWNED)));
+    await assertFails(deleteDoc(doc(asViewer(), "students", STUDENT_OWNED)));
+    await assertSucceeds(deleteDoc(doc(asAdmin(), "students", STUDENT_OTHER)));
+  });
 });
 
 describe("classes - ownership qua studentIds", () => {
@@ -589,5 +595,21 @@ describe("enrollments", () => {
       });
     });
     await assertFails(getDoc(doc(asViewer(), "enrollments", `class_001_${STUDENT_OTHER}`)));
+  });
+
+  test("Chi Admin duoc xoa enrollment khi xoa cung hoc sinh", async () => {
+    const enrollmentId = `class_001_${STUDENT_OWNED}`;
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "enrollments", enrollmentId), {
+        classId: "class_001",
+        courseId: "course_001",
+        studentId: STUDENT_OWNED,
+        status: "active",
+        joinedAt: Timestamp.now(),
+        endedAt: null,
+      });
+    });
+    await assertFails(deleteDoc(doc(asTeacher(), "enrollments", enrollmentId)));
+    await assertSucceeds(deleteDoc(doc(asAdmin(), "enrollments", enrollmentId)));
   });
 });

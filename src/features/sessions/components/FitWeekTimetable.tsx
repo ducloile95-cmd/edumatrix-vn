@@ -116,7 +116,7 @@ export function FitWeekTimetable({ days, sessions, today, onSessionClick, onSess
           })}
         </div>
 
-        <div className="grid min-h-[560px] grid-cols-7">
+        <div className="grid min-h-[528px] grid-cols-7">
           {days.map((day) => {
             const isToday = isSameDay(day, today);
             const daySessions = [...(sessionsByDay.get(dayKey(day)) ?? [])].sort(
@@ -132,7 +132,7 @@ export function FitWeekTimetable({ days, sessions, today, onSessionClick, onSess
             return (
               <div
                 key={dayKey(day)}
-                className={`grid grid-rows-[0.9fr_1.05fr_1.2fr] border-r border-neutral-200 last:border-r-0 ${
+                className={`grid grid-rows-[176px_176px_176px] border-r border-neutral-200 last:border-r-0 ${
                   isToday ? "bg-primary-50/30" : "bg-neutral-0"
                 }`}
               >
@@ -149,7 +149,7 @@ export function FitWeekTimetable({ days, sessions, today, onSessionClick, onSess
                       }}
                       onDragLeave={() => setDropTarget(null)}
                       onDrop={(event) => handleDrop(event, day, band)}
-                      className={`min-h-0 border-b border-dashed border-neutral-200 p-1.5 transition last:border-b-0 ${
+                      className={`min-h-0 overflow-hidden border-b border-dashed border-neutral-200 p-1.5 transition last:border-b-0 ${
                         dropTarget === `${dayKey(day)}-${band}` ? "bg-primary-50 ring-2 ring-inset ring-primary-300" : ""
                       }`}
                     >
@@ -164,14 +164,11 @@ export function FitWeekTimetable({ days, sessions, today, onSessionClick, onSess
                       ) : (
                         <div
                           data-columns={columnCount}
-                          className={`grid content-start gap-1.5 ${columnCount === 2 ? "grid-cols-2" : "grid-cols-1"}`}
+                          className={`grid max-h-[145px] content-start gap-1.5 overflow-y-auto overscroll-contain pr-0.5 ${columnCount === 2 ? "grid-cols-2" : "grid-cols-1"}`}
                         >
                           {bandSessions.map((session) => {
                             const tone = STATUS_TONE[session.status];
                             const canDrag = !!onSessionDrop && session.status !== "completed" && session.status !== "cancelled";
-                            const room = session.location || session.classLocation || "Chưa có phòng";
-                            const studentLabel =
-                              typeof session.studentCount === "number" ? `${session.studentCount} học sinh` : "Chưa có sĩ số";
                             return (
                               <button
                                 key={session.id}
@@ -179,7 +176,7 @@ export function FitWeekTimetable({ days, sessions, today, onSessionClick, onSess
                                 draggable={canDrag}
                                 onDragStart={(event) => handleDragStart(event, session)}
                                 onClick={() => onSessionClick(session)}
-                                className={`min-h-[78px] overflow-hidden rounded-input border border-l-4 px-2 py-1.5 text-left shadow-[0_1px_2px_rgba(28,26,21,.05)] transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-1 ${
+                                className={`overflow-hidden rounded-input border border-l-[3px] px-2 py-1.5 text-left shadow-[0_1px_2px_rgba(28,26,21,.05)] transition hover:-translate-y-px hover:border-primary-300 hover:shadow-[0_5px_14px_rgba(35,72,214,.1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-1 ${
                                   canDrag ? "cursor-grab active:cursor-grabbing" : ""
                                 } ${tone.border} ${tone.bg}`}
                               >
@@ -191,17 +188,12 @@ export function FitWeekTimetable({ days, sessions, today, onSessionClick, onSess
                                     {tone.label}
                                   </span>
                                 </div>
-                                <p className="mt-1 truncate text-3xs font-semibold text-neutral-600">
-                                  {session.courseName ?? compactList(session.subjectNames, "Chưa gắn khóa học")}
-                                </p>
-                                <p className="mt-1 flex items-center gap-1 truncate text-2xs font-extrabold text-neutral-900">
-                                  <span className="rounded-[6px] bg-neutral-100 px-1.5 py-0.5">
+                                <p className="mt-1.5 flex items-center gap-1.5 truncate text-2xs font-semibold text-neutral-600">
+                                  <span className="shrink-0 tabular-nums text-neutral-800">
                                     {format(session.startAt.toDate(), "HH:mm")}-{format(session.endAt.toDate(), "HH:mm")}
                                   </span>
+                                  <span aria-hidden="true">·</span>
                                   <span className="min-w-0 truncate">{compactList(session.teacherNames, "Chưa gắn GV")}</span>
-                                </p>
-                                <p className="mt-1 truncate text-3xs font-semibold text-neutral-500">
-                                  {room} · {studentLabel}
                                 </p>
                               </button>
                             );

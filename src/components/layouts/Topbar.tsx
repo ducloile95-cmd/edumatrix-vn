@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { Bell, ChevronDown, Menu, MessagesSquare, Plus, RefreshCw } from "lucide-react";
+import { Bell, ChevronDown, CircleHelp, Menu, MessagesSquare, Plus, RefreshCw } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { listAnnouncementsByStudents } from "@/services/firestore/announcements";
 import { subscribeChatThreads } from "@/services/firestore/chat";
-import { ROUTES } from "@/constants/routes";
+import { ROUTES, systemGuidePath, systemGuideRoleForUserRole } from "@/constants/routes";
 import { findPageTitle } from "@/constants/navigation";
 import { playNotificationSound, unlockNotificationSound } from "@/utils/notificationSound";
 import { runViewTransition } from "@/utils/viewTransition";
@@ -135,6 +135,26 @@ function RefreshButton() {
   );
 }
 
+function HelpButton() {
+  const { role } = useAuth();
+  const guideRole = systemGuideRoleForUserRole(role);
+  if (!guideRole) return null;
+
+  const roleLabel = guideRole === "teacher" ? "Teacher" : "Phụ huynh";
+  return (
+    <Link
+      to={systemGuidePath(guideRole)}
+      target="_blank"
+      rel="noreferrer"
+      aria-label={`Hướng dẫn sử dụng cho ${roleLabel} (mở tab mới)`}
+      title={`Hướng dẫn ${roleLabel}`}
+      className="icon-button flex"
+    >
+      <CircleHelp size={20} />
+    </Link>
+  );
+}
+
 /** Menu "+ Thêm" - tạo nhanh học sinh/lớp/môn học/khóa học/giáo án/thông báo (chỉ Staff). */
 function AddMenu() {
   const navigate = useNavigate();
@@ -184,6 +204,7 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
       {isStaff && <div className="hidden md:block"><AddMenu /></div>}
       {isStaff && <span aria-hidden="true" className="hidden h-6 w-px bg-neutral-200 md:block" />}
       {isStaff && <div className="hidden md:block"><ChatButton /></div>}
+      <HelpButton />
       <NotificationBell seeAllHref={seeAllHref} />
     </div>
   </header>;

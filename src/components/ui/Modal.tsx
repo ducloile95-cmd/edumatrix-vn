@@ -8,7 +8,7 @@ interface ModalProps {
   description?: string;
   children: ReactNode;
   onClose: () => void;
-  size?: "sm" | "md" | "lg" | "xl" | "2xl";
+  size?: "sm" | "md" | "lg" | "xl" | "workspace" | "2xl";
   /** Ghi đè class vùng nội dung khi children tự quản lý scroll/layout. */
   bodyClassName?: string;
 }
@@ -18,6 +18,7 @@ const sizes = {
   md: "max-w-2xl lg:max-w-[1080px]",
   lg: "max-w-[960px] lg:max-w-[1440px]",
   xl: "max-w-[1320px] lg:max-w-[1760px]",
+  workspace: "sm:w-[calc(100vw-2rem)] sm:max-w-[1180px] xl:max-w-[1280px]",
   "2xl": "max-w-[1920px]",
 };
 const MODAL_EXIT_MS = 200;

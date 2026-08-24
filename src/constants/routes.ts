@@ -1,10 +1,13 @@
 /** Duong dan route tap trung - tranh hardcode string rai rac. */
+import type { UserRole } from "@/types/user";
+
 export const ROUTES = {
   HOME: "/",
   LANDING: "/landing",
   LOGIN: "/login",
   PRIVACY_POLICY: "/privacy",
   DATA_DELETION: "/data-deletion",
+  SYSTEM_GUIDE: "/huong-dan",
   ACCESS_DENIED: "/access-denied",
   ACCOUNT_DISABLED: "/account-disabled",
 
@@ -35,6 +38,7 @@ export const ROUTES = {
   VIEWER_TUITION: "/portal/tuition",
   VIEWER_SCHEDULE: "/portal/schedule",
   VIEWER_SCHEDULE_DEMO: "/demo/viewer-schedule",
+  SCHEDULE_REDESIGN_DEMO: "/demo/staff-schedule",
   VIEWER_ANNOUNCEMENTS: "/portal/announcements",
 } as const;
 
@@ -50,4 +54,16 @@ export function sessionsForClassPath(classId: string): string {
 
 export function classroomSessionPath(sessionId: string): string {
   return `${ROUTES.STAFF_CLASSROOM}/${sessionId}`;
+}
+
+export type SystemGuideRole = "teacher" | "parent";
+
+export function systemGuidePath(role: SystemGuideRole, anchor?: string): string {
+  return `${ROUTES.SYSTEM_GUIDE}?role=${role}${anchor ? `#${anchor}` : ""}`;
+}
+
+export function systemGuideRoleForUserRole(role: UserRole | null): SystemGuideRole | null {
+  if (role === "teacher") return "teacher";
+  if (role === "viewer") return "parent";
+  return null;
 }

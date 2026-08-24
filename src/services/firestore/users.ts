@@ -189,6 +189,35 @@ export async function updateUserAccount(actor: User, uid: string, input: UpdateU
   });
 }
 
+export async function deleteUserAccount(actor: User, uid: string): Promise<void> {
+  if (actor.uid === uid) throw new Error("USER_SELF_DELETE_NOT_ALLOWED");
+
+  const deletedUser = await runTransaction(db, async (transaction) => {
+    const userRef = doc(db, COLLECTIONS.USERS, uid);
+    const userSnap = await transaction.get(userRef);
+    if (!userSnap.exists()) throw new Error("USER_NOT_FOUND");
+    const currentUser = userSnap.data() as UserDoc;
+
+    const studentSnaps = await Promise.all(
+      currentUser.studentIds.map((studentId) => transaction.get(doc(db, COLLECTIONS.STUDENTS, studentId))),
+    );
+    studentSnaps.forEach((studentSnap) => {
+      if (!studentSnap.exists()) return;
+      const student = studentSnap.data() as StudentDoc;
+      transaction.update(studentSnap.ref, {
+        parentUids: student.parentUids.filter((parentUid) => parentUid !== uid),
+        updatedAt: serverTimestamp(),
+      });
+    });
+    transaction.delete(userRef);
+    return currentUser;
+  });
+  await writeAuditLog(actor, "user_account_deleted", "user", uid, {
+    role: deletedUser.role,
+    email: deletedUser.email,
+  });
+}
+
 /**
  * Ghi lai lan dang nhap gan nhat cua chinh minh - goi tu AuthContext moi phien
  * dang nhap (A16: chi duoc tu sua field cua rieng minh, xem firestore.rules

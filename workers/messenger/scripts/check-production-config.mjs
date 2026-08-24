@@ -10,7 +10,7 @@ const workerUtility = config.env?.production?.vars?.UTILITY_MESSAGING_ENABLED;
 const frontendEnv = fs.readFileSync(path.resolve("../..", ".env.real"), "utf8");
 const frontendUtility = frontendEnv.match(/^VITE_UTILITY_MESSAGING_ENABLED=(true|false)$/m)?.[1];
 const workerUrl = frontendEnv.match(/^VITE_MESSENGER_WORKER_URL=(\S+)$/m)?.[1];
-const canonicalWorkerUrl = "https://edumatrix-messenger-production.ducloile99.workers.dev";
+const canonicalWorkerUrl = "https://edumatrix-messenger-production.edumatrix-vn.workers.dev";
 
 if (typeof origin !== "string" || !origin.startsWith("https://")) {
   throw new Error("env.production.vars.ALLOWED_ORIGIN must be an https origin.");

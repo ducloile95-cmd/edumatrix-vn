@@ -926,7 +926,7 @@ service cloud.firestore {
         request.resource.data.status == resource.data.status
       ));
 
-      allow delete: if false;
+      allow delete: if isAdmin() && request.auth.uid != uid;
     }
 
     // ---------- invites/{normalizedEmail} ----------
@@ -1120,7 +1120,7 @@ service cloud.firestore {
             request.resource.data.parentUids == resource.data.parentUids
           )
         );
-      allow delete: if false;
+      allow delete: if isAdmin();
     }
 
     // ---------- classes/{classId} ----------
@@ -1214,7 +1214,7 @@ service cloud.firestore {
       ) &&
         validEnrollmentData(enrollmentId, request.resource.data) &&
         keepsImmutable(['classId', 'courseId', 'studentId', 'joinedAt']);
-      allow delete: if false;
+      allow delete: if isAdmin();
     }
 
     match /sessions/{sessionId} {

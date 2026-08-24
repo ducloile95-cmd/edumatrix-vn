@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link, Navigate } from "react-router";
 import { Eye, EyeOff, GraduationCap, Users } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
-import { ROUTES } from "@/constants/routes";
+import { ROUTES, systemGuidePath } from "@/constants/routes";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { LanguageSegmentedControl } from "@/features/preferences/components/AppearanceControls";
 import { activateAccount, authErrorMessage, resetPassword, signInEmail, signInGoogle } from "@/services/firebase/auth";
@@ -189,6 +189,11 @@ export default function LoginPage() {
                   <button type="button" onClick={() => switchMode("activate")} className="font-semibold text-primary-600 hover:underline">Kích hoạt tài khoản</button>
                   <br />Chỉ tài khoản đã được mời mới truy cập được hệ thống.
                 </p>
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 border-t border-neutral-100 pt-4 text-xs">
+                  <span className="text-neutral-500">Cần trợ giúp?</span>
+                  <Link to={systemGuidePath("teacher")} className="font-semibold text-primary-700 hover:underline">Hướng dẫn Teacher</Link>
+                  <Link to={systemGuidePath("parent")} className="font-semibold text-primary-700 hover:underline">Hướng dẫn Phụ huynh</Link>
+                </div>
               </>
             ) : (
               <button type="button" onClick={() => switchMode("login")} className="mt-5 text-center text-sm font-semibold text-neutral-500 hover:text-primary-900">
@@ -229,20 +234,24 @@ export default function LoginPage() {
       {/* ===== WELCOME POPUP (lần đầu truy cập) ===== */}
       {!welcomed && (
         <div className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-primary-900/50 p-4 backdrop-blur-sm">
-          <div className="modal-panel w-full max-w-sm rounded-modal bg-neutral-0 p-6 text-center shadow-[0_24px_60px_rgba(10,20,60,0.35)]">
+          <div role="dialog" aria-modal="true" aria-labelledby="welcome-dialog-title" className="modal-panel w-full max-w-sm rounded-modal bg-neutral-0 p-6 text-center shadow-[0_24px_60px_rgba(10,20,60,0.35)]">
             <Logo className="mx-auto h-16 w-auto" />
-            <h2 className="mt-3 text-lg font-bold text-primary-900">Chào mừng bạn đã truy cập EduMatrix</h2>
+            <h2 id="welcome-dialog-title" className="mt-3 text-lg font-bold text-primary-900">Chào mừng bạn đã truy cập EduMatrix</h2>
             <p className="mb-4 mt-1 text-sm text-neutral-500">Chọn vai trò để tiếp tục đăng nhập</p>
 
-            <button onClick={dismissWelcome} className="mb-2.5 flex w-full items-center gap-3 rounded-card border border-neutral-200 p-3 text-left transition hover:border-primary-500 hover:bg-primary-50">
+            <button type="button" onClick={dismissWelcome} className="mb-2.5 flex w-full items-center gap-3 rounded-card border border-neutral-200 p-3 text-left transition hover:border-primary-500 hover:bg-primary-50">
               <span className="flex h-10 w-10 items-center justify-center rounded-input bg-primary-50 text-primary-500"><GraduationCap size={20} /></span>
               <span><span className="block text-sm font-semibold text-neutral-900">Giáo viên</span><span className="block text-xs text-neutral-500">Quản lý lớp, điểm danh, chấm bài</span></span>
             </button>
-            <button onClick={dismissWelcome} className="flex w-full items-center gap-3 rounded-card border border-neutral-200 p-3 text-left transition hover:border-primary-500 hover:bg-primary-50">
+            <button type="button" onClick={dismissWelcome} className="flex w-full items-center gap-3 rounded-card border border-neutral-200 p-3 text-left transition hover:border-primary-500 hover:bg-primary-50">
               <span className="flex h-10 w-10 items-center justify-center rounded-input bg-accent-50 text-accent-700"><Users size={20} /></span>
               <span><span className="block text-sm font-semibold text-neutral-900">Phụ huynh / Học sinh</span><span className="block text-xs text-neutral-500">Xem lịch, bài tập, điểm, học phí</span></span>
             </button>
-            <p className="mt-4 text-2xs text-neutral-500">EduMatrix VN — 2026</p>
+            <div className="mt-4 flex items-center justify-center gap-3 text-xs font-semibold">
+              <Link to={systemGuidePath("teacher")} className="text-primary-700 hover:underline">Hướng dẫn Teacher</Link>
+              <span aria-hidden="true" className="text-neutral-300">|</span>
+              <Link to={systemGuidePath("parent")} className="text-primary-700 hover:underline">Hướng dẫn Phụ huynh</Link>
+            </div>
           </div>
         </div>
       )}

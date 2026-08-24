@@ -3,6 +3,7 @@ export type AuditAction =
   | "invite_revoked"
   | "user_status_changed"
   | "user_account_updated"
+  | "user_account_deleted"
   | "link_request_approved"
   | "link_request_rejected"
   | "attendance_adjusted"
