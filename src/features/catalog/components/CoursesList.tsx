@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Plus, Trash2, X } from "lucide-react";
+import { Archive, CheckCircle2, FileText, MoreHorizontal, Pencil, Plus, Trash2, X } from "lucide-react";
 import { deleteCourse, listCourses, setCourseStatus } from "@/services/firestore/courses";
 import { listSubjects } from "@/services/firestore/subjects";
 import { formatVnd } from "@/utils/currency";
@@ -113,7 +113,7 @@ export function CoursesList({ canManage = true, canDelete = canManage, onEdit, o
           {canManage && <button
             type="button"
             onClick={onAdd}
-            className="inline-flex min-h-touch items-center gap-1.5 rounded-input border border-neutral-300 px-3 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
+            className="inline-flex min-h-touch items-center gap-1.5 rounded-input border border-primary-600 bg-primary-600 px-3 text-xs font-bold text-white transition hover:border-primary-700 hover:bg-primary-700 active:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
           >
             <Plus size={14} aria-hidden="true" />
             Thêm khóa học
@@ -182,14 +182,14 @@ export function CoursesList({ canManage = true, canDelete = canManage, onEdit, o
         )}
 
         {hasRows && (
-          <table className="w-full min-w-[820px] border-collapse text-sm">
+          <table className="hidden w-full min-w-[900px] border-collapse text-sm md:table">
             <thead className="sticky top-0 z-10 bg-neutral-50">
               <tr className="border-b border-neutral-200 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
                 <th scope="col" className="px-4 py-3">Khóa học</th>
-                <th scope="col" className="px-4 py-3 text-right">Học phí/buổi</th>
-                <th scope="col" className="px-4 py-3 text-center">Số buổi</th>
-                <th scope="col" className="px-4 py-3">Thời lượng</th>
                 <th scope="col" className="px-4 py-3">Trạng thái</th>
+                <th scope="col" className="px-4 py-3">Thời lượng</th>
+                <th scope="col" className="px-4 py-3 text-center">Số buổi</th>
+                <th scope="col" className="px-4 py-3 text-right">Học phí/buổi</th>
                 <th scope="col" className="px-4 py-3 text-right">Thao tác</th>
               </tr>
             </thead>
@@ -227,53 +227,164 @@ export function CoursesList({ canManage = true, canDelete = canManage, onEdit, o
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-right font-medium tabular-nums text-neutral-800">
-                      {formatVnd(course.pricePerSession ?? Math.round(course.tuitionFee / course.totalSessions))}
+                    <td className="px-4 py-3">
+                      <StatusBadge tone={STATUS_TONE[course.status]}>{STATUS_LABEL[course.status]}</StatusBadge>
                     </td>
-                    <td className="px-4 py-3 text-center tabular-nums text-neutral-800">{course.totalSessions}</td>
                     <td className="px-4 py-3 text-neutral-600">
                       {format(course.startDate.toDate(), "dd/MM/yyyy")} → {format(course.endDate.toDate(), "dd/MM/yyyy")}
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <StatusBadge tone={STATUS_TONE[course.status]}>{STATUS_LABEL[course.status]}</StatusBadge>
-                        {canManage && <select
-                          aria-label={`Đổi trạng thái ${course.name}`}
-                          value={course.status}
-                          onChange={(e) =>
-                            statusMutation.mutate({ id: course.id, status: e.target.value as CourseStatus })
-                          }
-                          disabled={statusMutation.isPending}
-                          className="min-h-touch rounded-input border border-neutral-300 px-1.5 text-xs font-medium text-neutral-600 disabled:opacity-40"
-                        >
-                          <option value="draft">Nháp</option>
-                          <option value="active">Đang mở</option>
-                          <option value="completed">Đã kết thúc</option>
-                        </select>}
-                      </div>
+                    <td className="px-4 py-3 text-center tabular-nums text-neutral-800">{course.totalSessions}</td>
+                    <td className="px-4 py-3 text-right font-medium tabular-nums text-neutral-800">
+                      {formatVnd(course.pricePerSession ?? Math.round(course.tuitionFee / course.totalSessions))}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      {(canManage || canDelete) && <div className="flex justify-end gap-1.5">{canManage && <button
-                          type="button"
-                          onClick={() => onEdit(course)}
-                          className="min-h-touch rounded-input border border-neutral-300 px-3 text-xs font-medium text-neutral-600 hover:bg-neutral-50"
-                        >
-                          Sửa
-                        </button>}{canDelete && <button
-                          type="button"
-                          onClick={() => { deleteMutation.reset(); setDeletingCourse(course); }}
-                          className="grid min-h-touch min-w-touch place-items-center rounded-input border border-danger-200 text-danger-700 transition hover:bg-danger-50"
-                          aria-label={`Xóa vĩnh viễn khóa học ${course.name}`}
-                          title="Xóa vĩnh viễn khóa học"
-                        >
-                          <Trash2 size={15} aria-hidden="true" />
-                        </button>}</div>}
+                      {(canManage || canDelete) && (
+                        <div className="flex justify-end gap-1.5">
+                          {canManage && <button
+                            type="button"
+                            onClick={() => onEdit(course)}
+                            aria-label={`Sửa ${course.name}`}
+                            title="Sửa khóa học"
+                            className="grid size-11 shrink-0 place-items-center rounded-input border border-neutral-300 bg-white text-neutral-600 transition hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+                          >
+                            <Pencil size={17} aria-hidden="true" />
+                          </button>}
+                          {canManage && <details className="group relative">
+                            <summary
+                              aria-label={`Cập nhật trạng thái ${course.name}`}
+                              title="Cập nhật trạng thái"
+                              className="grid size-11 cursor-pointer list-none place-items-center rounded-input border border-neutral-300 bg-white text-neutral-600 transition marker:content-none hover:border-neutral-400 hover:bg-neutral-100 hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 [&::-webkit-details-marker]:hidden"
+                            >
+                              <MoreHorizontal size={18} aria-hidden="true" />
+                            </summary>
+                            <div className="absolute right-0 top-[calc(100%+6px)] z-30 w-48 rounded-card border border-neutral-200 bg-white p-1.5 text-left shadow-lg">
+                              {course.status !== "active" && (
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    statusMutation.mutate({ id: course.id, status: "active" });
+                                    event.currentTarget.closest("details")?.removeAttribute("open");
+                                  }}
+                                  disabled={statusMutation.isPending}
+                                  className="flex min-h-touch w-full items-center gap-2 rounded-input px-2.5 text-xs font-medium text-neutral-700 hover:bg-neutral-100 disabled:opacity-40"
+                                >
+                                  <CheckCircle2 size={16} aria-hidden="true" /> Đang mở
+                                </button>
+                              )}
+                              {course.status !== "draft" && (
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    statusMutation.mutate({ id: course.id, status: "draft" });
+                                    event.currentTarget.closest("details")?.removeAttribute("open");
+                                  }}
+                                  disabled={statusMutation.isPending}
+                                  className="flex min-h-touch w-full items-center gap-2 rounded-input px-2.5 text-xs font-medium text-neutral-700 hover:bg-neutral-100 disabled:opacity-40"
+                                >
+                                  <FileText size={16} aria-hidden="true" /> Chuyển về nháp
+                                </button>
+                              )}
+                              {course.status !== "completed" && (
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    statusMutation.mutate({ id: course.id, status: "completed" });
+                                    event.currentTarget.closest("details")?.removeAttribute("open");
+                                  }}
+                                  disabled={statusMutation.isPending}
+                                  className="flex min-h-touch w-full items-center gap-2 rounded-input px-2.5 text-xs font-medium text-neutral-700 hover:bg-neutral-100 disabled:opacity-40"
+                                >
+                                  <Archive size={16} aria-hidden="true" /> Đánh dấu kết thúc
+                                </button>
+                              )}
+                            </div>
+                          </details>}
+                          {canDelete && <button
+                            type="button"
+                            onClick={() => { deleteMutation.reset(); setDeletingCourse(course); }}
+                            className="grid size-11 shrink-0 place-items-center rounded-input border border-danger-200 bg-white text-danger-700 transition hover:bg-danger-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-500 focus-visible:ring-offset-2"
+                            aria-label={`Xóa vĩnh viễn khóa học ${course.name}`}
+                            title="Xóa vĩnh viễn khóa học"
+                          >
+                            <Trash2 size={17} aria-hidden="true" />
+                          </button>}
+                        </div>
+                      )}
                     </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
+        )}
+
+        {hasRows && (
+          <div className="divide-y divide-neutral-100 md:hidden">
+            {pageItems.map((course) => {
+              const subjectNames = course.subjectIds
+                .map((id) => subjectById.get(id)?.name)
+                .filter((name): name is string => !!name);
+              return (
+                <article key={course.id} className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-neutral-900">{course.name}</h3>
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {subjectNames.slice(0, 1).map((name) => (
+                          <span key={name} className="rounded-full bg-primary-50 px-2 py-0.5 text-2xs font-semibold text-primary-700">{name}</span>
+                        ))}
+                        {subjectNames.length > 1 && <span className="rounded-full bg-primary-50 px-2 py-0.5 text-2xs font-semibold text-primary-700">+{subjectNames.length - 1} môn</span>}
+                      </div>
+                    </div>
+                    <StatusBadge tone={STATUS_TONE[course.status]}>{STATUS_LABEL[course.status]}</StatusBadge>
+                  </div>
+                  <dl className="mt-3 grid grid-cols-2 gap-3 text-xs">
+                    <div><dt className="text-neutral-500">Thời lượng</dt><dd className="mt-0.5 font-medium tabular-nums text-neutral-800">{format(course.startDate.toDate(), "dd/MM")} → {format(course.endDate.toDate(), "dd/MM/yyyy")}</dd></div>
+                    <div><dt className="text-neutral-500">Học phí / buổi</dt><dd className="mt-0.5 font-medium tabular-nums text-neutral-800">{formatVnd(course.pricePerSession ?? Math.round(course.tuitionFee / course.totalSessions))} · {course.totalSessions} buổi</dd></div>
+                  </dl>
+                  {(canManage || canDelete) && (
+                    <div className="mt-4 flex justify-end gap-2">
+                      {canManage && <button
+                        type="button"
+                        onClick={() => onEdit(course)}
+                        className="inline-flex min-h-touch flex-1 items-center justify-center gap-2 rounded-input border border-neutral-300 bg-white px-3 text-xs font-medium text-neutral-700 transition hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700"
+                      >
+                        <Pencil size={16} aria-hidden="true" /> Sửa
+                      </button>}
+                      {canManage && <details className="group relative">
+                        <summary aria-label={`Cập nhật trạng thái ${course.name}`} className="grid size-11 cursor-pointer list-none place-items-center rounded-input border border-neutral-300 bg-white text-neutral-600 marker:content-none hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 [&::-webkit-details-marker]:hidden"><MoreHorizontal size={18} aria-hidden="true" /></summary>
+                        <div className="absolute bottom-[calc(100%+6px)] right-0 z-30 w-48 rounded-card border border-neutral-200 bg-white p-1.5 shadow-lg">
+                          {(["active", "draft", "completed"] as CourseStatus[]).filter((status) => status !== course.status).map((status) => (
+                            <button
+                              key={status}
+                              type="button"
+                              onClick={(event) => {
+                                statusMutation.mutate({ id: course.id, status });
+                                event.currentTarget.closest("details")?.removeAttribute("open");
+                              }}
+                              disabled={statusMutation.isPending}
+                              className="min-h-touch w-full rounded-input px-2.5 text-left text-xs font-medium text-neutral-700 hover:bg-neutral-100 disabled:opacity-40"
+                            >
+                              {STATUS_LABEL[status]}
+                            </button>
+                          ))}
+                        </div>
+                      </details>}
+                      {canDelete && <button
+                        type="button"
+                        onClick={() => { deleteMutation.reset(); setDeletingCourse(course); }}
+                        className="grid size-11 shrink-0 place-items-center rounded-input border border-danger-200 bg-white text-danger-700 transition hover:bg-danger-50"
+                        aria-label={`Xóa vĩnh viễn khóa học ${course.name}`}
+                        title="Xóa vĩnh viễn khóa học"
+                      >
+                        <Trash2 size={17} aria-hidden="true" />
+                      </button>}
+                    </div>
+                  )}
+                </article>
+              );
+            })}
+          </div>
         )}
       </div>
 

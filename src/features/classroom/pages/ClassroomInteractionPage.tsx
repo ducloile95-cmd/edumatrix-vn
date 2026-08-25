@@ -33,7 +33,7 @@ import {
 import { getUtilityDeliveryStatus, retryUtilityDeliveryJob, summarizeUtilityDelivery } from "@/services/integrations/messenger";
 import { getSession, listSessionsByClass } from "@/services/firestore/sessions";
 import { getLessonPlanBySession } from "@/services/firestore/lessonPlans";
-import { listStudents } from "@/services/firestore/students";
+import { listStudentsByIds } from "@/services/firestore/students";
 import type { AttendanceStatus } from "@/types/academic";
 export default function ClassroomInteractionPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -63,7 +63,11 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
     queryFn: () => getClass(session.data?.classId ?? ""),
     enabled: !!session.data,
   });
-  const students = useQuery({ queryKey: ["students"], queryFn: listStudents });
+  const students = useQuery({
+    queryKey: ["students", "class-roster", klass.data?.studentIds ?? []],
+    queryFn: () => listStudentsByIds(klass.data?.studentIds ?? []),
+    enabled: !!klass.data,
+  });
   const course = useQuery({
     queryKey: ["course", klass.data?.courseId],
     queryFn: () => getCourse(klass.data!.courseId),
@@ -99,11 +103,17 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
       ]);
       return { reviews, attendance };
     },
-    enabled: !!klass.data && !students.isLoading,
+    enabled: !!klass.data && students.data !== undefined,
   });
 
   useEffect(() => {
-    if (initializedSessionId === sessionId || savedEntries.isLoading || interaction.isLoading || !klass.data) return;
+    if (
+      initializedSessionId === sessionId ||
+      students.data === undefined ||
+      savedEntries.isLoading ||
+      interaction.isLoading ||
+      !klass.data
+    ) return;
     const reviewByStudent = new Map(savedEntries.data?.reviews.map((review) => [review.studentId, review]));
     const attendanceByStudent = new Map(savedEntries.data?.attendance.map((item) => [item.studentId, item]));
     setEntries(Object.fromEntries(classStudents.map((student) => {
@@ -121,7 +131,7 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
     setHomeworkText(interaction.data?.homeworkText ?? "");
     setDraftExists(Boolean(interaction.data));
     setInitializedSessionId(sessionId);
-  }, [classStudents, initializedSessionId, interaction.data, interaction.isLoading, klass.data, savedEntries.data, savedEntries.isLoading, sessionId]);
+  }, [classStudents, initializedSessionId, interaction.data, interaction.isLoading, klass.data, savedEntries.data, savedEntries.isLoading, sessionId, students.data]);
 
   const workflowStatus = interaction.data?.workflowStatus ?? "draft";
   const isPublished = workflowStatus === "published";

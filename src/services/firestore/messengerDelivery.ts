@@ -21,7 +21,7 @@ interface UtilityDeliveryEventInput {
 type FirestoreWriter = Pick<Transaction, "set"> | Pick<WriteBatch, "set">;
 
 export function utilityDeliveryEventId(input: Pick<UtilityDeliveryEventInput, "eventType" | "entityId" | "version">): string {
-  if (!/^[A-Za-z0-9_-]{1,300}$/.test(input.entityId) || !Number.isInteger(input.version) || input.version < 1) {
+  if (!input.entityId || input.entityId.length > 300 || input.entityId.includes("/") || !Number.isInteger(input.version) || input.version < 1) {
     throw new Error("UTILITY_DELIVERY_EVENT_INVALID");
   }
   return `${input.eventType}:${input.entityId}:v${input.version}`;

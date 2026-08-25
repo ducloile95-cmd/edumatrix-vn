@@ -13,4 +13,9 @@ describe("utility delivery event idempotency", () => {
     expect(() => utilityDeliveryEventId({ eventType: "invoice_committed", entityId: "invoice/1", version: 1 })).toThrow("UTILITY_DELIVERY_EVENT_INVALID");
     expect(() => utilityDeliveryEventId({ eventType: "invoice_committed", entityId: "invoice-1", version: 0 })).toThrow("UTILITY_DELIVERY_EVENT_INVALID");
   });
+
+  test("accepts existing student codes that are valid Firestore document ids", () => {
+    expect(utilityDeliveryEventId({ eventType: "enrollment_completed", entityId: "class-1_HS 01.Đ", version: 1 }))
+      .toBe("enrollment_completed:class-1_HS 01.Đ:v1");
+  });
 });

@@ -11,6 +11,7 @@ vi.mock("firebase/firestore", () => ({
   arrayUnion: vi.fn((value) => ({ union: value })),
   collection: vi.fn((_db, name: string) => name),
   doc: vi.fn((_db, name: string, id: string) => ({ id, path: `${name}/${id}` })),
+  documentId: vi.fn(() => "__name__"),
   getDoc: vi.fn(), getDocs: mocks.getDocs, limit: vi.fn(), orderBy: vi.fn(), query: vi.fn(),
   runTransaction: mocks.runTransaction, serverTimestamp: vi.fn(() => "server-time"), startAfter: vi.fn(),
   updateDoc: vi.fn(), where: vi.fn(), writeBatch: vi.fn(),
@@ -19,7 +20,7 @@ vi.mock("@/services/firebase/firestoreClient", () => ({ db: {} }));
 vi.mock("@/services/firestore/authz", () => ({ getCurrentUserDoc: mocks.getCurrentUserDoc }));
 vi.mock("@/services/firestore/deletionDependencies", () => ({ assertDeletionAllowed: mocks.assertDeletionAllowed }));
 
-import { createStudentWithRelations, deleteStudent, listStudents, setStudentStatus, updateStudentWithRelations } from "./students";
+import { createStudentWithRelations, deleteStudent, listStudents, listStudentsByIds, setStudentStatus, updateStudentWithRelations } from "./students";
 
 function snapshot(id: string, data: Record<string, unknown> | null) {
   return { id, ref: { id, path: `documents/${id}` }, exists: () => data !== null, data: () => data };
@@ -150,6 +151,24 @@ describe("updateStudentWithRelations", () => {
     expect(mocks.transactionSet).not.toHaveBeenCalled();
     expect(mocks.transactionUpdate).not.toHaveBeenCalled();
   });
+
+  test("removes a stale legacy class link while updating the profile", async () => {
+    mocks.transactionGet.mockImplementation(async (ref: { id: string; path: string }) => {
+      const data = ref.path === "students/HS001"
+        ? { status: "active", currentClassIds: ["class-missing"], teacherIds: ["teacher-old"], parentUids: [] }
+        : null;
+      return { id: ref.id, ref, exists: () => data != null, data: () => data };
+    });
+
+    await updateStudentWithRelations("HS001", {
+      actorUid: "admin-1", classIds: ["class-missing"], fullName: "Updated", dateOfBirth: "2015-01-01",
+    });
+
+    expect(mocks.transactionUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ path: "students/HS001" }),
+      expect.objectContaining({ currentClassIds: [], teacherIds: [], fullName: "Updated" }),
+    );
+  });
 });
 
 describe("listStudents pagination", () => {
@@ -168,6 +187,18 @@ describe("listStudents pagination", () => {
 
     await expect(listStudents()).resolves.toHaveLength(201);
     expect(mocks.getDocs).toHaveBeenCalledTimes(2);
+  });
+
+  test("loads a class roster by ids instead of the teacher cache", async () => {
+    mocks.getDocs.mockResolvedValueOnce({ docs: [{
+      id: "HS001",
+      data: () => ({
+        studentCode: "HS001", fullName: "Student", dateOfBirth: "2015-01-01", parentUids: [],
+        currentClassIds: ["class-1"], teacherIds: [], status: "active", createdAt: "time", updatedAt: "time",
+      }),
+    }] });
+
+    await expect(listStudentsByIds(["HS001"])).resolves.toEqual([expect.objectContaining({ id: "HS001" })]);
   });
 });
 

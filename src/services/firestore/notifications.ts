@@ -42,6 +42,7 @@ export async function listViewerNotifications(
     .sort((a, b) => (b.createdAt?.toMillis() ?? 0) - (a.createdAt?.toMillis() ?? 0))
     .slice(0, TOTAL_LIMIT);
   const readAnnouncementIds = new Set<string>();
+  const dismissedAnnouncementIds = new Set<string>();
 
   for (let offset = 0; offset < unique.length; offset += 30) {
     const announcementIds = unique.slice(offset, offset + 30).map((item) => item.id);
@@ -53,12 +54,13 @@ export async function listViewerNotifications(
       ),
     );
     snapshot.docs.forEach((item) => {
-      const data = item.data() as { announcementId?: string };
+      const data = item.data() as { announcementId?: string; dismissedAt?: Timestamp };
       if (data.announcementId) readAnnouncementIds.add(data.announcementId);
+      if (data.announcementId && data.dismissedAt) dismissedAnnouncementIds.add(data.announcementId);
     });
   }
 
-  return unique.map((item) => ({
+  return unique.filter((item) => !dismissedAnnouncementIds.has(item.id)).map((item) => ({
     id: item.id,
     title: item.title ?? "Thông báo",
     message: item.message ?? "",
@@ -77,6 +79,23 @@ export async function markNotificationsRead(uid: string, announcementIds: string
       batch.set(
         doc(db, COLLECTIONS.NOTIFICATION_READS, readId(uid, announcementId)),
         { uid, announcementId, readAt: serverTimestamp() },
+        { merge: true },
+      );
+    });
+    await batch.commit();
+  }
+}
+
+export async function dismissNotifications(uid: string, announcementIds: string[]): Promise<void> {
+  const uniqueIds = [...new Set(announcementIds)].filter(Boolean);
+  if (!uid || uniqueIds.length === 0) return;
+
+  for (let offset = 0; offset < uniqueIds.length; offset += READ_BATCH_LIMIT) {
+    const batch = writeBatch(db);
+    uniqueIds.slice(offset, offset + READ_BATCH_LIMIT).forEach((announcementId) => {
+      batch.set(
+        doc(db, COLLECTIONS.NOTIFICATION_READS, readId(uid, announcementId)),
+        { uid, announcementId, readAt: serverTimestamp(), dismissedAt: serverTimestamp() },
         { merge: true },
       );
     });

@@ -84,7 +84,11 @@ async function runWithStableCourseClasses(
   throw new Error(COURSE_CLASS_REVISION_CHANGED);
 }
 
-async function validateCourseReferences(transaction: Transaction, input: CreateCourseInput): Promise<{
+async function validateCourseReferences(
+  transaction: Transaction,
+  input: CreateCourseInput,
+  retained?: Pick<CourseDoc, "subjectIds" | "teacherIds">,
+): Promise<{
   subjectIds: string[];
   teacherIds: string[];
 }> {
@@ -96,13 +100,15 @@ async function validateCourseReferences(transaction: Transaction, input: CreateC
     Promise.all(subjectIds.map((id) => transaction.get(doc(db, COLLECTIONS.SUBJECTS, id)))),
     Promise.all(teacherIds.map((id) => transaction.get(doc(db, COLLECTIONS.USERS, id)))),
   ]);
-  if (subjectSnaps.some((snap) => !snap.exists() || (snap.data() as SubjectDoc).status !== "active")) {
+  if (subjectSnaps.some((snap) => (
+    (!snap.exists() || (snap.data() as SubjectDoc).status !== "active") && !retained?.subjectIds?.includes(snap.id)
+  ))) {
     throw new Error("COURSE_SUBJECT_INVALID");
   }
   if (teacherSnaps.some((snap) => {
-    if (!snap.exists()) return true;
+    if (!snap.exists()) return !retained?.teacherIds?.includes(snap.id);
     const teacher = snap.data() as UserDoc;
-    return teacher.role !== "teacher" || teacher.status !== "active";
+    return (teacher.role !== "teacher" || teacher.status !== "active") && !retained?.teacherIds?.includes(snap.id);
   })) {
     throw new Error("COURSE_TEACHER_INVALID");
   }
@@ -139,13 +145,14 @@ export async function updateCourse(courseId: string, input: CreateCourseInput): 
   const endDate = toTimestamp(input.endDate);
   await runWithStableCourseClasses(courseId, false, async ({ revision, documents }) => runTransaction(db, async (transaction) => {
     const courseRef = doc(db, COLLECTIONS.COURSES, courseId);
-    const [{ subjectIds, teacherIds }, courseSnap, ...classSnaps] = await Promise.all([
-      validateCourseReferences(transaction, input),
-      transaction.get(courseRef),
+    const courseSnap = await transaction.get(courseRef);
+    if (!courseSnap.exists()) throw new Error("COURSE_NOT_FOUND");
+    const course = courseSnap.data() as CourseDoc;
+    const [{ subjectIds, teacherIds }, ...classSnaps] = await Promise.all([
+      validateCourseReferences(transaction, input, course),
       ...documents.map((classSnap) => transaction.get(classSnap.ref)),
     ]);
-    if (!courseSnap.exists()) throw new Error("COURSE_NOT_FOUND");
-    if (courseClassRevision(courseSnap.data() as CourseDoc) !== revision) throw new Error(COURSE_CLASS_REVISION_CHANGED);
+    if (courseClassRevision(course) !== revision) throw new Error(COURSE_CLASS_REVISION_CHANGED);
     const activeClasses = classSnaps
       .map((classSnap) => classSnap.data() as ClassDoc)
       .filter((klass) => klass.status === "active");

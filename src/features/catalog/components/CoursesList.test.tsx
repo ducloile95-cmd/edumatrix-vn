@@ -31,6 +31,7 @@ describe("CoursesList hard delete", () => {
     }]);
     serviceMocks.listSubjects.mockResolvedValue([{ id: "MATH", name: "Toán", code: "MATH", status: "active" }]);
     serviceMocks.deleteCourse.mockResolvedValue(undefined);
+    serviceMocks.setCourseStatus.mockResolvedValue(undefined);
     serviceMocks.inspectDeletionDependencies.mockResolvedValue({ allowed: true, total: 0, blockers: [] });
   });
 
@@ -44,7 +45,7 @@ describe("CoursesList hard delete", () => {
       <CoursesList onAdd={vi.fn()} onEdit={vi.fn()} subjectFilter={null} onClearSubjectFilter={vi.fn()} />,
     );
 
-    fireEvent.click(await screen.findByRole("button", { name: "Xóa vĩnh viễn khóa học Khóa luyện chữ" }));
+    fireEvent.click((await screen.findAllByRole("button", { name: "Xóa vĩnh viễn khóa học Khóa luyện chữ" }))[0]);
     const confirmDelete = screen.getByRole("button", { name: "Xóa vĩnh viễn" });
     await waitFor(() => expect((confirmDelete as HTMLButtonElement).disabled).toBe(false));
     fireEvent.click(confirmDelete);
@@ -62,7 +63,7 @@ describe("CoursesList hard delete", () => {
       <CoursesList onAdd={vi.fn()} onEdit={vi.fn()} subjectFilter={null} onClearSubjectFilter={vi.fn()} />,
     );
 
-    fireEvent.click(await screen.findByRole("button", { name: "Xóa vĩnh viễn khóa học Khóa luyện chữ" }));
+    fireEvent.click((await screen.findAllByRole("button", { name: "Xóa vĩnh viễn khóa học Khóa luyện chữ" }))[0]);
     expect(await screen.findByText("Lớp học: 3")).toBeTruthy();
     expect((screen.getByRole("button", { name: "Xóa vĩnh viễn" }) as HTMLButtonElement).disabled).toBe(true);
     expect(serviceMocks.deleteCourse).not.toHaveBeenCalled();
@@ -73,9 +74,32 @@ describe("CoursesList hard delete", () => {
       <CoursesList canManage={false} canDelete onAdd={vi.fn()} onEdit={vi.fn()} subjectFilter={null} onClearSubjectFilter={vi.fn()} />,
     );
 
-    expect(await screen.findByRole("button", { name: "Xóa vĩnh viễn khóa học Khóa luyện chữ" })).toBeTruthy();
+    expect((await screen.findAllByRole("button", { name: "Xóa vĩnh viễn khóa học Khóa luyện chữ" })).length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: "Thêm khóa học" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Sửa" })).toBeNull();
     expect(screen.queryByLabelText("Đổi trạng thái Khóa luyện chữ")).toBeNull();
+  });
+
+  test("orders columns for scanning and exposes edit/status actions", async () => {
+    const onEdit = vi.fn();
+    renderWithQueryClient(
+      <CoursesList onAdd={vi.fn()} onEdit={onEdit} subjectFilter={null} onClearSubjectFilter={vi.fn()} />,
+    );
+
+    await screen.findAllByText("Khóa luyện chữ");
+    expect(screen.getAllByRole("columnheader").map((header) => header.textContent)).toEqual([
+      "Khóa học",
+      "Trạng thái",
+      "Thời lượng",
+      "Số buổi",
+      "Học phí/buổi",
+      "Thao tác",
+    ]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Sửa Khóa luyện chữ" }));
+    expect(onEdit).toHaveBeenCalledWith(expect.objectContaining({ id: "course-1" }));
+
+    fireEvent.click(screen.getByText("Chuyển về nháp"));
+    await waitFor(() => expect(serviceMocks.setCourseStatus).toHaveBeenCalledWith("course-1", "draft"));
   });
 });

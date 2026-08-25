@@ -1426,10 +1426,11 @@ service cloud.firestore {
         isActive() && resource.data.uid == request.auth.uid
       );
       allow create, update: if isActive() &&
-        request.resource.data.keys().hasOnly(['uid', 'announcementId', 'readAt']) &&
+        request.resource.data.keys().hasOnly(['uid', 'announcementId', 'readAt', 'dismissedAt']) &&
         request.resource.data.uid == request.auth.uid &&
         request.resource.data.announcementId is string &&
         request.resource.data.readAt is timestamp &&
+        (!request.resource.data.keys().hasAny(['dismissedAt']) || request.resource.data.dismissedAt is timestamp) &&
         readId == request.auth.uid + '_' + request.resource.data.announcementId &&
         ownsStudent(
           get(/databases/$(database)/documents/announcements/$(request.resource.data.announcementId)).data.studentId

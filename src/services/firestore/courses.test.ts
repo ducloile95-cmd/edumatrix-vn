@@ -46,6 +46,31 @@ describe("course and active class invariants", () => {
     expect(mocks.transactionUpdate).not.toHaveBeenCalled();
   });
 
+  test("allows an unrelated edit to retain archived legacy references", async () => {
+    mocks.getDocs.mockResolvedValue({ docs: [] });
+    mocks.transactionGet.mockImplementation(async (ref: string) => {
+      const records: Record<string, unknown> = {
+        "courses/course-1": { classRevision: 0, subjectIds: ["math"], teacherIds: ["teacher-1"] },
+        "subjects/math": { status: "archived" },
+        "users/teacher-1": { role: "teacher", status: "disabled" },
+      };
+      const data = records[ref];
+      const refParts = ref.split("/");
+      return {
+        id: refParts[refParts.length - 1],
+        exists: () => data !== undefined,
+        data: () => data,
+      };
+    });
+
+    await updateCourse("course-1", { ...input, name: "Course renamed" });
+
+    expect(mocks.transactionUpdate).toHaveBeenCalledWith(
+      "courses/course-1",
+      expect.objectContaining({ name: "Course renamed", subjectIds: ["math"], teacherIds: ["teacher-1"] }),
+    );
+  });
+
   test("does not complete a course with an active class", async () => {
     mocks.transactionGet
       .mockResolvedValueOnce({ exists: () => true, data: () => ({ classRevision: 0 }) })

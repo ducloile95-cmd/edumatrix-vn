@@ -192,7 +192,7 @@ export function ClassForm({ editingClass, onDone }: ClassFormProps) {
         status: editingClass.status,
       });
       const savedRecurrence = editingClass.recurrence;
-      setRecurrence(savedRecurrence ? {
+      setRecurrence(savedRecurrence?.startDate && typeof savedRecurrence.startDate.toDate === "function" ? {
         startDate: format(savedRecurrence.startDate.toDate(), "yyyy-MM-dd"),
         daysOfWeek: savedRecurrence.daysOfWeek,
         startTime: savedRecurrence.startTime,

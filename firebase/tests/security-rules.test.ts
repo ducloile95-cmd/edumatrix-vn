@@ -296,6 +296,25 @@ describe("phan quyen Admin/Teacher", () => {
     await assertFails(deleteDoc(doc(asTeacher(), "users", TEACHER_UID)));
   });
 
+  test("Teacher khong duoc quan ly tai khoan nguoi khac", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "users", VIEWER_UID), {
+        email: VIEWER_EMAIL,
+        displayName: "Parent",
+        photoURL: null,
+        role: "viewer",
+        studentIds: [],
+        status: "active",
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      });
+    });
+    await assertFails(updateDoc(doc(asTeacher(), "users", VIEWER_UID), {
+      status: "disabled",
+      updatedAt: serverTimestamp(),
+    }));
+  });
+
   test("Admin chuyen Viewer thanh Admin va go lien ket hoc sinh trong mot batch", async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(doc(ctx.firestore(), "users", VIEWER_UID), {
@@ -674,6 +693,15 @@ describe("notification read state", () => {
       readAt: serverTimestamp(),
     }));
     await assertSucceeds(getDoc(readRef));
+  });
+
+  test("viewer can persist dismissed state for an owned notification", async () => {
+    await assertSucceeds(setDoc(doc(asViewer(), "notification_reads", `${VIEWER_UID}_announcement_1`), {
+      uid: VIEWER_UID,
+      announcementId: "announcement_1",
+      readAt: serverTimestamp(),
+      dismissedAt: serverTimestamp(),
+    }));
   });
 
   test("viewer cannot forge uid, id, or announcement ownership", async () => {

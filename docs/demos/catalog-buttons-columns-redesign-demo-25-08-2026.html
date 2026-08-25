@@ -1,0 +1,748 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Demo thiết kế lại Danh mục — Edumatrix</title>
+  <style>
+    :root {
+      --primary-50: #eff4ff;
+      --primary-100: #dbe6fe;
+      --primary-300: #93b4fd;
+      --primary-500: #3366f0;
+      --primary-600: #2348d6;
+      --primary-700: #1d39ac;
+      --success-50: #ecfdf3;
+      --success-500: #16a34a;
+      --success-700: #0f7a37;
+      --danger-50: #fef2f2;
+      --danger-100: #fee2e2;
+      --danger-500: #e4453a;
+      --danger-700: #b91c1c;
+      --neutral-0: #fff;
+      --neutral-50: #fafaf9;
+      --neutral-100: #f4f3f1;
+      --neutral-200: #e7e5e2;
+      --neutral-300: #d3d0cb;
+      --neutral-400: #a6a29c;
+      --neutral-500: #78746d;
+      --neutral-600: #57534d;
+      --neutral-700: #403d39;
+      --neutral-800: #2b2926;
+      --neutral-900: #1c1a15;
+      --focus: 0 0 0 3px rgba(51, 102, 240, .22);
+      --radius-input: 8px;
+      --radius-card: 12px;
+      --shadow-menu: 0 12px 34px rgba(28, 26, 21, .14);
+    }
+
+    * { box-sizing: border-box; }
+    html { color-scheme: light; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      background:
+        radial-gradient(circle at 0 0, rgba(51, 102, 240, .08), transparent 28rem),
+        radial-gradient(circle at 100% 0, rgba(22, 163, 74, .055), transparent 30rem),
+        var(--neutral-50);
+      color: var(--neutral-900);
+      font-family: "Be Vietnam Pro", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px;
+      line-height: 1.45;
+      overflow-x: hidden;
+    }
+    button, input, select { font: inherit; }
+    button { color: inherit; }
+    button:focus-visible, input:focus-visible, select:focus-visible {
+      outline: none;
+      box-shadow: var(--focus);
+    }
+
+    .app { min-height: 100vh; }
+    .tabs {
+      display: flex;
+      gap: 28px;
+      min-height: 62px;
+      align-items: end;
+      padding: 0 30px;
+      border-bottom: 1px solid var(--neutral-200);
+      background: rgba(255, 255, 255, .66);
+      backdrop-filter: blur(12px);
+    }
+    .tab {
+      position: relative;
+      min-height: 62px;
+      border: 0;
+      background: transparent;
+      padding: 0 0 2px;
+      font-size: 13px;
+      font-weight: 650;
+      color: var(--neutral-500);
+      cursor: pointer;
+    }
+    .tab[aria-selected="true"] { color: var(--primary-700); }
+    .tab[aria-selected="true"]::after {
+      position: absolute;
+      right: 0;
+      bottom: -1px;
+      left: 0;
+      height: 2px;
+      background: var(--primary-500);
+      content: "";
+    }
+
+    main { padding: 20px 18px; }
+    .demo-note {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      max-width: 1608px;
+      margin: 0 auto 12px;
+      padding: 10px 12px;
+      border: 1px solid var(--primary-100);
+      border-radius: var(--radius-input);
+      background: rgba(239, 244, 255, .88);
+      color: var(--primary-700);
+      font-size: 12px;
+    }
+    .demo-note strong { font-weight: 750; }
+    .legend { display: flex; flex-wrap: wrap; gap: 12px; color: var(--neutral-600); }
+    .legend span { display: inline-flex; align-items: center; gap: 5px; }
+    .legend i { width: 7px; height: 7px; border-radius: 50%; background: var(--primary-500); }
+    .legend span:last-child i { background: var(--danger-500); }
+
+    .catalog-grid {
+      display: grid;
+      grid-template-columns: minmax(760px, 1.62fr) minmax(480px, 1fr);
+      align-items: start;
+      gap: 16px;
+      max-width: 1608px;
+      margin: 0 auto;
+    }
+    .catalog-grid > *, .mobile-card-top > div { min-width: 0; }
+    .panel {
+      overflow: hidden;
+      border: 1px solid var(--neutral-200);
+      border-radius: var(--radius-card);
+      background: var(--neutral-0);
+      box-shadow: 0 1px 2px rgba(28, 26, 21, .025);
+    }
+    .panel-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px 20px 14px;
+    }
+    .panel-title { margin: 0; font-size: 15px; font-weight: 750; letter-spacing: -.01em; }
+    .panel-desc { margin: 4px 0 0; color: var(--neutral-500); font-size: 12px; }
+
+    .btn {
+      display: inline-flex;
+      min-height: 44px;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: 1px solid transparent;
+      border-radius: var(--radius-input);
+      padding: 0 14px;
+      white-space: nowrap;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background-color .16s ease, border-color .16s ease, color .16s ease, opacity .16s ease;
+    }
+    .btn svg { flex: none; }
+    .btn-primary { border-color: var(--primary-600); background: var(--primary-600); color: white; }
+    .btn-primary:hover { border-color: var(--primary-700); background: var(--primary-700); }
+    .btn-secondary { border-color: var(--neutral-300); background: white; color: var(--neutral-700); }
+    .btn-secondary:hover { border-color: var(--primary-300); background: var(--primary-50); color: var(--primary-700); }
+    .btn-danger { border-color: var(--danger-500); background: var(--danger-500); color: white; }
+    .btn-danger:hover { border-color: var(--danger-700); background: var(--danger-700); }
+    .btn-ghost { border-color: transparent; background: transparent; color: var(--neutral-600); }
+    .btn-ghost:hover { background: var(--neutral-100); color: var(--neutral-900); }
+    .btn:active { opacity: .84; }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) 210px;
+      align-items: end;
+      gap: 12px;
+      padding: 0 20px 16px;
+      border-bottom: 1px solid var(--neutral-200);
+    }
+    .toolbar.single { grid-template-columns: 1fr; }
+    .field label { display: block; margin-bottom: 7px; color: var(--neutral-600); font-size: 11px; font-weight: 700; }
+    .control { position: relative; }
+    .control svg { position: absolute; top: 50%; left: 13px; color: var(--neutral-400); transform: translateY(-50%); pointer-events: none; }
+    input, select {
+      width: 100%;
+      min-height: 44px;
+      border: 1px solid var(--neutral-300);
+      border-radius: var(--radius-input);
+      background: white;
+      color: var(--neutral-800);
+      padding: 0 13px;
+    }
+    input { padding-left: 40px; }
+    input::placeholder { color: var(--neutral-400); }
+    input:hover, select:hover { border-color: var(--neutral-400); }
+    input:focus, select:focus { border-color: var(--primary-500); }
+
+    .filter-chip {
+      display: none;
+      align-items: center;
+      gap: 7px;
+      min-height: 34px;
+      margin: 0 20px 14px;
+      border: 1px solid var(--primary-100);
+      border-radius: 999px;
+      background: var(--primary-50);
+      color: var(--primary-700);
+      padding: 0 10px 0 12px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .filter-chip.visible { display: inline-flex; }
+
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    .course-table { min-width: 900px; }
+    .subject-table { min-width: 510px; }
+    th {
+      height: 44px;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--neutral-200);
+      background: var(--neutral-50);
+      color: var(--neutral-500);
+      text-align: left;
+      font-size: 10px;
+      font-weight: 750;
+      letter-spacing: .035em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    td {
+      padding: 13px 14px;
+      border-bottom: 1px solid var(--neutral-100);
+      vertical-align: middle;
+      color: var(--neutral-700);
+      font-size: 12px;
+    }
+    tbody tr { transition: background-color .16s ease; }
+    tbody tr:hover { background: rgba(250, 250, 249, .82); }
+    tbody tr:last-child td { border-bottom: 0; }
+    .entity { min-width: 215px; }
+    .entity-name { color: var(--neutral-900); font-size: 13px; font-weight: 720; }
+    .entity-code { display: block; margin-top: 4px; color: var(--neutral-500); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 10px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+    .chip { border-radius: 999px; background: var(--primary-50); color: var(--primary-700); padding: 3px 7px; font-size: 10px; font-weight: 680; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 4px 8px;
+      white-space: nowrap;
+      font-size: 10px;
+      font-weight: 750;
+    }
+    .badge::before { width: 6px; height: 6px; border-radius: 50%; background: currentColor; content: ""; }
+    .badge.success { background: var(--success-50); color: var(--success-700); }
+    .badge.neutral { background: var(--neutral-100); color: var(--neutral-600); }
+    .money, .number { color: var(--neutral-800); font-variant-numeric: tabular-nums; font-weight: 680; white-space: nowrap; }
+    .date { color: var(--neutral-600); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .actions { display: flex; justify-content: flex-end; gap: 6px; }
+    .icon-btn {
+      display: inline-grid;
+      width: 44px;
+      height: 44px;
+      place-items: center;
+      border: 1px solid var(--neutral-300);
+      border-radius: var(--radius-input);
+      background: white;
+      color: var(--neutral-600);
+      cursor: pointer;
+      transition: background-color .16s ease, border-color .16s ease, color .16s ease;
+    }
+    .icon-btn.edit:hover { border-color: var(--primary-300); background: var(--primary-50); color: var(--primary-700); }
+    .icon-btn.more:hover { border-color: var(--neutral-400); background: var(--neutral-100); color: var(--neutral-900); }
+    .course-count {
+      display: inline-flex;
+      min-height: 32px;
+      align-items: center;
+      border: 0;
+      border-radius: 999px;
+      background: var(--primary-50);
+      color: var(--primary-700);
+      padding: 0 10px;
+      font-size: 11px;
+      font-weight: 750;
+      cursor: pointer;
+    }
+    .course-count:hover { background: var(--primary-100); }
+    tr.selected { background: var(--primary-50); box-shadow: inset 3px 0 var(--primary-500); }
+    tr.selected:hover { background: var(--primary-50); }
+
+    .empty-search { display: none; padding: 36px 20px; color: var(--neutral-500); text-align: center; }
+    .footer {
+      display: flex;
+      min-height: 76px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 20px;
+      border-top: 1px solid var(--neutral-100);
+      color: var(--neutral-500);
+      font-size: 11px;
+    }
+    .pager { display: flex; align-items: center; gap: 6px; }
+    .page-btn { width: 36px; height: 36px; border: 1px solid var(--neutral-300); border-radius: 50%; background: white; color: var(--neutral-500); cursor: pointer; }
+    .page-btn[aria-current="page"] { border-radius: var(--radius-input); color: var(--neutral-900); font-weight: 750; }
+    .page-btn:disabled { opacity: .42; cursor: default; }
+
+    .menu {
+      position: fixed;
+      z-index: 30;
+      display: none;
+      width: 190px;
+      overflow: hidden;
+      border: 1px solid var(--neutral-200);
+      border-radius: 10px;
+      background: white;
+      box-shadow: var(--shadow-menu);
+      padding: 6px;
+    }
+    .menu.open { display: block; }
+    .menu button {
+      display: flex;
+      width: 100%;
+      min-height: 40px;
+      align-items: center;
+      gap: 9px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      padding: 0 10px;
+      color: var(--neutral-700);
+      text-align: left;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .menu button:hover { background: var(--neutral-100); }
+    .menu .danger { color: var(--danger-700); }
+    .menu .danger:hover { background: var(--danger-50); }
+    .menu-sep { height: 1px; margin: 5px 3px; background: var(--neutral-100); }
+
+    .toast {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      z-index: 50;
+      display: flex;
+      max-width: min(380px, calc(100vw - 32px));
+      align-items: center;
+      gap: 10px;
+      border: 1px solid var(--success-500);
+      border-radius: 10px;
+      background: white;
+      box-shadow: var(--shadow-menu);
+      padding: 12px 14px;
+      color: var(--neutral-800);
+      opacity: 0;
+      transform: translateY(10px);
+      pointer-events: none;
+      transition: opacity .18s ease, transform .18s ease;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast svg { color: var(--success-500); }
+
+    .dialog-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: none;
+      place-items: center;
+      background: rgba(28, 26, 21, .48);
+      padding: 16px;
+    }
+    .dialog-backdrop.open { display: grid; }
+    .dialog {
+      width: min(440px, 100%);
+      border-radius: 16px;
+      background: white;
+      box-shadow: 0 20px 60px rgba(28, 26, 21, .24);
+      padding: 24px;
+    }
+    .danger-mark { display: grid; width: 44px; height: 44px; place-items: center; border-radius: 50%; background: var(--danger-50); color: var(--danger-700); }
+    .dialog h2 { margin: 16px 0 7px; font-size: 18px; letter-spacing: -.02em; }
+    .dialog p { margin: 0; color: var(--neutral-600); font-size: 13px; }
+    .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 22px; }
+
+    .mobile-list { display: none; }
+    .mobile-card { padding: 15px 16px; border-bottom: 1px solid var(--neutral-100); }
+    .mobile-card:last-child { border-bottom: 0; }
+    .mobile-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .mobile-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 13px; }
+    .mobile-meta div { min-width: 0; }
+    .mobile-meta span { display: block; color: var(--neutral-500); font-size: 10px; }
+    .mobile-meta strong { display: block; margin-top: 2px; color: var(--neutral-800); font-size: 11px; font-weight: 680; }
+    .mobile-actions { display: flex; gap: 8px; margin-top: 14px; }
+    .mobile-actions .btn { flex: 1; }
+
+    @media (max-width: 1180px) {
+      .catalog-grid { grid-template-columns: minmax(0, 1fr); }
+      .panel { min-width: 0; }
+    }
+    @media (max-width: 700px) {
+      .tabs { gap: 22px; min-height: 56px; padding: 0 16px; overflow-x: auto; }
+      .tab { min-height: 56px; }
+      main { padding: 14px 12px 24px; }
+      .demo-note { width: 100%; align-items: flex-start; flex-direction: column; overflow: hidden; }
+      .demo-note > span { max-width: 100%; }
+      .legend { gap: 8px; }
+      .catalog-grid { display: flex; width: 100%; min-width: 0; flex-direction: column; }
+      .panel { width: 100%; max-width: 100%; }
+      .panel-head { align-items: stretch; flex-direction: column; padding: 16px; }
+      .panel-head .btn { width: 100%; }
+      .toolbar, .toolbar.single { grid-template-columns: 1fr; padding: 0 16px 16px; }
+      .filter-chip { margin-left: 16px; }
+      .table-wrap { display: none; }
+      .mobile-list { display: block; }
+      .footer { min-height: 64px; justify-content: center; padding: 12px 16px; overflow: hidden; }
+      .footer > span:first-child { display: none; }
+      .footer > span:last-child { display: none; }
+      .mobile-card-top { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+      .mobile-card-top .badge { align-self: start; }
+      .mobile-actions { display: grid; grid-template-columns: minmax(0, 1fr) 44px; }
+      .mobile-actions .btn { width: 100%; }
+      .dialog { padding: 20px; }
+      .dialog-actions { flex-direction: column-reverse; }
+      .dialog-actions .btn { width: 100%; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <nav class="tabs" role="tablist" aria-label="Điều hướng module Môn học và khóa học">
+      <button class="tab" role="tab" aria-selected="false" type="button">Tổng quan</button>
+      <button class="tab" role="tab" aria-selected="true" type="button">Danh mục</button>
+      <button class="tab" role="tab" aria-selected="false" type="button">Đồ dùng học tập</button>
+    </nav>
+
+    <main>
+      <aside class="demo-note" aria-label="Phạm vi bản demo">
+        <span><strong>Bản demo đề xuất:</strong> ưu tiên nhận diện, trạng thái và lịch học trước số liệu; gom tác vụ phụ vào menu để giảm bấm nhầm.</span>
+        <span class="legend"><span><i></i> Xanh = thao tác nghiệp vụ</span><span><i></i> Đỏ = thao tác phá hủy</span></span>
+      </aside>
+
+      <section class="catalog-grid" aria-label="Danh mục môn học và khóa học">
+        <article class="panel" aria-labelledby="courses-title">
+          <header class="panel-head">
+            <div>
+              <h1 class="panel-title" id="courses-title">Danh sách khóa học</h1>
+              <p class="panel-desc" id="course-result-count">2 khóa học phù hợp bộ lọc</p>
+            </div>
+            <button class="btn btn-primary" type="button" data-demo-action="Thêm khóa học">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              Thêm khóa học
+            </button>
+          </header>
+
+          <div class="toolbar">
+            <div class="field">
+              <label for="course-search">Tìm kiếm</label>
+              <div class="control">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.8-3.8"/></svg>
+                <input id="course-search" type="search" placeholder="Tìm theo tên khóa học" autocomplete="off" />
+              </div>
+            </div>
+            <div class="field">
+              <label for="course-status">Trạng thái</label>
+              <select id="course-status">
+                <option value="all">Tất cả</option>
+                <option value="active">Đang mở</option>
+                <option value="draft">Nháp</option>
+                <option value="completed">Đã kết thúc</option>
+              </select>
+            </div>
+          </div>
+
+          <button class="filter-chip" id="subject-filter-chip" type="button" aria-label="Bỏ lọc theo môn học">
+            Đang lọc theo môn: <span id="subject-filter-name"></span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m18 6-12 12M6 6l12 12"/></svg>
+          </button>
+
+          <div class="table-wrap">
+            <table class="course-table">
+              <thead>
+                <tr>
+                  <th scope="col">Khóa học</th>
+                  <th scope="col">Trạng thái</th>
+                  <th scope="col">Thời lượng</th>
+                  <th scope="col" style="text-align:center">Số buổi</th>
+                  <th scope="col" style="text-align:right">Học phí/buổi</th>
+                  <th scope="col" style="text-align:right">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="course-body">
+                <tr data-kind="course" data-id="course-1" data-name="khóa học luyện chữ đẹp tháng 6" data-status="active" data-subject="Luyện chữ đẹp Tiểu học">
+                  <td class="entity"><div class="entity-name">Khóa học luyện chữ đẹp Tháng 6</div><div class="chips"><span class="chip">Luyện chữ đẹp Tiểu học</span></div></td>
+                  <td><span class="badge success">Đang mở</span></td>
+                  <td class="date">01/06/2026 → 25/09/2026</td>
+                  <td class="number" style="text-align:center">20</td>
+                  <td class="money" style="text-align:right">120.000 đ</td>
+                  <td><div class="actions"><button class="icon-btn edit" type="button" aria-label="Sửa Khóa học luyện chữ đẹp Tháng 6" data-demo-action="Sửa khóa học"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button><button class="icon-btn more" type="button" aria-label="Mở thêm thao tác cho Khóa học luyện chữ đẹp Tháng 6" aria-haspopup="menu" data-menu-name="Khóa học luyện chữ đẹp Tháng 6" data-menu-kind="Khóa học"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button></div></td>
+                </tr>
+                <tr data-kind="course" data-id="course-2" data-name="tiền tiểu học 2026" data-status="active" data-subject="Luyện chữ đẹp Tiểu học|Tập đọc & Tập viết tiểu học|Toán tiểu học">
+                  <td class="entity"><div class="entity-name">Tiền tiểu học 2026</div><div class="chips"><span class="chip">Luyện chữ đẹp Tiểu học</span><span class="chip">Tập đọc &amp; Tập viết tiểu học</span><span class="chip">Toán tiểu học</span></div></td>
+                  <td><span class="badge success">Đang mở</span></td>
+                  <td class="date">04/08/2026 → 07/11/2026</td>
+                  <td class="number" style="text-align:center">96</td>
+                  <td class="money" style="text-align:right">100.000 đ</td>
+                  <td><div class="actions"><button class="icon-btn edit" type="button" aria-label="Sửa Tiền tiểu học 2026" data-demo-action="Sửa khóa học"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button><button class="icon-btn more" type="button" aria-label="Mở thêm thao tác cho Tiền tiểu học 2026" aria-haspopup="menu" data-menu-name="Tiền tiểu học 2026" data-menu-kind="Khóa học"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button></div></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="mobile-list" id="course-mobile-list">
+            <article class="mobile-card" data-kind="course" data-id="m-course-1" data-name="khóa học luyện chữ đẹp tháng 6" data-status="active" data-subject="Luyện chữ đẹp Tiểu học">
+              <div class="mobile-card-top"><div><div class="entity-name">Khóa học luyện chữ đẹp Tháng 6</div><div class="chips"><span class="chip">Luyện chữ đẹp Tiểu học</span></div></div><span class="badge success">Đang mở</span></div>
+              <div class="mobile-meta"><div><span>Thời lượng</span><strong>01/06 → 25/09/2026</strong></div><div><span>Học phí / buổi</span><strong>120.000 đ · 20 buổi</strong></div></div>
+              <div class="mobile-actions"><button class="btn btn-secondary" type="button" data-demo-action="Sửa khóa học"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Sửa</button><button class="icon-btn more" type="button" aria-label="Mở thêm thao tác cho Khóa học luyện chữ đẹp Tháng 6" data-menu-name="Khóa học luyện chữ đẹp Tháng 6" data-menu-kind="Khóa học"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button></div>
+            </article>
+            <article class="mobile-card" data-kind="course" data-id="m-course-2" data-name="tiền tiểu học 2026" data-status="active" data-subject="Luyện chữ đẹp Tiểu học|Tập đọc & Tập viết tiểu học|Toán tiểu học">
+              <div class="mobile-card-top"><div><div class="entity-name">Tiền tiểu học 2026</div><div class="chips"><span class="chip">Luyện chữ đẹp Tiểu học</span><span class="chip">+2 môn</span></div></div><span class="badge success">Đang mở</span></div>
+              <div class="mobile-meta"><div><span>Thời lượng</span><strong>04/08 → 07/11/2026</strong></div><div><span>Học phí / buổi</span><strong>100.000 đ · 96 buổi</strong></div></div>
+              <div class="mobile-actions"><button class="btn btn-secondary" type="button" data-demo-action="Sửa khóa học"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Sửa</button><button class="icon-btn more" type="button" aria-label="Mở thêm thao tác cho Tiền tiểu học 2026" data-menu-name="Tiền tiểu học 2026" data-menu-kind="Khóa học"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button></div>
+            </article>
+          </div>
+          <div class="empty-search" id="course-empty">Không tìm thấy khóa học phù hợp.</div>
+          <footer class="footer"><span>Hiển thị <strong>15 dòng</strong></span><div class="pager"><button class="page-btn" type="button" disabled aria-label="Trang trước">‹</button><button class="page-btn" type="button" aria-current="page">1</button><button class="page-btn" type="button" disabled aria-label="Trang sau">›</button></div><span id="course-footer-count">1–2 trong 2 khóa học</span></footer>
+        </article>
+
+        <article class="panel" aria-labelledby="subjects-title">
+          <header class="panel-head">
+            <div>
+              <h2 class="panel-title" id="subjects-title">Môn học</h2>
+              <p class="panel-desc" id="subject-result-count">3 môn học đang hiển thị</p>
+            </div>
+            <button class="btn btn-secondary" type="button" data-demo-action="Thêm môn học">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              Thêm môn học
+            </button>
+          </header>
+          <div class="toolbar single">
+            <div class="field">
+              <label for="subject-search">Tìm kiếm</label>
+              <div class="control">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.8-3.8"/></svg>
+                <input id="subject-search" type="search" placeholder="Tìm theo tên hoặc mã môn học" autocomplete="off" />
+              </div>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="subject-table">
+              <thead><tr><th scope="col">Môn học</th><th scope="col" style="text-align:center">Khóa học</th><th scope="col">Trạng thái</th><th scope="col" style="text-align:right">Thao tác</th></tr></thead>
+              <tbody id="subject-body">
+                <tr data-kind="subject" data-name="luyện chữ đẹp tiểu học lc0001" data-subject-name="Luyện chữ đẹp Tiểu học">
+                  <td><div class="entity-name">Luyện chữ đẹp Tiểu học</div><span class="entity-code">LC0001</span></td><td style="text-align:center"><button class="course-count" type="button" aria-label="Lọc 2 khóa học của môn Luyện chữ đẹp Tiểu học">2 khóa</button></td><td><span class="badge success">Đang dùng</span></td><td><div class="actions"><button class="icon-btn edit" type="button" aria-label="Sửa môn Luyện chữ đẹp Tiểu học" data-demo-action="Sửa môn học"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button><button class="icon-btn more" type="button" aria-label="Mở thêm thao tác cho môn Luyện chữ đẹp Tiểu học" data-menu-name="Luyện chữ đẹp Tiểu học" data-menu-kind="Môn học"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button></div></td>
+                </tr>
+                <tr data-kind="subject" data-name="toán tiểu học tth0002" data-subject-name="Toán tiểu học">
+                  <td><div class="entity-name">Toán tiểu học</div><span class="entity-code">TTH0002</span></td><td style="text-align:center"><button class="course-count" type="button" aria-label="Lọc 1 khóa học của môn Toán tiểu học">1 khóa</button></td><td><span class="badge success">Đang dùng</span></td><td><div class="actions"><button class="icon-btn edit" type="button" aria-label="Sửa môn Toán tiểu học" data-demo-action="Sửa môn học"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button><button class="icon-btn more" type="button" aria-label="Mở thêm thao tác cho môn Toán tiểu học" data-menu-name="Toán tiểu học" data-menu-kind="Môn học"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button></div></td>
+                </tr>
+                <tr data-kind="subject" data-name="tập đọc và tập viết tiểu học tth0001" data-subject-name="Tập đọc & Tập viết tiểu học">
+                  <td><div class="entity-name">Tập đọc &amp; Tập viết tiểu học</div><span class="entity-code">TTH0001</span></td><td style="text-align:center"><button class="course-count" type="button" aria-label="Lọc 1 khóa học của môn Tập đọc và Tập viết tiểu học">1 khóa</button></td><td><span class="badge success">Đang dùng</span></td><td><div class="actions"><button class="icon-btn edit" type="button" aria-label="Sửa môn Tập đọc và Tập viết tiểu học" data-demo-action="Sửa môn học"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button><button class="icon-btn more" type="button" aria-label="Mở thêm thao tác cho môn Tập đọc và Tập viết tiểu học" data-menu-name="Tập đọc &amp; Tập viết tiểu học" data-menu-kind="Môn học"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button></div></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="mobile-list" id="subject-mobile-list">
+            <article class="mobile-card" data-kind="subject" data-name="luyện chữ đẹp tiểu học lc0001" data-subject-name="Luyện chữ đẹp Tiểu học"><div class="mobile-card-top"><div><div class="entity-name">Luyện chữ đẹp Tiểu học</div><span class="entity-code">LC0001</span></div><span class="badge success">Đang dùng</span></div><div class="mobile-actions"><button class="btn btn-secondary course-count" type="button">2 khóa học</button><button class="btn btn-secondary" type="button" data-demo-action="Sửa môn học">Sửa</button><button class="icon-btn more" type="button" aria-label="Mở thêm thao tác cho môn Luyện chữ đẹp Tiểu học" data-menu-name="Luyện chữ đẹp Tiểu học" data-menu-kind="Môn học"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button></div></article>
+            <article class="mobile-card" data-kind="subject" data-name="toán tiểu học tth0002" data-subject-name="Toán tiểu học"><div class="mobile-card-top"><div><div class="entity-name">Toán tiểu học</div><span class="entity-code">TTH0002</span></div><span class="badge success">Đang dùng</span></div><div class="mobile-actions"><button class="btn btn-secondary course-count" type="button">1 khóa học</button><button class="btn btn-secondary" type="button" data-demo-action="Sửa môn học">Sửa</button><button class="icon-btn more" type="button" aria-label="Mở thêm thao tác cho môn Toán tiểu học" data-menu-name="Toán tiểu học" data-menu-kind="Môn học"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button></div></article>
+            <article class="mobile-card" data-kind="subject" data-name="tập đọc và tập viết tiểu học tth0001" data-subject-name="Tập đọc & Tập viết tiểu học"><div class="mobile-card-top"><div><div class="entity-name">Tập đọc &amp; Tập viết tiểu học</div><span class="entity-code">TTH0001</span></div><span class="badge success">Đang dùng</span></div><div class="mobile-actions"><button class="btn btn-secondary course-count" type="button">1 khóa học</button><button class="btn btn-secondary" type="button" data-demo-action="Sửa môn học">Sửa</button><button class="icon-btn more" type="button" aria-label="Mở thêm thao tác cho môn Tập đọc và Tập viết tiểu học" data-menu-name="Tập đọc &amp; Tập viết tiểu học" data-menu-kind="Môn học"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button></div></article>
+          </div>
+          <div class="empty-search" id="subject-empty">Không tìm thấy môn học phù hợp.</div>
+          <footer class="footer"><span>Hiển thị <strong>15 dòng</strong></span><div class="pager"><button class="page-btn" type="button" disabled aria-label="Trang trước">‹</button><button class="page-btn" type="button" aria-current="page">1</button><button class="page-btn" type="button" disabled aria-label="Trang sau">›</button></div><span id="subject-footer-count">1–3 trong 3 môn học</span></footer>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <div class="menu" id="row-menu" role="menu" aria-label="Thêm thao tác">
+    <button type="button" role="menuitem" id="archive-action"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18M5 6v14h14V6M9 10h6"/></svg>Lưu trữ</button>
+    <div class="menu-sep"></div>
+    <button type="button" role="menuitem" class="danger" id="delete-action"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 10v6M14 10v6"/></svg>Xóa</button>
+  </div>
+
+  <div class="dialog-backdrop" id="delete-dialog" role="presentation">
+    <div class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="delete-title" aria-describedby="delete-description">
+      <div class="danger-mark"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 10v6M14 10v6"/></svg></div>
+      <h2 id="delete-title">Xóa mục này?</h2>
+      <p id="delete-description">Thao tác này sẽ xóa <strong id="delete-name"></strong>. Trong sản phẩm thật cần kiểm tra liên kết dữ liệu trước khi cho phép xóa.</p>
+      <div class="dialog-actions"><button class="btn btn-secondary" type="button" id="cancel-delete">Hủy</button><button class="btn btn-danger" type="button" id="confirm-delete">Xóa mục này</button></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></svg><span id="toast-text">Đã cập nhật bản demo.</span></div>
+
+  <script>
+    const rowMenu = document.getElementById('row-menu');
+    const dialog = document.getElementById('delete-dialog');
+    const deleteName = document.getElementById('delete-name');
+    const courseSearch = document.getElementById('course-search');
+    const courseStatus = document.getElementById('course-status');
+    const subjectSearch = document.getElementById('subject-search');
+    const filterChip = document.getElementById('subject-filter-chip');
+    const filterName = document.getElementById('subject-filter-name');
+    let currentMenuTrigger = null;
+    let currentItem = { name: '', kind: '' };
+    let currentSubject = '';
+    let toastTimer;
+
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-text').textContent = message;
+      toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+    }
+
+    function closeMenu(restoreFocus = false) {
+      rowMenu.classList.remove('open');
+      if (currentMenuTrigger) currentMenuTrigger.setAttribute('aria-expanded', 'false');
+      if (restoreFocus && currentMenuTrigger) currentMenuTrigger.focus();
+    }
+
+    function openMenu(trigger) {
+      closeMenu();
+      currentMenuTrigger = trigger;
+      currentItem = { name: trigger.dataset.menuName, kind: trigger.dataset.menuKind };
+      const rect = trigger.getBoundingClientRect();
+      rowMenu.style.left = `${Math.max(8, Math.min(window.innerWidth - 198, rect.right - 190))}px`;
+      rowMenu.style.top = `${Math.min(window.innerHeight - 110, rect.bottom + 6)}px`;
+      rowMenu.classList.add('open');
+      trigger.setAttribute('aria-expanded', 'true');
+      rowMenu.querySelector('button').focus();
+    }
+
+    document.querySelectorAll('.more').forEach((button) => button.addEventListener('click', (event) => {
+      event.stopPropagation();
+      openMenu(button);
+    }));
+
+    document.getElementById('archive-action').addEventListener('click', () => {
+      closeMenu(true);
+      showToast(`Demo: ${currentItem.kind} “${currentItem.name}” sẽ được chuyển vào lưu trữ.`);
+    });
+
+    document.getElementById('delete-action').addEventListener('click', () => {
+      closeMenu();
+      deleteName.textContent = currentItem.name;
+      dialog.classList.add('open');
+      document.body.style.overflow = 'hidden';
+      document.getElementById('cancel-delete').focus();
+    });
+
+    function closeDialog() {
+      dialog.classList.remove('open');
+      document.body.style.overflow = '';
+      if (currentMenuTrigger) currentMenuTrigger.focus();
+    }
+    document.getElementById('cancel-delete').addEventListener('click', closeDialog);
+    document.getElementById('confirm-delete').addEventListener('click', () => {
+      closeDialog();
+      showToast('Demo trực quan: không có dữ liệu thật bị xóa.');
+    });
+    dialog.addEventListener('click', (event) => { if (event.target === dialog) closeDialog(); });
+
+    function normalize(text) {
+      return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    }
+
+    function filterCourses() {
+      const query = normalize(courseSearch.value.trim());
+      let visible = 0;
+      document.querySelectorAll('[data-kind="course"]').forEach((row) => {
+        const matchesText = !query || normalize(row.dataset.name).includes(query);
+        const matchesStatus = courseStatus.value === 'all' || row.dataset.status === courseStatus.value;
+        const matchesSubject = !currentSubject || row.dataset.subject.split('|').includes(currentSubject);
+        const shouldShow = matchesText && matchesStatus && matchesSubject;
+        row.hidden = !shouldShow;
+        if (shouldShow && row.tagName === 'TR') visible += 1;
+      });
+      document.getElementById('course-empty').style.display = visible ? 'none' : 'block';
+      document.getElementById('course-result-count').textContent = `${visible} khóa học phù hợp bộ lọc`;
+      document.getElementById('course-footer-count').textContent = visible ? `1–${visible} trong ${visible} khóa học` : '0 khóa học';
+    }
+    courseSearch.addEventListener('input', filterCourses);
+    courseStatus.addEventListener('change', filterCourses);
+
+    function setSubjectFilter(name, row) {
+      const alreadySelected = currentSubject === name;
+      currentSubject = alreadySelected ? '' : name;
+      document.querySelectorAll('#subject-body tr').forEach((item) => item.classList.toggle('selected', !alreadySelected && item === row));
+      filterName.textContent = currentSubject;
+      filterChip.classList.toggle('visible', Boolean(currentSubject));
+      filterCourses();
+      if (currentSubject) document.getElementById('courses-title').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    document.querySelectorAll('#subject-body .course-count').forEach((button) => button.addEventListener('click', () => {
+      const row = button.closest('tr');
+      setSubjectFilter(row.dataset.subjectName, row);
+    }));
+    document.querySelectorAll('#subject-mobile-list .course-count').forEach((button) => button.addEventListener('click', () => {
+      const card = button.closest('[data-kind="subject"]');
+      setSubjectFilter(card.dataset.subjectName, null);
+    }));
+    filterChip.addEventListener('click', () => {
+      currentSubject = '';
+      document.querySelectorAll('#subject-body tr').forEach((item) => item.classList.remove('selected'));
+      filterChip.classList.remove('visible');
+      filterCourses();
+    });
+
+    function filterSubjects() {
+      const query = normalize(subjectSearch.value.trim());
+      let visible = 0;
+      document.querySelectorAll('[data-kind="subject"]').forEach((row) => {
+        const shouldShow = !query || normalize(row.dataset.name).includes(query);
+        row.hidden = !shouldShow;
+        if (shouldShow && row.tagName === 'TR') visible += 1;
+      });
+      document.getElementById('subject-empty').style.display = visible ? 'none' : 'block';
+      document.getElementById('subject-result-count').textContent = `${visible} môn học đang hiển thị`;
+      document.getElementById('subject-footer-count').textContent = visible ? `1–${visible} trong ${visible} môn học` : '0 môn học';
+    }
+    subjectSearch.addEventListener('input', filterSubjects);
+
+    document.querySelectorAll('[data-demo-action]').forEach((button) => button.addEventListener('click', () => {
+      showToast(`Demo UI: hành động “${button.dataset.demoAction}” chưa kết nối dữ liệu thật.`);
+    }));
+
+    document.addEventListener('click', (event) => {
+      if (!rowMenu.contains(event.target) && !event.target.closest('.more')) closeMenu();
+    });
+    window.addEventListener('resize', () => closeMenu());
+    window.addEventListener('scroll', () => closeMenu(), true);
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        if (dialog.classList.contains('open')) closeDialog();
+        else closeMenu(true);
+      }
+      if (rowMenu.classList.contains('open')) {
+        const items = [...rowMenu.querySelectorAll('button')];
+        const index = items.indexOf(document.activeElement);
+        if (event.key === 'ArrowDown') { event.preventDefault(); items[(index + 1) % items.length].focus(); }
+        if (event.key === 'ArrowUp') { event.preventDefault(); items[(index - 1 + items.length) % items.length].focus(); }
+      }
+    });
+  </script>
+</body>
+</html>

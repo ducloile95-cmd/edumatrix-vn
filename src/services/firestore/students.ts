@@ -3,6 +3,7 @@ import {
   arrayUnion,
   collection,
   doc,
+  documentId,
   getDoc,
   getDocs,
   limit,
@@ -199,11 +200,14 @@ export async function updateStudentWithRelations(
     const classById = new Map(
       classSnaps.filter((snap) => snap.exists()).map((snap) => [snap.id, snap.data() as ClassDoc]),
     );
-    if (nextClassIds.some((classId) => !classById.has(classId))) throw new Error("CLASS_NOT_FOUND");
-    if (nextClassIds.some((classId) => classById.get(classId)?.status !== "active")) {
+    if (nextClassIds.some((classId) => !classById.has(classId) && !student.currentClassIds.includes(classId))) {
+      throw new Error("CLASS_NOT_FOUND");
+    }
+    const existingNextClassIds = nextClassIds.filter((classId) => classById.has(classId));
+    if (existingNextClassIds.some((classId) => classById.get(classId)?.status !== "active")) {
       throw new Error("CLASS_NOT_ACTIVE");
     }
-    if (student.status !== "active" && nextClassIds.length > 0) throw new Error("STUDENT_NOT_ACTIVE");
+    if (student.status !== "active" && existingNextClassIds.length > 0) throw new Error("STUDENT_NOT_ACTIVE");
 
     const nextParent = nextParentSnap?.exists() ? nextParentSnap.data() as UserDoc : null;
     if (nextParentRef && !nextParent) throw new Error("PARENT_NOT_FOUND");
@@ -214,8 +218,8 @@ export async function updateStudentWithRelations(
     const enrollmentByClassId = new Map(
       enrollmentSnaps.map((snap, index) => [changedClassIds[index], snap]),
     );
-    const addedClassIds = changedClassIds.filter((classId) => nextClassIds.includes(classId));
-    const removedClassIds = changedClassIds.filter((classId) => !nextClassIds.includes(classId));
+    const addedClassIds = changedClassIds.filter((classId) => existingNextClassIds.includes(classId));
+    const removedClassIds = changedClassIds.filter((classId) => !existingNextClassIds.includes(classId));
 
     addedClassIds.forEach((classId) => {
       const klass = classById.get(classId)!;
@@ -289,13 +293,13 @@ export async function updateStudentWithRelations(
 
     const teacherIds = input.classIds === undefined
       ? student.teacherIds
-      : [...new Set(nextClassIds.flatMap((classId) => classById.get(classId)?.teacherIds ?? []))].sort();
+      : [...new Set(existingNextClassIds.flatMap((classId) => classById.get(classId)?.teacherIds ?? []))].sort();
     transaction.update(studentRef, {
       fullName: input.fullName,
       dateOfBirth: input.dateOfBirth,
       ...(input.nickname !== undefined ? { nickname: input.nickname } : {}),
       ...(input.staffNote !== undefined ? { staffNote: input.staffNote } : {}),
-      ...(input.classIds !== undefined ? { currentClassIds: nextClassIds, teacherIds } : {}),
+      ...(input.classIds !== undefined ? { currentClassIds: existingNextClassIds, teacherIds } : {}),
       ...(nextParentRef ? { parentUids } : {}),
       updatedAt: serverTimestamp(),
     });
@@ -374,6 +378,21 @@ export async function listStudents(): Promise<(StudentDoc & { id: string })[]> {
     : [orderBy("fullName")]);
   return students
     .sort((a, b) => a.fullName.localeCompare(b.fullName, "vi"));
+}
+
+/** Tai dung roster cua lop, khong phu thuoc teacherIds cache tren hoc sinh cu. */
+export async function listStudentsByIds(studentIds: string[]): Promise<(StudentDoc & { id: string })[]> {
+  const uniqueIds = [...new Set(studentIds)].filter(Boolean);
+  const students: (StudentDoc & { id: string })[] = [];
+  for (let offset = 0; offset < uniqueIds.length; offset += 30) {
+    const ids = uniqueIds.slice(offset, offset + 30);
+    const snapshot = await getDocs(query(collection(db, COLLECTIONS.STUDENTS), where(documentId(), "in", ids)));
+    students.push(...snapshot.docs.map((item) => ({
+      id: item.id,
+      ...decodeStudentDoc(item.data(), `${COLLECTIONS.STUDENTS}/${item.id}`),
+    })));
+  }
+  return students.sort((a, b) => a.fullName.localeCompare(b.fullName, "vi"));
 }
 
 /** Danh bạ dùng riêng cho ghi danh. Rules vẫn giới hạn quyền ghi theo lớp phụ trách. */

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2 } from "lucide-react";
+import { Archive, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { deleteSubject, listSubjects, setSubjectStatus } from "@/services/firestore/subjects";
 import { listCourses } from "@/services/firestore/courses";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
@@ -77,8 +77,8 @@ export function SubjectsList({ canManage = true, canDelete = canManage, onEdit, 
   const hasRows = !isLoading && !isError && filtered.length > 0;
   const canAct = canManage || canDelete;
   const tableGridClass = canAct
-    ? "sm:grid-cols-[minmax(0,1fr)_100px_64px_minmax(112px,auto)]"
-    : "sm:grid-cols-[minmax(0,1fr)_100px_64px]";
+    ? "sm:grid-cols-[minmax(0,1fr)_64px_100px_minmax(144px,auto)]"
+    : "sm:grid-cols-[minmax(0,1fr)_64px_100px]";
 
   return (
     <>
@@ -89,7 +89,7 @@ export function SubjectsList({ canManage = true, canDelete = canManage, onEdit, 
           <button
             type="button"
             onClick={onAdd}
-            className="inline-flex min-h-touch items-center gap-1.5 rounded-input border border-neutral-300 px-3 text-xs font-medium text-neutral-700 transition hover:bg-neutral-50 active:scale-[.98]"
+            className="inline-flex min-h-touch items-center gap-1.5 rounded-input border border-neutral-300 bg-white px-3 text-xs font-medium text-neutral-700 transition hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 active:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
           >
             <Plus size={14} aria-hidden="true" />
             Thêm môn học
@@ -126,8 +126,8 @@ export function SubjectsList({ canManage = true, canDelete = canManage, onEdit, 
             <div role="rowgroup">
               <div role="row" className={`hidden items-center gap-2 border-b border-neutral-200 bg-neutral-50 px-3 py-2 sm:grid ${tableGridClass}`}>
                 <span role="columnheader" className="text-2xs font-bold text-neutral-500">Môn học</span>
-                <span role="columnheader" className="text-2xs font-bold text-neutral-500">Trạng thái</span>
                 <span role="columnheader" className="text-center text-2xs font-bold text-neutral-500">Khóa học</span>
+                <span role="columnheader" className="text-2xs font-bold text-neutral-500">Trạng thái</span>
                 {canAct && <span role="columnheader" className="text-right text-2xs font-bold text-neutral-500">Thao tác</span>}
               </div>
             </div>
@@ -143,14 +143,19 @@ export function SubjectsList({ canManage = true, canDelete = canManage, onEdit, 
                     className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 border-b border-neutral-100 px-3 py-3 transition-colors last:border-b-0 sm:gap-2 sm:px-0 sm:py-0 ${tableGridClass} ${isSelected ? "bg-primary-50" : "bg-neutral-0 hover:bg-neutral-50/70"}`}
                   >
                     <div role="cell" className="min-w-0 sm:px-3 sm:py-3">
+                      <span className="block truncate text-sm font-semibold text-neutral-900">{subject.name}</span>
+                      <span className="mt-0.5 block font-mono text-2xs font-medium text-neutral-500">{subject.code}</span>
+                    </div>
+
+                    <div role="cell" className="col-start-2 row-start-1 self-start sm:col-start-auto sm:row-start-auto sm:self-auto sm:text-center">
                       <button
                         type="button"
                         onClick={() => onSelect(subject.id)}
                         aria-pressed={isSelected}
-                        className="block min-h-touch w-full min-w-0 rounded-input text-left outline-none transition focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-1"
+                        aria-label={`Lọc ${count} khóa học của môn ${subject.name}`}
+                        className="inline-flex min-h-touch items-center rounded-full bg-primary-50 px-2 text-2xs font-bold tabular-nums text-primary-700 transition hover:bg-primary-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-1 sm:text-sm"
                       >
-                        <span className="block truncate text-sm font-semibold text-neutral-900">{subject.name}</span>
-                        <span className="mt-0.5 block font-mono text-2xs font-medium text-neutral-500">{subject.code}</span>
+                        {count}<span className="ml-1 sm:hidden">khóa</span>
                       </button>
                     </div>
 
@@ -160,20 +165,16 @@ export function SubjectsList({ canManage = true, canDelete = canManage, onEdit, 
                       </StatusBadge>
                     </div>
 
-                    <div role="cell" className="col-start-2 row-start-1 self-start sm:col-start-auto sm:row-start-auto sm:self-auto sm:text-center">
-                      <span className="inline-flex rounded-full bg-primary-50 px-2 py-0.5 text-2xs font-bold tabular-nums text-primary-700 sm:bg-transparent sm:px-0 sm:text-sm sm:text-neutral-700">
-                        {count}<span className="ml-1 sm:hidden">khóa</span>
-                      </span>
-                    </div>
-
                     {canAct && (
                       <div role="cell" className="col-start-2 row-start-2 mt-2 flex justify-end gap-1.5 sm:col-start-auto sm:row-start-auto sm:mt-0 sm:px-3 sm:py-2">
                         {canManage && <button
                           type="button"
                           onClick={() => onEdit(subject)}
-                          className="min-h-touch whitespace-nowrap rounded-input border border-neutral-300 bg-neutral-0 px-3 text-xs font-medium text-neutral-700 transition hover:border-primary-300 hover:text-primary-700 active:scale-[.98]"
+                          aria-label={`Sửa môn ${subject.name}`}
+                          title="Sửa môn học"
+                          className="grid size-11 shrink-0 place-items-center rounded-input border border-neutral-300 bg-white text-neutral-600 transition hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
                         >
-                          Sửa
+                          <Pencil size={17} aria-hidden="true" />
                         </button>}
                         {canManage && <button
                           type="button"
@@ -184,18 +185,20 @@ export function SubjectsList({ canManage = true, canDelete = canManage, onEdit, 
                             })
                           }
                           disabled={statusMutation.isPending}
-                          className="min-h-touch whitespace-nowrap rounded-input border border-neutral-300 bg-neutral-0 px-3 text-xs font-medium text-neutral-700 transition hover:border-primary-300 hover:text-primary-700 active:scale-[.98] disabled:opacity-40"
+                          aria-label={subject.status === "active" ? `Lưu trữ môn ${subject.name}` : `Kích hoạt lại môn ${subject.name}`}
+                          title={subject.status === "active" ? "Lưu trữ môn học" : "Kích hoạt lại môn học"}
+                          className="grid size-11 shrink-0 place-items-center rounded-input border border-neutral-300 bg-white text-neutral-600 transition hover:border-neutral-400 hover:bg-neutral-100 hover:text-neutral-900 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
                         >
-                          {subject.status === "active" ? "Lưu trữ" : "Kích hoạt lại"}
+                          {subject.status === "active" ? <Archive size={17} aria-hidden="true" /> : <RotateCcw size={17} aria-hidden="true" />}
                         </button>}
                         {canDelete && <button
                           type="button"
                           onClick={() => { deleteMutation.reset(); setDeletingSubject(subject); }}
-                          className="grid min-h-touch min-w-touch place-items-center rounded-input border border-danger-200 bg-neutral-0 text-danger-700 transition hover:bg-danger-50 active:scale-[.98]"
+                          className="grid size-11 shrink-0 place-items-center rounded-input border border-danger-200 bg-white text-danger-700 transition hover:bg-danger-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-500 focus-visible:ring-offset-2"
                           aria-label={`Xóa vĩnh viễn môn học ${subject.name}`}
                           title="Xóa vĩnh viễn môn học"
                         >
-                          <Trash2 size={15} aria-hidden="true" />
+                          <Trash2 size={17} aria-hidden="true" />
                         </button>}
                       </div>
                     )}

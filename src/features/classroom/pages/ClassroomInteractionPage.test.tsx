@@ -17,7 +17,7 @@ const serviceMocks = vi.hoisted(() => ({
   getSessionStudentReviews: vi.fn(),
   getUtilityDeliveryStatus: vi.fn(),
   listSessionsByClass: vi.fn(),
-  listStudents: vi.fn(),
+  listStudentsByIds: vi.fn(),
   publishClassroomInteraction: vi.fn(),
   reopenClassroomInteraction: vi.fn(),
   saveClassroomDraft: vi.fn(),
@@ -54,7 +54,7 @@ vi.mock("@/services/firestore/lessonPlans", () => ({
 }));
 
 vi.mock("@/services/firestore/students", () => ({
-  listStudents: serviceMocks.listStudents,
+  listStudentsByIds: serviceMocks.listStudentsByIds,
 }));
 
 vi.mock("@/services/firestore/users", () => ({
@@ -138,7 +138,7 @@ describe("ClassroomInteractionPage publishing", () => {
       teacherIds: ["teacher-1"],
       status: "active",
     });
-    serviceMocks.listStudents.mockResolvedValue([
+    serviceMocks.listStudentsByIds.mockResolvedValue([
       {
         id: "student-1",
         fullName: "Nguyễn An",

@@ -58,15 +58,15 @@ describe("SubjectsList information layout", () => {
     expect(firstRow).toBeTruthy();
     const row = within(firstRow as HTMLElement);
     expect(row.getByText("Đang dùng")).toBeTruthy();
-    expect(row.getAllByRole("cell")[2].textContent).toContain("1");
+    expect(row.getAllByRole("cell")[1].textContent).toContain("1");
 
-    fireEvent.click(row.getByRole("button", { name: /^Luyện chữ đẹp Tiểu học & THCSLC0001$/ }));
+    fireEvent.click(row.getByRole("button", { name: /Lọc 1 khóa học của môn Luyện chữ đẹp Tiểu học & THCS/ }));
     expect(onSelect).toHaveBeenCalledWith("handwriting");
 
-    fireEvent.click(row.getByRole("button", { name: "Sửa" }));
+    fireEvent.click(row.getByRole("button", { name: "Sửa môn Luyện chữ đẹp Tiểu học & THCS" }));
     expect(onEdit).toHaveBeenCalledWith(expect.objectContaining({ id: "handwriting" }));
 
-    fireEvent.click(row.getByRole("button", { name: "Lưu trữ" }));
+    fireEvent.click(row.getByRole("button", { name: "Lưu trữ môn Luyện chữ đẹp Tiểu học & THCS" }));
     await waitFor(() => expect(serviceMocks.setSubjectStatus).toHaveBeenCalledWith("handwriting", "archived"));
 
     fireEvent.click(row.getByRole("button", { name: "Xóa vĩnh viễn môn học Luyện chữ đẹp Tiểu học & THCS" }));
