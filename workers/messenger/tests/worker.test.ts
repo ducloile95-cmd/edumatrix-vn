@@ -85,11 +85,13 @@ test("uses a stable delivery idempotency key and finite retry lease",()=>{
   expect(deliveryJobLeaseExpired(job("processing",1,"2026-08-25T04:59:00.000Z","2026-08-25T04:59:00.000Z"),now)).toBe(true);
   expect(deliveryJobEligible(job("failed",3,"2026-08-25T04:59:00.000Z","2026-08-25T04:59:00.000Z"),now)).toBe(false);
 });
-test("maps the four business events to approved Utility templates",()=>{
+test("maps the five business events to approved Utility templates",()=>{
   expect(deliveryEventTemplateKey("lesson_feedback_published")).toBe("lesson_feedback_request");
   expect(deliveryEventTemplateKey("invoice_committed")).toBe("tuition_payment_reminder");
   expect(deliveryEventTemplateKey("payment_verified")).toBe("tuition_payment_confirmation");
   expect(deliveryEventTemplateKey("enrollment_completed")).toBe("enrollment_confirmation");
+  expect(deliveryEventTemplateKey("session_schedule_changed")).toBe("class_schedule_adjustment");
+  expect(deliveryEventTemplateKey("unknown_event")).toBeNull();
   expect(deliveryEventTemplateKey("unknown")).toBeNull();
 });
 test("retries event expansion only while due, lease-expired, and below the attempt cap",()=>{

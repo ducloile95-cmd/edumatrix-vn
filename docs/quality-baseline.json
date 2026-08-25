@@ -1,14 +1,14 @@
 {
   "capturedAt": "2026-08-25",
-  "release": "R3",
+  "release": "R3.1",
   "tests": {
-    "frontend": 309,
-    "firestoreRules": 215,
+    "frontend": 311,
+    "firestoreRules": 216,
     "messengerWorker": 64
   },
   "coveragePercent": {
     "statements": 40.3,
-    "branches": 70.71,
+    "branches": 70.86,
     "functions": 50.03,
     "lines": 40.3
   },

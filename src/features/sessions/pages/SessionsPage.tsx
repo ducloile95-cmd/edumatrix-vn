@@ -32,6 +32,7 @@ import { TimetableGrid, type TimetableSession } from "@/features/sessions/compon
 import { MonthGrid } from "@/features/sessions/components/MonthGrid";
 import { SessionDetailModal } from "@/features/sessions/components/SessionDetailModal";
 import type { SessionStatus } from "@/types/academic";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 
 type TimetableView = "fit-week" | "day" | "week" | "month";
 
@@ -49,6 +50,7 @@ export default function SessionsPage() {
   const [selectedSession, setSelectedSession] = useState<TimetableSession | null>(null);
   const queryClient = useQueryClient();
   const { showToast } = useToast();
+  const { firebaseUser } = useAuth();
   const today = useMemo(() => new Date(), []);
 
   const range = useMemo(() => {
@@ -177,7 +179,10 @@ export default function SessionsPage() {
     }),
   });
   const updateMutation = useMutation({
-    mutationFn: ({ id, changes }: { id: string; changes: Parameters<typeof updateSession>[1] }) => updateSession(id, changes),
+    mutationFn: ({ id, changes }: { id: string; changes: Parameters<typeof updateSession>[1] }) => {
+      if (!firebaseUser) throw new Error("AUTH_REQUIRED");
+      return updateSession(id, changes, firebaseUser.uid);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
       showToast({ tone: "success", title: "Đã cập nhật buổi học" });

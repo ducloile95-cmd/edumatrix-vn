@@ -90,3 +90,5 @@ Emulator dùng cho dữ liệu test có thể export/import bằng Firebase CLI;
 - Cron xử lý event trước, job sau. Theo dõi `pending`, `processing`, `sent`, `failed`, `skipped`; `skipped:no_connection` là kết quả thật, không phải gửi thành công.
 - Nếu job ở `processing` hết lease hoặc request Meta trả kết quả mơ hồ, Worker đặt `skipped:meta_delivery_outcome_unknown` và không tự gửi lại. Kiểm tra Inbox/Meta log thủ công; không retry mù vì có nguy cơ gửi trùng.
 - Rollback nhanh nhất là đặt `UTILITY_AUTOMATION_ENABLED=false` và deploy Worker. Việc này dừng cron gửi mới nhưng giữ nguyên event/job để điều tra; chat 24 giờ và Utility thủ công không bị tắt.
+- R3.1 dùng `session_schedule_changed` cho template `class_schedule_adjustment`. Chỉ tăng `scheduleVersion` và tạo event khi thời gian bắt đầu/kết thúc thực sự đổi hoặc session lần đầu chuyển sang `cancelled`; sửa địa điểm/ghi chú hay ghi lại cùng trạng thái không gửi Messenger.
+- Event lịch dùng ID `session_schedule_changed:schedule_<sessionId>_<studentId>:v<scheduleVersion>`. Worker chỉ mở event khớp phiên bản session mới nhất, nên thay đổi cũ chưa xử lý sẽ bị bỏ qua thay vì gửi lịch đã lỗi thời.

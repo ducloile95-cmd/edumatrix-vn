@@ -42,7 +42,8 @@ export type UtilityDeliveryEventType =
   | "lesson_feedback_published"
   | "invoice_committed"
   | "payment_verified"
-  | "enrollment_completed";
+  | "enrollment_completed"
+  | "session_schedule_changed";
 export interface SendBody {
   recipientPsid?: string;
   text?: string;
@@ -851,6 +852,7 @@ export function deliveryEventTemplateKey(eventType: string): UtilityTemplateKey 
   if (eventType === "invoice_committed") return "tuition_payment_reminder";
   if (eventType === "payment_verified") return "tuition_payment_confirmation";
   if (eventType === "enrollment_completed") return "enrollment_confirmation";
+  if (eventType === "session_schedule_changed") return "class_schedule_adjustment";
   return null;
 }
 
@@ -861,6 +863,11 @@ function formatUtilityDate(date: Date | null): string {
 
 function formatUtilityAmount(amount: number): string {
   return `${new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(amount)} ₫`;
+}
+
+function formatUtilityTime(date: Date | null): string {
+  if (!date) return "Không xác định";
+  return new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit", hour12: false }).format(date);
 }
 
 export function deliveryJobEligible(job: unknown, now = Date.now()): boolean {
@@ -1952,7 +1959,21 @@ async function deliveryEventJobBase(event: unknown, token: string, env: Env): Pr
   const studentName = fieldString(student, "fullName") ?? studentId;
 
   let parameters: Record<string, string>;
-  if (eventType === "lesson_feedback_published") {
+  if (eventType === "session_schedule_changed") {
+    const session = await readDocument("sessions", sourceId, token, env);
+    if (!["rescheduled", "cancelled"].includes(fieldString(session, "status") ?? "") || fieldInteger(session, "scheduleVersion") !== versionNumber) {
+      throw new Error("business_state_changed");
+    }
+    const klass = await readDocument("classes", fieldString(session, "classId") ?? "", token, env);
+    const startAt = fieldTimestamp(session, "startAt");
+    parameters = {
+      className: fieldString(klass, "name") ?? fieldString(session, "classId") ?? "Lớp học EduMatrix",
+      studentName,
+      lessonDate: formatUtilityDate(startAt),
+      lessonTime: formatUtilityTime(startAt),
+      adjustmentNote: fieldString(session, "note") || (fieldString(session, "status") === "cancelled" ? "Buổi học đã hủy." : "Lịch học đã được cập nhật."),
+    };
+  } else if (eventType === "lesson_feedback_published") {
     const [announcement, interaction] = await Promise.all([
       readDocument("announcements", entityId, token, env),
       readDocument("session_interactions", sourceId, token, env),

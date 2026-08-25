@@ -6,7 +6,8 @@ export type UtilityDeliveryEventType =
   | "lesson_feedback_published"
   | "invoice_committed"
   | "payment_verified"
-  | "enrollment_completed";
+  | "enrollment_completed"
+  | "session_schedule_changed";
 
 interface UtilityDeliveryEventInput {
   eventType: UtilityDeliveryEventType;

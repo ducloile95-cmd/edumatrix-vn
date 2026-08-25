@@ -296,6 +296,53 @@ describe("teacher scope by assigned class", () => {
     );
   });
 
+  test("teacher queues one immutable schedule event with the same session version", async () => {
+    const teacherDb = asTeacher(assignedTeacher);
+    const eventId = "session_schedule_changed:schedule_session-owned_student-1:v1";
+    const batch = writeBatch(teacherDb);
+    batch.update(doc(teacherDb, "sessions", "session-owned"), {
+      startAt: Timestamp.fromMillis(Date.now() + 3_600_000),
+      endAt: Timestamp.fromMillis(Date.now() + 7_200_000),
+      status: "rescheduled",
+      scheduleVersion: 1,
+      updatedAt: serverTimestamp(),
+    });
+    batch.set(doc(teacherDb, "messenger_delivery_events", eventId), {
+      eventType: "session_schedule_changed",
+      entityId: "schedule_session-owned_student-1",
+      sourceId: "session-owned",
+      studentId: "student-1",
+      version: 1,
+      actorUid: assignedTeacher,
+      idempotencyKey: eventId,
+      status: "pending",
+      attempts: 0,
+      lastErrorCode: null,
+      leaseUntil: null,
+      nextAttemptAt: serverTimestamp(),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    await assertSucceeds(batch.commit());
+
+    await assertFails(setDoc(doc(teacherDb, "messenger_delivery_events", `${eventId}-stale`), {
+      eventType: "session_schedule_changed",
+      entityId: "schedule_session-owned_student-1",
+      sourceId: "session-owned",
+      studentId: "student-1",
+      version: 2,
+      actorUid: assignedTeacher,
+      idempotencyKey: `${eventId}-stale`,
+      status: "pending",
+      attempts: 0,
+      lastErrorCode: null,
+      leaseUntil: null,
+      nextAttemptAt: serverTimestamp(),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }));
+  });
+
   test("teacher updates attendance only for assigned classes", async () => {
     await assertSucceeds(
       updateDoc(doc(asTeacher(assignedTeacher), "attendance", "session-owned_student-1"), {

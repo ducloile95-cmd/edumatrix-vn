@@ -16,6 +16,7 @@ import { listClasses } from "@/services/firestore/classes";
 import type { ClassDoc, CourseDoc, SessionDoc, SessionStatus } from "@/types/academic";
 import { decodeSessionDoc } from "@/services/firestore/decoders";
 import { listAllQueryDocuments } from "@/services/firestore/pagination";
+import { queueUtilityDeliveryEvent } from "@/services/firestore/messengerDelivery";
 
 export interface CreateSessionsInput {
   classId: string;
@@ -58,6 +59,7 @@ export async function createSessions(input: CreateSessionsInput): Promise<void> 
         curriculumVersion: original?.curriculumVersion ?? classData.curriculumVersion ?? null,
         curriculumItemId: original?.curriculumItemId ?? null,
         lessonPlanId: null,
+        scheduleVersion: 0,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -125,6 +127,7 @@ export async function listSessionsByClass(
 export async function updateSession(
   sessionId: string,
   changes: { startAt?: Date; endAt?: Date; status?: SessionStatus; location?: string; note?: string },
+  actorUid: string,
 ): Promise<void> {
   const payload: Record<string, unknown> = { updatedAt: serverTimestamp() };
   if (changes.startAt) payload.startAt = Timestamp.fromDate(changes.startAt);
@@ -148,20 +151,39 @@ export async function updateSession(
     const classSnap = await transaction.get(doc(db, COLLECTIONS.CLASSES, currentSession.classId));
     if (!classSnap.exists()) throw new Error("CLASS_NOT_FOUND");
     const studentIds = [...new Set((classSnap.data() as ClassDoc).studentIds)].filter(Boolean);
-    if (studentIds.length > 498) throw new Error("SESSION_ANNOUNCEMENT_RECIPIENT_LIMIT");
+    const timeChanged = changes.status === "rescheduled" && (
+      (changes.startAt !== undefined && currentSession.startAt.toMillis() !== changes.startAt.getTime()) ||
+      (changes.endAt !== undefined && currentSession.endAt.toMillis() !== changes.endAt.getTime())
+    );
+    const newlyCancelled = changes.status === "cancelled" && currentSession.status !== "cancelled";
+    const shouldQueueUtility = timeChanged || newlyCancelled;
+    if (studentIds.length > (shouldQueueUtility ? 249 : 498)) throw new Error("SESSION_ANNOUNCEMENT_RECIPIENT_LIMIT");
+    const nextScheduleVersion = Number(currentSession.scheduleVersion ?? 0) + 1;
+    if (shouldQueueUtility) payload.scheduleVersion = nextScheduleVersion;
 
     transaction.update(sessionRef, payload);
     for (const studentId of studentIds) {
+      const announcementId = `schedule_${sessionId}_${studentId}`;
       transaction.set(doc(db, COLLECTIONS.ANNOUNCEMENTS, `schedule_${sessionId}_${studentId}`), {
         type: "schedule_change",
         sessionId,
         classId: currentSession.classId,
         studentId,
         title: changes.status === "cancelled" ? "Buổi học đã hủy" : "Lịch học đã thay đổi",
-        message: changes.note || "Vui lòng kiểm tra lịch học mới.",
+        message: changes.note || (changes.status === "cancelled" ? "Buổi học đã hủy." : "Vui lòng kiểm tra lịch học mới."),
         createdAt: serverTimestamp(),
         resolvedAt: null,
       });
+      if (shouldQueueUtility) {
+        queueUtilityDeliveryEvent(transaction, {
+          eventType: "session_schedule_changed",
+          entityId: announcementId,
+          sourceId: sessionId,
+          studentId,
+          version: nextScheduleVersion,
+          actorUid,
+        });
+      }
     }
   });
 }

@@ -452,7 +452,7 @@ service cloud.firestore {
 
     function validSessionData(data) {
       return data.keys().hasAll(['classId', 'title', 'startAt', 'endAt', 'location', 'status', 'note', 'makeUpForSessionId', 'createdAt', 'updatedAt']) &&
-        data.keys().hasOnly(['classId', 'title', 'startAt', 'endAt', 'location', 'status', 'note', 'makeUpForSessionId', 'sequenceNumber', 'curriculumVersion', 'curriculumItemId', 'lessonPlanId', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['classId', 'title', 'startAt', 'endAt', 'location', 'status', 'note', 'makeUpForSessionId', 'sequenceNumber', 'curriculumVersion', 'curriculumItemId', 'lessonPlanId', 'scheduleVersion', 'createdAt', 'updatedAt']) &&
         data.classId is string &&
         data.title is string &&
         data.startAt is timestamp &&
@@ -463,6 +463,7 @@ service cloud.firestore {
         data.note is string &&
         (data.makeUpForSessionId == null || data.makeUpForSessionId is string) &&
         (!data.keys().hasAny(['sequenceNumber']) || data.sequenceNumber == null || data.sequenceNumber is int) &&
+        (!data.keys().hasAny(['scheduleVersion']) || (data.scheduleVersion is int && data.scheduleVersion >= 0)) &&
         (!data.keys().hasAny(['curriculumVersion']) || data.curriculumVersion == null || data.curriculumVersion is int) &&
         (!data.keys().hasAny(['curriculumItemId']) || data.curriculumItemId == null || data.curriculumItemId is string) &&
         (!data.keys().hasAny(['lessonPlanId']) || data.lessonPlanId == null || data.lessonPlanId is string) &&
@@ -621,7 +622,7 @@ service cloud.firestore {
           'idempotencyKey', 'status', 'attempts', 'lastErrorCode', 'leaseUntil',
           'nextAttemptAt', 'createdAt', 'updatedAt'
         ]) &&
-        data.eventType in ['lesson_feedback_published', 'invoice_committed', 'payment_verified', 'enrollment_completed'] &&
+        data.eventType in ['lesson_feedback_published', 'invoice_committed', 'payment_verified', 'enrollment_completed', 'session_schedule_changed'] &&
         data.entityId is string && data.sourceId is string && data.studentId is string &&
         data.version is int && data.version >= 1 &&
         data.actorUid == request.auth.uid && data.idempotencyKey == eventId &&
@@ -629,6 +630,15 @@ service cloud.firestore {
         data.lastErrorCode == null && data.leaseUntil == null &&
         data.nextAttemptAt == request.time && data.createdAt == request.time && data.updatedAt == request.time &&
         (
+          (
+            data.eventType == 'session_schedule_changed' &&
+            data.entityId == 'schedule_' + data.sourceId + '_' + data.studentId &&
+            existsAfter(/databases/$(database)/documents/sessions/$(data.sourceId)) &&
+            getAfter(/databases/$(database)/documents/sessions/$(data.sourceId)).data.status in ['rescheduled', 'cancelled'] &&
+            getAfter(/databases/$(database)/documents/sessions/$(data.sourceId)).data.get('scheduleVersion', 0) == data.version &&
+            existsAfter(/databases/$(database)/documents/classes/$(getAfter(/databases/$(database)/documents/sessions/$(data.sourceId)).data.classId)) &&
+            getAfter(/databases/$(database)/documents/classes/$(getAfter(/databases/$(database)/documents/sessions/$(data.sourceId)).data.classId)).data.studentIds.hasAny([data.studentId])
+          ) ||
           (
             data.eventType == 'lesson_feedback_published' &&
             data.entityId == data.sourceId + '_' + data.studentId &&
@@ -1302,10 +1312,22 @@ service cloud.firestore {
         validSessionData(request.resource.data) &&
         keepsImmutable(['classId', 'sequenceNumber', 'curriculumVersion', 'curriculumItemId', 'createdAt']) &&
         (
+          request.resource.data.get('scheduleVersion', 0) == resource.data.get('scheduleVersion', 0) ||
+          (
+            request.resource.data.get('scheduleVersion', 0) == resource.data.get('scheduleVersion', 0) + 1 &&
+            (
+              (request.resource.data.status == 'cancelled' && resource.data.status != 'cancelled') ||
+              (request.resource.data.status == 'rescheduled' && (
+                request.resource.data.startAt != resource.data.startAt || request.resource.data.endAt != resource.data.endAt
+              ))
+            )
+          )
+        ) &&
+        (
           classIsSchedulable(resource.data.classId) ||
           (
             request.resource.data.status == 'cancelled' &&
-            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'note', 'updatedAt'])
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'note', 'scheduleVersion', 'updatedAt'])
           )
         );
       allow delete: if false;

@@ -120,6 +120,7 @@ export interface SessionDoc {
   curriculumVersion?: number | null;
   curriculumItemId?: string | null;
   lessonPlanId?: string | null;
+  scheduleVersion?: number;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
