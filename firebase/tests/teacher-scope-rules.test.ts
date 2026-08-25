@@ -205,15 +205,15 @@ describe("teacher scope by assigned class", () => {
       title: "Schedule changed", message: "", createdAt: serverTimestamp(), resolvedAt: null,
     }));
   });
-  test("teacher reads only assigned classes", async () => {
+  test("teacher reads all classes for dependency preflight", async () => {
     await assertSucceeds(getDoc(doc(asTeacher(assignedTeacher), "classes", "class-owned")));
-    await assertFails(getDoc(doc(asTeacher(otherTeacher), "classes", "class-owned")));
+    await assertSucceeds(getDoc(doc(asTeacher(otherTeacher), "classes", "class-owned")));
   });
 
-  test("teacher reads only assigned students", async () => {
+  test("teacher reads all students for dependency preflight", async () => {
     await assertSucceeds(getDoc(doc(asTeacher(assignedTeacher), "students", "student-1")));
-    await assertFails(getDoc(doc(asTeacher(assignedTeacher), "students", "student-available")));
-    await assertFails(getDoc(doc(asTeacher(assignedTeacher), "students", "student-2")));
+    await assertSucceeds(getDoc(doc(asTeacher(assignedTeacher), "students", "student-available")));
+    await assertSucceeds(getDoc(doc(asTeacher(assignedTeacher), "students", "student-2")));
   });
 
   test("teacher enrolls a student only into an assigned class", async () => {
@@ -343,6 +343,53 @@ describe("teacher scope by assigned class", () => {
     }));
   });
 
+  test("teacher reschedules the same session twice with matching announcements and utility versions", async () => {
+    const teacherDb = asTeacher(assignedTeacher);
+    const sessionRef = doc(teacherDb, "sessions", "session-owned");
+    const announcementRef = doc(teacherDb, "announcements", "schedule_session-owned_student-1");
+
+    for (const version of [1, 2]) {
+      const eventId = `session_schedule_changed:schedule_session-owned_student-1:v${version}`;
+      const batch = writeBatch(teacherDb);
+      batch.update(sessionRef, {
+        startAt: Timestamp.fromMillis(Date.now() + version * 3_600_000),
+        endAt: Timestamp.fromMillis(Date.now() + (version + 1) * 3_600_000),
+        status: "rescheduled",
+        note: version === 1 ? "Giáo viên có lịch công tác." : "Trung tâm điều chỉnh phòng học.",
+        scheduleVersion: version,
+        updatedAt: serverTimestamp(),
+      });
+      batch.set(doc(teacherDb, "messenger_delivery_events", eventId), {
+        eventType: "session_schedule_changed",
+        entityId: "schedule_session-owned_student-1",
+        sourceId: "session-owned",
+        studentId: "student-1",
+        version,
+        actorUid: assignedTeacher,
+        idempotencyKey: eventId,
+        status: "pending",
+        attempts: 0,
+        lastErrorCode: null,
+        leaseUntil: null,
+        nextAttemptAt: serverTimestamp(),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      await assertSucceeds(batch.commit());
+
+      await assertSucceeds(setDoc(announcementRef, {
+        type: "schedule_change",
+        sessionId: "session-owned",
+        classId: "class-owned",
+        studentId: "student-1",
+        title: "Lịch học đã thay đổi",
+        message: version === 1 ? "Giáo viên có lịch công tác." : "Trung tâm điều chỉnh phòng học.",
+        createdAt: serverTimestamp(),
+        resolvedAt: null,
+      }));
+    }
+  });
+
   test("teacher updates attendance only for assigned classes", async () => {
     await assertSucceeds(
       updateDoc(doc(asTeacher(assignedTeacher), "attendance", "session-owned_student-1"), {
@@ -358,14 +405,14 @@ describe("teacher scope by assigned class", () => {
     );
   });
 
-  test("teacher attendance list query must include the assigned class scope", async () => {
+  test("teacher attendance queries support dependency preflight without class scope", async () => {
     const teacherDb = asTeacher(assignedTeacher);
     await assertSucceeds(getDocs(query(
       collection(teacherDb, "attendance"),
       where("classId", "==", "class-owned"),
       where("sessionId", "==", "session-owned"),
     )));
-    await assertFails(getDocs(query(
+    await assertSucceeds(getDocs(query(
       collection(teacherDb, "attendance"),
       where("sessionId", "==", "session-owned"),
     )));

@@ -304,6 +304,18 @@ describe("ChatPage utility templates", () => {
     expect(screen.queryByPlaceholderText("Nhập nội dung tin nhắn...")).toBeNull();
   });
 
+  test("nut Gui mau mo picker voi dung template dang chon", async () => {
+    renderWithQueryClient(<ChatPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Mẫu tiện ích" }));
+    const useTemplate = await screen.findByRole("button", { name: "Gửi mẫu" }) as HTMLButtonElement;
+    expect(useTemplate.disabled).toBe(false);
+    fireEvent.click(useTemplate);
+
+    await screen.findByLabelText(/Cách gửi/);
+    expect((screen.getByLabelText(/Cách gửi/) as HTMLSelectElement).value).toBe("utility");
+    expect(screen.getByLabelText("Kỳ học phí")).toBeTruthy();
+  });
+
   test("nut gui bi khoa cho toi khi dien du moi tham so", async () => {
     const button = await openUtilityComposer();
     expect(button.disabled).toBe(true);

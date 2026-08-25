@@ -144,6 +144,8 @@ export async function updateSession(
     return;
   }
 
+  let announcementClassId = "";
+  let announcementStudentIds: string[] = [];
   await runTransaction(db, async (transaction) => {
     const sessionSnap = await transaction.get(sessionRef);
     if (!sessionSnap.exists()) throw new Error("SESSION_NOT_FOUND");
@@ -151,6 +153,8 @@ export async function updateSession(
     const classSnap = await transaction.get(doc(db, COLLECTIONS.CLASSES, currentSession.classId));
     if (!classSnap.exists()) throw new Error("CLASS_NOT_FOUND");
     const studentIds = [...new Set((classSnap.data() as ClassDoc).studentIds)].filter(Boolean);
+    announcementClassId = currentSession.classId;
+    announcementStudentIds = studentIds;
     const timeChanged = changes.status === "rescheduled" && (
       (changes.startAt !== undefined && currentSession.startAt.toMillis() !== changes.startAt.getTime()) ||
       (changes.endAt !== undefined && currentSession.endAt.toMillis() !== changes.endAt.getTime())
@@ -164,16 +168,6 @@ export async function updateSession(
     transaction.update(sessionRef, payload);
     for (const studentId of studentIds) {
       const announcementId = `schedule_${sessionId}_${studentId}`;
-      transaction.set(doc(db, COLLECTIONS.ANNOUNCEMENTS, `schedule_${sessionId}_${studentId}`), {
-        type: "schedule_change",
-        sessionId,
-        classId: currentSession.classId,
-        studentId,
-        title: changes.status === "cancelled" ? "Buổi học đã hủy" : "Lịch học đã thay đổi",
-        message: changes.note || (changes.status === "cancelled" ? "Buổi học đã hủy." : "Vui lòng kiểm tra lịch học mới."),
-        createdAt: serverTimestamp(),
-        resolvedAt: null,
-      });
       if (shouldQueueUtility) {
         queueUtilityDeliveryEvent(transaction, {
           eventType: "session_schedule_changed",
@@ -186,4 +180,21 @@ export async function updateSession(
       }
     }
   });
+
+  // Tach thong bao noi bo khoi transaction lich + Utility de khong vuot gioi han
+  // document-access cua Rules khi cung mot buoi duoc doi lich nhieu lan.
+  const announcementBatch = writeBatch(db);
+  for (const studentId of announcementStudentIds) {
+    announcementBatch.set(doc(db, COLLECTIONS.ANNOUNCEMENTS, `schedule_${sessionId}_${studentId}`), {
+      type: "schedule_change",
+      sessionId,
+      classId: announcementClassId,
+      studentId,
+      title: changes.status === "cancelled" ? "Buổi học đã hủy" : "Lịch học đã thay đổi",
+      message: changes.note || (changes.status === "cancelled" ? "Buổi học đã hủy." : "Vui lòng kiểm tra lịch học mới."),
+      createdAt: serverTimestamp(),
+      resolvedAt: null,
+    });
+  }
+  await announcementBatch.commit();
 }

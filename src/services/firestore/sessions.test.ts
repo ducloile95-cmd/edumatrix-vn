@@ -64,8 +64,9 @@ describe("updateSession", () => {
 
     expect(transactionUpdate).toHaveBeenCalledTimes(1);
     expect(transactionUpdate).toHaveBeenCalledWith("sessions/session-1", expect.objectContaining({ scheduleVersion: 1 }));
-    expect(transactionSet).toHaveBeenCalledTimes(4);
-    expect(transactionSet).toHaveBeenCalledWith(
+    expect(transactionSet).toHaveBeenCalledTimes(2);
+    expect(batchSet).toHaveBeenCalledTimes(2);
+    expect(batchSet).toHaveBeenCalledWith(
       "announcements/schedule_session-1_student-1",
       expect.objectContaining({ classId: "class-1", studentId: "student-1" }),
     );
@@ -73,7 +74,7 @@ describe("updateSession", () => {
       "messenger_delivery_events/session_schedule_changed:schedule_session-1_student-1:v1",
       expect.objectContaining({ eventType: "session_schedule_changed", actorUid: "admin-1", version: 1 }),
     );
-    expect(batchCommit).not.toHaveBeenCalled();
+    expect(batchCommit).toHaveBeenCalledTimes(1);
   });
 
   test("does not queue another Utility event when cancellation is repeated", async () => {
@@ -87,7 +88,8 @@ describe("updateSession", () => {
     await updateSession("session-1", { status: "cancelled" }, "admin-1");
 
     expect(transactionUpdate).toHaveBeenCalledWith("sessions/session-1", expect.not.objectContaining({ scheduleVersion: expect.anything() }));
-    expect(transactionSet).toHaveBeenCalledTimes(1);
+    expect(transactionSet).not.toHaveBeenCalled();
+    expect(batchSet).toHaveBeenCalledTimes(1);
     expect(transactionSet.mock.calls.some(([ref]) => String(ref).startsWith("messenger_delivery_events/"))).toBe(false);
   });
 
@@ -111,6 +113,33 @@ describe("updateSession", () => {
     expect(transactionSet).toHaveBeenCalledWith(
       "messenger_delivery_events/session_schedule_changed:schedule_session-1_student-1:v3",
       expect.objectContaining({ version: 3, actorUid: "teacher-1" }),
+    );
+  });
+
+  test("allows a rescheduled session to be rescheduled again with a new reason and version", async () => {
+    const oldStart = Date.parse("2026-08-26T10:00:00Z");
+    const oldEnd = Date.parse("2026-08-26T11:00:00Z");
+    transactionGet
+      .mockResolvedValueOnce({ exists: () => true, data: () => ({
+        classId: "class-1", status: "rescheduled", scheduleVersion: 3,
+        startAt: { toMillis: () => oldStart }, endAt: { toMillis: () => oldEnd },
+      }) })
+      .mockResolvedValueOnce({ exists: () => true, data: () => ({ studentIds: ["student-1"] }) });
+
+    await updateSession("session-1", {
+      status: "rescheduled",
+      startAt: new Date(oldStart + 7_200_000),
+      endAt: new Date(oldEnd + 7_200_000),
+      note: "Giáo viên có lịch công tác.",
+    }, "teacher-1");
+
+    expect(transactionUpdate).toHaveBeenCalledWith("sessions/session-1", expect.objectContaining({
+      scheduleVersion: 4,
+      note: "Giáo viên có lịch công tác.",
+    }));
+    expect(transactionSet).toHaveBeenCalledWith(
+      "messenger_delivery_events/session_schedule_changed:schedule_session-1_student-1:v4",
+      expect.objectContaining({ version: 4 }),
     );
   });
 

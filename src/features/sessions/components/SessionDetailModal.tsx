@@ -128,6 +128,7 @@ export function SessionDetailModal({
                     if (nextStart.getTime() === session.startAt.toMillis()) return;
                     const duration = session.endAt.toMillis() - session.startAt.toMillis();
                     onReschedule(session.id, nextStart, new Date(nextStart.getTime() + duration));
+                    event.target.value = format(session.startAt.toDate(), "yyyy-MM-dd'T'HH:mm");
                   }}
                   className="min-h-touch w-full rounded-input border border-neutral-300 px-3 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:opacity-50"
                 />

@@ -1,21 +1,26 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
-import { listSubjects, setSubjectStatus } from "@/services/firestore/subjects";
+import { Plus, Trash2 } from "lucide-react";
+import { deleteSubject, listSubjects, setSubjectStatus } from "@/services/firestore/subjects";
 import { listCourses } from "@/services/firestore/courses";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { EmptyState } from "@/components/feedback/EmptyState";
+import { DeletionPreflightPanel } from "@/components/feedback/DeletionPreflightPanel";
+import { useDeletionPreflight } from "@/hooks/useDeletionPreflight";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { FilterField } from "@/components/ui/FilterToolbar";
 import { Pagination } from "@/components/ui/Pagination";
+import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
 import { DataListPanel, DATA_LIST_FOOTER, DATA_LIST_SCROLL } from "@/components/ui/dataListLayout";
 import { usePagination } from "@/hooks/usePagination";
 import type { SubjectDoc } from "@/types/academic";
 
 interface SubjectsListProps {
   canManage?: boolean;
+  canDelete?: boolean;
   onEdit: (subject: SubjectDoc & { id: string }) => void;
   onAdd: () => void;
   /** Môn đang được chọn để lọc bảng khóa học bên cạnh. */
@@ -24,14 +29,16 @@ interface SubjectsListProps {
 }
 
 /** Chiều cao khóa cùng CoursesList để hai bảng luôn thẳng hàng. */
-export function SubjectsList({ canManage = true, onEdit, onAdd, selectedSubjectId, onSelect }: SubjectsListProps) {
+export function SubjectsList({ canManage = true, canDelete = canManage, onEdit, onAdd, selectedSubjectId, onSelect }: SubjectsListProps) {
   const [search, setSearch] = useState("");
+  const [deletingSubject, setDeletingSubject] = useState<(SubjectDoc & { id: string }) | null>(null);
   const queryClient = useQueryClient();
   const { data: subjects, isLoading, isError, refetch } = useQuery({
     queryKey: ["subjects"],
     queryFn: listSubjects,
   });
   const coursesQuery = useQuery({ queryKey: ["courses"], queryFn: listCourses, staleTime: 60_000 });
+  const deletePreflight = useDeletionPreflight("subject", deletingSubject?.id ?? null);
 
   const courseCountBySubject = useMemo(() => {
     const counts = new Map<string, number>();
@@ -45,6 +52,18 @@ export function SubjectsList({ canManage = true, onEdit, onAdd, selectedSubjectI
     mutationFn: ({ id, status }: { id: string; status: "active" | "archived" }) => setSubjectStatus(id, status),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["subjects"] }),
   });
+  const deleteMutation = useMutation({
+    mutationFn: deleteSubject,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["subjects"] });
+      setDeletingSubject(null);
+    },
+  });
+  const closeDeleteDialog = () => {
+    if (deleteMutation.isPending) return;
+    setDeletingSubject(null);
+    deleteMutation.reset();
+  };
 
   const filtered = useMemo(() => {
     if (!subjects) return [];
@@ -56,11 +75,13 @@ export function SubjectsList({ canManage = true, onEdit, onAdd, selectedSubjectI
   }, [subjects, search]);
   const { page, pageSize, pageItems, setPage } = usePagination(filtered, 10);
   const hasRows = !isLoading && !isError && filtered.length > 0;
-  const tableGridClass = canManage
+  const canAct = canManage || canDelete;
+  const tableGridClass = canAct
     ? "sm:grid-cols-[minmax(0,1fr)_100px_64px_minmax(112px,auto)]"
     : "sm:grid-cols-[minmax(0,1fr)_100px_64px]";
 
   return (
+    <>
     <DataListPanel className="rounded-card border border-neutral-200 bg-neutral-0">
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-neutral-200 px-4 py-4 sm:px-5">
         <h2 className="text-base font-semibold text-neutral-900">Môn học</h2>
@@ -107,7 +128,7 @@ export function SubjectsList({ canManage = true, onEdit, onAdd, selectedSubjectI
                 <span role="columnheader" className="text-2xs font-bold text-neutral-500">Môn học</span>
                 <span role="columnheader" className="text-2xs font-bold text-neutral-500">Trạng thái</span>
                 <span role="columnheader" className="text-center text-2xs font-bold text-neutral-500">Khóa học</span>
-                {canManage && <span role="columnheader" className="text-right text-2xs font-bold text-neutral-500">Thao tác</span>}
+                {canAct && <span role="columnheader" className="text-right text-2xs font-bold text-neutral-500">Thao tác</span>}
               </div>
             </div>
 
@@ -145,16 +166,16 @@ export function SubjectsList({ canManage = true, onEdit, onAdd, selectedSubjectI
                       </span>
                     </div>
 
-                    {canManage && (
+                    {canAct && (
                       <div role="cell" className="col-start-2 row-start-2 mt-2 flex justify-end gap-1.5 sm:col-start-auto sm:row-start-auto sm:mt-0 sm:px-3 sm:py-2">
-                        <button
+                        {canManage && <button
                           type="button"
                           onClick={() => onEdit(subject)}
                           className="min-h-touch whitespace-nowrap rounded-input border border-neutral-300 bg-neutral-0 px-3 text-xs font-medium text-neutral-700 transition hover:border-primary-300 hover:text-primary-700 active:scale-[.98]"
                         >
                           Sửa
-                        </button>
-                        <button
+                        </button>}
+                        {canManage && <button
                           type="button"
                           onClick={() =>
                             statusMutation.mutate({
@@ -166,7 +187,16 @@ export function SubjectsList({ canManage = true, onEdit, onAdd, selectedSubjectI
                           className="min-h-touch whitespace-nowrap rounded-input border border-neutral-300 bg-neutral-0 px-3 text-xs font-medium text-neutral-700 transition hover:border-primary-300 hover:text-primary-700 active:scale-[.98] disabled:opacity-40"
                         >
                           {subject.status === "active" ? "Lưu trữ" : "Kích hoạt lại"}
-                        </button>
+                        </button>}
+                        {canDelete && <button
+                          type="button"
+                          onClick={() => { deleteMutation.reset(); setDeletingSubject(subject); }}
+                          className="grid min-h-touch min-w-touch place-items-center rounded-input border border-danger-200 bg-neutral-0 text-danger-700 transition hover:bg-danger-50 active:scale-[.98]"
+                          aria-label={`Xóa vĩnh viễn môn học ${subject.name}`}
+                          title="Xóa vĩnh viễn môn học"
+                        >
+                          <Trash2 size={15} aria-hidden="true" />
+                        </button>}
                       </div>
                     )}
                   </div>
@@ -189,5 +219,26 @@ export function SubjectsList({ canManage = true, onEdit, onAdd, selectedSubjectI
         </div>
       )}
     </DataListPanel>
+    <Modal
+      open={Boolean(deletingSubject)}
+      onClose={closeDeleteDialog}
+      size="sm"
+      title="Xóa vĩnh viễn môn học?"
+      description={deletingSubject ? `Môn học "${deletingSubject.name}" sẽ bị xóa trực tiếp khỏi database. Hành động này không thể hoàn tác.` : undefined}
+    >
+      {deleteMutation.isError && <p role="alert" className="mb-4 rounded-input bg-danger-50 px-3 py-2 text-sm font-semibold text-danger-700">
+        {deleteMutation.error instanceof Error && deleteMutation.error.message === "DELETION_BLOCKED"
+          ? "Dữ liệu liên quan vừa thay đổi. Hệ thống đã dừng thao tác xóa."
+          : deleteMutation.error instanceof Error && deleteMutation.error.message === "SUBJECT_NOT_FOUND"
+            ? "Môn học không còn tồn tại. Hãy tải lại danh sách."
+            : "Không thể xóa môn học. Kiểm tra quyền truy cập và thử lại."}
+      </p>}
+      <DeletionPreflightPanel loading={deletePreflight.isFetching} error={deletePreflight.isError} report={deletePreflight.data} />
+      <div className="mt-4 flex justify-end gap-2">
+        <Button variant="secondary" disabled={deleteMutation.isPending} onClick={closeDeleteDialog}>Giữ môn học</Button>
+        <Button variant="danger" disabled={!deletePreflight.data?.allowed || deletePreflight.isFetching} loading={deleteMutation.isPending} loadingLabel="Đang xóa môn học" onClick={() => deletingSubject && deleteMutation.mutate(deletingSubject.id)}>Xóa vĩnh viễn</Button>
+      </div>
+    </Modal>
+    </>
   );
 }

@@ -18,6 +18,7 @@ type CatalogTab = "dashboard" | "catalog" | "billing-items";
 export default function CatalogPage() {
   const { role } = useAuth();
   const isAdmin = role === USER_ROLES.ADMIN;
+  const canHardDelete = isAdmin || role === USER_ROLES.TEACHER;
   const initialCreate = new URLSearchParams(window.location.search).get("create");
   const [tab, setTab] = useState<CatalogTab>(initialCreate ? "catalog" : "dashboard");
 
@@ -106,6 +107,7 @@ export default function CatalogPage() {
           <div className="grid items-start gap-4 lg:grid-cols-[1.6fr_1fr]">
           <CoursesList
             canManage={isAdmin}
+            canDelete={canHardDelete}
             onEdit={openEditCourse}
             onAdd={() => openCreateCourse()}
             subjectFilter={subjectFilter}
@@ -113,6 +115,7 @@ export default function CatalogPage() {
           />
           <SubjectsList
             canManage={isAdmin}
+            canDelete={canHardDelete}
             onEdit={openEditSubject}
             onAdd={openCreateSubject}
             selectedSubjectId={subjectFilter}

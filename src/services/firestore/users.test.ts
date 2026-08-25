@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   documentId: vi.fn(() => "__name__"), getDocs: vi.fn(), orderBy: vi.fn(),
   getCurrentUserDoc: vi.fn(), isAdminUser: vi.fn(), isTeacherUser: vi.fn(), where: vi.fn(),
   runTransaction: vi.fn(), transactionDelete: vi.fn(), transactionGet: vi.fn(), transactionUpdate: vi.fn(), writeAuditLog: vi.fn(),
+  assertDeletionAllowed: vi.fn(),
 }));
 
 vi.mock("firebase/firestore", () => ({
@@ -14,6 +15,7 @@ vi.mock("firebase/firestore", () => ({
 }));
 vi.mock("@/services/firebase/firestoreClient", () => ({ db: {} }));
 vi.mock("@/services/firestore/auditLog", () => ({ writeAuditLog: mocks.writeAuditLog }));
+vi.mock("@/services/firestore/deletionDependencies", () => ({ assertDeletionAllowed: mocks.assertDeletionAllowed }));
 vi.mock("@/services/firestore/authz", () => ({
   getCurrentUserDoc: mocks.getCurrentUserDoc,
   isAdminUser: mocks.isAdminUser,
@@ -28,6 +30,7 @@ function snapshot(id: string, data: Record<string, unknown> | null) {
 
 describe("updateUserAccount", () => {
   beforeEach(() => {
+    mocks.assertDeletionAllowed.mockReset().mockResolvedValue(undefined);
     mocks.transactionGet.mockReset(); mocks.transactionUpdate.mockReset();
     mocks.writeAuditLog.mockReset().mockResolvedValue(undefined);
     mocks.runTransaction.mockReset().mockImplementation(async (_db, callback) => callback({
@@ -85,17 +88,12 @@ describe("deleteUserAccount", () => {
     }));
   });
 
-  test("hard deletes a parent and removes reverse student links", async () => {
-    mocks.transactionGet
-      .mockResolvedValueOnce(snapshot("parent-1", { email: "parent@example.com", role: "viewer", studentIds: ["HS001"] }))
-      .mockResolvedValueOnce(snapshot("HS001", { parentUids: ["parent-1", "parent-2"] }));
+  test("hard deletes only an unreferenced account", async () => {
+    mocks.transactionGet.mockResolvedValueOnce(snapshot("parent-1", { email: "parent@example.com", role: "viewer", studentIds: [] }));
 
     await deleteUserAccount({ uid: "admin-1" } as never, "parent-1");
 
-    expect(mocks.transactionUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ path: "students/HS001" }),
-      expect.objectContaining({ parentUids: ["parent-2"] }),
-    );
+    expect(mocks.transactionUpdate).not.toHaveBeenCalled();
     expect(mocks.transactionDelete).toHaveBeenCalledWith(expect.objectContaining({ path: "users/parent-1" }));
     expect(mocks.writeAuditLog).toHaveBeenCalledWith(
       expect.anything(), "user_account_deleted", "user", "parent-1",
@@ -106,6 +104,13 @@ describe("deleteUserAccount", () => {
   test("does not allow an admin to delete the signed-in account", async () => {
     await expect(deleteUserAccount({ uid: "admin-1" } as never, "admin-1"))
       .rejects.toThrow("USER_SELF_DELETE_NOT_ALLOWED");
+    expect(mocks.runTransaction).not.toHaveBeenCalled();
+  });
+
+  test("does not delete an account that is still assigned", async () => {
+    mocks.assertDeletionAllowed.mockRejectedValueOnce(new Error("DELETION_BLOCKED"));
+    await expect(deleteUserAccount({ uid: "admin-1" } as never, "teacher-1"))
+      .rejects.toThrow("DELETION_BLOCKED");
     expect(mocks.runTransaction).not.toHaveBeenCalled();
   });
 });

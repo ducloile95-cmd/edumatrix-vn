@@ -1,23 +1,28 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Plus, X } from "lucide-react";
-import { listCourses, setCourseStatus } from "@/services/firestore/courses";
+import { Plus, Trash2, X } from "lucide-react";
+import { deleteCourse, listCourses, setCourseStatus } from "@/services/firestore/courses";
 import { listSubjects } from "@/services/firestore/subjects";
 import { formatVnd } from "@/utils/currency";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { EmptyState } from "@/components/feedback/EmptyState";
+import { DeletionPreflightPanel } from "@/components/feedback/DeletionPreflightPanel";
+import { useDeletionPreflight } from "@/hooks/useDeletionPreflight";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { FilterField, FilterSelect } from "@/components/ui/FilterToolbar";
 import { Pagination } from "@/components/ui/Pagination";
+import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
 import { DataListPanel, DATA_LIST_FOOTER, DATA_LIST_SCROLL } from "@/components/ui/dataListLayout";
 import { usePagination } from "@/hooks/usePagination";
 import type { CourseDoc, CourseStatus } from "@/types/academic";
 
 interface CoursesListProps {
   canManage?: boolean;
+  canDelete?: boolean;
   onEdit: (course: CourseDoc & { id: string }) => void;
   onAdd: () => void;
   /** Mon hoc dang loc, dieu khien tu panel Mon hoc ben canh (gop thong tin 2 nhanh). */
@@ -43,9 +48,10 @@ const STATUS_FILTERS: { value: CourseStatus | "all"; label: string }[] = [
 ];
 
 /** Chieu cao co dinh, khoa cung SubjectsList de 2 bang luon bang nhau (khong lech do so dong khac nhau). */
-export function CoursesList({ canManage = true, onEdit, onAdd, subjectFilter, onClearSubjectFilter }: CoursesListProps) {
+export function CoursesList({ canManage = true, canDelete = canManage, onEdit, onAdd, subjectFilter, onClearSubjectFilter }: CoursesListProps) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<CourseStatus | "all">("all");
+  const [deletingCourse, setDeletingCourse] = useState<(CourseDoc & { id: string }) | null>(null);
   const queryClient = useQueryClient();
 
   const { data: courses, isLoading, isError, refetch } = useQuery({
@@ -55,6 +61,7 @@ export function CoursesList({ canManage = true, onEdit, onAdd, subjectFilter, on
   // Tai dung listSubjects() (cung queryKey voi CourseForm/SubjectsList) de hien chip ten mon
   // thay vi ID tho, khong phat sinh loai truy van Firestore moi.
   const subjectsQuery = useQuery({ queryKey: ["subjects"], queryFn: listSubjects, staleTime: 60_000 });
+  const deletePreflight = useDeletionPreflight("course", deletingCourse?.id ?? null);
   const subjectById = useMemo(
     () => new Map((subjectsQuery.data ?? []).map((s) => [s.id, s])),
     [subjectsQuery.data],
@@ -65,6 +72,18 @@ export function CoursesList({ canManage = true, onEdit, onAdd, subjectFilter, on
     mutationFn: ({ id, status }: { id: string; status: CourseStatus }) => setCourseStatus(id, status),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["courses"] }),
   });
+  const deleteMutation = useMutation({
+    mutationFn: deleteCourse,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["courses"] });
+      setDeletingCourse(null);
+    },
+  });
+  const closeDeleteDialog = () => {
+    if (deleteMutation.isPending) return;
+    setDeletingCourse(null);
+    deleteMutation.reset();
+  };
 
   const filtered = useMemo(() => {
     if (!courses) return [];
@@ -81,6 +100,7 @@ export function CoursesList({ canManage = true, onEdit, onAdd, subjectFilter, on
   const hasRows = !isLoading && !isError && filtered.length > 0;
 
   return (
+    <>
     <DataListPanel className="rounded-card border border-neutral-200 bg-neutral-0">
       <div className="shrink-0 border-b border-neutral-200 px-4 py-4 sm:px-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -233,13 +253,21 @@ export function CoursesList({ canManage = true, onEdit, onAdd, subjectFilter, on
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      {canManage && <button
-                        type="button"
-                        onClick={() => onEdit(course)}
-                        className="min-h-touch rounded-input border border-neutral-300 px-3 text-xs font-medium text-neutral-600 hover:bg-neutral-50"
-                      >
-                        Sửa
-                      </button>}
+                      {(canManage || canDelete) && <div className="flex justify-end gap-1.5">{canManage && <button
+                          type="button"
+                          onClick={() => onEdit(course)}
+                          className="min-h-touch rounded-input border border-neutral-300 px-3 text-xs font-medium text-neutral-600 hover:bg-neutral-50"
+                        >
+                          Sửa
+                        </button>}{canDelete && <button
+                          type="button"
+                          onClick={() => { deleteMutation.reset(); setDeletingCourse(course); }}
+                          className="grid min-h-touch min-w-touch place-items-center rounded-input border border-danger-200 text-danger-700 transition hover:bg-danger-50"
+                          aria-label={`Xóa vĩnh viễn khóa học ${course.name}`}
+                          title="Xóa vĩnh viễn khóa học"
+                        >
+                          <Trash2 size={15} aria-hidden="true" />
+                        </button>}</div>}
                     </td>
                   </tr>
                 );
@@ -261,5 +289,26 @@ export function CoursesList({ canManage = true, onEdit, onAdd, subjectFilter, on
         </div>
       )}
     </DataListPanel>
+    <Modal
+      open={Boolean(deletingCourse)}
+      onClose={closeDeleteDialog}
+      size="sm"
+      title="Xóa vĩnh viễn khóa học?"
+      description={deletingCourse ? `Khóa học "${deletingCourse.name}" sẽ bị xóa trực tiếp khỏi database. Hành động này không thể hoàn tác.` : undefined}
+    >
+      {deleteMutation.isError && <p role="alert" className="mb-4 rounded-input bg-danger-50 px-3 py-2 text-sm font-semibold text-danger-700">
+        {deleteMutation.error instanceof Error && deleteMutation.error.message === "DELETION_BLOCKED"
+          ? "Dữ liệu liên quan vừa thay đổi. Hệ thống đã dừng thao tác xóa."
+          : deleteMutation.error instanceof Error && deleteMutation.error.message === "COURSE_NOT_FOUND"
+            ? "Khóa học không còn tồn tại. Hãy tải lại danh sách."
+            : "Không thể xóa khóa học. Kiểm tra quyền truy cập và thử lại."}
+      </p>}
+      <DeletionPreflightPanel loading={deletePreflight.isFetching} error={deletePreflight.isError} report={deletePreflight.data} />
+      <div className="mt-4 flex justify-end gap-2">
+        <Button variant="secondary" disabled={deleteMutation.isPending} onClick={closeDeleteDialog}>Giữ khóa học</Button>
+        <Button variant="danger" disabled={!deletePreflight.data?.allowed || deletePreflight.isFetching} loading={deleteMutation.isPending} loadingLabel="Đang xóa khóa học" onClick={() => deletingCourse && deleteMutation.mutate(deletingCourse.id)}>Xóa vĩnh viễn</Button>
+      </div>
+    </Modal>
+    </>
   );
 }

@@ -23,6 +23,7 @@ const serviceMocks = vi.hoisted(() => ({
   listPayments: vi.fn(),
   listStudents: vi.fn(),
   listSubjects: vi.fn(),
+  listAttendanceByClass: vi.fn(),
   reconcilePayment: vi.fn(),
 }));
 
@@ -80,13 +81,17 @@ vi.mock("@/services/firestore/billingItems", () => ({
   listBillingItems: serviceMocks.listBillingItems,
 }));
 
+vi.mock("@/services/firestore/attendance", () => ({
+  listAttendanceByClass: serviceMocks.listAttendanceByClass,
+}));
+
 async function openAndFillInvoiceForm() {
   fireEvent.click(
     await screen.findByRole("button", { name: "Tạo hóa đơn" }),
   );
   await screen.findByText("Lớp A1");
   fireEvent.click(screen.getByRole("button", { name: "Chọn lớp học Lớp A1" }));
-  fireEvent.click(screen.getByLabelText(/Nguyễn An/));
+  fireEvent.click(await screen.findByLabelText(/Nguyễn An/));
   fireEvent.change(screen.getByLabelText(/Hạn thanh toán/), {
     target: { value: "2026-08-15" },
   });
@@ -102,6 +107,11 @@ describe("InvoicesPage", () => {
       { id: "student-1", fullName: "Nguyễn An" },
     ]);
     serviceMocks.listInvoices.mockResolvedValue([]);
+    serviceMocks.listAttendanceByClass.mockResolvedValue([
+      { id: "session-1_student-1", classId: "class-1", sessionId: "session-1", studentId: "student-1", status: "present" },
+      { id: "session-2_student-1", classId: "class-1", sessionId: "session-2", studentId: "student-1", status: "late" },
+      { id: "session-3_student-1", classId: "class-1", sessionId: "session-3", studentId: "student-1", status: "absent" },
+    ]);
     serviceMocks.listPayments.mockResolvedValue([]);
     serviceMocks.listClasses.mockResolvedValue([
       { id: "class-1", name: "Lớp A1", courseId: "course-1", subjectIds: ["subject-1"], studentIds: ["student-1"], status: "active" },
@@ -141,7 +151,7 @@ describe("InvoicesPage", () => {
     renderWithQueryClient(<InvoicesPage />);
     await openAndFillInvoiceForm();
 
-    expect(screen.getAllByText("100.000 đ").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("200.000 đ").length).toBeGreaterThan(0);
     fireEvent.click(
       screen.getByRole("button", { name: "Tạo 1 hóa đơn" }),
     );
@@ -151,7 +161,8 @@ describe("InvoicesPage", () => {
         expect.objectContaining({
           studentId: "student-1",
           courseId: "course-1",
-          amount: 100_000,
+          amount: 200_000,
+          quantity: 2,
           sourceType: "class",
           sourceId: "class-1",
           actorUid: "admin-1",
@@ -203,6 +214,41 @@ describe("InvoicesPage", () => {
         }),
       ]);
     });
+  });
+
+  test("does not charge absent or excused attendance", async () => {
+    serviceMocks.listAttendanceByClass.mockResolvedValue([
+      { id: "session-1_student-1", classId: "class-1", sessionId: "session-1", studentId: "student-1", status: "absent" },
+      { id: "session-2_student-1", classId: "class-1", sessionId: "session-2", studentId: "student-1", status: "excused" },
+    ]);
+    renderWithQueryClient(<InvoicesPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Tạo hóa đơn" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Chọn lớp học Lớp A1" }));
+
+    const student = await screen.findByLabelText(/Nguyễn An/);
+    expect(student).toHaveProperty("disabled", true);
+    const submit = screen.getAllByRole("button", { name: "Tạo hóa đơn" }).find((button) => button.getAttribute("type") === "submit");
+    expect(submit).toHaveProperty("disabled", true);
+  });
+
+  test("subtracts sessions already included in earlier class invoices", async () => {
+    serviceMocks.listInvoices.mockResolvedValue([{
+      id: "invoice-old",
+      studentId: "student-1",
+      sourceType: "class",
+      sourceId: "class-1",
+      status: "paid",
+      quantity: 1,
+      amount: 100_000,
+      dueAt: { toDate: () => new Date("2026-08-15") },
+    }]);
+    renderWithQueryClient(<InvoicesPage />);
+    await openAndFillInvoiceForm();
+    fireEvent.click(screen.getByRole("button", { name: "Tạo 1 hóa đơn" }));
+
+    await waitFor(() => expect(serviceMocks.createInvoices).toHaveBeenCalledWith([
+      expect.objectContaining({ studentId: "student-1", amount: 100_000, quantity: 1 }),
+    ]));
   });
 
   test("exposes invoice creation and reconciliation to a teacher", async () => {

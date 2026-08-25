@@ -19,6 +19,7 @@ import { COLLECTIONS } from "@/constants/collections";
 import type { ClassDoc, CourseDoc, CourseStatus, SubjectDoc } from "@/types/academic";
 import type { UserDoc } from "@/types/user";
 import { listAllQueryDocuments } from "@/services/firestore/pagination";
+import { assertDeletionAllowed } from "@/services/firestore/deletionDependencies";
 
 export interface CreateCourseInput {
   name: string;
@@ -188,6 +189,22 @@ export async function setCourseStatus(courseId: string, status: CourseStatus): P
       throw new Error("COURSE_HAS_ACTIVE_CLASSES");
     }
     transaction.update(courseRef, { status, updatedAt: serverTimestamp() });
+  }));
+}
+
+/** Xoa cung khoa hoc chi khi khong con bat ky du lieu nghiep vu nao tham chieu. */
+export async function deleteCourse(courseId: string): Promise<void> {
+  await assertDeletionAllowed("course", courseId);
+  await runWithStableCourseClasses(courseId, false, async ({ revision, documents }) => runTransaction(db, async (transaction) => {
+    const courseRef = doc(db, COLLECTIONS.COURSES, courseId);
+    const [courseSnap, ...classSnaps] = await Promise.all([
+      transaction.get(courseRef),
+      ...documents.map((classSnap) => transaction.get(classSnap.ref)),
+    ]);
+    if (!courseSnap.exists()) throw new Error("COURSE_NOT_FOUND");
+    if (courseClassRevision(courseSnap.data() as CourseDoc) !== revision) throw new Error(COURSE_CLASS_REVISION_CHANGED);
+    if (classSnaps.some((classSnap) => classSnap.exists())) throw new Error("DELETION_BLOCKED");
+    transaction.delete(courseRef);
   }));
 }
 

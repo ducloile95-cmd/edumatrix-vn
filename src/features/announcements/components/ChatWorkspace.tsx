@@ -47,13 +47,14 @@ const MESSAGE_TOPICS: Array<{ value: MessageTopic; label: string }> = [
   { value: "general_notice", label: "Thông báo tổng" },
   { value: "tuition_reminder", label: "Nhắc học phí" },
 ];
-export function UtilityTemplatesModal({ open, onClose, role }: { open: boolean; onClose: () => void; role: StaffRole }) {
+export function UtilityTemplatesModal({ open, onClose, onUseTemplate, role, configured }: { open: boolean; onClose: () => void; onUseTemplate: (templateKey: UtilityTemplateKey) => void; role: StaffRole; configured: boolean }) {
   const enabled = utilityMessagingEnabled();
+  const canSend = enabled && configured;
   const templates = useMemo(
     () => UTILITY_TEMPLATES.filter((template) => role === "admin" || template.teacherAllowed),
     [role],
   );
-  const [selectedKey, setSelectedKey] = useState<string>(templates[0]?.key ?? "");
+  const [selectedKey, setSelectedKey] = useState<UtilityTemplateKey | null>(templates[0]?.key ?? null);
   const selected = templates.find((template) => template.key === selectedKey) ?? templates[0];
 
   return (
@@ -71,7 +72,7 @@ export function UtilityTemplatesModal({ open, onClose, role }: { open: boolean; 
           <section className="flex min-w-0 flex-col rounded-card border border-neutral-200 bg-neutral-0 p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div><p className="text-xs font-semibold text-primary-700">UTILITY TEMPLATE</p><h3 className="mt-1 text-lg font-bold text-neutral-900">{selected.label}</h3><p className="mt-1 font-mono text-xs text-neutral-400">{selected.key}</p></div>
-              <StatusBadge tone={enabled ? "success" : "warning"}>{enabled ? "Đã kích hoạt" : "Chờ Meta phê duyệt"}</StatusBadge>
+              <StatusBadge tone={canSend ? "success" : "warning"}>{canSend ? "Đã kích hoạt" : !configured ? "Chưa kết nối Messenger" : "Chờ Meta phê duyệt"}</StatusBadge>
             </div>
             <div className={`mt-5 rounded-input border p-4 text-sm leading-6 ${enabled ? "border-primary-200 bg-primary-50 text-primary-700" : "border-warning-200 bg-warning-50 text-warning-900"}`}>
               <b>{enabled ? "Gửi từ màn hình \"Nhắn mới\"." : "Chưa thể gửi trên production."}</b>
@@ -82,7 +83,7 @@ export function UtilityTemplatesModal({ open, onClose, role }: { open: boolean; 
               <div className="rounded-input bg-neutral-50 p-3"><dt className="text-xs text-neutral-400">Ngôn ngữ</dt><dd className="mt-1 text-sm font-semibold text-neutral-800">Tiếng Việt</dd></div>
             </dl>
             <div className="mt-auto flex items-center justify-between gap-3 border-t border-neutral-200 pt-5">
-              <Button type="button" variant="primary" disabled icon={<Send size={15} />}>Gửi mẫu</Button>
+              <Button type="button" variant="primary" disabled={!canSend || !selected} title={!configured ? "Chưa cấu hình kết nối Messenger" : !enabled ? "Utility Messaging chưa được kích hoạt" : undefined} icon={<Send size={15} />} onClick={() => selectedKey && onUseTemplate(selectedKey)}>Gửi mẫu</Button>
             </div>
           </section>
         )}
@@ -147,7 +148,7 @@ function ConversationTagManager({ open, tags, onClose, onCreate, onDelete }: { o
 }
 
 /** Nut copy 1 link vao clipboard, doi label sang "Da copy" tam thoi de xac nhan - dung chung cho link moi lien ket Messenger. */
-function NewConversationPicker({ open, onClose, configured, onSent }: { open: boolean; onClose: () => void; configured: boolean; onSent: (studentId: string) => void }) {
+function NewConversationPicker({ open, onClose, configured, initialTemplateKey, onSent }: { open: boolean; onClose: () => void; configured: boolean; initialTemplateKey?: UtilityTemplateKey | null; onSent: (studentId: string) => void }) {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<{ id: string; fullName: string; studentCode: string; parentUids: string[] } | null>(null);
   const [draft, setDraft] = useState("");
@@ -208,6 +209,13 @@ function NewConversationPicker({ open, onClose, configured, onSent }: { open: bo
     const student = students.data[0];
     setSelected({ id: student.id, fullName: student.fullName, studentCode: student.studentCode, parentUids: student.parentUids });
   }, [open, selected, students.data]);
+
+  useEffect(() => {
+    if (!open || !initialTemplateKey) return;
+    setDeliveryMode("utility");
+    setTemplateKey(initialTemplateKey);
+    setParameters({});
+  }, [initialTemplateKey, open]);
 
   // Che do utility khong co o nhap noi dung, dieu kien du la moi tham so cua mau.
   const readyToSend = !!selected && configured && (isUtility ? utilityEnabled && !missingParameters.length : !!draft.trim());
@@ -367,13 +375,15 @@ function NewConversationPicker({ open, onClose, configured, onSent }: { open: bo
   );
 }
 
-export function Conversations({ threads, configured, initialPickerOpen = false, role, uid, onOpenTemplates }: { threads: Thread[]; configured: boolean; initialPickerOpen?: boolean; role: StaffRole; uid: string; onOpenTemplates: () => void }) {
+export function Conversations({ threads, configured, initialPickerOpen = false, role, uid }: { threads: Thread[]; configured: boolean; initialPickerOpen?: boolean; role: StaffRole; uid: string }) {
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState(threads[0]?.id ?? "");
   const [mobileThreadOpen, setMobileThreadOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<ConversationFilter>("all");
   const [pickerOpen, setPickerOpen] = useState(initialPickerOpen);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [composeTemplateKey, setComposeTemplateKey] = useState<UtilityTemplateKey | null>(null);
   const [pendingStudentId, setPendingStudentId] = useState<string | null>(null);
   const [tagManagerOpen, setTagManagerOpen] = useState(false);
   const tagsQuery = useQuery({ queryKey: queryKeys.chatTags(), queryFn: listChatTags });
@@ -416,6 +426,10 @@ export function Conversations({ threads, configured, initialPickerOpen = false, 
   }, [threads, selectedId]);
 
   useEffect(() => {
+    if (composeTemplateKey) setPickerOpen(true);
+  }, [composeTemplateKey]);
+
+  useEffect(() => {
     if (!pendingStudentId) return;
     const match = threads.find((thread) => thread.studentId === pendingStudentId);
     if (match) {
@@ -442,7 +456,7 @@ export function Conversations({ threads, configured, initialPickerOpen = false, 
           <div className="mb-3 flex items-center justify-between gap-3">
             <h1 className="text-xl font-semibold leading-7 tracking-[-.015em] text-neutral-900">Đoạn chat</h1>
             <div className="flex items-center gap-1.5">
-              <button type="button" onClick={onOpenTemplates} aria-label="Mẫu tiện ích" className="flex size-9 items-center justify-center rounded-card bg-neutral-100 text-neutral-600 transition-colors hover:bg-neutral-200 active:scale-[.98]"><Star size={16} /></button>
+              <button type="button" onClick={() => setTemplatesOpen(true)} aria-label="Mẫu tiện ích" className="flex size-9 items-center justify-center rounded-card bg-neutral-100 text-neutral-600 transition-colors hover:bg-neutral-200 active:scale-[.98]"><Star size={16} /></button>
               <button type="button" onClick={() => setPickerOpen(true)} aria-label="Nhắn mới" className="flex size-9 items-center justify-center rounded-card bg-primary-50 text-primary-700 transition-colors hover:bg-primary-100 active:scale-[.98]"><Plus size={17} /></button>
             </div>
           </div>
@@ -473,7 +487,8 @@ export function Conversations({ threads, configured, initialPickerOpen = false, 
         )}
       </div>
       <aside className="hidden min-h-0 overflow-y-auto border-l border-neutral-200 bg-neutral-0 p-5 xl:block">{selected ? <ConversationContext thread={selected} parent={parentFor(selected)} tags={assignedTagsFor(selected)} onRemoveTag={(tagId) => { const tag = tagCatalog.find((item) => item.id === tagId); if (tag) toggleTag(selected, tag); }} onManageTags={role === "admin" ? () => setTagManagerOpen(true) : undefined} /> : null}</aside>
-      <NewConversationPicker open={pickerOpen} onClose={() => setPickerOpen(false)} configured={configured} onSent={setPendingStudentId} />
+      <NewConversationPicker open={pickerOpen || Boolean(composeTemplateKey)} onClose={() => { setPickerOpen(false); setComposeTemplateKey(null); }} configured={configured} initialTemplateKey={composeTemplateKey} onSent={setPendingStudentId} />
+      <UtilityTemplatesModal open={templatesOpen && !composeTemplateKey} configured={configured} onClose={() => setTemplatesOpen(false)} onUseTemplate={(templateKey) => { setComposeTemplateKey(templateKey); setPickerOpen(true); setTemplatesOpen(false); }} role={role} />
       {role === "admin" && <ConversationTagManager open={tagManagerOpen} tags={tagCatalog} onClose={() => setTagManagerOpen(false)} onCreate={(label, color) => createTag.mutateAsync({ label, color }).then(() => undefined)} onDelete={(tagId) => removeCatalogTag.mutateAsync(tagId).then(() => undefined)} />}
     </div>
   );

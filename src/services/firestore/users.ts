@@ -22,6 +22,7 @@ import { getCurrentUserDoc, isAdminUser, isTeacherUser } from "@/services/firest
 import type { InviteDoc, UserDoc, UserRole, UserStatus } from "@/types/user";
 import type { StudentDoc } from "@/types/academic";
 import { decodeUserDoc } from "@/services/firestore/decoders";
+import { assertDeletionAllowed } from "@/services/firestore/deletionDependencies";
 import { listAllQueryDocuments } from "@/services/firestore/pagination";
 
 export type ClaimFailureReason = "email_not_verified" | "no_invite" | "error";
@@ -191,6 +192,7 @@ export async function updateUserAccount(actor: User, uid: string, input: UpdateU
 
 export async function deleteUserAccount(actor: User, uid: string): Promise<void> {
   if (actor.uid === uid) throw new Error("USER_SELF_DELETE_NOT_ALLOWED");
+  await assertDeletionAllowed("user", uid);
 
   const deletedUser = await runTransaction(db, async (transaction) => {
     const userRef = doc(db, COLLECTIONS.USERS, uid);
@@ -198,17 +200,6 @@ export async function deleteUserAccount(actor: User, uid: string): Promise<void>
     if (!userSnap.exists()) throw new Error("USER_NOT_FOUND");
     const currentUser = userSnap.data() as UserDoc;
 
-    const studentSnaps = await Promise.all(
-      currentUser.studentIds.map((studentId) => transaction.get(doc(db, COLLECTIONS.STUDENTS, studentId))),
-    );
-    studentSnaps.forEach((studentSnap) => {
-      if (!studentSnap.exists()) return;
-      const student = studentSnap.data() as StudentDoc;
-      transaction.update(studentSnap.ref, {
-        parentUids: student.parentUids.filter((parentUid) => parentUid !== uid),
-        updatedAt: serverTimestamp(),
-      });
-    });
     transaction.delete(userRef);
     return currentUser;
   });

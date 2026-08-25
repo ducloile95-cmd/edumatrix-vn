@@ -28,6 +28,7 @@ import type { UserDoc } from "@/types/user";
 import type { ParentProfileInput } from "@/services/firestore/users";
 import { decodeStudentDoc } from "@/services/firestore/decoders";
 import { queueUtilityDeliveryEvent } from "@/services/firestore/messengerDelivery";
+import { assertDeletionAllowed } from "@/services/firestore/deletionDependencies";
 
 export interface CreateStudentInput {
   studentCode: string;
@@ -48,6 +49,14 @@ export interface UpdateStudentInput {
   nickname?: string;
   dateOfBirth: string;
   staffNote?: string;
+}
+
+export interface UpdateStudentWithRelationsInput extends UpdateStudentInput {
+  actorUid: string;
+  classIds?: string[];
+  parentEmail?: string;
+  primaryParentUid?: string;
+  parentProfile?: ParentProfileInput;
 }
 
 /** ID = ma hoc sinh chuan hoa (A13) - khong query kiem tra ton tai truoc. */
@@ -147,46 +156,193 @@ export async function updateStudent(studentDocId: string, input: UpdateStudentIn
   });
 }
 
+/** Cap nhat ho so, lop/ghi danh va phu huynh trong cung mot transaction. */
+export async function updateStudentWithRelations(
+  studentDocId: string,
+  input: UpdateStudentWithRelationsInput,
+): Promise<void> {
+  const parentEmail = input.parentEmail ? normalizeEmail(input.parentEmail) : "";
+  const parentQuery = parentEmail
+    ? await getDocs(query(collection(db, COLLECTIONS.USERS), where("email", "==", parentEmail), limit(1)))
+    : null;
+  if (parentEmail && parentQuery?.empty) throw new Error("PARENT_NOT_FOUND");
+  const nextParentRef = parentQuery?.docs[0]?.ref ?? null;
+
+  await runTransaction(db, async (transaction) => {
+    const studentRef = doc(db, COLLECTIONS.STUDENTS, studentDocId);
+    const studentSnap = await transaction.get(studentRef);
+    if (!studentSnap.exists()) throw new Error("STUDENT_NOT_FOUND");
+    const student = studentSnap.data() as StudentDoc;
+
+    const nextClassIds = input.classIds === undefined
+      ? student.currentClassIds
+      : [...new Set(input.classIds)].filter(Boolean).sort();
+    const allClassIds = [...new Set([...student.currentClassIds, ...nextClassIds])];
+    const changedClassIds = input.classIds === undefined
+      ? []
+      : allClassIds.filter((classId) => (
+        student.currentClassIds.includes(classId) !== nextClassIds.includes(classId)
+      ));
+    const classRefs = allClassIds.map((classId) => doc(db, COLLECTIONS.CLASSES, classId));
+    const enrollmentRefs = changedClassIds.map((classId) => (
+      doc(db, COLLECTIONS.ENROLLMENTS, `${classId}_${studentDocId}`)
+    ));
+    const currentParentRef = input.primaryParentUid
+      ? doc(db, COLLECTIONS.USERS, input.primaryParentUid)
+      : null;
+    const [classSnaps, enrollmentSnaps, currentParentSnap, nextParentSnap] = await Promise.all([
+      Promise.all(classRefs.map((classRef) => transaction.get(classRef))),
+      Promise.all(enrollmentRefs.map((enrollmentRef) => transaction.get(enrollmentRef))),
+      currentParentRef ? transaction.get(currentParentRef) : Promise.resolve(null),
+      nextParentRef ? transaction.get(nextParentRef) : Promise.resolve(null),
+    ]);
+    const classById = new Map(
+      classSnaps.filter((snap) => snap.exists()).map((snap) => [snap.id, snap.data() as ClassDoc]),
+    );
+    if (nextClassIds.some((classId) => !classById.has(classId))) throw new Error("CLASS_NOT_FOUND");
+    if (nextClassIds.some((classId) => classById.get(classId)?.status !== "active")) {
+      throw new Error("CLASS_NOT_ACTIVE");
+    }
+    if (student.status !== "active" && nextClassIds.length > 0) throw new Error("STUDENT_NOT_ACTIVE");
+
+    const nextParent = nextParentSnap?.exists() ? nextParentSnap.data() as UserDoc : null;
+    if (nextParentRef && !nextParent) throw new Error("PARENT_NOT_FOUND");
+    if (nextParent && nextParent.role !== "viewer") throw new Error("PARENT_NOT_VIEWER");
+    if (nextParent && nextParent.status !== "active") throw new Error("PARENT_NOT_ACTIVE");
+    if (nextParent && normalizeEmail(nextParent.email) !== parentEmail) throw new Error("PARENT_EMAIL_CHANGED");
+
+    const enrollmentByClassId = new Map(
+      enrollmentSnaps.map((snap, index) => [changedClassIds[index], snap]),
+    );
+    const addedClassIds = changedClassIds.filter((classId) => nextClassIds.includes(classId));
+    const removedClassIds = changedClassIds.filter((classId) => !nextClassIds.includes(classId));
+
+    addedClassIds.forEach((classId) => {
+      const klass = classById.get(classId)!;
+      const enrollmentRef = doc(db, COLLECTIONS.ENROLLMENTS, `${classId}_${studentDocId}`);
+      const enrollmentSnap = enrollmentByClassId.get(classId);
+      const enrollment = enrollmentSnap?.exists() ? enrollmentSnap.data() : null;
+      const version = enrollment ? Number(enrollment.version ?? 0) + 1 : 1;
+      if (enrollment) {
+        transaction.update(enrollmentRef, { status: "active", endedAt: null, version, updatedAt: serverTimestamp() });
+      } else {
+        transaction.set(enrollmentRef, {
+          classId, courseId: klass.courseId, studentId: studentDocId, status: "active",
+          joinedAt: serverTimestamp(), endedAt: null, version, updatedAt: serverTimestamp(),
+        });
+      }
+      transaction.update(doc(db, COLLECTIONS.CLASSES, classId), {
+        studentIds: arrayUnion(studentDocId), updatedAt: serverTimestamp(),
+      });
+      queueUtilityDeliveryEvent(transaction, {
+        eventType: "enrollment_completed",
+        entityId: `${classId}_${studentDocId}`,
+        sourceId: `${classId}_${studentDocId}`,
+        studentId: studentDocId,
+        version,
+        actorUid: input.actorUid,
+      });
+    });
+
+    removedClassIds.forEach((classId) => {
+      const klass = classById.get(classId);
+      const enrollmentRef = doc(db, COLLECTIONS.ENROLLMENTS, `${classId}_${studentDocId}`);
+      const enrollmentSnap = enrollmentByClassId.get(classId);
+      if (enrollmentSnap?.exists()) {
+        transaction.update(enrollmentRef, {
+          status: "ended",
+          endedAt: serverTimestamp(),
+          version: Math.max(1, Number(enrollmentSnap.data().version ?? 1)),
+          updatedAt: serverTimestamp(),
+        });
+      }
+      if (klass) {
+        transaction.update(doc(db, COLLECTIONS.CLASSES, classId), {
+          studentIds: arrayRemove(studentDocId), updatedAt: serverTimestamp(),
+        });
+      }
+    });
+
+    let parentUids = student.parentUids;
+    if (nextParentRef && nextParent) {
+      const replacingParent = input.primaryParentUid && input.primaryParentUid !== nextParentRef.id;
+      if (replacingParent && currentParentSnap?.exists()) {
+        const currentParent = currentParentSnap.data() as UserDoc;
+        transaction.update(currentParentSnap.ref, {
+          studentIds: currentParent.studentIds.filter((id) => id !== studentDocId),
+          updatedAt: serverTimestamp(),
+        });
+      }
+      parentUids = replacingParent
+        ? [...new Set(student.parentUids.filter((uid) => uid !== input.primaryParentUid).concat(nextParentRef.id))]
+        : [...new Set([...student.parentUids, nextParentRef.id])];
+      const profile = input.parentProfile;
+      transaction.update(nextParentRef, {
+        studentIds: [...new Set([...nextParent.studentIds, studentDocId])],
+        ...(profile?.displayName !== undefined ? { displayName: profile.displayName } : {}),
+        ...(profile?.address !== undefined ? { address: profile.address } : {}),
+        ...(profile?.phone !== undefined ? { phone: profile.phone } : {}),
+        ...(profile?.facebookUrl !== undefined ? { facebookUrl: profile.facebookUrl } : {}),
+        updatedAt: serverTimestamp(),
+      });
+    }
+
+    const teacherIds = input.classIds === undefined
+      ? student.teacherIds
+      : [...new Set(nextClassIds.flatMap((classId) => classById.get(classId)?.teacherIds ?? []))].sort();
+    transaction.update(studentRef, {
+      fullName: input.fullName,
+      dateOfBirth: input.dateOfBirth,
+      ...(input.nickname !== undefined ? { nickname: input.nickname } : {}),
+      ...(input.staffNote !== undefined ? { staffNote: input.staffNote } : {}),
+      ...(input.classIds !== undefined ? { currentClassIds: nextClassIds, teacherIds } : {}),
+      ...(nextParentRef ? { parentUids } : {}),
+      updatedAt: serverTimestamp(),
+    });
+  });
+}
+
 export async function setStudentStatus(studentDocId: string, status: StudentStatus): Promise<void> {
   await runTransaction(db, async (transaction) => {
     const studentRef = doc(db, COLLECTIONS.STUDENTS, studentDocId);
     const studentSnap = await transaction.get(studentRef);
     if (!studentSnap.exists()) throw new Error("STUDENT_NOT_FOUND");
     const student = studentSnap.data() as StudentDoc;
-    if (status === "inactive" && student.currentClassIds.length > 0) throw new Error("STUDENT_HAS_ACTIVE_CLASSES");
+    if (status === "inactive") {
+      const classRefs = student.currentClassIds.map((classId) => doc(db, COLLECTIONS.CLASSES, classId));
+      const enrollmentRefs = student.currentClassIds.map((classId) => (
+        doc(db, COLLECTIONS.ENROLLMENTS, `${classId}_${studentDocId}`)
+      ));
+      const [classSnaps, enrollmentSnaps] = await Promise.all([
+        Promise.all(classRefs.map((classRef) => transaction.get(classRef))),
+        Promise.all(enrollmentRefs.map((enrollmentRef) => transaction.get(enrollmentRef))),
+      ]);
+      if (enrollmentSnaps.some((enrollmentSnap, index) => (
+        enrollmentSnap.exists() && enrollmentSnap.data().status === "active" && classSnaps[index].exists()
+      ))) {
+        throw new Error("STUDENT_HAS_ACTIVE_CLASSES");
+      }
+      classSnaps.forEach((classSnap) => {
+        if (classSnap.exists()) transaction.update(classSnap.ref, {
+          studentIds: arrayRemove(studentDocId),
+          updatedAt: serverTimestamp(),
+        });
+      });
+    }
     transaction.update(studentRef, {
       status,
-      ...(status === "inactive" ? { teacherIds: [] } : {}),
+      ...(status === "inactive" ? { currentClassIds: [], teacherIds: [] } : {}),
       updatedAt: serverTimestamp(),
     });
   });
 }
 
 export async function deleteStudent(studentDocId: string): Promise<void> {
+  await assertDeletionAllowed("student", studentDocId);
   await runTransaction(db, async (transaction) => {
     const studentRef = doc(db, COLLECTIONS.STUDENTS, studentDocId);
     const studentSnap = await transaction.get(studentRef);
     if (!studentSnap.exists()) throw new Error("STUDENT_NOT_FOUND");
-    const student = studentSnap.data() as StudentDoc;
-
-    const parentRefs = student.parentUids.map((uid) => doc(db, COLLECTIONS.USERS, uid));
-    const classRefs = student.currentClassIds.map((classId) => doc(db, COLLECTIONS.CLASSES, classId));
-    const enrollmentRefs = student.currentClassIds.map((classId) => doc(db, COLLECTIONS.ENROLLMENTS, `${classId}_${studentDocId}`));
-    const [parentSnaps, classSnaps, enrollmentSnaps] = await Promise.all([
-      Promise.all(parentRefs.map((ref) => transaction.get(ref))),
-      Promise.all(classRefs.map((ref) => transaction.get(ref))),
-      Promise.all(enrollmentRefs.map((ref) => transaction.get(ref))),
-    ]);
-
-    parentSnaps.forEach((snap, index) => {
-      if (snap.exists()) transaction.update(parentRefs[index], { studentIds: arrayRemove(studentDocId), updatedAt: serverTimestamp() });
-    });
-    classSnaps.forEach((snap, index) => {
-      if (snap.exists()) transaction.update(classRefs[index], { studentIds: arrayRemove(studentDocId), updatedAt: serverTimestamp() });
-    });
-    enrollmentSnaps.forEach((snap, index) => {
-      if (snap.exists()) transaction.delete(enrollmentRefs[index]);
-    });
     transaction.delete(studentRef);
   });
 }

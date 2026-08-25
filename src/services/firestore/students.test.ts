@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   getCurrentUserDoc: vi.fn(), getDocs: vi.fn(), runTransaction: vi.fn(),
   transactionDelete: vi.fn(), transactionGet: vi.fn(), transactionSet: vi.fn(), transactionUpdate: vi.fn(),
+  assertDeletionAllowed: vi.fn(),
 }));
 
 vi.mock("firebase/firestore", () => ({
@@ -16,11 +17,12 @@ vi.mock("firebase/firestore", () => ({
 }));
 vi.mock("@/services/firebase/firestoreClient", () => ({ db: {} }));
 vi.mock("@/services/firestore/authz", () => ({ getCurrentUserDoc: mocks.getCurrentUserDoc }));
+vi.mock("@/services/firestore/deletionDependencies", () => ({ assertDeletionAllowed: mocks.assertDeletionAllowed }));
 
-import { createStudentWithRelations, deleteStudent, listStudents, setStudentStatus } from "./students";
+import { createStudentWithRelations, deleteStudent, listStudents, setStudentStatus, updateStudentWithRelations } from "./students";
 
 function snapshot(id: string, data: Record<string, unknown> | null) {
-  return { id, exists: () => data !== null, data: () => data };
+  return { id, ref: { id, path: `documents/${id}` }, exists: () => data !== null, data: () => data };
 }
 
 describe("createStudentWithRelations", () => {
@@ -84,9 +86,68 @@ describe("createStudentWithRelations", () => {
   test("does not deactivate a student who is still enrolled", async () => {
     mocks.transactionGet.mockResolvedValueOnce(snapshot("HS001", {
       status: "active", currentClassIds: ["class-1"], teacherIds: ["teacher-1"],
-    }));
+    }))
+      .mockResolvedValueOnce(snapshot("class-1", { status: "active" }))
+      .mockResolvedValueOnce(snapshot("class-1_HS001", { status: "active" }));
 
     await expect(setStudentStatus("HS001", "inactive")).rejects.toThrow("STUDENT_HAS_ACTIVE_CLASSES");
+    expect(mocks.transactionUpdate).not.toHaveBeenCalled();
+  });
+});
+
+describe("updateStudentWithRelations", () => {
+  beforeEach(() => {
+    mocks.getDocs.mockReset().mockResolvedValue({ empty: true, docs: [] });
+    mocks.transactionDelete.mockReset(); mocks.transactionGet.mockReset(); mocks.transactionSet.mockReset(); mocks.transactionUpdate.mockReset();
+    mocks.runTransaction.mockReset().mockImplementation(async (_db, callback) => callback({
+      delete: mocks.transactionDelete, get: mocks.transactionGet, set: mocks.transactionSet, update: mocks.transactionUpdate,
+    }));
+  });
+
+  test("updates profile, classes and enrollments in one transaction", async () => {
+    mocks.transactionGet.mockImplementation(async (ref: { id: string; path: string }) => {
+      const records: Record<string, Record<string, unknown> | null> = {
+        "students/HS001": { status: "active", currentClassIds: ["class-1"], teacherIds: ["teacher-1"], parentUids: [] },
+        "classes/class-1": { courseId: "course-1", status: "active", teacherIds: ["teacher-1"] },
+        "classes/class-2": { courseId: "course-2", status: "active", teacherIds: ["teacher-2"] },
+        "enrollments/class-1_HS001": { status: "active", version: 1 },
+        "enrollments/class-2_HS001": null,
+      };
+      const data = records[ref.path];
+      return { id: ref.id, ref, exists: () => data != null, data: () => data };
+    });
+
+    await updateStudentWithRelations("HS001", {
+      actorUid: "admin-1", classIds: ["class-2"], fullName: "Updated",
+      nickname: "Bin", dateOfBirth: "2015-01-01", staffNote: "note",
+    });
+
+    expect(mocks.transactionUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ path: "students/HS001" }),
+      expect.objectContaining({ currentClassIds: ["class-2"], teacherIds: ["teacher-2"], fullName: "Updated" }),
+    );
+    expect(mocks.transactionUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ path: "classes/class-1" }),
+      expect.objectContaining({ studentIds: { remove: "HS001" } }),
+    );
+    expect(mocks.transactionSet).toHaveBeenCalledWith(
+      expect.objectContaining({ path: "enrollments/class-2_HS001" }),
+      expect.objectContaining({ status: "active", studentId: "HS001" }),
+    );
+  });
+
+  test("writes nothing when a selected class no longer exists", async () => {
+    mocks.transactionGet.mockImplementation(async (ref: { id: string; path: string }) => {
+      const data = ref.path === "students/HS001"
+        ? { status: "active", currentClassIds: [], teacherIds: [], parentUids: [] }
+        : null;
+      return { id: ref.id, ref, exists: () => data != null, data: () => data };
+    });
+
+    await expect(updateStudentWithRelations("HS001", {
+      actorUid: "admin-1", classIds: ["class-missing"], fullName: "Updated", dateOfBirth: "2015-01-01",
+    })).rejects.toThrow("CLASS_NOT_FOUND");
+    expect(mocks.transactionSet).not.toHaveBeenCalled();
     expect(mocks.transactionUpdate).not.toHaveBeenCalled();
   });
 });
@@ -112,30 +173,25 @@ describe("listStudents pagination", () => {
 
 describe("deleteStudent", () => {
   beforeEach(() => {
+    mocks.assertDeletionAllowed.mockReset().mockResolvedValue(undefined);
     mocks.transactionDelete.mockReset(); mocks.transactionGet.mockReset(); mocks.transactionUpdate.mockReset();
     mocks.runTransaction.mockReset().mockImplementation(async (_db, callback) => callback({
       delete: mocks.transactionDelete, get: mocks.transactionGet, update: mocks.transactionUpdate,
     }));
   });
 
-  test("hard deletes the student and removes active reverse links", async () => {
-    mocks.transactionGet
-      .mockResolvedValueOnce(snapshot("HS001", { parentUids: ["parent-1"], currentClassIds: ["class-1"] }))
-      .mockResolvedValueOnce(snapshot("parent-1", { studentIds: ["HS001"] }))
-      .mockResolvedValueOnce(snapshot("class-1", { studentIds: ["HS001"] }))
-      .mockResolvedValueOnce(snapshot("class-1_HS001", { status: "active" }));
+  test("hard deletes only an unreferenced student", async () => {
+    mocks.transactionGet.mockResolvedValueOnce(snapshot("HS001", { parentUids: [], currentClassIds: [] }));
 
     await deleteStudent("HS001");
 
-    expect(mocks.transactionUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ path: "users/parent-1" }),
-      expect.objectContaining({ studentIds: { remove: "HS001" } }),
-    );
-    expect(mocks.transactionUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ path: "classes/class-1" }),
-      expect.objectContaining({ studentIds: { remove: "HS001" } }),
-    );
-    expect(mocks.transactionDelete).toHaveBeenCalledWith(expect.objectContaining({ path: "enrollments/class-1_HS001" }));
+    expect(mocks.transactionUpdate).not.toHaveBeenCalled();
     expect(mocks.transactionDelete).toHaveBeenCalledWith(expect.objectContaining({ path: "students/HS001" }));
+  });
+
+  test("does not start a transaction when dependencies exist", async () => {
+    mocks.assertDeletionAllowed.mockRejectedValueOnce(new Error("DELETION_BLOCKED"));
+    await expect(deleteStudent("HS001")).rejects.toThrow("DELETION_BLOCKED");
+    expect(mocks.runTransaction).not.toHaveBeenCalled();
   });
 });

@@ -28,7 +28,7 @@ vi.mock("@/services/firestore/classes", () => ({ listClasses }));
 vi.mock("@/services/firestore/sessions", () => ({ listSessions: vi.fn() }));
 vi.mock("@/services/firestore/students", () => ({ listStudents: vi.fn() }));
 
-import { listAttendanceBySession, listAttendanceBySessionIds, listAttendanceByStudents, queueAttendanceEntryWrite, saveAttendance } from "@/services/firestore/attendance";
+import { listAttendanceByClass, listAttendanceBySession, listAttendanceBySessionIds, listAttendanceByStudents, queueAttendanceEntryWrite, saveAttendance } from "@/services/firestore/attendance";
 
 function snapshot(offset: number, count: number) {
   return {
@@ -91,6 +91,15 @@ describe("session-scoped attendance", () => {
 
     expect(where).toHaveBeenCalledWith("classId", "==", "class-1");
     expect(where).toHaveBeenCalledWith("sessionId", "==", "session-1");
+  });
+
+  test("loads class attendance with the class scope required by Teacher rules", async () => {
+    getDocs.mockResolvedValueOnce(snapshot(0, 2));
+
+    const result = await listAttendanceByClass("class-1");
+
+    expect(where).toHaveBeenCalledWith("classId", "==", "class-1");
+    expect(result).toHaveLength(2);
   });
 
   test("loads every attendance record when a session has more than 500 students", async () => {

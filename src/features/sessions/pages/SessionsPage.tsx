@@ -31,6 +31,7 @@ import { FitWeekTimetable } from "@/features/sessions/components/FitWeekTimetabl
 import { TimetableGrid, type TimetableSession } from "@/features/sessions/components/TimetableGrid";
 import { MonthGrid } from "@/features/sessions/components/MonthGrid";
 import { SessionDetailModal } from "@/features/sessions/components/SessionDetailModal";
+import { RescheduleReasonDialog, type RescheduleRequest } from "@/features/sessions/components/RescheduleReasonDialog";
 import type { SessionStatus } from "@/types/academic";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 
@@ -48,6 +49,7 @@ export default function SessionsPage() {
   const [classFilter, setClassFilter] = useState<{ id: string; name: string } | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedSession, setSelectedSession] = useState<TimetableSession | null>(null);
+  const [rescheduleRequest, setRescheduleRequest] = useState<RescheduleRequest | null>(null);
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const { firebaseUser } = useAuth();
@@ -205,6 +207,18 @@ export default function SessionsPage() {
     setTimetableView("day");
   }
 
+  function requestReschedule(session: TimetableSession, startAt: Date, endAt: Date) {
+    updateMutation.reset();
+    setRescheduleRequest({
+      sessionId: session.id,
+      className: session.className,
+      previousStartAt: session.startAt.toDate(),
+      previousEndAt: session.endAt.toDate(),
+      startAt,
+      endAt,
+    });
+  }
+
   const periodLabel =
     timetableView === "day"
       ? format(anchor, "dd/MM/yyyy")
@@ -298,15 +312,7 @@ export default function SessionsPage() {
             today={today}
             onSessionClick={setSelectedSession}
             onSessionDrop={(session, startAt, endAt) => {
-              updateMutation.mutate({
-                id: session.id,
-                changes: {
-                  startAt,
-                  endAt,
-                  status: "rescheduled",
-                  note: "Lich hoc da duoc cap nhat bang thao tac keo tha.",
-                },
-              });
+              requestReschedule(session, startAt, endAt);
             }}
           />
         )}
@@ -327,15 +333,35 @@ export default function SessionsPage() {
         onClose={() => setSelectedSession(null)}
         isPending={updateMutation.isPending}
         onReschedule={(id, startAt, endAt) => {
-          updateMutation.mutate({
-            id,
-            changes: { startAt, endAt, status: "rescheduled", note: "Lịch học đã được cập nhật." },
-          });
-          setSelectedSession(null);
+          if (selectedSession?.id === id) requestReschedule(selectedSession, startAt, endAt);
         }}
         onStatusChange={(id, status: SessionStatus) => {
           updateMutation.mutate({ id, changes: { status } });
           setSelectedSession((prev) => (prev && prev.id === id ? { ...prev, status } : prev));
+        }}
+      />
+
+      <RescheduleReasonDialog
+        request={rescheduleRequest}
+        isPending={updateMutation.isPending}
+        isError={updateMutation.isError}
+        onCancel={() => { if (!updateMutation.isPending) setRescheduleRequest(null); }}
+        onConfirm={(reason) => {
+          if (!rescheduleRequest) return;
+          updateMutation.mutate({
+            id: rescheduleRequest.sessionId,
+            changes: {
+              startAt: rescheduleRequest.startAt,
+              endAt: rescheduleRequest.endAt,
+              status: "rescheduled",
+              note: reason,
+            },
+          }, {
+            onSuccess: () => {
+              setRescheduleRequest(null);
+              setSelectedSession(null);
+            },
+          });
         }}
       />
 

@@ -9,6 +9,7 @@ import { db } from "@/services/firebase/firestoreClient";
 import { COLLECTIONS } from "@/constants/collections";
 import type { SubjectDoc, SubjectStatus } from "@/types/academic";
 import { listAllQueryDocuments } from "@/services/firestore/pagination";
+import { assertDeletionAllowed } from "@/services/firestore/deletionDependencies";
 
 export interface CreateSubjectInput {
   name: string;
@@ -60,6 +61,18 @@ export async function setSubjectStatus(subjectDocId: string, status: SubjectStat
   await updateDoc(doc(db, COLLECTIONS.SUBJECTS, subjectDocId), {
     status,
     updatedAt: serverTimestamp(),
+  });
+}
+
+/** Xoa cung mon hoc chi khi khong con bat ky du lieu nghiep vu nao tham chieu. */
+export async function deleteSubject(subjectDocId: string): Promise<void> {
+  await assertDeletionAllowed("subject", subjectDocId);
+
+  await runTransaction(db, async (transaction) => {
+    const subjectRef = doc(db, COLLECTIONS.SUBJECTS, subjectDocId);
+    const subjectSnapshot = await transaction.get(subjectRef);
+    if (!subjectSnapshot.exists()) throw new Error("SUBJECT_NOT_FOUND");
+    transaction.delete(subjectRef);
   });
 }
 

@@ -250,13 +250,13 @@ export function ClassesList({ onDelete, onEdit, canDelete = false, canEdit = fal
                                 <Pencil size={16} aria-hidden="true" />
                               </button>
                             )}
-                            {canDelete && klass.status !== "cancelled" && (
+                            {canDelete && (
                               <button
                                 type="button"
                                 onClick={() => onDelete?.(klass)}
                                 className={`${ROW_ICON_ACTION} text-danger-600 hover:border-danger-200 hover:bg-danger-50 hover:text-danger-700`}
-                                aria-label={`Xóa lớp ${klass.name}`}
-                                title="Xóa lớp"
+                                aria-label={`Xóa vĩnh viễn lớp ${klass.name}`}
+                                title="Xóa vĩnh viễn lớp"
                               >
                                 <Trash2 size={16} aria-hidden="true" />
                               </button>

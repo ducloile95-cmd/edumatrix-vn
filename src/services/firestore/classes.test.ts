@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-const { batchCommit, batchSet, batchUpdate, getCurrentUserDoc, getDoc, getDocs, isAdminUser, isTeacherUser, runTransaction, transactionGet, transactionSet, transactionUpdate, writeBatch } = vi.hoisted(() => ({
+const { assertDeletionAllowed, batchCommit, batchSet, batchUpdate, getCurrentUserDoc, getDoc, getDocs, isAdminUser, isTeacherUser, runTransaction, transactionDelete, transactionGet, transactionSet, transactionUpdate, writeBatch } = vi.hoisted(() => ({
+  assertDeletionAllowed: vi.fn(),
   batchCommit: vi.fn(),
   batchSet: vi.fn(),
   batchUpdate: vi.fn(),
@@ -10,6 +11,7 @@ const { batchCommit, batchSet, batchUpdate, getCurrentUserDoc, getDoc, getDocs, 
   isAdminUser: vi.fn(),
   isTeacherUser: vi.fn(),
   runTransaction: vi.fn(),
+  transactionDelete: vi.fn(),
   transactionGet: vi.fn(),
   transactionSet: vi.fn(),
   transactionUpdate: vi.fn(),
@@ -34,6 +36,7 @@ vi.mock("firebase/firestore", () => ({
   writeBatch,
 }));
 vi.mock("@/services/firebase/firestoreClient", () => ({ db: {} }));
+vi.mock("@/services/firestore/deletionDependencies", () => ({ assertDeletionAllowed }));
 vi.mock("@/services/firestore/authz", () => ({
   getCurrentUserDoc,
   isAdminUser,
@@ -195,6 +198,7 @@ describe("listClasses pagination", () => {
 
 describe("deleteClass pagination", () => {
   beforeEach(() => {
+    assertDeletionAllowed.mockReset().mockResolvedValue(undefined);
     batchCommit.mockReset().mockResolvedValue(undefined);
     batchUpdate.mockReset();
     writeBatch.mockReset().mockReturnValue({ update: batchUpdate, commit: batchCommit });
@@ -203,29 +207,34 @@ describe("deleteClass pagination", () => {
       exists: () => true,
       data: () => ({ courseId: "course-1" }),
     });
+    transactionDelete.mockReset();
+    transactionUpdate.mockReset();
+    transactionGet.mockReset().mockImplementation(async (ref: string) => {
+      if (ref === "classes/class-1") return {
+        exists: () => true,
+        data: () => ({ courseId: "course-1", studentIds: [] }),
+      };
+      throw new Error(`Unexpected ref: ${ref}`);
+    });
+    runTransaction.mockReset().mockImplementation(async (_db, callback) => callback({
+      delete: transactionDelete,
+      get: transactionGet,
+      set: transactionSet,
+      update: transactionUpdate,
+    }));
   });
 
-  function page(offset: number, count: number, status = "scheduled") {
-    const docs = Array.from({ length: count }, (_, index) => ({
-      id: `session-${offset + index}`,
-      ref: `sessions/session-${offset + index}`,
-      data: () => ({ status }),
-    }));
-    return { docs, size: docs.length };
-  }
-
-  test("cancels every session across batches and can be retried idempotently", async () => {
-    getDocs.mockResolvedValueOnce(page(0, 498)).mockResolvedValueOnce(page(498, 3));
+  test("hard deletes only an unreferenced class and advances the course revision", async () => {
     await deleteClass("class-1");
-    expect(batchCommit).toHaveBeenCalledTimes(2);
-    expect(batchUpdate).toHaveBeenCalledTimes(503);
+    expect(batchCommit).not.toHaveBeenCalled();
+    expect(transactionUpdate).toHaveBeenCalledWith("courses/course-1", { classRevision: { increment: 1 } });
+    expect(transactionDelete).toHaveBeenCalledWith("classes/class-1");
+  });
 
-    batchCommit.mockClear();
-    batchUpdate.mockClear();
-    getDocs.mockResolvedValueOnce(page(0, 498, "cancelled")).mockResolvedValueOnce(page(498, 3, "cancelled"));
-    await deleteClass("class-1");
-    expect(batchCommit).toHaveBeenCalledTimes(1);
-    expect(batchUpdate).toHaveBeenCalledTimes(2);
+  test("does not mutate anything when a dependency blocks deletion", async () => {
+    assertDeletionAllowed.mockRejectedValueOnce(new Error("DELETION_BLOCKED"));
+    await expect(deleteClass("class-1")).rejects.toThrow("DELETION_BLOCKED");
+    expect(runTransaction).not.toHaveBeenCalled();
   });
 });
 

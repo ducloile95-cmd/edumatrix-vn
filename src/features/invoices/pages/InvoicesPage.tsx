@@ -96,7 +96,7 @@ export default function InvoicesPage() {
       studentId,
       courseId: values.courseId,
       title: values.title,
-      amount: values.amount,
+      amount: values.studentCharges[studentId].amount,
       dueAt: values.dueAt,
       bankBin: paymentSettings.data?.bankBin ?? "970436",
       accountNumber: paymentSettings.data?.accountNumber ?? "",
@@ -109,7 +109,7 @@ export default function InvoicesPage() {
       billingItemId: values.billingItemId,
       itemNameSnapshot: values.itemNameSnapshot,
       unitPriceSnapshot: values.unitPriceSnapshot,
-      quantity: values.quantity,
+      quantity: values.studentCharges[studentId].quantity,
     }))),
     onSuccess: () => {
       client.invalidateQueries({ queryKey: ["invoices"] });
@@ -327,6 +327,7 @@ export default function InvoicesPage() {
           courses={courses.data ?? []}
           subjects={subjects.data ?? []}
           billingItems={billingItems.data ?? []}
+          invoices={invoices.data ?? []}
           bankBin={paymentSettings.data?.bankBin ?? "970436"}
           accountNumber={paymentSettings.data?.accountNumber ?? ""}
           accountName={paymentSettings.data?.accountName ?? "EDUMATRIX"}

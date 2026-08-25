@@ -123,11 +123,11 @@ export function AppRouter() {
             <Route path={ROUTES.STAFF_CHAT} element={<ChatPage />} />
             <Route path={ROUTES.STAFF_SETTINGS} element={<SettingsPage />} />
 
-            {/* Rieng module Nguoi dung chi danh cho Admin - guard long them ben trong shell. */}
+            {/* Admin va Teacher truy cap module Nguoi dung; UI Teacher chi mo luong xoa co preflight. */}
             <Route
               path={ROUTES.STAFF_USERS}
               element={
-                <RequireRole roles={[USER_ROLES.ADMIN]} redirectTo={ROUTES.STAFF_DASHBOARD}>
+                <RequireRole roles={[USER_ROLES.ADMIN, USER_ROLES.TEACHER]} redirectTo={ROUTES.STAFF_DASHBOARD}>
                   <UsersPage />
                 </RequireRole>
               }

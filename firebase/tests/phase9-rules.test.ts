@@ -395,4 +395,10 @@ describe("Billing item integrity", () => {
       ...invoice,
       courseId: "missing-course",
     })));
+
+  test("rejects an invoice for a missing student", async () =>
+    assertFails(setDoc(doc(env.authenticatedContext("admin").firestore(), "invoices", "invoice-missing-student"), {
+      ...invoice,
+      studentId: "missing-student",
+    })));
 });

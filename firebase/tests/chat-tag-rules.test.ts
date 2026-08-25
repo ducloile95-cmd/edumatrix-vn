@@ -68,12 +68,12 @@ describe("conversation tag assignment", () => {
     await assertFails(updateDoc(doc(as(VIEWER_UID), "chat_threads", "thread-1"), { tagIds: ["tag-red"], updatedAt: serverTimestamp() }));
   });
 
-  test("a former teacher loses access even when the thread cache is stale", async () => {
+  test("a former teacher keeps preflight read but loses write access", async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await updateDoc(doc(ctx.firestore(), "students", "student-1"), { teacherIds: [] });
     });
-    await assertFails(getDoc(doc(as(TEACHER_UID), "chat_threads", "thread-1")));
-    await assertFails(getDocs(query(
+    await assertSucceeds(getDoc(doc(as(TEACHER_UID), "chat_threads", "thread-1")));
+    await assertSucceeds(getDocs(query(
       collection(as(TEACHER_UID), "chat_threads"),
       where("assignedTeacherIds", "array-contains", TEACHER_UID),
       where("studentId", "==", "student-1"),

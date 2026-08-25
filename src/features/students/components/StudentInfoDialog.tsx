@@ -3,11 +3,12 @@ import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronDown, Pencil, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { deleteStudent, linkParentToStudent, setStudentStatus, updateStudent } from "@/services/firestore/students";
-import { listUsersByIds, listUsersByRole, updateParentProfile, type ParentProfileInput } from "@/services/firestore/users";
+import { DeletionPreflightPanel } from "@/components/feedback/DeletionPreflightPanel";
+import { useDeletionPreflight } from "@/hooks/useDeletionPreflight";
+import { deleteStudent, setStudentStatus, updateStudentWithRelations } from "@/services/firestore/students";
+import { listUsersByIds, listUsersByRole, type ParentProfileInput } from "@/services/firestore/users";
 import { listClasses } from "@/services/firestore/classes";
 import { listCourses } from "@/services/firestore/courses";
-import { syncStudentEnrollments } from "@/services/firestore/enrollments";
 import type { StudentDoc, StudentStatus } from "@/types/academic";
 
 type StudentWithId = StudentDoc & { id: string };
@@ -19,12 +20,13 @@ const INPUT_CLASS = "min-h-touch w-full rounded-input border border-neutral-300 
 interface StudentInfoDialogProps {
   actorUid?: string;
   canManageLinks: boolean;
+  canDelete?: boolean;
   open: boolean;
   student: StudentWithId | null;
   onClose: () => void;
 }
 
-export function StudentInfoDialog({ actorUid = "unknown", canManageLinks, onClose, open, student }: StudentInfoDialogProps) {
+export function StudentInfoDialog({ actorUid = "unknown", canManageLinks, canDelete = canManageLinks, onClose, open, student }: StudentInfoDialogProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
   const queryClient = useQueryClient();
@@ -44,6 +46,7 @@ export function StudentInfoDialog({ actorUid = "unknown", canManageLinks, onClos
   const [selectedClassIds, setSelectedClassIds] = useState<string[]>([]);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const deletePreflight = useDeletionPreflight("student", deleteOpen ? student?.id ?? null : null);
 
   useEffect(() => {
     if (!student || !open) return;
@@ -149,30 +152,25 @@ export function StudentInfoDialog({ actorUid = "unknown", canManageLinks, onClos
   const updateMutation = useMutation({
     mutationFn: async () => {
       if (!student) return;
-      const classesChanged = selectedClassIds.length !== student.currentClassIds.length ||
-        selectedClassIds.some((classId) => !student.currentClassIds.includes(classId));
-      if (canManageLinks && classesChanged) await syncStudentEnrollments(student.id, selectedClassIds, actorUid);
-      await updateStudent(student.id, {
+      const email = parentEmail.trim();
+      await updateStudentWithRelations(student.id, {
+        actorUid,
         fullName: fullName.trim(),
         nickname: nickname.trim(),
         dateOfBirth,
         staffNote: staffNote.trim(),
+        ...(canManageLinks ? { classIds: selectedClassIds } : {}),
+        ...(canManageLinks && email ? {
+          parentEmail: email,
+          primaryParentUid: primaryParent?.uid,
+          parentProfile: getParentProfilePayload({
+            address: parentAddress,
+            displayName: parentName,
+            facebookUrl: parentFacebookUrl,
+            phone: parentPhone,
+          }),
+        } : {}),
       });
-
-      const email = parentEmail.trim();
-      const parentProfile = getParentProfilePayload({
-        address: parentAddress,
-        displayName: parentName,
-        facebookUrl: parentFacebookUrl,
-        phone: parentPhone,
-      });
-
-      if (canManageLinks && primaryParent && primaryParent.email === email) {
-        await updateParentProfile(primaryParent.uid, parentProfile);
-      } else if (canManageLinks && email) {
-        const result = await linkParentToStudent(student.id, email, parentProfile);
-        if (!result.linked) throw new Error(result.reason);
-      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["students"] });
@@ -195,9 +193,9 @@ export function StudentInfoDialog({ actorUid = "unknown", canManageLinks, onClos
       queryClient.invalidateQueries({ queryKey: ["students"] });
       setFeedback({ tone: "success", message: "Đã cập nhật trạng thái học sinh." });
     },
-    onError: () => {
+    onError: (error) => {
       if (student) setStatusDraft(student.status);
-      setFeedback({ tone: "danger", message: "Không cập nhật được trạng thái. Kiểm tra kết nối và thử lại." });
+      setFeedback({ tone: "danger", message: getStatusErrorMessage(error) });
     },
   });
 
@@ -401,7 +399,7 @@ export function StudentInfoDialog({ actorUid = "unknown", canManageLinks, onClos
             <div>
               <p className="text-sm font-semibold text-neutral-900">{isActive ? "Đang học" : "Đã nghỉ"}</p>
             </div>
-            {canManageLinks && <Button variant="danger" className="ml-1 rounded-full px-4" icon={<Trash2 size={15} strokeWidth={1.7} />} onClick={() => { deleteMutation.reset(); setDeleteConfirmation(""); setDeleteOpen(true); }}>Xóa học sinh</Button>}
+            {canDelete && <Button variant="danger" className="ml-1 rounded-full px-4" icon={<Trash2 size={15} strokeWidth={1.7} />} onClick={() => { deleteMutation.reset(); setDeleteConfirmation(""); setDeleteOpen(true); }}>Xóa học sinh</Button>}
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={onClose}>
@@ -413,7 +411,7 @@ export function StudentInfoDialog({ actorUid = "unknown", canManageLinks, onClos
           </div>
         </footer>
 
-        {deleteOpen && <div className="absolute inset-0 z-20 grid place-items-center bg-neutral-900/45 p-4" onMouseDown={(event) => event.stopPropagation()}><div role="alertdialog" aria-modal="true" aria-labelledby="delete-student-title" className="w-full max-w-lg rounded-[22px] bg-danger-100/80 p-1.5 ring-1 ring-danger-100"><div className="rounded-[17px] bg-neutral-0 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,.85),0_24px_70px_rgba(127,29,29,.18)]"><div className="flex items-start gap-3"><span className="grid size-11 shrink-0 place-items-center rounded-full bg-danger-50 text-danger-700 ring-1 ring-danger-100"><Trash2 size={19} strokeWidth={1.6} /></span><div><h3 id="delete-student-title" className="text-lg font-bold tracking-[-0.01em] text-neutral-900">Xóa vĩnh viễn học sinh?</h3><p className="mt-1 text-sm leading-6 text-neutral-600">Hồ sơ <strong className="text-neutral-900">{student.fullName}</strong> sẽ bị xóa trực tiếp khỏi database. Liên kết với Phụ huynh, lớp học và các bản ghi ghi danh sẽ được xóa; điểm, điểm danh và hóa đơn vẫn được giữ.</p></div></div><label className="mt-5 grid gap-1.5"><span className="text-xs font-bold text-neutral-700">Nhập <span className="font-mono text-danger-700">{student.studentCode}</span> để xác nhận</span><input autoFocus autoComplete="off" value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} className={`${INPUT_CLASS} font-mono uppercase tracking-[0.08em] focus:border-danger-500 focus:ring-danger-100`} /></label>{deleteMutation.isError && <p role="alert" className="mt-3 rounded-input bg-danger-50 px-3 py-2 text-sm font-semibold text-danger-700">{deleteMutation.error instanceof Error && deleteMutation.error.message === "STUDENT_NOT_FOUND" ? "Học sinh không còn tồn tại. Hãy tải lại danh sách." : "Không thể xóa học sinh. Kiểm tra quyền truy cập và thử lại."}</p>}<div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><Button variant="secondary" disabled={deleteMutation.isPending} onClick={() => setDeleteOpen(false)}>Giữ học sinh</Button><Button variant="danger" className="rounded-full px-5" icon={<Trash2 size={15} strokeWidth={1.7} />} loading={deleteMutation.isPending} loadingLabel="Đang xóa học sinh" disabled={!deleteConfirmed} onClick={() => deleteMutation.mutate()}>Xóa vĩnh viễn</Button></div></div></div></div>}
+        {deleteOpen && <div className="absolute inset-0 z-20 grid place-items-center bg-neutral-900/45 p-4" onMouseDown={(event) => event.stopPropagation()}><div role="alertdialog" aria-modal="true" aria-labelledby="delete-student-title" className="w-full max-w-lg rounded-[22px] bg-danger-100/80 p-1.5 ring-1 ring-danger-100"><div className="rounded-[17px] bg-neutral-0 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,.85),0_24px_70px_rgba(127,29,29,.18)]"><div className="flex items-start gap-3"><span className="grid size-11 shrink-0 place-items-center rounded-full bg-danger-50 text-danger-700 ring-1 ring-danger-100"><Trash2 size={19} strokeWidth={1.6} /></span><div><h3 id="delete-student-title" className="text-lg font-bold tracking-[-0.01em] text-neutral-900">Xóa vĩnh viễn học sinh?</h3><p className="mt-1 text-sm leading-6 text-neutral-600">Hồ sơ <strong className="text-neutral-900">{student.fullName}</strong> chỉ được xóa khi không còn dữ liệu nghiệp vụ liên quan.</p></div></div><div className="mt-4"><DeletionPreflightPanel loading={deletePreflight.isFetching} error={deletePreflight.isError} report={deletePreflight.data} /></div><label className="mt-5 grid gap-1.5"><span className="text-xs font-bold text-neutral-700">Nhập <span className="font-mono text-danger-700">{student.studentCode}</span> để xác nhận</span><input autoFocus autoComplete="off" value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} className={`${INPUT_CLASS} font-mono uppercase tracking-[0.08em] focus:border-danger-500 focus:ring-danger-100`} /></label>{deleteMutation.isError && <p role="alert" className="mt-3 rounded-input bg-danger-50 px-3 py-2 text-sm font-semibold text-danger-700">{deleteMutation.error instanceof Error && deleteMutation.error.message === "STUDENT_NOT_FOUND" ? "Học sinh không còn tồn tại. Hãy tải lại danh sách." : deleteMutation.error instanceof Error && deleteMutation.error.message === "DELETION_BLOCKED" ? "Dữ liệu liên quan vừa thay đổi. Hệ thống đã dừng thao tác xóa." : "Không thể xóa học sinh. Kiểm tra quyền truy cập và thử lại."}</p>}<div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><Button variant="secondary" disabled={deleteMutation.isPending} onClick={() => setDeleteOpen(false)}>Giữ học sinh</Button><Button variant="danger" className="rounded-full px-5" icon={<Trash2 size={15} strokeWidth={1.7} />} loading={deleteMutation.isPending} loadingLabel="Đang xóa học sinh" disabled={!deleteConfirmed || deletePreflight.isFetching || !deletePreflight.data?.allowed} onClick={() => deleteMutation.mutate()}>Xóa vĩnh viễn</Button></div></div></div></div>}
       </div>
     </div>,
     document.body,
@@ -527,10 +525,25 @@ function RelationOption({
 
 function getUpdateErrorMessage(error: unknown): string {
   const message = error instanceof Error ? error.message : "";
-  if (message === "not_found") return "Không tìm thấy tài khoản phụ huynh theo email đã nhập.";
-  if (message === "not_viewer") return "Email này không thuộc tài khoản phụ huynh/học sinh.";
-  if (message === "error") return "Không liên kết được phụ huynh. Kiểm tra kết nối và thử lại.";
+  if (message === "STUDENT_NOT_FOUND") return "Học sinh không còn tồn tại. Hãy tải lại danh sách.";
+  if (message === "CLASS_NOT_FOUND") return "Có lớp học đã bị xóa. Hãy tải lại danh sách lớp.";
+  if (message === "CLASS_NOT_ACTIVE") return "Chỉ có thể ghi danh học sinh vào lớp đang hoạt động.";
+  if (message === "STUDENT_NOT_ACTIVE") return "Học sinh đang ngừng hoạt động nên không thể ghi danh vào lớp.";
+  if (message === "PARENT_NOT_FOUND") return "Không tìm thấy tài khoản phụ huynh theo email đã nhập.";
+  if (message === "PARENT_NOT_VIEWER") return "Email này không thuộc tài khoản phụ huynh/học sinh.";
+  if (message === "PARENT_NOT_ACTIVE") return "Tài khoản phụ huynh đang bị khóa.";
+  if (message === "PARENT_EMAIL_CHANGED") return "Email tài khoản phụ huynh vừa thay đổi. Hãy tải lại dữ liệu.";
+  if (message.includes("permission-denied")) return "Bạn không có quyền cập nhật các liên kết này.";
+  if (message.includes("aborted")) return "Dữ liệu vừa được người khác cập nhật. Hãy thử lưu lại.";
   return "Không cập nhật được thông tin. Kiểm tra dữ liệu và thử lại.";
+}
+
+function getStatusErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : "";
+  if (message === "STUDENT_HAS_ACTIVE_CLASSES") return "Học sinh vẫn còn ghi danh hoạt động. Hãy kết thúc ghi danh trước.";
+  if (message === "STUDENT_NOT_FOUND") return "Học sinh không còn tồn tại. Hãy tải lại danh sách.";
+  if (message.includes("permission-denied")) return "Bạn không có quyền cập nhật trạng thái học sinh.";
+  return "Không cập nhật được trạng thái. Kiểm tra kết nối và thử lại.";
 }
 
 function getParentProfilePayload(input: ParentProfileInput): ParentProfileInput {

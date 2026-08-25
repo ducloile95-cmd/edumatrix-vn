@@ -5,10 +5,11 @@ import type { UserRole } from "@/types/user";
 const ROLES: UserRole[] = [USER_ROLES.ADMIN, USER_ROLES.TEACHER, USER_ROLES.VIEWER];
 const PERMISSIONS = [
   { label: "Quản lý tài khoản và lời mời", source: "users, invites", allowed: { admin: true, teacher: false, viewer: false } },
+  { label: "Xóa cứng bản ghi gốc sau preflight", source: "subjects, courses, classes, students, users", allowed: { admin: true, teacher: true, viewer: false } },
   { label: "Quản lý cấu hình hệ thống", source: "settings", allowed: { admin: true, teacher: false, viewer: false } },
   { label: "Nhập điểm và giáo án", source: "scores, lesson_plans", allowed: { admin: true, teacher: true, viewer: false } },
   { label: "Điểm danh lớp được phân công", source: "attendance", allowed: { admin: true, teacher: true, viewer: false } },
-  { label: "Xem dữ liệu học sinh được gắn", source: "ownership rules", allowed: { admin: true, teacher: true, viewer: true } },
+  { label: "Xem dữ liệu phục vụ nghiệp vụ", source: "staff preflight / viewer ownership", allowed: { admin: true, teacher: true, viewer: true } },
   { label: "Đối soát học phí", source: "invoices, payments", allowed: { admin: true, teacher: true, viewer: false } },
 ] satisfies Array<{ label: string; source: string; allowed: Record<UserRole, boolean> }>;
 

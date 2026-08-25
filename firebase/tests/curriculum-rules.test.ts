@@ -109,6 +109,14 @@ describe("Standard Lessons security rules", () => {
     await assertFails(setDoc(doc(db, "standard_lessons", "lesson-viewer"), standardLesson));
     await assertFails(getDoc(doc(db, "standard_lessons", "lesson-1")));
   });
+
+  test("Staff cannot create a standard lesson for a missing subject", async () => {
+    const db = env.authenticatedContext("teacher-1").firestore();
+    await assertFails(setDoc(doc(db, "standard_lessons", "lesson-orphan"), {
+      ...standardLesson,
+      subjectId: "missing-subject",
+    }));
+  });
 });
 
 describe("Course Curricula security rules", () => {
@@ -116,6 +124,14 @@ describe("Course Curricula security rules", () => {
     const db = env.authenticatedContext("teacher-1").firestore();
     await assertSucceeds(setDoc(doc(db, "course_curricula", "course-1_v1"), curriculum));
     await assertSucceeds(getDoc(doc(db, "course_curricula", "course-1_v1")));
+  });
+
+  test("Staff cannot create a curriculum for a missing course", async () => {
+    const db = env.authenticatedContext("teacher-1").firestore();
+    await assertFails(setDoc(doc(db, "course_curricula", "missing-course_v1"), {
+      ...curriculum,
+      courseId: "missing-course",
+    }));
   });
 
   test("Viewer cannot create or read course curricula", async () => {

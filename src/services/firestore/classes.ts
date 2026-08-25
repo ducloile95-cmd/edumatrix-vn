@@ -21,6 +21,7 @@ import { generateRecurringSessions } from "@/utils/recurrence";
 import type { ClassDoc, ClassStatus, CourseCurriculumDoc, CourseCurriculumItemDoc, CourseDoc, SessionDoc, StudentDoc } from "@/types/academic";
 import type { DocumentData, QueryConstraint, QueryDocumentSnapshot, QuerySnapshot } from "firebase/firestore";
 import { decodeClassDoc } from "@/services/firestore/decoders";
+import { assertDeletionAllowed } from "@/services/firestore/deletionDependencies";
 
 export interface UpsertClassInput {
   name: string;
@@ -208,7 +209,7 @@ export async function createClassWithSchedule(
  */
 export async function updateClass(classId: string, input: UpsertClassInput): Promise<void> {
   if (input.status === "cancelled") {
-    await deleteClass(classId);
+    await cancelClass(classId);
     return;
   }
   const actor = await getCurrentUserDoc();
@@ -268,18 +269,9 @@ export async function updateClass(classId: string, input: UpsertClassInput): Pro
   });
 }
 
-/**
- * Xoa mem lop hoc: giu lich su lop/diem danh/hoc phi, chi chuyen lop sang
- * cancelled va huy cac buoi hoc tu hien tai tro di.
- */
-export async function deleteClass(classId: string): Promise<void> {
+async function cancelFutureSessions(classId: string): Promise<void> {
   const now = new Date();
-  const classRef = doc(db, COLLECTIONS.CLASSES, classId);
-  const classSnap = await getDoc(classRef);
-  if (!classSnap.exists()) throw new Error("class_not_found");
-  const courseId = (classSnap.data() as ClassDoc).courseId;
   let cursor: QueryDocumentSnapshot<DocumentData> | null = null;
-  let firstBatch = true;
   while (true) {
     const constraints: QueryConstraint[] = [
       where("classId", "==", classId),
@@ -293,22 +285,43 @@ export async function deleteClass(classId: string): Promise<void> {
       ...constraints,
     ));
     const batch = writeBatch(db);
-    if (firstBatch) {
-      batch.update(classRef, { status: "cancelled", updatedAt: serverTimestamp() });
-      batch.update(doc(db, COLLECTIONS.COURSES, courseId), { classRevision: increment(1) });
-    }
     sessionsSnap.docs.forEach((sessionDoc) => {
       if ((sessionDoc.data() as SessionDoc).status !== "cancelled") batch.update(sessionDoc.ref, {
         status: "cancelled",
-        note: "Lớp học đã được xóa mềm.",
+        note: "Lớp học đã bị hủy.",
         updatedAt: serverTimestamp(),
       });
     });
-    if (firstBatch || sessionsSnap.docs.some((item) => (item.data() as SessionDoc).status !== "cancelled")) await batch.commit();
-    firstBatch = false;
+    if (sessionsSnap.docs.some((item) => (item.data() as SessionDoc).status !== "cancelled")) await batch.commit();
     if (sessionsSnap.size < 498) break;
     cursor = sessionsSnap.docs[sessionsSnap.docs.length - 1];
   }
+}
+
+/** Xoa mem lop va huy cac buoi hoc tu hien tai tro di. */
+async function cancelClass(classId: string): Promise<void> {
+  const classRef = doc(db, COLLECTIONS.CLASSES, classId);
+  const classSnap = await getDoc(classRef);
+  if (!classSnap.exists()) throw new Error("class_not_found");
+  const courseId = (classSnap.data() as ClassDoc).courseId;
+  await cancelFutureSessions(classId);
+  const batch = writeBatch(db);
+  batch.update(classRef, { status: "cancelled", updatedAt: serverTimestamp() });
+  batch.update(doc(db, COLLECTIONS.COURSES, courseId), { classRevision: increment(1) });
+  await batch.commit();
+}
+
+/** Xoa cung lop hoc chi khi khong con bat ky du lieu nghiep vu nao tham chieu. */
+export async function deleteClass(classId: string): Promise<void> {
+  await assertDeletionAllowed("class", classId);
+  const classRef = doc(db, COLLECTIONS.CLASSES, classId);
+  await runTransaction(db, async (transaction) => {
+    const currentClassSnap = await transaction.get(classRef);
+    if (!currentClassSnap.exists()) throw new Error("class_not_found");
+    const klass = currentClassSnap.data() as ClassDoc;
+    transaction.update(doc(db, COLLECTIONS.COURSES, klass.courseId), { classRevision: increment(1) });
+    transaction.delete(classRef);
+  });
 }
 
 /** Danh sach lop - Admin xem tat ca, Teacher chi xem lop duoc phan cong. */

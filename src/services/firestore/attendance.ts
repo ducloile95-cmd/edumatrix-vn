@@ -180,6 +180,12 @@ export async function listAttendanceBySession(sessionId: string, classId: string
   );
 }
 
+/** Tai lich su diem danh cua mot lop de tinh hoc phi theo buoi da tham gia. */
+export async function listAttendanceByClass(classId: string): Promise<(AttendanceDoc & { id: string })[]> {
+  if (!classId) return [];
+  return listAttendancePages([where("classId", "==", classId)], 500);
+}
+
 /** Cac attendance doc cho nhieu session cung luc - chunk 30 (gioi han Firestore "in"), dung cho Tong quan. */
 export async function listAttendanceBySessionIds(sessionIds: string[], pageSize = 500): Promise<(AttendanceDoc & { id: string })[]> {
   const uniqueIds = [...new Set(sessionIds)].filter(Boolean);

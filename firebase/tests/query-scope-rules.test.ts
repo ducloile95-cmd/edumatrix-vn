@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, test } from "vitest";
-import { assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment } from "@firebase/rules-unit-testing";
+import { assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment } from "@firebase/rules-unit-testing";
 import { collection, doc, getDocs, query, setDoc, Timestamp, where } from "firebase/firestore";
 import fs from "node:fs";
 import path from "node:path";
@@ -48,33 +48,33 @@ function teacherDb() {
   return env.authenticatedContext(TEACHER_UID).firestore();
 }
 
-describe("teacher list query scope", () => {
-  test("classes require a teacherIds array-contains constraint", async () => {
-    await assertFails(getDocs(query(collection(teacherDb(), "classes"))));
+describe("teacher dependency preflight reads", () => {
+  test("classes allow global and assigned-only queries", async () => {
+    await assertSucceeds(getDocs(query(collection(teacherDb(), "classes"))));
     await assertSucceeds(getDocs(query(
       collection(teacherDb(), "classes"),
       where("teacherIds", "array-contains", TEACHER_UID),
     )));
   });
 
-  test("students require a teacherIds array-contains constraint", async () => {
-    await assertFails(getDocs(query(collection(teacherDb(), "students"))));
+  test("students allow global and assigned-only queries", async () => {
+    await assertSucceeds(getDocs(query(collection(teacherDb(), "students"))));
     await assertSucceeds(getDocs(query(
       collection(teacherDb(), "students"),
       where("teacherIds", "array-contains", TEACHER_UID),
     )));
   });
 
-  test("assignments require an assigned class constraint", async () => {
-    await assertFails(getDocs(query(collection(teacherDb(), "assignments"))));
+  test("assignments allow dependency scans and class filters", async () => {
+    await assertSucceeds(getDocs(query(collection(teacherDb(), "assignments"))));
     await assertSucceeds(getDocs(query(
       collection(teacherDb(), "assignments"),
       where("classId", "==", "assigned-class"),
     )));
   });
 
-  test("lesson plans support assigned class and creator constraints", async () => {
-    await assertFails(getDocs(query(collection(teacherDb(), "lesson_plans"))));
+  test("lesson plans allow dependency scans plus existing filters", async () => {
+    await assertSucceeds(getDocs(query(collection(teacherDb(), "lesson_plans"))));
     await assertSucceeds(getDocs(query(
       collection(teacherDb(), "lesson_plans"),
       where("classId", "==", "assigned-class"),
@@ -85,8 +85,8 @@ describe("teacher list query scope", () => {
     )));
   });
 
-  test("submissions require both assignment and class constraints", async () => {
-    await assertFails(getDocs(query(
+  test("submissions allow dependency scans with partial or full filters", async () => {
+    await assertSucceeds(getDocs(query(
       collection(teacherDb(), "submissions"),
       where("assignmentId", "==", "assigned-task"),
     )));
@@ -97,8 +97,8 @@ describe("teacher list query scope", () => {
     )));
   });
 
-  test("dashboard attendance must query by assigned class, not session only", async () => {
-    await assertFails(getDocs(query(
+  test("attendance allows session and class dependency queries", async () => {
+    await assertSucceeds(getDocs(query(
       collection(teacherDb(), "attendance"),
       where("sessionId", "==", "session-1"),
     )));
@@ -112,8 +112,8 @@ describe("teacher list query scope", () => {
     )));
   });
 
-  test("dashboard scores must query by assigned class, not student only", async () => {
-    await assertFails(getDocs(query(
+  test("scores allow student and class dependency queries", async () => {
+    await assertSucceeds(getDocs(query(
       collection(teacherDb(), "scores"),
       where("studentId", "==", "student-1"),
     )));
