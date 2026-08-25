@@ -4,7 +4,7 @@
   "tests": {
     "frontend": 305,
     "firestoreRules": 214,
-    "messengerWorker": 59
+    "messengerWorker": 60
   },
   "coveragePercent": {
     "statements": 40.66,

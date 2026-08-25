@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import worker, { assertStudentScope, buildMessengerPayload, buildUtilityPayload, checkMetaUtilityPermission, corsHeaders, deliveryJobEligible, deliveryJobId, extractBearer, extractInboundMessages, extractReferralLinks, extractUtilityTemplateStatuses, firebaseCertificates, isMessengerTagShape, latestUtilityTemplateStatus, markWebhookMessageProcessed, META_OAUTH_SCOPES, META_UTILITY_OAUTH_SCOPE, META_UTILITY_WEBHOOK_FIELD, META_WEBHOOK_FIELDS, metaErrorCode, metaOAuthCompletionErrorMessage, metaOAuthErrorMessage, metaOAuthScopes, metaUtilityPermissionStatus, metaWebhookFields, nextUnreadStaffCount, oauthStateActive, parseMessengerProfile, publicErrorCode, referralClaimUid, referralTargetAllowed, resetFirebaseCachesForTest, safeConnectOrigin, sendGraph, serviceAccessToken, startDeleteChatConversation, subscribePageWebhooks, threadId, UTILITY_TEMPLATES, validChatThreadId, validUtilityParameters, verifyMetaSignature, webhookMessageProcessed, type Env } from "../src/index";
+import worker, { assertStudentScope, buildMessengerPayload, buildUtilityPayload, checkMetaUtilityPermission, conversationTombstoneExpired, corsHeaders, deliveryJobEligible, deliveryJobId, extractBearer, extractInboundMessages, extractReferralLinks, extractUtilityTemplateStatuses, firebaseCertificates, isMessengerTagShape, latestUtilityTemplateStatus, markWebhookMessageProcessed, META_OAUTH_SCOPES, META_UTILITY_OAUTH_SCOPE, META_UTILITY_WEBHOOK_FIELD, META_WEBHOOK_FIELDS, metaErrorCode, metaOAuthCompletionErrorMessage, metaOAuthErrorMessage, metaOAuthScopes, metaUtilityPermissionStatus, metaWebhookFields, nextUnreadStaffCount, oauthStateActive, parseMessengerProfile, publicErrorCode, referralClaimUid, referralTargetAllowed, resetFirebaseCachesForTest, safeConnectOrigin, sendGraph, serviceAccessToken, startDeleteChatConversation, subscribePageWebhooks, threadId, UTILITY_TEMPLATES, validChatThreadId, validUtilityParameters, verifyMetaSignature, webhookMessageProcessed, type Env } from "../src/index";
 const env={FIREBASE_PROJECT_ID:"project",FIREBASE_CLIENT_EMAIL:"email",FIREBASE_PRIVATE_KEY:"key",META_APP_ID:"app-id",META_PAGE_ACCESS_TOKEN:"token",META_APP_SECRET:"app-secret",META_WEBHOOK_VERIFY_TOKEN:"verify-me",META_GRAPH_VERSION:"v25.0",META_PAGE_ID:"page-id",ALLOWED_ORIGIN:"http://localhost:5173"}satisfies Env;
 describe("messenger worker",()=>{
 afterEach(()=>{vi.restoreAllMocks();resetFirebaseCachesForTest()});
@@ -50,6 +50,13 @@ test("parses Messenger account name and secure avatar",()=>{expect(parseMessenge
 test("ignores message echoes",()=>expect(extractInboundMessages({entry:[{messaging:[{sender:{id:"page"},recipient:{id:"psid"},message:{mid:"mid-2",text:"echo",is_echo:true}}]}]})).toEqual([]));
 test("increments unread messages for inbound events and clears them for outbound events",()=>{const thread={fields:{unreadStaffCount:{integerValue:"2"}}};expect(nextUnreadStaffCount(thread,"inbound")).toBe(3);expect(nextUnreadStaffCount(thread,"outbound")).toBe(0)});
 test("validates conversation ids before deletion",()=>{expect(validChatThreadId("messenger_thread-1")).toBe(true);expect(validChatThreadId("chat_threads/thread-1")).toBe(false);expect(validChatThreadId("")).toBe(false)});
+test("expires only completed conversation tombstones after their retention date",()=>{
+  const now=new Date("2026-08-25T05:00:00.000Z");
+  const tombstone=(status:string,expiresAt:string)=>({fields:{status:{stringValue:status},expiresAt:{timestampValue:expiresAt}}});
+  expect(conversationTombstoneExpired(tombstone("deleted","2026-08-25T04:59:59.000Z"),now)).toBe(true);
+  expect(conversationTombstoneExpired(tombstone("deleted","2026-08-25T05:00:01.000Z"),now)).toBe(false);
+  expect(conversationTombstoneExpired(tombstone("deleting","2026-08-25T04:59:59.000Z"),now)).toBe(false);
+});
 test("keeps separate stable threads for each parent and student context",()=>{
   expect(threadId("parent-1","student-1")).toBe("messenger_parent-1_student-1");
   expect(threadId("parent-1","student-2")).not.toBe(threadId("parent-1","student-1"));

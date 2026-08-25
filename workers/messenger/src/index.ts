@@ -707,6 +707,12 @@ async function commitDocumentDeletes(names: string[], token: string, env: Env): 
 
 const CONVERSATION_TOMBSTONE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
+export function conversationTombstoneExpired(tombstone: unknown, now = new Date()): boolean {
+  const expiresAt = fieldTimestamp(tombstone, "expiresAt");
+  return fieldString(tombstone, "status") === "deleted"
+    && Boolean(expiresAt && expiresAt.getTime() <= now.getTime());
+}
+
 export async function startDeleteChatConversation(threadId: string, deletedBy: string, token: string, env: Env): Promise<void> {
   if (!validChatThreadId(threadId)) throw new Error("invalid_thread_id");
   const thread = await readDocument("chat_threads", threadId, token, env);
@@ -1783,6 +1789,39 @@ async function processConversationDeletionQueue(env: Env): Promise<void> {
   }
 }
 
+async function cleanupExpiredConversationTombstones(env: Env): Promise<void> {
+  const serviceToken = await serviceAccessToken(env);
+  const tombstones = await queryDocuments("messenger_conversation_tombstones", serviceToken, env, {
+    fieldPath: "status",
+    op: "EQUAL",
+    value: "deleted",
+  });
+  const now = new Date();
+  let removed = 0;
+  for (const tombstone of tombstones) {
+    const id = firestoreDocumentId(tombstone);
+    if (!id || !validChatThreadId(id) || !conversationTombstoneExpired(tombstone, now)) continue;
+    const updateTime = documentUpdateTime(tombstone);
+    const response = await fetch(`https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:commit`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${serviceToken}`, "content-type": "application/json" },
+      body: JSON.stringify({ writes: [
+        {
+          delete: documentName("messenger_conversation_tombstones", id, env),
+          ...(updateTime ? { currentDocument: { updateTime } } : {}),
+        },
+        auditWrite("messenger_conversation_tombstone_expired", "system", { threadId: id }, env, now),
+      ] }),
+    });
+    if (!response.ok) {
+      logEvent("error", "conversation_tombstone_cleanup_failed", { threadId: id, errorCode: `firestore_${response.status}` });
+      continue;
+    }
+    removed += 1;
+  }
+  logEvent("info", "conversation_tombstone_cleanup_completed", { scanned: tombstones.length, removed });
+}
+
 async function finishDeliveryJob(id: string, actorUid: string, fields: Record<string, unknown>, token: string, env: Env): Promise<void> {
   const now = new Date();
   const response = await fetch(`https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:commit`, {
@@ -1903,6 +1942,10 @@ export default {
     }
   },
   async scheduled(_controller: ScheduledController, env: Env, context: ExecutionContext): Promise<void> {
-    context.waitUntil(Promise.all([processConversationDeletionQueue(env), processDeliveryQueue(env)]).then(() => undefined));
+    context.waitUntil(Promise.all([
+      processConversationDeletionQueue(env),
+      cleanupExpiredConversationTombstones(env),
+      processDeliveryQueue(env),
+    ]).then(() => undefined));
   },
 };

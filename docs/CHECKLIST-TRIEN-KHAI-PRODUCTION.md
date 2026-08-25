@@ -22,6 +22,7 @@ Ngày lập: 19/07/2026. Chỉ đánh dấu hoàn tất khi có bằng chứng t
 - [ ] Đặt ngưỡng Hosting transfer bằng 70% quota hiện được hiển thị trong Firebase Console.
 - [ ] Ghi người nhận, kênh cảnh báo và phương án giảm tải: tắt phần không thiết yếu, giảm refresh/realtime, kiểm tra query bất thường.
 - [ ] Lưu ảnh quota sau 24 giờ và 7 ngày đầu production.
+- [ ] Xác nhận Worker cron ghi `conversation_tombstone_cleanup_completed`; không cấu hình managed TTL khi project còn ở Spark.
 
 ## 3. Google Drive cho giáo án
 

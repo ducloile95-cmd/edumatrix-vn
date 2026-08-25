@@ -8,6 +8,7 @@ Tài liệu này là đầu ra Chặng 6. Nó không thay thế checklist Go/No-
 - Không đưa Firebase service-account JSON, Meta token hoặc Worker secret vào repository.
 - Mọi thay đổi Rules phải có kết quả Emulator test trước khi deploy.
 - Spark cần được theo dõi reads/writes, số document và lỗi quota; khi có dấu hiệu vượt ngưỡng thì tắt luồng tổng hợp nặng trước khi thêm dữ liệu.
+- Spark không hỗ trợ Firestore managed TTL deletes. Worker cron là nguồn canonical để xóa `messenger_conversation_tombstones` trạng thái `deleted` khi `expiresAt` đã quá 30 ngày; kiểm tra structured log `conversation_tombstone_cleanup_completed` sau mỗi release.
 
 ## Kiểm tra trước phát hành
 
