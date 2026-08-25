@@ -8,7 +8,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { loadOlderMessages, subscribeChatMessages } from "@/services/firestore/chat";
 import { listStudents } from "@/services/firestore/students";
 import { listUsersByIds } from "@/services/firestore/users";
-import { createMessengerInviteLink, deleteMessengerConversation, isMessengerInviteConfigured, linkMessengerConversation, MessengerSendError, sendMessenger } from "@/services/integrations/messenger";
+import { createMessengerInviteLink, deleteMessengerConversation, getUtilityDeliveryStatus, isMessengerInviteConfigured, linkMessengerConversation, MessengerSendError, retryUtilityDeliveryJob, sendMessenger, summarizeUtilityDelivery } from "@/services/integrations/messenger";
 import { queryKeys } from "@/hooks/queryKeys";
 import type { ChatMessageDoc, ChatTagDoc, ChatThreadDoc } from "@/types/chat";
 import type { UserDoc } from "@/types/user";
@@ -135,6 +135,17 @@ export function ConversationContext({ thread, parent, tags, onRemoveTag, onManag
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["chat-threads"] }),
   });
+  const utilityDelivery = useQuery({
+    queryKey: ["utility-delivery", "parent-link", thread.id],
+    queryFn: () => getUtilityDeliveryStatus([thread.id]),
+    enabled: thread.linkStatus !== "unlinked",
+    refetchInterval: 10_000,
+  });
+  const linkConfirmation = summarizeUtilityDelivery(utilityDelivery.data, thread.id);
+  const retryConfirmation = useMutation({
+    mutationFn: () => Promise.all(linkConfirmation.retryableJobIds.map(retryUtilityDeliveryJob)),
+    onSuccess: () => utilityDelivery.refetch(),
+  });
 
   if (thread.linkStatus === "unlinked") {
     return (
@@ -169,6 +180,7 @@ export function ConversationContext({ thread, parent, tags, onRemoveTag, onManag
   return (
     <div>
       <ThreadInfo thread={thread} parent={parent} />
+      {linkConfirmation.status !== "none" && <div className="mt-4 rounded-input border border-neutral-200 bg-neutral-50 p-3 text-xs"><p className="font-bold text-neutral-800">Xác nhận liên kết Utility</p><p className="mt-1 text-neutral-600">{linkConfirmation.detail}</p>{linkConfirmation.retryableJobIds.length > 0 && <button type="button" className="mt-2 font-bold text-primary-700 underline" disabled={retryConfirmation.isPending} onClick={() => retryConfirmation.mutate()}>Thử gửi lại</button>}</div>}
       <div className="mt-5 border-t border-neutral-200 pt-4">
         <h4 className="text-sm font-semibold text-neutral-900">Tag hội thoại</h4>
         {tags.length ? <div className="mt-3 flex flex-wrap gap-1.5">{tags.map((tag) => <button key={tag.id} type="button" onClick={() => onRemoveTag(tag.id)} aria-label={`Bỏ tag ${tag.label}`} className={`flex min-h-8 items-center gap-1.5 rounded-full px-2.5 text-xs font-semibold transition-opacity hover:opacity-85 ${CHAT_TAG_STYLES[tag.color]}`}>{tag.label}<X size={12} aria-hidden="true" /></button>)}</div> : <p className="mt-2 text-xs leading-5 text-neutral-500">Chưa có tag.</p>}

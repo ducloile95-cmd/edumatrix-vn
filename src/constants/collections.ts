@@ -39,6 +39,7 @@ export const COLLECTIONS = {
   ANNOUNCEMENTS: "announcements",
   NOTIFICATION_READS: "notification_reads",
   MESSENGER_CONNECTIONS: "messenger_connections",
+  MESSENGER_DELIVERY_EVENTS: "messenger_delivery_events",
   CHAT_THREADS: "chat_threads",
   CHAT_TAGS: "chat_tags",
   VIEWER_DASHBOARD: "viewer_dashboard",

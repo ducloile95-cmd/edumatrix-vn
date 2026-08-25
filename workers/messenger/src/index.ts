@@ -38,6 +38,11 @@ export type UtilityTemplateKey =
   | "lesson_feedback_request"
   | "enrollment_confirmation"
   | "parent_account_link_confirmation";
+export type UtilityDeliveryEventType =
+  | "lesson_feedback_published"
+  | "invoice_committed"
+  | "payment_verified"
+  | "enrollment_completed";
 export interface SendBody {
   recipientPsid?: string;
   text?: string;
@@ -253,6 +258,7 @@ export function publicErrorCode(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
   if (message.includes("\"code\":190")) return "meta_token_invalid";
   if (message === "meta_oauth_state_expired") return message;
+  if (message === "meta_delivery_outcome_unknown") return message;
   if (message.startsWith("meta_")) return "meta_request_failed";
   const known = new Set([
     "admin_required",
@@ -279,6 +285,7 @@ export function publicErrorCode(error: unknown): string {
     "unlinked_conversation_not_found",
     "conversation_not_found",
     "delivery_job_not_found",
+    "delivery_job_not_retryable",
     "meta_oauth_state_expired",
     "viewer_required",
   ]);
@@ -289,7 +296,7 @@ function errorStatus(error: unknown): number {
   const code = publicErrorCode(error);
   if (code === "missing_bearer_token") return 401;
   if (code === "admin_required" || code === "staff_required" || code === "viewer_required" || code === "origin_not_allowed") return 403;
-  if (["invalid_thread_id", "invalid_delivery_job", "utility_template_not_allowed", "utility_template_not_approved", "meta_oauth_state_expired"].includes(code)) return 400;
+  if (["invalid_thread_id", "invalid_delivery_job", "delivery_job_not_retryable", "utility_template_not_allowed", "utility_template_not_approved", "meta_oauth_state_expired"].includes(code)) return 400;
   if (["conversation_not_found", "delivery_job_not_found"].includes(code)) return 404;
   return 500;
 }
@@ -604,6 +611,45 @@ async function queryDocuments(
   }
 }
 
+async function queryDueDocuments(collectionId: string, status: "pending" | "failed", now: Date, token: string, env: Env): Promise<unknown[]> {
+  const response = await fetch(`https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:runQuery`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ structuredQuery: {
+      from: [{ collectionId }],
+      where: { compositeFilter: { op: "AND", filters: [
+        { fieldFilter: { field: { fieldPath: "status" }, op: "EQUAL", value: { stringValue: status } } },
+        { fieldFilter: { field: { fieldPath: "nextAttemptAt" }, op: "LESS_THAN_OR_EQUAL", value: { timestampValue: now.toISOString() } } },
+      ] } },
+      orderBy: [{ field: { fieldPath: "nextAttemptAt" }, direction: "ASCENDING" }],
+      limit: 50,
+    } }),
+  });
+  if (!response.ok) throw new Error("firestore_query_failed");
+  const rows = await response.json<Array<{ document?: unknown }>>();
+  return rows.flatMap((row) => row.document ? [row.document] : []);
+}
+
+async function queryDocumentsIn(collectionId: string, fieldPath: string, values: string[], token: string, env: Env): Promise<unknown[]> {
+  const unique = [...new Set(values)].filter(Boolean);
+  const chunks = Array.from({ length: Math.ceil(unique.length / 30) }, (_, index) => unique.slice(index * 30, (index + 1) * 30));
+  const pages = await Promise.all(chunks.map(async (items) => {
+    const response = await fetch(`https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:runQuery`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ structuredQuery: {
+        from: [{ collectionId }],
+        where: { fieldFilter: { field: { fieldPath }, op: "IN", value: { arrayValue: { values: items.map((value) => ({ stringValue: value })) } } } },
+        limit: 200,
+      } }),
+    });
+    if (!response.ok) throw new Error("firestore_query_failed");
+    const rows = await response.json<Array<{ document?: unknown }>>();
+    return rows.flatMap((row) => row.document ? [row.document] : []);
+  }));
+  return pages.flat();
+}
+
 async function enabledUtilityTemplateKeys(token: string, env: Env): Promise<string[]> {
   return fieldStringArray(await readDocument("settings", "integrations", token, env), "messengerUtilityEnabledTemplates");
 }
@@ -792,12 +838,40 @@ export function deliveryJobId(eventType: string, entityId: string, version: stri
   return `${eventType}:${entityId}:${version}:${parentUid}`.replace(/[^a-zA-Z0-9:_-]/g, "_").slice(0, 500);
 }
 
+export function deliveryEventEligible(event: unknown, now = Date.now()): boolean {
+  const status = fieldString(event, "status");
+  const attempts = fieldInteger(event, "attempts");
+  const due = fieldTimestamp(event, "nextAttemptAt")?.getTime() ?? 0;
+  const leaseExpired = (fieldTimestamp(event, "leaseUntil")?.getTime() ?? 0) <= now;
+  return attempts < 3 && (((status === "pending" || status === "failed") && due <= now) || (status === "processing" && leaseExpired));
+}
+
+export function deliveryEventTemplateKey(eventType: string): UtilityTemplateKey | null {
+  if (eventType === "lesson_feedback_published") return "lesson_feedback_request";
+  if (eventType === "invoice_committed") return "tuition_payment_reminder";
+  if (eventType === "payment_verified") return "tuition_payment_confirmation";
+  if (eventType === "enrollment_completed") return "enrollment_confirmation";
+  return null;
+}
+
+function formatUtilityDate(date: Date | null): string {
+  if (!date) return "Không xác định";
+  return new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", day: "2-digit", month: "2-digit", year: "numeric" }).format(date);
+}
+
+function formatUtilityAmount(amount: number): string {
+  return `${new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 }).format(amount)} ₫`;
+}
+
 export function deliveryJobEligible(job: unknown, now = Date.now()): boolean {
   const status = fieldString(job, "status");
   const attempts = fieldInteger(job, "attempts");
   const due = fieldTimestamp(job, "nextAttemptAt")?.getTime() ?? 0;
-  const leaseExpired = (fieldTimestamp(job, "leaseUntil")?.getTime() ?? 0) <= now;
-  return attempts < 3 && (((status === "pending" || status === "failed") && due <= now) || (status === "processing" && leaseExpired));
+  return attempts < 3 && (status === "pending" || status === "failed") && due <= now;
+}
+
+export function deliveryJobLeaseExpired(job: unknown, now = Date.now()): boolean {
+  return fieldString(job, "status") === "processing" && (fieldTimestamp(job, "leaseUntil")?.getTime() ?? 0) <= now;
 }
 
 function deliveryJobWrite(input: {
@@ -1268,13 +1342,22 @@ export function metaErrorCode(data: Record<string, unknown>, status: number): st
   return String(data.error ?? status);
 }
 
-export async function sendGraph(body: SendBody, env: Env): Promise<{ message_id?: string; recipient_id?: string }> {
+export async function sendGraph(body: SendBody, env: Env, options: { retryTransient?: boolean } = {}): Promise<{ message_id?: string; recipient_id?: string }> {
   const pageAccess = await configuredPageAccess(env);
   const pageNode = encodeURIComponent(pageAccess.pageId || "me");
   const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/${pageNode}/messages`;
   const request = () => fetch(url, { method: "POST", headers: { authorization: `Bearer ${pageAccess.token}`, "content-type": "application/json" }, body: JSON.stringify(buildMessengerPayload(body)) });
-  let response = await request();
-  if (response.status >= 500 || response.status === 429) {
+  let response: Response;
+  try {
+    response = await request();
+  } catch {
+    // The connection may have dropped after Meta accepted the request. Automatic jobs
+    // must stop here instead of risking a duplicate notification.
+    if (options.retryTransient === false) throw new Error("meta_delivery_outcome_unknown");
+    throw new Error("meta_request_failed");
+  }
+  if (options.retryTransient === false && response.status >= 500) throw new Error("meta_delivery_outcome_unknown");
+  if (options.retryTransient !== false && (response.status >= 500 || response.status === 429)) {
     // 429: doi theo Retry-After (chan tren 5s) roi thu lai dung 1 lan; 5xx: thu lai ngay.
     if (response.status === 429) {
       const retryAfterSeconds = Math.min(Number(response.headers.get("retry-after")) || 2, 5);
@@ -1839,6 +1922,166 @@ async function finishDeliveryJob(id: string, actorUid: string, fields: Record<st
   if (!response.ok) throw new Error("firestore_write_failed");
 }
 
+async function finishDeliveryEvent(id: string, fields: Record<string, unknown>, token: string, env: Env): Promise<void> {
+  const now = new Date();
+  const response = await fetch(`https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:commit`, {
+    method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify({ writes: [
+      { update: { name: documentName("messenger_delivery_events", id, env), fields: firestoreFields({ ...fields, updatedAt: now, leaseUntil: null }) }, updateMask: { fieldPaths: [...Object.keys(fields), "updatedAt", "leaseUntil"] } },
+      auditWrite("messenger_delivery_event_updated", "system", { eventId: id, status: fields.status }, env, now),
+    ] }),
+  });
+  if (!response.ok) throw new Error("firestore_write_failed");
+}
+
+async function deliveryEventJobBase(event: unknown, token: string, env: Env): Promise<{
+  eventType: UtilityDeliveryEventType;
+  entityId: string;
+  version: string;
+  studentId: string;
+  templateKey: UtilityTemplateKey;
+  parameters: Record<string, string>;
+}> {
+  const eventType = fieldString(event, "eventType") as UtilityDeliveryEventType;
+  const entityId = fieldString(event, "entityId") ?? "";
+  const sourceId = fieldString(event, "sourceId") ?? "";
+  const studentId = fieldString(event, "studentId") ?? "";
+  const versionNumber = fieldInteger(event, "version");
+  const templateKey = deliveryEventTemplateKey(eventType);
+  if (!entityId || !sourceId || !studentId || versionNumber < 1 || !templateKey) throw new Error("invalid_event");
+  const student = await readDocument("students", studentId, token, env);
+  const studentName = fieldString(student, "fullName") ?? studentId;
+
+  let parameters: Record<string, string>;
+  if (eventType === "lesson_feedback_published") {
+    const [announcement, interaction] = await Promise.all([
+      readDocument("announcements", entityId, token, env),
+      readDocument("session_interactions", sourceId, token, env),
+    ]);
+    if (fieldString(announcement, "type") !== "session_summary" || fieldString(announcement, "studentId") !== studentId ||
+        fieldString(interaction, "workflowStatus") !== "published" || fieldInteger(interaction, "version") !== versionNumber) {
+      throw new Error("business_state_changed");
+    }
+    const classId = fieldString(announcement, "classId") ?? "";
+    const teacherId = fieldString(interaction, "teacherId") ?? "";
+    const [klass, teacher] = await Promise.all([
+      readDocument("classes", classId, token, env),
+      readDocument("users", teacherId, token, env),
+    ]);
+    parameters = {
+      className: fieldString(klass, "name") ?? classId,
+      studentName,
+      teacherName: fieldString(teacher, "displayName") ?? "Giáo viên EduMatrix",
+    };
+  } else if (eventType === "invoice_committed") {
+    const invoice = await readDocument("invoices", entityId, token, env);
+    if (fieldString(invoice, "studentId") !== studentId || !["unpaid", "overdue"].includes(fieldString(invoice, "status") ?? "")) {
+      throw new Error("business_state_changed");
+    }
+    parameters = {
+      studentName,
+      billingPeriod: fieldString(invoice, "title") ?? "Học phí",
+      amount: formatUtilityAmount(fieldInteger(invoice, "amount")),
+      dueDate: formatUtilityDate(fieldTimestamp(invoice, "dueAt")),
+    };
+  } else if (eventType === "payment_verified") {
+    const payment = await readDocument("payments", entityId, token, env);
+    if (fieldString(payment, "studentId") !== studentId || fieldString(payment, "status") !== "verified") throw new Error("business_state_changed");
+    const invoice = await readDocument("invoices", fieldString(payment, "invoiceId") ?? "", token, env);
+    if (fieldString(invoice, "status") !== "paid") throw new Error("business_state_changed");
+    parameters = {
+      studentName,
+      billingPeriod: fieldString(invoice, "title") ?? "Học phí",
+      amount: formatUtilityAmount(fieldInteger(payment, "amount")),
+      paymentDate: formatUtilityDate(fieldTimestamp(payment, "verifiedAt")),
+      paymentReference: fieldString(payment, "transactionReference") ?? fieldString(invoice, "paymentContent") ?? "Không có",
+    };
+  } else {
+    const enrollment = await readDocument("enrollments", entityId, token, env);
+    if (fieldString(enrollment, "studentId") !== studentId || fieldString(enrollment, "status") !== "active" || fieldInteger(enrollment, "version") !== versionNumber) {
+      throw new Error("business_state_changed");
+    }
+    const [course, settings] = await Promise.all([
+      readDocument("courses", fieldString(enrollment, "courseId") ?? "", token, env),
+      readDocument("settings", "general", token, env),
+    ]);
+    parameters = {
+      studentName,
+      courseName: fieldString(course, "name") ?? "Khóa học EduMatrix",
+      centerName: fieldString(settings, "name") ?? "EduMatrix",
+    };
+  }
+  return { eventType, entityId, version: String(versionNumber), studentId, templateKey, parameters };
+}
+
+async function processDeliveryEvent(id: string, event: unknown, token: string, env: Env): Promise<void> {
+  const updateTime = documentUpdateTime(event);
+  if (!updateTime) return;
+  const attempts = fieldInteger(event, "attempts") + 1;
+  const now = new Date();
+  const claim = await fetch(`https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:commit`, {
+    method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify({ writes: [{
+      update: { name: documentName("messenger_delivery_events", id, env), fields: firestoreFields({ status: "processing", attempts, leaseUntil: new Date(now.getTime() + 2 * 60 * 1000), updatedAt: now }) },
+      updateMask: { fieldPaths: ["status", "attempts", "leaseUntil", "updatedAt"] }, currentDocument: { updateTime },
+    }] }),
+  });
+  if (!claim.ok) return;
+  try {
+    const base = await deliveryEventJobBase(event, token, env);
+    const student = await readDocument("students", base.studentId, token, env);
+    const parents = await Promise.all(fieldStringArray(student, "parentUids").map(async (parentUid) => ({
+      parentUid,
+      document: await readDocument("users", parentUid, token, env),
+    })));
+    const activeParentUids = parents.filter(({ document }) => fieldString(document, "role") === "viewer" &&
+      fieldString(document, "status") === "active" && fieldStringArray(document, "studentIds").includes(base.studentId))
+      .map(({ parentUid }) => parentUid);
+    if (!activeParentUids.length) {
+      await finishDeliveryEvent(id, { status: "skipped", lastErrorCode: "no_active_parent", expandedJobs: 0, completedAt: new Date() }, token, env);
+      return;
+    }
+    const existing = await Promise.all(activeParentUids.map((parentUid) => readDocument(
+      "messenger_delivery_jobs", deliveryJobId(base.eventType, base.entityId, base.version, parentUid), token, env,
+    )));
+    const jobWrites = activeParentUids.flatMap((parentUid, index) => existing[index] ? [] : [deliveryJobWrite({ ...base, parentUid }, env, now)]);
+    const response = await fetch(`https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:commit`, {
+      method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify({ writes: [
+        ...jobWrites,
+        { update: { name: documentName("messenger_delivery_events", id, env), fields: firestoreFields({ status: "expanded", expandedJobs: activeParentUids.length, lastErrorCode: null, completedAt: now, updatedAt: now, leaseUntil: null }) }, updateMask: { fieldPaths: ["status", "expandedJobs", "lastErrorCode", "completedAt", "updatedAt", "leaseUntil"] } },
+        auditWrite("messenger_delivery_event_expanded", "system", { eventId: id, jobs: activeParentUids.length }, env, now),
+      ] }),
+    });
+    if (!response.ok) throw new Error("firestore_write_failed");
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "event_processing_failed";
+    if (code === "business_state_changed" || code === "invalid_event") {
+      await finishDeliveryEvent(id, { status: "skipped", lastErrorCode: code, completedAt: new Date() }, token, env);
+      return;
+    }
+    await finishDeliveryEvent(id, {
+      status: "failed", lastErrorCode: publicErrorCode(error),
+      nextAttemptAt: attempts < 3 ? new Date(Date.now() + attempts * 5 * 60 * 1000) : null,
+    }, token, env);
+  }
+}
+
+async function processDeliveryEvents(env: Env): Promise<void> {
+  if (env.UTILITY_MESSAGING_ENABLED !== "true" || env.UTILITY_AUTOMATION_ENABLED !== "true") return;
+  const token = await serviceAccessToken(env);
+  const current = new Date();
+  const [pending, failed, processing] = await Promise.all([
+    queryDueDocuments("messenger_delivery_events", "pending", current, token, env),
+    queryDueDocuments("messenger_delivery_events", "failed", current, token, env),
+    queryDocuments("messenger_delivery_events", token, env, { fieldPath: "status", op: "EQUAL", value: "processing" }),
+  ]);
+  const events = [...pending, ...failed, ...processing];
+  const now = current.getTime();
+  for (const event of events) {
+    const id = firestoreDocumentId(event);
+    if (!id || !deliveryEventEligible(event, now)) continue;
+    await processDeliveryEvent(id, event, token, env);
+  }
+}
+
 async function processDeliveryJob(id: string, job: unknown, token: string, env: Env): Promise<void> {
   const updateTime = documentUpdateTime(job);
   if (!updateTime) return;
@@ -1865,44 +2108,115 @@ async function processDeliveryJob(id: string, job: unknown, token: string, env: 
     await finishDeliveryJob(id, "system", { status: "skipped", lastErrorCode: "no_connection" }, token, env);
     return;
   }
+  let result: { message_id?: string; recipient_id?: string };
   try {
     const pageId = (await configuredPageAccess(env)).pageId;
     const settings = await readDocument("settings", "integrations", token, env);
     if (fieldString(settings, "facebookUtilityMessagingPermission") !== "granted" || !await utilityTemplateAllowed(templateKey, definition, pageId, token, env)) throw new Error("utility_template_not_approved");
     const parameters = JSON.parse(fieldString(job, "parametersJson") ?? "{}") as Record<string, string>;
     if (!validUtilityParameters({ recipientPsid: psid, deliveryMode: "utility", templateKey, parameters })) throw new Error("utility_parameters_invalid");
-    const result = await sendGraph({ recipientPsid: psid, deliveryMode: "utility", templateKey, parameters }, env);
-    await finishDeliveryJob(id, "system", { status: "sent", metaMessageId: result.message_id ?? null, sentAt: new Date(), lastErrorCode: null }, token, env);
+    result = await sendGraph({ recipientPsid: psid, deliveryMode: "utility", templateKey, parameters }, env, { retryTransient: false });
   } catch (error) {
     const errorCode = publicErrorCode(error);
+    if (errorCode === "meta_delivery_outcome_unknown") {
+      await finishDeliveryJob(id, "system", {
+        status: "skipped", lastErrorCode: errorCode, completedAt: new Date(), nextAttemptAt: null,
+      }, token, env);
+      return;
+    }
     await finishDeliveryJob(id, "system", {
       status: "failed", lastErrorCode: errorCode,
       nextAttemptAt: attempts < 3 ? new Date(Date.now() + attempts * 5 * 60 * 1000) : null,
     }, token, env);
+    return;
+  }
+  try {
+    await finishDeliveryJob(id, "system", { status: "sent", metaMessageId: result.message_id ?? null, sentAt: new Date(), lastErrorCode: null }, token, env);
+  } catch (error) {
+    // Meta acknowledged the message. Leaving the lease to expire is deliberate:
+    // recovery marks the outcome unknown and never sends the same job again.
+    logEvent("error", "delivery_job_finalize_failed", { jobId: id, errorCode: publicErrorCode(error) });
   }
 }
 
 async function processDeliveryQueue(env: Env): Promise<void> {
   if (env.UTILITY_MESSAGING_ENABLED !== "true" || env.UTILITY_AUTOMATION_ENABLED !== "true") return;
   const token = await serviceAccessToken(env);
-  const jobs = await queryDocuments("messenger_delivery_jobs", token, env);
-  const now = Date.now();
+  const current = new Date();
+  const [pending, failed, processing] = await Promise.all([
+    queryDueDocuments("messenger_delivery_jobs", "pending", current, token, env),
+    queryDueDocuments("messenger_delivery_jobs", "failed", current, token, env),
+    queryDocuments("messenger_delivery_jobs", token, env, { fieldPath: "status", op: "EQUAL", value: "processing" }),
+  ]);
+  const jobs = [...pending, ...failed, ...processing];
+  const now = current.getTime();
   for (const job of jobs) {
     const id = firestoreDocumentId(job);
-    if (!id || !deliveryJobEligible(job, now)) continue;
+    if (!id) continue;
+    if (deliveryJobLeaseExpired(job, now)) {
+      await finishDeliveryJob(id, "system", {
+        status: "skipped", lastErrorCode: "meta_delivery_outcome_unknown", completedAt: current, nextAttemptAt: null,
+      }, token, env);
+      continue;
+    }
+    if (!deliveryJobEligible(job, now)) continue;
     await processDeliveryJob(id, job, token, env);
   }
 }
 
 async function handleRetryDeliveryJob(request: Request, env: Env): Promise<Response> {
-  const claims = await requireAdminRequest(request, env);
+  const idToken = extractBearer(request.headers.get("authorization"));
+  if (!idToken) throw new Error("missing_bearer_token");
+  const claims = await verifyFirebaseToken(idToken, env);
+  const profile = await requireStaff(claims.sub, idToken, env);
   const body = await request.json<{ jobId?: unknown }>();
   if (typeof body.jobId !== "string" || !/^[A-Za-z0-9:_-]{1,500}$/.test(body.jobId)) throw new Error("invalid_delivery_job");
   const token = await serviceAccessToken(env);
   const job = await readDocument("messenger_delivery_jobs", body.jobId, token, env);
   if (!job) throw new Error("delivery_job_not_found");
+  await assertStudentScope(profile, claims.sub, await threadContext(fieldString(job, "studentId") ?? "", token, env));
+  if (!["failed", "skipped"].includes(fieldString(job, "status") ?? "") || fieldString(job, "lastErrorCode") === "meta_delivery_outcome_unknown") {
+    throw new Error("delivery_job_not_retryable");
+  }
   await finishDeliveryJob(body.jobId, claims.sub, { status: "pending", attempts: 0, nextAttemptAt: new Date(), lastErrorCode: null }, token, env);
   return new Response(JSON.stringify({ ok: true, jobId: body.jobId, status: "pending" }), { headers: corsHeaders(env, request) });
+}
+
+async function handleDeliveryStatus(request: Request, env: Env): Promise<Response> {
+  const idToken = extractBearer(request.headers.get("authorization"));
+  if (!idToken) throw new Error("missing_bearer_token");
+  const claims = await verifyFirebaseToken(idToken, env);
+  const profile = await requireStaff(claims.sub, idToken, env);
+  const body = await request.json<{ entityIds?: unknown }>();
+  if (!Array.isArray(body.entityIds) || body.entityIds.length > 100 || body.entityIds.some((id) => typeof id !== "string" || !/^[A-Za-z0-9_-]{1,300}$/.test(id))) {
+    throw new Error("invalid_delivery_job");
+  }
+  const entityIds = new Set(body.entityIds as string[]);
+  const token = await serviceAccessToken(env);
+  const [jobDocuments, eventDocuments] = await Promise.all([
+    queryDocumentsIn("messenger_delivery_jobs", "entityId", [...entityIds], token, env),
+    queryDocumentsIn("messenger_delivery_events", "entityId", [...entityIds], token, env),
+  ]);
+  const jobs = jobDocuments.filter((document) => entityIds.has(fieldString(document, "entityId") ?? ""));
+  const events = eventDocuments.filter((document) => entityIds.has(fieldString(document, "entityId") ?? ""));
+  if (profile.role === "teacher") {
+    const studentIds = [...new Set([...jobs, ...events].map((document) => fieldString(document, "studentId") ?? "").filter(Boolean))];
+    for (const studentId of studentIds) await assertStudentScope(profile, claims.sub, await threadContext(studentId, token, env));
+  }
+  const summary = (document: unknown) => ({
+    id: firestoreDocumentId(document) ?? "",
+    eventType: fieldString(document, "eventType") ?? "",
+    entityId: fieldString(document, "entityId") ?? "",
+    studentId: fieldString(document, "studentId") ?? "",
+    version: fieldString(document, "version") ?? String(fieldInteger(document, "version")),
+    templateKey: fieldString(document, "templateKey") ?? null,
+    status: fieldString(document, "status") ?? "unknown",
+    attempts: fieldInteger(document, "attempts"),
+    lastErrorCode: fieldString(document, "lastErrorCode") ?? null,
+    updatedAt: fieldTimestamp(document, "updatedAt")?.toISOString() ?? null,
+    sentAt: fieldTimestamp(document, "sentAt")?.toISOString() ?? null,
+  });
+  return new Response(JSON.stringify({ jobs: jobs.map(summary), events: events.map(summary) }), { headers: corsHeaders(env, request) });
 }
 
 export default {
@@ -1936,6 +2250,7 @@ export default {
       else if (path === "/api/meta/utility/status" && request.method === "POST") response = await handleUtilityStatus(request, env);
       else if (path === "/api/meta/utility/toggle" && request.method === "POST") response = await handleUtilityToggle(request, env);
       else if (path === "/api/messenger/delivery-jobs/retry" && request.method === "POST") response = await handleRetryDeliveryJob(request, env);
+      else if (path === "/api/messenger/delivery-jobs/status" && request.method === "POST") response = await handleDeliveryStatus(request, env);
       else if (path === "/webhook") response = await handleWebhook(request, env);
       else response = new Response("Not found", { status: 404 });
       response.headers.set("x-request-id", requestId);
@@ -1951,7 +2266,7 @@ export default {
     context.waitUntil(Promise.all([
       processConversationDeletionQueue(env),
       cleanupExpiredConversationTombstones(env),
-      processDeliveryQueue(env),
+      (async () => { await processDeliveryEvents(env); await processDeliveryQueue(env); })(),
     ]).then(() => undefined));
   },
 };

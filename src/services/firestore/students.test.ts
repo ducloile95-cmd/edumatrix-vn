@@ -50,11 +50,15 @@ describe("createStudentWithRelations", () => {
       .mockResolvedValueOnce(snapshot("class-1", { courseId: "course-1", teacherIds: ["teacher-1"], status: "active" }))
       .mockResolvedValueOnce(snapshot("parent-1", { email: "parent@example.com", role: "viewer", status: "active" }));
     await createStudentWithRelations({ studentCode: "hs001", fullName: "Student", dateOfBirth: "2015-01-01", classId: "class-1", parentEmail: "PARENT@example.com", staffNote: "note" });
-    expect(mocks.transactionSet).toHaveBeenCalledTimes(2);
+    expect(mocks.transactionSet).toHaveBeenCalledTimes(3);
     expect(mocks.transactionUpdate).toHaveBeenCalledTimes(2);
     expect(mocks.transactionSet).toHaveBeenCalledWith(expect.objectContaining({ path: "students/HS001" }), expect.objectContaining({
       parentUids: ["parent-1"], currentClassIds: ["class-1"], teacherIds: ["teacher-1"], staffNote: "note",
     }));
+    expect(mocks.transactionSet).toHaveBeenCalledWith(
+      expect.objectContaining({ path: expect.stringContaining("messenger_delivery_events/enrollment_completed:class-1_HS001:v1") }),
+      expect.objectContaining({ eventType: "enrollment_completed", entityId: "class-1_HS001", studentId: "HS001" }),
+    );
   });
 
   test("requires a teacher to choose an assigned active class", async () => {

@@ -32,6 +32,7 @@ import type { InvoiceStatus } from "@/types/academic";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { USER_ROLES } from "@/constants/roles";
 import { INVOICE_STATUS_LABEL, INVOICE_STATUS_TONE } from "@/features/invoices/constants";
+import { getUtilityDeliveryStatus, retryUtilityDeliveryJob, summarizeUtilityDelivery, type UtilityDeliveryAggregateStatus } from "@/services/integrations/messenger";
 
 type FinanceTab = "overview" | "invoices" | "reconcile";
 
@@ -74,6 +75,21 @@ export default function InvoicesPage() {
 
   const studentNameById = useMemo(() => new Map((students.data ?? []).map((student) => [student.id, student.fullName])), [students.data]);
   const invoiceById = useMemo(() => new Map((invoices.data ?? []).map((invoice) => [invoice.id, invoice])), [invoices.data]);
+  const verifiedPaymentByInvoice = useMemo(() => new Map((payments.data ?? []).filter((payment) => payment.status === "verified").map((payment) => [payment.invoiceId, payment])), [payments.data]);
+  const utilityEntityIds = useMemo(() => [
+    ...(invoices.data ?? []).map((invoice) => invoice.id),
+    ...(payments.data ?? []).filter((payment) => payment.status === "verified").map((payment) => payment.id),
+  ], [invoices.data, payments.data]);
+  const utilityDeliveries = useQuery({
+    queryKey: ["utility-delivery", "finance", utilityEntityIds.join(",")],
+    queryFn: () => getUtilityDeliveryStatus(utilityEntityIds),
+    enabled: canManageFinance && utilityEntityIds.length > 0,
+    refetchInterval: 10_000,
+  });
+  const retryDelivery = useMutation({
+    mutationFn: (jobIds: string[]) => Promise.all(jobIds.map(retryUtilityDeliveryJob)),
+    onSuccess: () => utilityDeliveries.refetch(),
+  });
 
   const create = useMutation({
     mutationFn: (values: InvoiceCreationValues) => createInvoices(values.studentIds.map((studentId) => ({
@@ -260,15 +276,18 @@ export default function InvoicesPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-100">
-                  {filteredInvoices.map((invoice) => (
-                    <tr key={invoice.id} className="transition hover:bg-neutral-50/80">
+                  {filteredInvoices.map((invoice) => {
+                    const reminder = summarizeUtilityDelivery(utilityDeliveries.data, invoice.id);
+                    const verifiedPayment = verifiedPaymentByInvoice.get(invoice.id);
+                    const confirmation = verifiedPayment ? summarizeUtilityDelivery(utilityDeliveries.data, verifiedPayment.id) : null;
+                    return <tr key={invoice.id} className="transition hover:bg-neutral-50/80">
                       <td className="px-5 py-4"><p className="font-bold text-neutral-900">{invoice.invoiceCode}</p><p className="mt-0.5 text-xs text-neutral-500">{invoice.title}</p>{invoice.sourceType && <p className="mt-1 text-2xs font-semibold text-primary-700">{invoice.sourceType === "billing_item" ? "Đồ dùng học tập" : "Lớp học"} / {invoice.itemNameSnapshot}</p>}</td>
                       <td className="px-4 py-4 font-medium text-neutral-700">{studentNameById.get(invoice.studentId) ?? invoice.studentId}</td>
                       <td className="px-4 py-4"><p className="tabular-nums text-neutral-700">{format(invoice.dueAt.toDate(), "dd/MM/yyyy")}</p>{invoice.status === "overdue" && <p className="mt-0.5 text-xs font-semibold text-danger-700">Đã quá hạn</p>}</td>
                       <td className="px-4 py-4 text-right font-bold tabular-nums text-neutral-900">{formatVnd(invoice.amount)}</td>
-                      <td className="px-5 py-4 text-right"><StatusBadge tone={INVOICE_STATUS_TONE[invoice.status]}>{INVOICE_STATUS_LABEL[invoice.status]}</StatusBadge></td>
+                      <td className="px-5 py-4 text-right"><StatusBadge tone={INVOICE_STATUS_TONE[invoice.status]}>{INVOICE_STATUS_LABEL[invoice.status]}</StatusBadge><UtilityDeliveryLine label="Nhắc phí" status={reminder.status} detail={reminder.detail} retryableJobIds={reminder.retryableJobIds} retrying={retryDelivery.isPending} onRetry={(ids) => retryDelivery.mutate(ids)} />{confirmation && <UtilityDeliveryLine label="Xác nhận" status={confirmation.status} detail={confirmation.detail} retryableJobIds={confirmation.retryableJobIds} retrying={retryDelivery.isPending} onRetry={(ids) => retryDelivery.mutate(ids)} />}</td>
                     </tr>
-                  ))}
+                  })}
                 </tbody>
               </table>
             )}
@@ -331,4 +350,18 @@ function formatAxisVnd(value: number) {
   if (value >= 1_000_000_000) return `${Math.round(value / 1_000_000_000)}tỷ`;
   if (value >= 1_000_000) return `${Math.round(value / 1_000_000)}tr`;
   return `${Math.round(value / 1_000)}k`;
+}
+
+function UtilityDeliveryLine({ label, status, detail, retryableJobIds, retrying, onRetry }: {
+  label: string;
+  status: UtilityDeliveryAggregateStatus;
+  detail: string;
+  retryableJobIds: string[];
+  retrying: boolean;
+  onRetry: (jobIds: string[]) => void;
+}) {
+  if (status === "none") return null;
+  const tone = status === "sent" ? "text-success-700" : status === "failed" ? "text-danger-700" : status === "pending" ? "text-warning-700" : "text-neutral-500";
+  const text = status === "sent" ? "đã gửi" : status === "failed" ? "thất bại" : status === "pending" ? "đang chờ" : "bỏ qua";
+  return <p className={`mt-1 text-2xs font-semibold ${tone}`} title={detail}>{label}: {text}{retryableJobIds.length > 0 && <button type="button" className="ml-1 underline" disabled={retrying} onClick={() => onRetry(retryableJobIds)}>Thử lại</button>}</p>;
 }

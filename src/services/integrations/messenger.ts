@@ -23,6 +23,7 @@ const FRIENDLY_ERRORS: Record<string, string> = {
   utility_template_not_allowed: "Tài khoản của bạn không được phép sử dụng mẫu thông báo này.",
   utility_template_not_approved: "Mẫu thông báo chưa được Meta phê duyệt hoặc chưa được bật.",
   utility_permission_required: "Fanpage chưa cấp quyền Utility Messaging. Admin cần kết nối lại Fanpage trước khi bật tính năng.",
+  delivery_job_not_retryable: "Chỉ có thể gửi lại thông báo đang thất bại hoặc đã bị bỏ qua.",
 };
 
 export function friendlyMessengerError(message: string): string {
@@ -169,6 +170,69 @@ export function syncUtilityTemplates(): Promise<{ templates: UtilityTemplateSumm
 
 export function setUtilityTemplateEnabled(templateKey: UtilityTemplateKey, enabled: boolean): Promise<{ templates: UtilityTemplateSummary[] }> {
   return workerRequest("/api/meta/utility/toggle", { templateKey, enabled });
+}
+
+export interface UtilityDeliveryStatusItem {
+  id: string;
+  eventType: string;
+  entityId: string;
+  studentId: string;
+  version: string;
+  templateKey: UtilityTemplateKey | null;
+  status: "pending" | "processing" | "expanded" | "sent" | "failed" | "skipped" | "unknown";
+  attempts: number;
+  lastErrorCode: string | null;
+  updatedAt: string | null;
+  sentAt: string | null;
+}
+
+export interface UtilityDeliveryStatusResponse {
+  jobs: UtilityDeliveryStatusItem[];
+  events: UtilityDeliveryStatusItem[];
+}
+
+export type UtilityDeliveryAggregateStatus = "pending" | "sent" | "failed" | "skipped" | "none";
+
+export function summarizeUtilityDelivery(response: UtilityDeliveryStatusResponse | undefined, entityId: string): {
+  status: UtilityDeliveryAggregateStatus;
+  detail: string;
+  retryableJobIds: string[];
+} {
+  const jobs = response?.jobs.filter((item) => item.entityId === entityId) ?? [];
+  const events = response?.events.filter((item) => item.entityId === entityId) ?? [];
+  const retryableJobIds = jobs
+    .filter((item) => (item.status === "failed" || item.status === "skipped") && item.lastErrorCode !== "meta_delivery_outcome_unknown")
+    .map((item) => item.id);
+  if (jobs.some((item) => item.status === "failed")) return { status: "failed", detail: "Có thông báo gửi thất bại", retryableJobIds };
+  if (jobs.some((item) => item.status === "pending" || item.status === "processing")) return { status: "pending", detail: "Worker đang xử lý", retryableJobIds };
+  if (jobs.length && jobs.every((item) => item.status === "skipped")) {
+    const uncertain = jobs.some((item) => item.lastErrorCode === "meta_delivery_outcome_unknown");
+    return {
+      status: "skipped",
+      detail: uncertain ? "Chưa xác định Meta đã nhận tin; cần kiểm tra thủ công, không gửi lại tự động" : "Không có kết nối Messenger phù hợp",
+      retryableJobIds,
+    };
+  }
+  if (jobs.some((item) => item.status === "sent")) {
+    const sent = jobs.filter((item) => item.status === "sent").length;
+    return { status: "sent", detail: `Đã gửi ${sent}/${jobs.length} phụ huynh`, retryableJobIds };
+  }
+  if (events.some((item) => item.status === "failed")) return { status: "failed", detail: "Không tạo được hàng đợi gửi", retryableJobIds };
+  if (events.some((item) => item.status === "skipped")) return { status: "skipped", detail: "Sự kiện không còn đủ điều kiện gửi", retryableJobIds };
+  if (events.length) return { status: "pending", detail: "Đã xếp hàng chờ Worker", retryableJobIds };
+  return { status: "none", detail: "Chưa có sự kiện gửi", retryableJobIds };
+}
+
+export async function getUtilityDeliveryStatus(entityIds: string[]): Promise<UtilityDeliveryStatusResponse> {
+  const unique = [...new Set(entityIds)];
+  const chunks = Array.from({ length: Math.ceil(unique.length / 100) }, (_, index) => unique.slice(index * 100, (index + 1) * 100));
+  if (!chunks.length) return { jobs: [], events: [] };
+  const responses = await Promise.all(chunks.map((ids) => workerRequest<UtilityDeliveryStatusResponse>("/api/messenger/delivery-jobs/status", { entityIds: ids })));
+  return { jobs: responses.flatMap((item) => item.jobs), events: responses.flatMap((item) => item.events) };
+}
+
+export function retryUtilityDeliveryJob(jobId: string): Promise<{ ok: true; jobId: string; status: "pending" }> {
+  return workerRequest("/api/messenger/delivery-jobs/retry", { jobId });
 }
 
 export function getMetaPageConnectionStatus(state: string): Promise<MetaConnectStatus> {

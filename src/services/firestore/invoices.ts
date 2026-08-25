@@ -24,6 +24,7 @@ import { createInvoiceCode, createPaymentContent } from "@/utils/payment";
 import { getCurrentUserDoc, isAdminUser, isTeacherUser } from "@/services/firestore/authz";
 import { listStudents } from "@/services/firestore/students";
 import { listQueryDocumentsPage } from "@/services/firestore/pagination";
+import { queueUtilityDeliveryEvent } from "@/services/firestore/messengerDelivery";
 import type { InvoiceDoc, InvoiceSourceType, PaymentDoc, PaymentStatus } from "@/types/academic";
 
 export interface CreateInvoiceInput {
@@ -53,7 +54,8 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<void> {
 /** Phát hành nhiều hóa đơn trong một batch để tránh chỉ tạo được một phần danh sách. */
 export async function createInvoices(inputs: CreateInvoiceInput[]): Promise<void> {
   if (inputs.length === 0) return;
-  if (inputs.length > 500) throw new Error("invoice_batch_limit");
+  // Moi hoa don kem mot event intent trong cung batch (toi da 500 writes).
+  if (inputs.length > 250) throw new Error("invoice_batch_limit");
 
   const batch = writeBatch(db);
   inputs.forEach((input) => {
@@ -70,6 +72,14 @@ export async function createInvoices(inputs: CreateInvoiceInput[]): Promise<void
       createdBy: actorUid,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
+    });
+    queueUtilityDeliveryEvent(batch, {
+      eventType: "invoice_committed",
+      entityId: invoiceRef.id,
+      sourceId: invoiceRef.id,
+      studentId: input.studentId,
+      version: 1,
+      actorUid,
     });
   });
   await batch.commit();
@@ -231,5 +241,15 @@ export async function reconcilePayment(
       status: status === "verified" ? "paid" : "rejected",
       updatedAt: serverTimestamp(),
     });
+    if (status === "verified") {
+      queueUtilityDeliveryEvent(transaction, {
+        eventType: "payment_verified",
+        entityId: payment.id,
+        sourceId: payment.id,
+        studentId: currentPayment.studentId,
+        version: 1,
+        actorUid: uid,
+      });
+    }
   });
 }

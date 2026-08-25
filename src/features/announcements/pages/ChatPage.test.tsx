@@ -66,12 +66,15 @@ vi.mock("@/services/integrations/messenger", () => {
 
   return {
     createMessengerInviteLink: vi.fn(),
+    getUtilityDeliveryStatus: vi.fn().mockResolvedValue({ jobs: [], events: [] }),
     isMessengerInviteConfigured: () => false,
     linkMessengerConversation: vi.fn(),
     MessengerSendError,
     deleteMessengerConversation: serviceMocks.deleteMessengerConversation,
     messengerPageUrl: () => null,
     sendMessenger: serviceMocks.sendMessenger,
+    retryUtilityDeliveryJob: vi.fn(),
+    summarizeUtilityDelivery: () => ({ status: "none", detail: "", retryableJobIds: [] }),
     syncMessengerThreadContexts: serviceMocks.syncMessengerThreadContexts,
   };
 });

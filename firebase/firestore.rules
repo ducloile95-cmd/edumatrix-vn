@@ -593,13 +593,14 @@ service cloud.firestore {
     }
 
     function validEnrollmentData(enrollmentId, data) {
-      return data.keys().hasAll(['classId', 'courseId', 'studentId', 'status', 'joinedAt', 'endedAt']) &&
-        data.keys().hasOnly(['classId', 'courseId', 'studentId', 'status', 'joinedAt', 'endedAt']) &&
+      return data.keys().hasAll(['classId', 'courseId', 'studentId', 'status', 'joinedAt', 'endedAt', 'version', 'updatedAt']) &&
+        data.keys().hasOnly(['classId', 'courseId', 'studentId', 'status', 'joinedAt', 'endedAt', 'version', 'updatedAt']) &&
         data.classId is string && data.courseId is string && data.studentId is string &&
         enrollmentId == data.classId + '_' + data.studentId &&
         data.status in ['active', 'ended'] &&
         data.joinedAt is timestamp &&
         (data.endedAt == null || data.endedAt is timestamp) &&
+        data.version is int && data.version >= 1 && data.updatedAt is timestamp &&
         existsAfter(/databases/$(database)/documents/classes/$(data.classId)) &&
         existsAfter(/databases/$(database)/documents/students/$(data.studentId)) &&
         data.courseId == getAfter(/databases/$(database)/documents/classes/$(data.classId)).data.courseId &&
@@ -607,6 +608,57 @@ service cloud.firestore {
           getAfter(/databases/$(database)/documents/classes/$(data.classId)).data.status == 'active' &&
           getAfter(/databases/$(database)/documents/students/$(data.studentId)).data.status == 'active'
         ));
+    }
+
+    function validMessengerDeliveryEvent(eventId, data) {
+      return data.keys().hasAll([
+          'eventType', 'entityId', 'sourceId', 'studentId', 'version', 'actorUid',
+          'idempotencyKey', 'status', 'attempts', 'lastErrorCode', 'leaseUntil',
+          'nextAttemptAt', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'eventType', 'entityId', 'sourceId', 'studentId', 'version', 'actorUid',
+          'idempotencyKey', 'status', 'attempts', 'lastErrorCode', 'leaseUntil',
+          'nextAttemptAt', 'createdAt', 'updatedAt'
+        ]) &&
+        data.eventType in ['lesson_feedback_published', 'invoice_committed', 'payment_verified', 'enrollment_completed'] &&
+        data.entityId is string && data.sourceId is string && data.studentId is string &&
+        data.version is int && data.version >= 1 &&
+        data.actorUid == request.auth.uid && data.idempotencyKey == eventId &&
+        data.status == 'pending' && data.attempts == 0 &&
+        data.lastErrorCode == null && data.leaseUntil == null &&
+        data.nextAttemptAt == request.time && data.createdAt == request.time && data.updatedAt == request.time &&
+        (
+          (
+            data.eventType == 'lesson_feedback_published' &&
+            data.entityId == data.sourceId + '_' + data.studentId &&
+            existsAfter(/databases/$(database)/documents/announcements/$(data.entityId)) &&
+            getAfter(/databases/$(database)/documents/announcements/$(data.entityId)).data.type == 'session_summary' &&
+            getAfter(/databases/$(database)/documents/announcements/$(data.entityId)).data.studentId == data.studentId &&
+            existsAfter(/databases/$(database)/documents/session_interactions/$(data.sourceId)) &&
+            getAfter(/databases/$(database)/documents/session_interactions/$(data.sourceId)).data.workflowStatus == 'published' &&
+            getAfter(/databases/$(database)/documents/session_interactions/$(data.sourceId)).data.version == data.version
+          ) ||
+          (
+            data.eventType == 'invoice_committed' && data.entityId == data.sourceId && data.version == 1 &&
+            existsAfter(/databases/$(database)/documents/invoices/$(data.entityId)) &&
+            getAfter(/databases/$(database)/documents/invoices/$(data.entityId)).data.studentId == data.studentId &&
+            getAfter(/databases/$(database)/documents/invoices/$(data.entityId)).data.status == 'unpaid'
+          ) ||
+          (
+            data.eventType == 'payment_verified' && data.entityId == data.sourceId && data.version == 1 &&
+            existsAfter(/databases/$(database)/documents/payments/$(data.entityId)) &&
+            getAfter(/databases/$(database)/documents/payments/$(data.entityId)).data.studentId == data.studentId &&
+            getAfter(/databases/$(database)/documents/payments/$(data.entityId)).data.status == 'verified'
+          ) ||
+          (
+            data.eventType == 'enrollment_completed' && data.entityId == data.sourceId &&
+            existsAfter(/databases/$(database)/documents/enrollments/$(data.entityId)) &&
+            getAfter(/databases/$(database)/documents/enrollments/$(data.entityId)).data.studentId == data.studentId &&
+            getAfter(/databases/$(database)/documents/enrollments/$(data.entityId)).data.status == 'active' &&
+            getAfter(/databases/$(database)/documents/enrollments/$(data.entityId)).data.version == data.version
+          )
+        );
     }
 
     function validCurriculumTransition() {
@@ -1212,7 +1264,8 @@ service cloud.firestore {
 
     match /enrollments/{enrollmentId} {
       allow read: if canManageClass(resource.data.classId) || ownsStudent(resource.data.studentId);
-      allow create: if validEnrollmentData(enrollmentId, request.resource.data) && ((
+      allow create: if validEnrollmentData(enrollmentId, request.resource.data) &&
+        request.resource.data.version == 1 && request.resource.data.updatedAt == request.time && ((
         isAdmin() &&
         request.resource.data.status in ['active', 'ended']
       ) || isTeacherEnrollmentCreate(enrollmentId));
@@ -1225,7 +1278,14 @@ service cloud.firestore {
         )
       ) &&
         validEnrollmentData(enrollmentId, request.resource.data) &&
-        keepsImmutable(['classId', 'courseId', 'studentId', 'joinedAt']);
+        keepsImmutable(['classId', 'courseId', 'studentId', 'joinedAt']) &&
+        request.resource.data.updatedAt == request.time &&
+        (
+          (resource.data.status == 'ended' && request.resource.data.status == 'active' &&
+            request.resource.data.version == resource.data.get('version', 0) + 1) ||
+          (resource.data.status == 'active' && request.resource.data.status == 'ended' &&
+            request.resource.data.version == resource.data.get('version', 1))
+        );
       allow delete: if isAdmin();
     }
 
@@ -1666,6 +1726,13 @@ service cloud.firestore {
     match /messenger_delivery_jobs/{jobId} {
       allow read: if isAdmin();
       allow write: if false;
+    }
+
+    // Event intent duoc ghi bat bien trong cung transaction nghiep vu. Worker
+    // xac minh lan nua va fan-out thanh delivery jobs server-only.
+    match /messenger_delivery_events/{eventId} {
+      allow read, update, delete: if false;
+      allow create: if isStaff() && validMessengerDeliveryEvent(eventId, request.resource.data);
     }
 
     match /viewer_dashboard/{parentUid} {

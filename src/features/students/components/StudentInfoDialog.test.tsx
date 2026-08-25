@@ -87,7 +87,7 @@ describe("StudentInfoDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "Cập nhật" }));
 
     await waitFor(() => {
-      expect(serviceMocks.syncStudentEnrollments).toHaveBeenCalledWith("student-1", ["class-1", "class-2"]);
+      expect(serviceMocks.syncStudentEnrollments).toHaveBeenCalledWith("student-1", ["class-1", "class-2"], "unknown");
     });
     expect(serviceMocks.updateStudent).toHaveBeenCalledWith("student-1", expect.objectContaining({
       nickname: "Bin",
@@ -122,7 +122,7 @@ describe("StudentInfoDialog", () => {
     fireEvent.submit(fullNameInput.form!);
 
     await waitFor(() => {
-      expect(serviceMocks.syncStudentEnrollments).toHaveBeenCalledWith("student-1", ["class-1", "class-2"]);
+      expect(serviceMocks.syncStudentEnrollments).toHaveBeenCalledWith("student-1", ["class-1", "class-2"], "unknown");
     });
   });
 

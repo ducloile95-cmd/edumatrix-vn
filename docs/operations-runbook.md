@@ -79,3 +79,14 @@ Emulator dùng cho dữ liệu test có thể export/import bằng Firebase CLI;
 - Kiểm tra `chat_threads/{threadId}/messages` và structured log Worker sau smoke test; `message_outbox` cũ đã bị xóa. Không coi test unit là bằng chứng gửi Meta thật.
 - Xác nhận `GET /health.release` trả đúng SHA của commit phát hành trước khi mở frontend.
 - Utility phải giữ fail-closed cho đến khi quyền `pages_utility_messaging`, webhook status và cả sáu template được đồng bộ live.
+
+## R3 — Utility tự động trên Firebase Spark
+
+- Client không ghi trực tiếp `messenger_delivery_jobs`. Mỗi nghiệp vụ ghi một intent bất biến vào `messenger_delivery_events` trong cùng transaction/batch; Worker cron xác minh trạng thái nghiệp vụ rồi fan-out thành job server-only cho từng phụ huynh active.
+- Idempotency key của job là `eventType:entityId:version:parentUid`. Không sửa hoặc tạo job bằng Firebase Console trong quy trình thông thường.
+- Trước khi deploy Rules R3, chạy `npm run migrate:r3-enrollments` để dry-run. Chỉ khi số lượng hợp lý mới chạy `npm run migrate:r3-enrollments -- --apply`; giữ nguyên thư mục backup mà script in ra để rollback có precondition.
+- Thứ tự rollout: migration enrollment → indexes/Rules → Worker với `UTILITY_AUTOMATION_ENABLED=false` → frontend → xác minh template → Worker activation với flag `true`.
+- Chỉ bật automation khi bốn template nghiệp vụ `lesson_feedback_request`, `tuition_payment_reminder`, `tuition_payment_confirmation`, `enrollment_confirmation` và template `parent_account_link_confirmation` đều đang `APPROVED`, đúng Page/ngôn ngữ và được Admin bật. `schedule_adjustment` không thuộc năm trigger R3.
+- Cron xử lý event trước, job sau. Theo dõi `pending`, `processing`, `sent`, `failed`, `skipped`; `skipped:no_connection` là kết quả thật, không phải gửi thành công.
+- Nếu job ở `processing` hết lease hoặc request Meta trả kết quả mơ hồ, Worker đặt `skipped:meta_delivery_outcome_unknown` và không tự gửi lại. Kiểm tra Inbox/Meta log thủ công; không retry mù vì có nguy cơ gửi trùng.
+- Rollback nhanh nhất là đặt `UTILITY_AUTOMATION_ENABLED=false` và deploy Worker. Việc này dừng cron gửi mới nhưng giữ nguyên event/job để điều tra; chat 24 giờ và Utility thủ công không bị tắt.

@@ -30,7 +30,7 @@ import {
   type ClassroomStudentEntry,
   type PublishStudentResult,
 } from "@/services/firestore/classroomInteractions";
-import { sendMessenger } from "@/services/integrations/messenger";
+import { getUtilityDeliveryStatus, retryUtilityDeliveryJob, summarizeUtilityDelivery } from "@/services/integrations/messenger";
 import { getSession, listSessionsByClass } from "@/services/firestore/sessions";
 import { getLessonPlanBySession } from "@/services/firestore/lessonPlans";
 import { listStudents } from "@/services/firestore/students";
@@ -128,6 +128,13 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
   const isAmended = workflowStatus === "amended";
   const entryList = classStudents.map((student) => entries[student.id]).filter(Boolean);
   const publishStudents = classStudents.map((student) => ({ id: student.id, fullName: student.fullName }));
+  const deliveryEntityIds = classStudents.map((student) => `${sessionId}_${student.id}`);
+  const deliveryStatus = useQuery({
+    queryKey: ["utility-delivery", "lesson-feedback", sessionId, deliveryEntityIds.join(",")],
+    queryFn: () => getUtilityDeliveryStatus(deliveryEntityIds),
+    enabled: isPublished && deliveryEntityIds.length > 0,
+    refetchInterval: 5_000,
+  });
   const blockers = classroomPublishBlockers({
     students: publishStudents,
     entries: entryList,
@@ -169,6 +176,7 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
       // Luu ban nhap moi nhat truoc de noi dung interaction khop 100% voi noi dung gui di.
       await saveClassroomDraft(buildDraftInput());
       return publishClassroomInteraction({
+        actorUid: firebaseUser?.uid ?? "unknown",
         sessionId,
         classId: klass.data.id,
         className: klass.data.name,
@@ -199,20 +207,26 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
 
   const resend = useMutation({
     mutationFn: async () => {
-      const updated: PublishStudentResult[] = [];
-      for (const item of publishResults) {
-        if (item.messenger === "sent") { updated.push(item); continue; }
-        const result = await sendMessenger({ studentId: item.studentId, text: item.message, type: "session_summary" });
-        updated.push({
-          ...item,
-          messenger: result.sent ? (result.status === "sent" ? "sent" : "failed") : "failed",
-          detail: result.sent ? "" : result.message,
-        });
-      }
-      return updated;
+      const retryable = deliveryEntityIds.flatMap((entityId) => summarizeUtilityDelivery(deliveryStatus.data, entityId).retryableJobIds);
+      await Promise.all(retryable.map(retryUtilityDeliveryJob));
     },
-    onSuccess: (updated) => setPublishResults(updated),
+    onSuccess: () => deliveryStatus.refetch(),
   });
+
+  useEffect(() => {
+    if (!isPublished || !deliveryStatus.data) return;
+    setPublishResults((current) => classStudents.map((student) => {
+      const previous = current.find((item) => item.studentId === student.id);
+      const summary = summarizeUtilityDelivery(deliveryStatus.data, `${sessionId}_${student.id}`);
+      return {
+        studentId: student.id,
+        studentName: student.fullName,
+        message: previous?.message ?? "",
+        messenger: summary.status === "none" ? "pending" : summary.status,
+        detail: summary.detail,
+      };
+    }));
+  }, [classStudents, deliveryStatus.data, isPublished, sessionId]);
 
   const mutationRef = useRef(mutation);
   useEffect(() => { mutationRef.current = mutation; });

@@ -24,7 +24,7 @@ describe("LoginPage appearance controls", () => {
   });
 
   it("changes language from the legal footer without exposing a theme control", async () => {
-    render(
+    const { unmount } = render(
       <MemoryRouter>
         <AppearanceProvider>
           <LoginPage />
@@ -39,5 +39,6 @@ describe("LoginPage appearance controls", () => {
     await waitFor(() => expect(document.documentElement.lang).toBe("en"));
     expect(document.documentElement.classList.contains("dark")).toBe(false);
     expect(JSON.parse(localStorage.getItem(APPEARANCE_STORAGE_KEY) ?? "{}")).toEqual({ theme: "light", language: "en" });
+    unmount();
   });
 });

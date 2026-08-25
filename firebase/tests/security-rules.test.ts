@@ -760,6 +760,41 @@ describe("Messenger server-only collections", () => {
     await assertFails(setDoc(doc(asTeacher(), "messenger_delivery_jobs", "job-2"), { status: "pending" }));
   });
 
+  test("staff creates only a validated immutable delivery event while jobs remain server-only", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "invoices", "invoice-r3"), {
+        studentId: "student_001",
+        status: "unpaid",
+      });
+    });
+    const eventId = "invoice_committed:invoice-r3:v1";
+    const payload = {
+      eventType: "invoice_committed",
+      entityId: "invoice-r3",
+      sourceId: "invoice-r3",
+      studentId: "student_001",
+      version: 1,
+      actorUid: ADMIN_UID,
+      idempotencyKey: eventId,
+      status: "pending",
+      attempts: 0,
+      lastErrorCode: null,
+      leaseUntil: null,
+      nextAttemptAt: serverTimestamp(),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+    const eventRef = doc(asAdmin(), "messenger_delivery_events", eventId);
+    await assertSucceeds(setDoc(eventRef, payload));
+    await assertFails(updateDoc(eventRef, { status: "processing" }));
+    await assertFails(getDoc(eventRef));
+    await assertFails(setDoc(doc(asAdmin(), "messenger_delivery_events", `${eventId}-spoof`), {
+      ...payload,
+      idempotencyKey: `${eventId}-spoof`,
+      actorUid: TEACHER_UID,
+    }));
+  });
+
   test("viewer reads only its materialized dashboard and no client writes it", async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       const db = ctx.firestore();

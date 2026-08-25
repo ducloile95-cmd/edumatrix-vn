@@ -131,6 +131,22 @@
         { "fieldPath": "studentId", "order": "ASCENDING" },
         { "fieldPath": "dueAt", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "messenger_delivery_events",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "nextAttemptAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "messenger_delivery_jobs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "nextAttemptAt", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

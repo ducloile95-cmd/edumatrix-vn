@@ -75,6 +75,8 @@ beforeEach(async () => {
       status: "active",
       joinedAt: Timestamp.now(),
       endedAt: null,
+      version: 1,
+      updatedAt: Timestamp.now(),
     });
     await setDoc(doc(db, "sessions", "session-1"), {
       classId: "class-1",

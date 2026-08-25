@@ -27,6 +27,7 @@ import type { ClassDoc, StudentDoc, StudentStatus } from "@/types/academic";
 import type { UserDoc } from "@/types/user";
 import type { ParentProfileInput } from "@/services/firestore/users";
 import { decodeStudentDoc } from "@/services/firestore/decoders";
+import { queueUtilityDeliveryEvent } from "@/services/firestore/messengerDelivery";
 
 export interface CreateStudentInput {
   studentCode: string;
@@ -101,13 +102,24 @@ export async function createStudentWithRelations(input: CreateStudentWithRelatio
       updatedAt: serverTimestamp(),
     });
     if (classRef && klass) {
-      transaction.set(doc(db, COLLECTIONS.ENROLLMENTS, `${classRef.id}_${id}`), {
+      const enrollmentDocumentId = `${classRef.id}_${id}`;
+      transaction.set(doc(db, COLLECTIONS.ENROLLMENTS, enrollmentDocumentId), {
         classId: classRef.id,
         courseId: klass.courseId,
         studentId: id,
         status: "active",
         joinedAt: serverTimestamp(),
         endedAt: null,
+        version: 1,
+        updatedAt: serverTimestamp(),
+      });
+      queueUtilityDeliveryEvent(transaction, {
+        eventType: "enrollment_completed",
+        entityId: enrollmentDocumentId,
+        sourceId: enrollmentDocumentId,
+        studentId: id,
+        version: 1,
+        actorUid: actor.uid,
       });
       transaction.update(classRef, { studentIds: arrayUnion(id), updatedAt: serverTimestamp() });
     }

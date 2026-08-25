@@ -4,7 +4,7 @@ vi.mock("@/services/firebase/authClient", () => ({
   auth: { currentUser: { getIdToken: vi.fn().mockResolvedValue("firebase-id-token") } },
 }));
 
-import { createMessengerInviteLink, friendlyMessengerError, sendMessenger, syncMessengerThreadContexts } from "@/services/integrations/messenger";
+import { createMessengerInviteLink, friendlyMessengerError, sendMessenger, summarizeUtilityDelivery, syncMessengerThreadContexts } from "@/services/integrations/messenger";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -87,5 +87,19 @@ describe("Messenger integration adapter", () => {
       "https://messenger.example.workers.dev/api/messenger/sync-contexts",
       expect.objectContaining({ body: "{}" }),
     );
+  });
+
+  test("aggregates multi-guardian delivery jobs and exposes only retryable ids", () => {
+    const base = { eventType: "invoice_committed", entityId: "invoice-1", studentId: "student-1", version: "1", templateKey: "tuition_payment_reminder" as const, attempts: 1, lastErrorCode: null, updatedAt: null, sentAt: null };
+    expect(summarizeUtilityDelivery({ events: [], jobs: [
+      { ...base, id: "job-1", status: "sent" },
+      { ...base, id: "job-2", status: "skipped", lastErrorCode: "no_connection" },
+    ] }, "invoice-1")).toMatchObject({ status: "sent", retryableJobIds: ["job-2"] });
+    expect(summarizeUtilityDelivery({ events: [], jobs: [
+      { ...base, id: "job-3", status: "failed", lastErrorCode: "meta_request_failed" },
+    ] }, "invoice-1")).toMatchObject({ status: "failed", retryableJobIds: ["job-3"] });
+    expect(summarizeUtilityDelivery({ events: [], jobs: [
+      { ...base, id: "job-4", status: "skipped", lastErrorCode: "meta_delivery_outcome_unknown" },
+    ] }, "invoice-1")).toMatchObject({ status: "skipped", retryableJobIds: [], detail: expect.stringContaining("không gửi lại tự động") });
   });
 });

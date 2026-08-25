@@ -116,7 +116,7 @@ describe("classroom live-data invariants", () => {
       "classes/class-1": { name: "Live class", studentIds: ["student-1", "student-2"] },
       "sessions/session-1": { classId: "class-1", startAt: { toDate: () => new Date("2026-08-09T10:00:00Z") } },
       "session_interactions/session-1": {
-        classId: "class-1", workflowStatus: "draft", taughtContent: "Live content",
+        classId: "class-1", teacherId: "teacher-1", workflowStatus: "draft", version: 1, taughtContent: "Live content",
         quickSummary: "Live summary", homeworkText: "Live homework",
       },
       "students/student-1": { fullName: "Student One" },
@@ -131,6 +131,7 @@ describe("classroom live-data invariants", () => {
     mocks.transactionGet.mockImplementation(async (ref: string) => snapshot(ref.split("/")[1], records[ref]));
 
     const result = await publishClassroomInteraction({
+      actorUid: "teacher-1",
       sessionId: "session-1",
       classId: "class-1",
       className: "Stale class",
@@ -148,9 +149,14 @@ describe("classroom live-data invariants", () => {
       "announcements/session-1_student-2",
       expect.objectContaining({ studentId: "student-2", message: expect.stringContaining("Live content") }),
     );
+    expect(mocks.transactionSet).toHaveBeenCalledWith(
+      "messenger_delivery_events/lesson_feedback_published:session-1_student-2:v2",
+      expect.objectContaining({ eventType: "lesson_feedback_published", status: "pending", actorUid: "teacher-1" }),
+    );
     expect(mocks.transactionUpdate).toHaveBeenCalledWith(
       "session_interactions/session-1",
       expect.objectContaining({ workflowStatus: "published" }),
     );
+    expect(result.every((item) => item.messenger === "pending")).toBe(true);
   });
 });

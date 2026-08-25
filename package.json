@@ -18,6 +18,7 @@
     "audit:firestore": "node scripts/audit-firestore-integrity.mjs",
     "repair:plan": "node scripts/plan-firestore-repair.mjs",
     "migrate:messenger-contexts": "node scripts/migrate-messenger-contexts.mjs",
+    "migrate:r3-enrollments": "node scripts/migrate-r3-enrollment-version.mjs",
     "check:mojibake": "node scripts/check-mojibake.mjs",
     "roadmap:update": "node scripts/update-roadmap-status.mjs",
     "emulators": "firebase emulators:start --only auth,firestore --project demo-edumatrix",

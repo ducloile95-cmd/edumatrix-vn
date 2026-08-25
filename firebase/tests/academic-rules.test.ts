@@ -493,6 +493,8 @@ describe("enrollments", () => {
         status: "active",
         joinedAt: serverTimestamp(),
         endedAt: null,
+        version: 1,
+        updatedAt: serverTimestamp(),
       }),
     );
   });
@@ -506,6 +508,8 @@ describe("enrollments", () => {
         status: "active",
         joinedAt: serverTimestamp(),
         endedAt: null,
+        version: 1,
+        updatedAt: serverTimestamp(),
       }),
     );
   });
@@ -531,6 +535,8 @@ describe("enrollments", () => {
       status: "active",
       joinedAt: serverTimestamp(),
       endedAt: null,
+      version: 1,
+      updatedAt: serverTimestamp(),
     }));
   });
 
@@ -542,6 +548,8 @@ describe("enrollments", () => {
       status: "active",
       joinedAt: serverTimestamp(),
       endedAt: null,
+      version: 1,
+      updatedAt: serverTimestamp(),
     }));
   });
 
@@ -553,6 +561,8 @@ describe("enrollments", () => {
       status: "active",
       joinedAt: serverTimestamp(),
       endedAt: null,
+      version: 1,
+      updatedAt: serverTimestamp(),
     }));
   });
 
@@ -565,6 +575,8 @@ describe("enrollments", () => {
         status: "active",
         joinedAt: serverTimestamp(),
         endedAt: null,
+        version: 1,
+        updatedAt: serverTimestamp(),
       }),
     );
   });
@@ -578,6 +590,8 @@ describe("enrollments", () => {
         status: "active",
         joinedAt: Timestamp.now(),
         endedAt: null,
+        version: 1,
+        updatedAt: Timestamp.now(),
       });
     });
     await assertSucceeds(getDoc(doc(asViewer(), "enrollments", `class_001_${STUDENT_OWNED}`)));
@@ -592,6 +606,8 @@ describe("enrollments", () => {
         status: "active",
         joinedAt: Timestamp.now(),
         endedAt: null,
+        version: 1,
+        updatedAt: Timestamp.now(),
       });
     });
     await assertFails(getDoc(doc(asViewer(), "enrollments", `class_001_${STUDENT_OTHER}`)));
@@ -607,6 +623,8 @@ describe("enrollments", () => {
         status: "active",
         joinedAt: Timestamp.now(),
         endedAt: null,
+        version: 1,
+        updatedAt: Timestamp.now(),
       });
     });
     await assertFails(deleteDoc(doc(asTeacher(), "enrollments", enrollmentId)));

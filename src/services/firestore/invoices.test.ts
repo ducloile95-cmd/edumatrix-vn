@@ -81,7 +81,7 @@ describe("createInvoices", () => {
       { ...baseInput, studentId: "student-2" },
     ]);
 
-    expect(firestore.batchSet).toHaveBeenCalledTimes(2);
+    expect(firestore.batchSet).toHaveBeenCalledTimes(4);
     expect(firestore.batchSet).toHaveBeenNthCalledWith(1, expect.objectContaining({ id: "invoice-1" }), expect.objectContaining({
       studentId: "student-1",
       courseId: "course-1",
@@ -91,11 +91,16 @@ describe("createInvoices", () => {
       sourceType: "billing_item",
     }));
     expect(firestore.batchSet.mock.calls[0][1]).not.toHaveProperty("actorUid");
+    expect(firestore.batchSet).toHaveBeenNthCalledWith(2, expect.objectContaining({ path: "messenger_delivery_events/invoice_committed:invoice-1:v1" }), expect.objectContaining({
+      eventType: "invoice_committed",
+      entityId: "invoice-1",
+      status: "pending",
+    }));
     expect(firestore.batchCommit).toHaveBeenCalledTimes(1);
   });
 
   test("rejects a batch larger than the Firestore limit", async () => {
-    await expect(createInvoices(Array.from({ length: 501 }, (_, index) => ({
+    await expect(createInvoices(Array.from({ length: 251 }, (_, index) => ({
       ...baseInput,
       studentId: `student-${index}`,
     })))).rejects.toThrow("invoice_batch_limit");
@@ -124,6 +129,10 @@ describe("createInvoices", () => {
 
     expect(firestore.transactionUpdate).toHaveBeenCalledWith(expect.objectContaining({ path: "payments/payment-1" }), expect.objectContaining({ status: "verified" }));
     expect(firestore.transactionUpdate).toHaveBeenCalledWith(expect.objectContaining({ path: "invoices/invoice-1" }), expect.objectContaining({ status: "paid" }));
+    expect(firestore.transactionSet).toHaveBeenCalledWith(expect.objectContaining({ path: "messenger_delivery_events/payment_verified:payment-1:v1" }), expect.objectContaining({
+      eventType: "payment_verified",
+      status: "pending",
+    }));
   });
 
   test("reports payment from the live invoice instead of stale UI data", async () => {

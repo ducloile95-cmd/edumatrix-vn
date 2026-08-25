@@ -15,12 +15,13 @@ const serviceMocks = vi.hoisted(() => ({
   getSessionAttendanceEntries: vi.fn(),
   getSessionInteraction: vi.fn(),
   getSessionStudentReviews: vi.fn(),
+  getUtilityDeliveryStatus: vi.fn(),
   listSessionsByClass: vi.fn(),
   listStudents: vi.fn(),
   publishClassroomInteraction: vi.fn(),
   reopenClassroomInteraction: vi.fn(),
   saveClassroomDraft: vi.fn(),
-  sendMessenger: vi.fn(),
+  retryUtilityDeliveryJob: vi.fn(),
 }));
 
 vi.mock("@/features/auth/hooks/useAuth", () => ({
@@ -61,7 +62,9 @@ vi.mock("@/services/firestore/users", () => ({
 }));
 
 vi.mock("@/services/integrations/messenger", () => ({
-  sendMessenger: serviceMocks.sendMessenger,
+  getUtilityDeliveryStatus: serviceMocks.getUtilityDeliveryStatus,
+  retryUtilityDeliveryJob: serviceMocks.retryUtilityDeliveryJob,
+  summarizeUtilityDelivery: () => ({ status: "pending", detail: "Đã xếp hàng", retryableJobIds: [] }),
 }));
 
 vi.mock("@/services/firestore/classroomInteractions", async (importOriginal) => {
@@ -165,6 +168,7 @@ describe("ClassroomInteractionPage publishing", () => {
       },
     ]);
     serviceMocks.getSessionAttendanceEntries.mockResolvedValue([]);
+    serviceMocks.getUtilityDeliveryStatus.mockResolvedValue({ jobs: [], events: [] });
     serviceMocks.saveClassroomDraft.mockResolvedValue(undefined);
     serviceMocks.publishClassroomInteraction.mockResolvedValue([
       {

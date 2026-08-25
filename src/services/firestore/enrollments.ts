@@ -7,6 +7,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/services/firebase/firestoreClient";
 import { COLLECTIONS } from "@/constants/collections";
+import { queueUtilityDeliveryEvent } from "@/services/firestore/messengerDelivery";
 import type { ClassDoc, StudentDoc } from "@/types/academic";
 
 /** ID = {classId}_{studentId} chong ghi trung (A13). */
@@ -19,7 +20,7 @@ function enrollmentId(classId: string, studentId: string): string {
  * buoc 3): enrollments/{id}, classes/{classId}.studentIds,
  * students/{studentId}.currentClassIds.
  */
-export async function enrollStudent(classId: string, studentId: string): Promise<void> {
+export async function enrollStudent(classId: string, studentId: string, actorUid: string): Promise<void> {
   // runTransaction (doc teacherIds ben trong transaction) thay vi getDoc roi
   // batch de tranh TOCTOU khi 2 thao tac ghi danh chay dong thoi.
   await runTransaction(db, async (transaction) => {
@@ -38,15 +39,22 @@ export async function enrollStudent(classId: string, studentId: string): Promise
     if (klass.status !== "active") throw new Error("class_not_active");
     if (student.status !== "active") throw new Error("student_not_active");
     const teacherIds = klass.teacherIds;
+    const existingEnrollment = enrollmentSnap.exists() ? enrollmentSnap.data() : null;
+    const alreadyActive = existingEnrollment?.status === "active";
+    const nextVersion = existingEnrollment ? Number(existingEnrollment.version ?? 0) + 1 : 1;
 
-    transaction.set(enrollRef, {
-      classId,
-      courseId: klass.courseId,
-      studentId,
-      status: "active",
-      joinedAt: enrollmentSnap.exists() ? enrollmentSnap.data().joinedAt : serverTimestamp(),
-      endedAt: null,
-    });
+    if (!alreadyActive) {
+      transaction.set(enrollRef, {
+        classId,
+        courseId: klass.courseId,
+        studentId,
+        status: "active",
+        joinedAt: existingEnrollment?.joinedAt ?? serverTimestamp(),
+        endedAt: null,
+        version: nextVersion,
+        updatedAt: serverTimestamp(),
+      });
+    }
     transaction.update(classRef, {
       studentIds: arrayUnion(studentId),
       updatedAt: serverTimestamp(),
@@ -57,6 +65,16 @@ export async function enrollStudent(classId: string, studentId: string): Promise
     };
     if (teacherIds.length > 0) studentUpdate.teacherIds = arrayUnion(...teacherIds);
     transaction.update(studentRef, studentUpdate);
+    if (!alreadyActive) {
+      queueUtilityDeliveryEvent(transaction, {
+        eventType: "enrollment_completed",
+        entityId: enrollmentId(classId, studentId),
+        sourceId: enrollmentId(classId, studentId),
+        studentId,
+        version: nextVersion,
+        actorUid,
+      });
+    }
   });
 }
 
@@ -69,7 +87,11 @@ export async function enrollStudent(classId: string, studentId: string): Promise
 export async function unenrollStudent(classId: string, studentId: string): Promise<void> {
   await runTransaction(db, async (transaction) => {
     const studentRef = doc(db, COLLECTIONS.STUDENTS, studentId);
-    const studentSnap = await transaction.get(studentRef);
+    const enrollmentRef = doc(db, COLLECTIONS.ENROLLMENTS, enrollmentId(classId, studentId));
+    const [studentSnap, enrollmentSnap] = await Promise.all([
+      transaction.get(studentRef),
+      transaction.get(enrollmentRef),
+    ]);
     const currentClassIds = studentSnap.exists() ? (studentSnap.data() as StudentDoc).currentClassIds : [];
     const remainingClassIds = currentClassIds.filter((id) => id !== classId);
     const remainingClasses = await Promise.all(
@@ -79,9 +101,11 @@ export async function unenrollStudent(classId: string, studentId: string): Promi
       remainingClasses.flatMap((snap) => (snap.exists() ? (snap.data() as ClassDoc).teacherIds : [])),
     )];
 
-    transaction.update(doc(db, COLLECTIONS.ENROLLMENTS, enrollmentId(classId, studentId)), {
+    transaction.update(enrollmentRef, {
       status: "ended",
       endedAt: serverTimestamp(),
+      version: Math.max(1, Number(enrollmentSnap.data()?.version ?? 1)),
+      updatedAt: serverTimestamp(),
     });
     transaction.update(doc(db, COLLECTIONS.CLASSES, classId), {
       studentIds: arrayRemove(studentId),
@@ -99,7 +123,7 @@ export async function unenrollStudent(classId: string, studentId: string): Promi
  * Dong bo toan bo lop cua mot hoc sinh trong mot transaction. Chi UI Admin
  * goi luong nay; khoa hoc va giao vien duoc suy ra tu cac lop da chon.
  */
-export async function syncStudentEnrollments(studentId: string, nextClassIds: string[]): Promise<void> {
+export async function syncStudentEnrollments(studentId: string, nextClassIds: string[], actorUid: string): Promise<void> {
   await runTransaction(db, async (transaction) => {
     const studentRef = doc(db, COLLECTIONS.STUDENTS, studentId);
     const studentSnap = await transaction.get(studentRef);
@@ -143,7 +167,15 @@ export async function syncStudentEnrollments(studentId: string, nextClassIds: st
       const enrollmentRef = doc(db, COLLECTIONS.ENROLLMENTS, enrollmentId(classId, studentId));
       const existingEnrollment = enrollmentByClassId.get(classId);
       if (existingEnrollment?.exists()) {
-        transaction.update(enrollmentRef, { status: "active", endedAt: null });
+        const enrollment = existingEnrollment.data();
+        if (enrollment.status !== "active") {
+          const nextVersion = Number(enrollment.version ?? 0) + 1;
+          transaction.update(enrollmentRef, { status: "active", endedAt: null, version: nextVersion, updatedAt: serverTimestamp() });
+          queueUtilityDeliveryEvent(transaction, {
+            eventType: "enrollment_completed", entityId: enrollmentId(classId, studentId), sourceId: enrollmentId(classId, studentId),
+            studentId, version: nextVersion, actorUid,
+          });
+        }
       } else {
         transaction.set(enrollmentRef, {
           classId,
@@ -152,6 +184,12 @@ export async function syncStudentEnrollments(studentId: string, nextClassIds: st
           status: "active",
           joinedAt: serverTimestamp(),
           endedAt: null,
+          version: 1,
+          updatedAt: serverTimestamp(),
+        });
+        queueUtilityDeliveryEvent(transaction, {
+          eventType: "enrollment_completed", entityId: enrollmentId(classId, studentId), sourceId: enrollmentId(classId, studentId),
+          studentId, version: 1, actorUid,
         });
       }
       transaction.update(classRef, { studentIds: arrayUnion(studentId), updatedAt: serverTimestamp() });
@@ -163,7 +201,10 @@ export async function syncStudentEnrollments(studentId: string, nextClassIds: st
       const enrollmentRef = doc(db, COLLECTIONS.ENROLLMENTS, enrollmentId(classId, studentId));
       const existingEnrollment = enrollmentByClassId.get(classId);
       if (existingEnrollment?.exists()) {
-        transaction.update(enrollmentRef, { status: "ended", endedAt: serverTimestamp() });
+        transaction.update(enrollmentRef, {
+          status: "ended", endedAt: serverTimestamp(),
+          version: Math.max(1, Number(existingEnrollment.data().version ?? 1)), updatedAt: serverTimestamp(),
+        });
       } else if (klass) {
         transaction.set(enrollmentRef, {
           classId,
@@ -172,6 +213,8 @@ export async function syncStudentEnrollments(studentId: string, nextClassIds: st
           status: "ended",
           joinedAt: serverTimestamp(),
           endedAt: serverTimestamp(),
+          version: 1,
+          updatedAt: serverTimestamp(),
         });
       }
       if (klass) transaction.update(classRef, { studentIds: arrayRemove(studentId), updatedAt: serverTimestamp() });

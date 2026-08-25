@@ -79,15 +79,15 @@ export function ClassroomParentView({
                     {publishResults.map((item) => (
                       <li key={item.studentId} className="flex items-center justify-between gap-3 rounded-input border border-neutral-200 p-3">
                         <div className="min-w-0"><p className="truncate text-sm font-bold text-neutral-900">{item.studentName}</p>{item.detail && <p className="mt-0.5 text-xs text-neutral-500">{item.detail}</p>}</div>
-                        <span className={`shrink-0 text-xs font-bold ${item.messenger === "sent" ? "text-success-700" : item.messenger === "skipped" ? "text-neutral-500" : "text-danger-700"}`}>{item.messenger === "sent" ? "Đã gửi Messenger" : item.messenger === "skipped" ? "Chưa cấu hình" : "Gửi thất bại"}</span>
+                        <span className={`shrink-0 text-xs font-bold ${item.messenger === "sent" ? "text-success-700" : item.messenger === "pending" ? "text-warning-700" : item.messenger === "skipped" ? "text-neutral-500" : "text-danger-700"}`}>{item.messenger === "sent" ? "Đã gửi Messenger" : item.messenger === "pending" ? "Đang chờ gửi" : item.messenger === "skipped" ? "Đã bỏ qua" : "Gửi thất bại"}</span>
                       </li>
                     ))}
                   </ul>
                 ) : (
                   <p className="text-xs text-neutral-500">Kết quả gửi Messenger của lần phát hành trước không còn trong phiên này. Nếu cần gửi bù, dùng màn hình Chat.</p>
                 )}
-                {publishResults.some((item) => item.messenger !== "sent") && (
-                  <Button className="w-full" disabled={resend.isPending} onClick={() => resend.mutate()}>{resend.isPending ? "Đang gửi lại..." : "Gửi lại cho học sinh còn thiếu"}</Button>
+                {publishResults.some((item) => item.messenger === "failed" || item.messenger === "skipped") && (
+                  <Button className="w-full" disabled={resend.isPending} onClick={() => resend.mutate()}>{resend.isPending ? "Đang xếp hàng lại..." : "Thử lại thông báo lỗi/bỏ qua"}</Button>
                 )}
                 <Button variant="secondary" className="w-full" icon={<Undo2 size={15} />} disabled={reopen.isPending} onClick={() => reopen.mutate()}>{reopen.isPending ? "Đang mở lại..." : "Mở lại để đính chính"}</Button>
                 {reopen.isError && <p role="alert" className="text-center text-xs font-semibold text-danger-700">Không mở lại được. Vui lòng thử lại.</p>}

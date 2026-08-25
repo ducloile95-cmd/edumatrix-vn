@@ -9,6 +9,8 @@ import { SearchInput } from "@/components/ui/SearchInput";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import type { StudentDoc } from "@/types/academic";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import { getUtilityDeliveryStatus, retryUtilityDeliveryJob, summarizeUtilityDelivery } from "@/services/integrations/messenger";
 
 interface EnrollmentManagerProps {
   classId: string;
@@ -27,6 +29,7 @@ function initials(fullName: string): string {
  * mo du an) nen tai toan bo danh sach hoc sinh roi loc o client (A14).
  */
 export function EnrollmentManager({ classId, enrolledStudentIds, canUnenroll = true }: EnrollmentManagerProps) {
+  const { firebaseUser } = useAuth();
   const [search, setSearch] = useState("");
   const [confirmTarget, setConfirmTarget] = useState<(StudentDoc & { id: string }) | null>(null);
   const queryClient = useQueryClient();
@@ -44,7 +47,7 @@ export function EnrollmentManager({ classId, enrolledStudentIds, canUnenroll = t
   };
 
   const enrollMutation = useMutation({
-    mutationFn: (studentId: string) => enrollStudent(classId, studentId),
+    mutationFn: (studentId: string) => enrollStudent(classId, studentId, firebaseUser?.uid ?? "unknown"),
     onSuccess: invalidate,
   });
 
@@ -54,6 +57,17 @@ export function EnrollmentManager({ classId, enrolledStudentIds, canUnenroll = t
       setConfirmTarget(null);
       invalidate();
     },
+  });
+  const deliveryEntityIds = enrolledStudentIds.map((studentId) => `${classId}_${studentId}`);
+  const utilityDeliveries = useQuery({
+    queryKey: ["utility-delivery", "enrollment", classId, deliveryEntityIds.join(",")],
+    queryFn: () => getUtilityDeliveryStatus(deliveryEntityIds),
+    enabled: deliveryEntityIds.length > 0,
+    refetchInterval: 10_000,
+  });
+  const retryDelivery = useMutation({
+    mutationFn: (jobIds: string[]) => Promise.all(jobIds.map(retryUtilityDeliveryJob)),
+    onSuccess: () => utilityDeliveries.refetch(),
   });
 
   if (isLoading) return <LoadingSkeleton rows={2} />;
@@ -130,6 +144,11 @@ export function EnrollmentManager({ classId, enrolledStudentIds, canUnenroll = t
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-neutral-800">{s.fullName}</p>
                       <p className="font-mono text-xs text-neutral-500">{s.studentCode}</p>
+                      {(() => {
+                        const delivery = summarizeUtilityDelivery(utilityDeliveries.data, `${classId}_${s.id}`);
+                        if (delivery.status === "none") return null;
+                        return <p className={`mt-0.5 text-2xs font-semibold ${delivery.status === "sent" ? "text-success-700" : delivery.status === "failed" ? "text-danger-700" : delivery.status === "pending" ? "text-warning-700" : "text-neutral-500"}`}>Utility: {delivery.detail}{delivery.retryableJobIds.length > 0 && <button type="button" className="ml-1 underline" disabled={retryDelivery.isPending} onClick={() => retryDelivery.mutate(delivery.retryableJobIds)}>Thử lại</button>}</p>;
+                      })()}
                     </div>
                     {canUnenroll && (
                       <button

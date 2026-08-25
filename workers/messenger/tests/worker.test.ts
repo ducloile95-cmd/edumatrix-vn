@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import worker, { assertStudentScope, buildMessengerPayload, buildUtilityPayload, checkMetaUtilityPermission, conversationTombstoneExpired, corsHeaders, deliveryJobEligible, deliveryJobId, extractBearer, extractInboundMessages, extractReferralLinks, extractUtilityTemplateStatuses, firebaseCertificates, isMessengerTagShape, latestUtilityTemplateStatus, markWebhookMessageProcessed, META_OAUTH_SCOPES, META_UTILITY_OAUTH_SCOPE, META_UTILITY_WEBHOOK_FIELD, META_WEBHOOK_FIELDS, metaErrorCode, metaOAuthCompletionErrorMessage, metaOAuthErrorMessage, metaOAuthScopes, metaUtilityPermissionStatus, metaWebhookFields, nextUnreadStaffCount, normalizeMetaUtilityReason, oauthStateActive, parseMessengerProfile, publicErrorCode, referralClaimUid, referralTargetAllowed, resetFirebaseCachesForTest, safeConnectOrigin, sendGraph, serviceAccessToken, startDeleteChatConversation, subscribePageWebhooks, threadId, UTILITY_TEMPLATES, validChatThreadId, validUtilityParameters, verifyMetaSignature, webhookMessageProcessed, type Env } from "../src/index";
+import worker, { assertStudentScope, buildMessengerPayload, buildUtilityPayload, checkMetaUtilityPermission, conversationTombstoneExpired, corsHeaders, deliveryEventEligible, deliveryEventTemplateKey, deliveryJobEligible, deliveryJobId, deliveryJobLeaseExpired, extractBearer, extractInboundMessages, extractReferralLinks, extractUtilityTemplateStatuses, firebaseCertificates, isMessengerTagShape, latestUtilityTemplateStatus, markWebhookMessageProcessed, META_OAUTH_SCOPES, META_UTILITY_OAUTH_SCOPE, META_UTILITY_WEBHOOK_FIELD, META_WEBHOOK_FIELDS, metaErrorCode, metaOAuthCompletionErrorMessage, metaOAuthErrorMessage, metaOAuthScopes, metaUtilityPermissionStatus, metaWebhookFields, nextUnreadStaffCount, normalizeMetaUtilityReason, oauthStateActive, parseMessengerProfile, publicErrorCode, referralClaimUid, referralTargetAllowed, resetFirebaseCachesForTest, safeConnectOrigin, sendGraph, serviceAccessToken, startDeleteChatConversation, subscribePageWebhooks, threadId, UTILITY_TEMPLATES, validChatThreadId, validUtilityParameters, verifyMetaSignature, webhookMessageProcessed, type Env } from "../src/index";
 const env={FIREBASE_PROJECT_ID:"project",FIREBASE_CLIENT_EMAIL:"email",FIREBASE_PRIVATE_KEY:"key",META_APP_ID:"app-id",META_PAGE_ACCESS_TOKEN:"token",META_APP_SECRET:"app-secret",META_WEBHOOK_VERIFY_TOKEN:"verify-me",META_GRAPH_VERSION:"v25.0",META_PAGE_ID:"page-id",ALLOWED_ORIGIN:"http://localhost:5173"}satisfies Env;
 describe("messenger worker",()=>{
 afterEach(()=>{vi.restoreAllMocks();resetFirebaseCachesForTest()});
@@ -81,7 +81,25 @@ test("uses a stable delivery idempotency key and finite retry lease",()=>{
   const now=Date.parse("2026-08-25T05:00:00.000Z");
   expect(deliveryJobEligible(job("pending",0,"2026-08-25T04:59:00.000Z","2026-08-25T04:59:00.000Z"),now)).toBe(true);
   expect(deliveryJobEligible(job("processing",1,"2026-08-25T04:59:00.000Z","2026-08-25T05:01:00.000Z"),now)).toBe(false);
+  expect(deliveryJobEligible(job("processing",1,"2026-08-25T04:59:00.000Z","2026-08-25T04:59:00.000Z"),now)).toBe(false);
+  expect(deliveryJobLeaseExpired(job("processing",1,"2026-08-25T04:59:00.000Z","2026-08-25T04:59:00.000Z"),now)).toBe(true);
   expect(deliveryJobEligible(job("failed",3,"2026-08-25T04:59:00.000Z","2026-08-25T04:59:00.000Z"),now)).toBe(false);
+});
+test("maps the four business events to approved Utility templates",()=>{
+  expect(deliveryEventTemplateKey("lesson_feedback_published")).toBe("lesson_feedback_request");
+  expect(deliveryEventTemplateKey("invoice_committed")).toBe("tuition_payment_reminder");
+  expect(deliveryEventTemplateKey("payment_verified")).toBe("tuition_payment_confirmation");
+  expect(deliveryEventTemplateKey("enrollment_completed")).toBe("enrollment_confirmation");
+  expect(deliveryEventTemplateKey("unknown")).toBeNull();
+});
+test("retries event expansion only while due, lease-expired, and below the attempt cap",()=>{
+  const timestamp=(value:string)=>({timestampValue:value});
+  const event=(status:string,attempts:number,nextAttemptAt:string,leaseUntil:string)=>({fields:{status:{stringValue:status},attempts:{integerValue:String(attempts)},nextAttemptAt:timestamp(nextAttemptAt),leaseUntil:timestamp(leaseUntil)}});
+  const now=Date.parse("2026-08-25T05:00:00.000Z");
+  expect(deliveryEventEligible(event("pending",0,"2026-08-25T04:59:00.000Z","2026-08-25T04:59:00.000Z"),now)).toBe(true);
+  expect(deliveryEventEligible(event("processing",1,"2026-08-25T04:59:00.000Z","2026-08-25T04:59:00.000Z"),now)).toBe(true);
+  expect(deliveryEventEligible(event("processing",1,"2026-08-25T04:59:00.000Z","2026-08-25T05:01:00.000Z"),now)).toBe(false);
+  expect(deliveryEventEligible(event("failed",3,"2026-08-25T04:59:00.000Z","2026-08-25T04:59:00.000Z"),now)).toBe(false);
 });
 test("starts idempotent two-phase conversation deletion without touching messages",async()=>{
   const fetchMock=vi.spyOn(globalThis,"fetch")
@@ -150,6 +168,13 @@ test("sends Messenger token in Authorization header, never the URL",async()=>{
   expect(String(url)).toBe("https://graph.facebook.com/v25.0/page-id/messages");
   expect(String(url)).not.toContain("access_token");
   expect(new Headers(init?.headers).get("authorization")).toBe("Bearer token");
+});
+test("automatic delivery treats an ambiguous Meta 5xx as unknown and never retries",async()=>{
+  const fetchMock=vi.spyOn(globalThis,"fetch").mockResolvedValue(new Response(JSON.stringify({error:{message:"temporary"}}),{status:500,headers:{"content-type":"application/json"}}));
+  let failure:unknown;
+  try { await sendGraph({recipientPsid:"psid",text:"Xin chao"},env,{retryTransient:false}); } catch (error) { failure=error; }
+  expect(publicErrorCode(failure)).toBe("meta_delivery_outcome_unknown");
+  expect(fetchMock).toHaveBeenCalledTimes(1);
 });
 test("caches Firebase public certificates",async()=>{
   const fetchMock=vi.spyOn(globalThis,"fetch").mockResolvedValue(new Response(JSON.stringify({kid:"certificate"}),{status:200,headers:{"cache-control":"public, max-age=3600","content-type":"application/json"}}));

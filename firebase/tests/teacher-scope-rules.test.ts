@@ -226,6 +226,8 @@ describe("teacher scope by assigned class", () => {
       status: "active",
       joinedAt: serverTimestamp(),
       endedAt: null,
+      version: 1,
+      updatedAt: serverTimestamp(),
     });
     ownedBatch.update(doc(ownedDb, "classes", "class-owned"), {
       studentIds: ["student-1", "student-available"],
@@ -247,6 +249,8 @@ describe("teacher scope by assigned class", () => {
       status: "active",
       joinedAt: serverTimestamp(),
       endedAt: null,
+      version: 1,
+      updatedAt: serverTimestamp(),
     });
     otherBatch.update(doc(otherDb, "classes", "class-other"), {
       studentIds: ["student-2", "student-available"],

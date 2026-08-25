@@ -17,13 +17,14 @@ type ClassFilter = { type: "course" | "teacher"; id: string } | null;
 const INPUT_CLASS = "min-h-touch w-full rounded-input border border-neutral-300 bg-neutral-0 px-3 text-sm text-neutral-900 outline-none transition placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-100";
 
 interface StudentInfoDialogProps {
+  actorUid?: string;
   canManageLinks: boolean;
   open: boolean;
   student: StudentWithId | null;
   onClose: () => void;
 }
 
-export function StudentInfoDialog({ canManageLinks, onClose, open, student }: StudentInfoDialogProps) {
+export function StudentInfoDialog({ actorUid = "unknown", canManageLinks, onClose, open, student }: StudentInfoDialogProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
   const queryClient = useQueryClient();
@@ -150,7 +151,7 @@ export function StudentInfoDialog({ canManageLinks, onClose, open, student }: St
       if (!student) return;
       const classesChanged = selectedClassIds.length !== student.currentClassIds.length ||
         selectedClassIds.some((classId) => !student.currentClassIds.includes(classId));
-      if (canManageLinks && classesChanged) await syncStudentEnrollments(student.id, selectedClassIds);
+      if (canManageLinks && classesChanged) await syncStudentEnrollments(student.id, selectedClassIds, actorUid);
       await updateStudent(student.id, {
         fullName: fullName.trim(),
         nickname: nickname.trim(),

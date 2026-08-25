@@ -43,7 +43,7 @@ export function StudentsList() {
   const [dateRange, setDateRange] = useState<DateRange | null>(null);
   const [pageSize, setPageSize] = useState(15);
   const [viewingStudent, setViewingStudent] = useState<(StudentDoc & { id: string }) | null>(null);
-  const { role } = useAuth();
+  const { firebaseUser, role } = useAuth();
 
   const { data: students, isLoading, isError, refetch } = useQuery({
     queryKey: ["students"],
@@ -387,6 +387,7 @@ export function StudentsList() {
       </DataListPanel>
 
       <StudentInfoDialog
+        actorUid={firebaseUser?.uid}
         canManageLinks={role === USER_ROLES.ADMIN}
         open={!!viewingStudent}
         student={viewingStudent}
