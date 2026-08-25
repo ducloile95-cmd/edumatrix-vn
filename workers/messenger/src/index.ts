@@ -114,6 +114,12 @@ export function metaUtilityPermissionStatus(data: unknown): MetaUtilityPermissio
   return permission?.status === "granted" ? "granted" : "missing";
 }
 
+export function normalizeMetaUtilityReason(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const reason = value.trim();
+  return !reason || reason.toUpperCase() === "NONE" ? null : reason.slice(0, 240);
+}
+
 export async function checkMetaUtilityPermission(accessToken: string, env: Env): Promise<MetaUtilityPermissionStatus> {
   const url = `https://graph.facebook.com/${env.META_GRAPH_VERSION}/me/permissions`;
   try {
@@ -417,7 +423,7 @@ export function extractUtilityTemplateStatuses(payload: unknown): UtilityTemplat
         templateName,
         status,
         language: typeof data.message_template_language === "string" ? data.message_template_language : typeof data.language === "string" ? data.language : null,
-        reason: typeof data.reason === "string" ? data.reason.slice(0, 240) : null,
+        reason: normalizeMetaUtilityReason(data.reason),
         timestamp,
       });
     }
@@ -1636,7 +1642,7 @@ async function handleUtilitySync(request: Request, env: Env): Promise<Response> 
         pageId: pageAccess.pageId, templateId: typeof item?.id === "string" ? item.id : null,
         templateName: definition.metaName, status: typeof item?.status === "string" ? item.status.toUpperCase() : "MISSING",
         language: definition.language, category: typeof item?.category === "string" ? item.category.toUpperCase() : null,
-        parameterCount, reason: typeof item?.rejected_reason === "string" ? item.rejected_reason.slice(0, 240) : null,
+        parameterCount, reason: normalizeMetaUtilityReason(item?.rejected_reason),
         source: "sync", updatedAt: now,
       }) },
     });
