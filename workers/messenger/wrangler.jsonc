@@ -33,7 +33,7 @@
         "META_PAGE_ID": "100488521748588",
         "ALLOWED_ORIGIN": "https://edumatrix-vn-576b1.web.app,https://edumatrix.id.vn",
         "UTILITY_MESSAGING_ENABLED": "true",
-        "UTILITY_AUTOMATION_ENABLED": "false"
+        "UTILITY_AUTOMATION_ENABLED": "true"
       },
       "triggers": {
         "crons": ["*/5 * * * *"]
