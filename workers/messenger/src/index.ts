@@ -80,7 +80,7 @@ export const META_OAUTH_SCOPES = [
   "pages_manage_metadata",
   "pages_messaging",
 ] as const;
-export const META_UTILITY_OAUTH_SCOPE = "page_utility_messaging";
+export const META_UTILITY_OAUTH_SCOPE = "pages_utility_messaging";
 export const META_WEBHOOK_FIELDS = ["messages", "messaging_postbacks", "messaging_referrals"] as const;
 export const META_UTILITY_WEBHOOK_FIELD = "message_template_status_update" as const;
 export function metaOAuthScopes(env: Env): readonly string[] {

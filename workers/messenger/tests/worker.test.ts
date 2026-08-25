@@ -243,7 +243,7 @@ test("requests Utility permission only after its production flag is enabled",()=
   expect(META_OAUTH_SCOPES).toEqual(["pages_show_list","pages_manage_metadata","pages_messaging"]);
   expect(metaOAuthScopes(env)).toEqual(META_OAUTH_SCOPES);
   expect(metaOAuthScopes({...env,UTILITY_MESSAGING_ENABLED:"true"})).toEqual([...META_OAUTH_SCOPES,META_UTILITY_OAUTH_SCOPE]);
-  expect(META_UTILITY_OAUTH_SCOPE).toBe("page_utility_messaging");
+  expect(META_UTILITY_OAUTH_SCOPE).toBe("pages_utility_messaging");
 });
 test("subscribes to Utility template status updates only when Utility Messaging is enabled",()=>{
   expect(metaWebhookFields(env)).toEqual(META_WEBHOOK_FIELDS);
@@ -251,13 +251,14 @@ test("subscribes to Utility template status updates only when Utility Messaging 
   expect(META_UTILITY_WEBHOOK_FIELD).toBe("message_template_status_update");
 });
 test("recognizes granted, missing, and unknown Utility Messaging permission states",()=>{
-  expect(metaUtilityPermissionStatus({data:[{permission:"page_utility_messaging",status:"granted"}]})).toBe("granted");
+  expect(metaUtilityPermissionStatus({data:[{permission:"pages_utility_messaging",status:"granted"}]})).toBe("granted");
+  expect(metaUtilityPermissionStatus({data:[{permission:"page_utility_messaging",status:"granted"}]})).toBe("missing");
   expect(metaUtilityPermissionStatus({data:[{permission:"pages_messaging",status:"granted"}]})).toBe("missing");
   expect(metaUtilityPermissionStatus({error:"unavailable"})).toBe("unknown");
 });
 test("checks Utility permission without putting the access token in the URL",async()=>{
   const secretToken="utility-secret-token";
-  const fetchMock=vi.spyOn(globalThis,"fetch").mockResolvedValue(new Response(JSON.stringify({data:[{permission:"page_utility_messaging",status:"declined"}]}),{status:200,headers:{"content-type":"application/json"}}));
+  const fetchMock=vi.spyOn(globalThis,"fetch").mockResolvedValue(new Response(JSON.stringify({data:[{permission:"pages_utility_messaging",status:"declined"}]}),{status:200,headers:{"content-type":"application/json"}}));
   await expect(checkMetaUtilityPermission(secretToken,env)).resolves.toBe("missing");
   const [url,init]=fetchMock.mock.calls[0];
   expect(String(url)).not.toContain(secretToken);
