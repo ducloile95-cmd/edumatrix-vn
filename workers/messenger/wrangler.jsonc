@@ -6,13 +6,17 @@
   "version_metadata": {
     "binding": "CF_VERSION_METADATA"
   },
+  "triggers": {
+    "crons": ["*/5 * * * *"]
+  },
   "vars": {
     "FIREBASE_PROJECT_ID": "edumatrix-vn-576b1",
     "META_APP_ID": "1028280243271801",
     "META_GRAPH_VERSION": "v25.0",
     "META_PAGE_ID": "100488521748588",
     "ALLOWED_ORIGIN": "http://localhost:5173",
-    "UTILITY_MESSAGING_ENABLED": "false"
+    "UTILITY_MESSAGING_ENABLED": "false",
+    "UTILITY_AUTOMATION_ENABLED": "false"
   },
   "secrets": {
     "required": ["META_PAGE_ACCESS_TOKEN", "META_APP_SECRET", "META_WEBHOOK_VERIFY_TOKEN", "FIREBASE_CLIENT_EMAIL", "FIREBASE_PRIVATE_KEY"]
@@ -28,7 +32,11 @@
         "META_GRAPH_VERSION": "v25.0",
         "META_PAGE_ID": "100488521748588",
         "ALLOWED_ORIGIN": "https://edumatrix-vn-576b1.web.app,https://edumatrix.id.vn",
-        "UTILITY_MESSAGING_ENABLED": "true"
+        "UTILITY_MESSAGING_ENABLED": "false",
+        "UTILITY_AUTOMATION_ENABLED": "false"
+      },
+      "triggers": {
+        "crons": ["*/5 * * * *"]
       },
       "secrets": {
         "required": ["META_PAGE_ACCESS_TOKEN", "META_APP_SECRET", "META_WEBHOOK_VERIFY_TOKEN", "FIREBASE_CLIENT_EMAIL", "FIREBASE_PRIVATE_KEY"]

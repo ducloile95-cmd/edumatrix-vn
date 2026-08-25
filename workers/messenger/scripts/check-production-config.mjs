@@ -7,6 +7,7 @@ const origin = config.env?.production?.vars?.ALLOWED_ORIGIN;
 const graphVersion = config.env?.production?.vars?.META_GRAPH_VERSION;
 const pageId = config.env?.production?.vars?.META_PAGE_ID;
 const workerUtility = config.env?.production?.vars?.UTILITY_MESSAGING_ENABLED;
+const workerUtilityAutomation = config.env?.production?.vars?.UTILITY_AUTOMATION_ENABLED;
 const frontendEnv = fs.readFileSync(path.resolve("../..", ".env.real"), "utf8");
 const frontendUtility = frontendEnv.match(/^VITE_UTILITY_MESSAGING_ENABLED=(true|false)$/m)?.[1];
 const workerUrl = frontendEnv.match(/^VITE_MESSENGER_WORKER_URL=(\S+)$/m)?.[1];
@@ -31,6 +32,12 @@ if (typeof pageId !== "string" || !/^\d+$/.test(pageId)) {
 if (!frontendUtility || !["true", "false"].includes(workerUtility)) {
   throw new Error("Utility Messaging flags must be true or false in .env.real and Worker production.");
 }
+if (!["true", "false"].includes(workerUtilityAutomation)) {
+  throw new Error("UTILITY_AUTOMATION_ENABLED must be true or false in Worker production.");
+}
+if (workerUtilityAutomation === "true" && workerUtility !== "true") {
+  throw new Error("Utility automation cannot be enabled while Utility Messaging is disabled.");
+}
 
 if (frontendUtility !== workerUtility) {
   throw new Error(`Utility Messaging mismatch: frontend=${frontendUtility}, worker=${workerUtility}.`);
@@ -40,4 +47,4 @@ if (workerUrl !== canonicalWorkerUrl) {
   throw new Error(`VITE_MESSENGER_WORKER_URL must be ${canonicalWorkerUrl}.`);
 }
 
-console.log(`Production config: worker=${workerUrl}, origin=${origin}, graph=${graphVersion}, page=${pageId}, utility=${workerUtility}`);
+console.log(`Production config: worker=${workerUrl}, origin=${origin}, graph=${graphVersion}, page=${pageId}, utility=${workerUtility}, automation=${workerUtilityAutomation}`);

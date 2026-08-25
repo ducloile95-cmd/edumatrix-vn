@@ -93,7 +93,7 @@ export default function ViewerDashboardPage() {
   const studentIds = userDoc?.studentIds ?? [];
   const dashboard = useQuery({
     queryKey: ["viewer-dashboard", firebaseUser?.uid, studentIds],
-    queryFn: () => buildViewerDashboard(studentIds),
+    queryFn: () => buildViewerDashboard(studentIds, firebaseUser?.uid),
     enabled: !!userDoc,
   });
   const academicSettings = useQuery({

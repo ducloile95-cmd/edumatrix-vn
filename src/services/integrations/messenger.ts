@@ -134,13 +134,41 @@ export interface MetaConnectSession {
 }
 
 export interface MetaConnectStatus {
-  status: "pending" | "ready" | "failed" | "used";
+  status: "pending" | "ready" | "failed" | "expired" | "used";
   pages: MetaManagedPageSummary[];
   error: string | null;
 }
 
-export function startMetaPageConnection(): Promise<MetaConnectSession> {
-  return workerRequest("/api/meta/connect/start", {});
+export function startMetaPageConnection(purpose: "messenger" | "utility_setup" = "messenger"): Promise<MetaConnectSession> {
+  return workerRequest("/api/meta/connect/start", { purpose });
+}
+
+export interface UtilityTemplateSummary {
+  key: UtilityTemplateKey;
+  pageId: string;
+  templateId: string | null;
+  templateName: string;
+  status: string;
+  language: string | null;
+  category: string | null;
+  parameterCount: number;
+  expectedParameterCount: number;
+  valid: boolean;
+  enabled: boolean;
+  reason: string | null;
+  updatedAt: string | null;
+}
+
+export function getUtilityTemplateStatus(): Promise<{ templates: UtilityTemplateSummary[] }> {
+  return workerRequest("/api/meta/utility/status", {});
+}
+
+export function syncUtilityTemplates(): Promise<{ templates: UtilityTemplateSummary[] }> {
+  return workerRequest("/api/meta/utility/sync", {});
+}
+
+export function setUtilityTemplateEnabled(templateKey: UtilityTemplateKey, enabled: boolean): Promise<{ templates: UtilityTemplateSummary[] }> {
+  return workerRequest("/api/meta/utility/toggle", { templateKey, enabled });
 }
 
 export function getMetaPageConnectionStatus(state: string): Promise<MetaConnectStatus> {
@@ -151,8 +179,8 @@ export function selectMetaPage(state: string, pageId: string): Promise<{ page: M
   return workerRequest("/api/meta/connect/select", { state, pageId });
 }
 
-export async function linkMessengerConversation(psid: string, studentId: string): Promise<void> {
-  await workerRequest("/api/messenger/link", { psid, studentId });
+export async function linkMessengerConversation(psid: string, parentUid: string, studentId: string): Promise<void> {
+  await workerRequest("/api/messenger/link", { psid, parentUid, studentId });
 }
 
 export async function syncMessengerThreadContexts(): Promise<number> {
@@ -160,9 +188,13 @@ export async function syncMessengerThreadContexts(): Promise<number> {
   return response.updated;
 }
 
-export async function deleteMessengerConversation(threadId: string): Promise<number> {
-  const response = await workerRequest<{ deletedMessages: number }>("/api/messenger/conversation/delete", { threadId });
-  return response.deletedMessages;
+export async function refreshViewerDashboard(): Promise<void> {
+  await workerRequest("/api/viewer-dashboard/refresh", {});
+}
+
+export async function deleteMessengerConversation(threadId: string): Promise<"deleting"> {
+  const response = await workerRequest<{ status: "deleting" }>("/api/messenger/conversation/delete", { threadId });
+  return response.status;
 }
 
 export async function sendMessenger(input: SendMessengerInput): Promise<SendMessengerResult> {

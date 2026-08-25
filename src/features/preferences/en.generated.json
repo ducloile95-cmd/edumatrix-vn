@@ -960,7 +960,7 @@
   "Facebook từ chối gửi tin. Kiểm tra quyền gửi và cửa sổ phản hồi 24 giờ.": "Facebook refused to send the news. Check sending permissions and 24-hour response window.",
   "Facebook từ chối yêu cầu. Hãy kiểm tra cửa sổ phản hồi 24 giờ và chính sách Message Tag.": "Facebook denied the request. Please check the 24-hour response window and Message Tag policy.",
   "Fanpage chưa cấp quyền Utility Messaging. Admin cần kết nối lại Fanpage trước khi bật tính năng.": "Fanpage has not granted Utility Messaging permission. Admin needs to reconnect Fanpage before enabling the feature.",
-  "Fanpage hiện tại chưa cấp quyền pages_utility_messaging.": "Fanpage currently has not granted pages_utility_messaging permission.",
+  "Fanpage hiện tại chưa cấp quyền page_utility_messaging.": "Fanpage currently has not granted page_utility_messaging permission.",
   "Firebase Console là nguồn số liệu sử dụng chính thức.": "Firebase Console is the official source of usage metrics.",
   "Focus không bị thất lạc": "Focus is not lost",
   "Form ngang cố định với lịch tháng tương tác": "Fixed horizontal form with interactive monthly calendar",

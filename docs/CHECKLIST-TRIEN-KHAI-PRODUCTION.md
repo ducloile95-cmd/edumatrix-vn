@@ -41,7 +41,8 @@ Ngày lập: 19/07/2026. Chỉ đánh dấu hoàn tất khi có bằng chứng t
 - [x] Webhook production verified; subscription gồm messages, messaging_postbacks, messaging_referrals. *(nguồn: nhật ký 27/07 — verified với 6 field, bao trùm 3 field yêu cầu ở đây)*
 - [ ] Tạo link từ UI; URL chỉ chứa nonce, không chứa Firebase UID; giáo viên chỉ tạo được cho phụ huynh của học sinh được phân công.
 - [ ] Xác nhận nonce dùng lại/hết hạn bị từ chối và PSID không thể chiếm tài khoản khác.
-- [ ] Gửi/nhận một tin thật và đối chiếu `message_outbox`, `chat_threads`, `messenger_connections`.
+- [ ] Gửi/nhận một tin thật và đối chiếu `chat_threads/{threadId}/messages`, `messenger_connections` và structured log Worker.
+- [ ] `GET /health.release` khớp SHA commit phát hành; Utility vẫn khóa ở R1.
 
 ## 5. QA giao diện Admin
 

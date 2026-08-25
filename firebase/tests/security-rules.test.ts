@@ -386,7 +386,7 @@ describe("phan quyen Admin/Teacher", () => {
   });
 });
 
-describe("chat and message outbox", () => {
+describe("chat threads and server-owned messages", () => {
   beforeEach(async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       const db = ctx.firestore();
@@ -395,8 +395,6 @@ describe("chat and message outbox", () => {
       await setDoc(doc(db, "chat_threads", "thread_assigned"), { assignedTeacherIds: [TEACHER_UID], parentUid: VIEWER_UID, studentId: "student_001" });
       await setDoc(doc(db, "chat_threads", "thread_other"), { assignedTeacherIds: ["other-teacher"], parentUid: "other-parent", studentId: "student_002" });
       await setDoc(doc(db, "chat_threads", "thread_assigned", "messages", "message_1"), { direction: "inbound", text: "Xin chao" });
-      await setDoc(doc(db, "message_outbox", "own_message"), { actorUid: TEACHER_UID, status: "sent" });
-      await setDoc(doc(db, "message_outbox", "other_message"), { actorUid: "other-teacher", status: "sent" });
     });
   });
 
@@ -423,14 +421,8 @@ describe("chat and message outbox", () => {
     await assertFails(getDoc(doc(asViewer(), "chat_threads", "thread_assigned")));
   });
 
-  test("Teacher chi doc outbox cua chinh minh", async () => {
-    await assertSucceeds(getDoc(doc(asTeacher(), "message_outbox", "own_message")));
-    await assertFails(getDoc(doc(asTeacher(), "message_outbox", "other_message")));
-  });
-
-  test("Client khong duoc gia mao message hoac outbox", async () => {
+  test("Client khong duoc gia mao thread hoac message", async () => {
     await assertFails(setDoc(doc(asAdmin(), "chat_threads", "new_thread"), { assignedTeacherIds: [] }));
-    await assertFails(setDoc(doc(asTeacher(), "message_outbox", "fake"), { actorUid: TEACHER_UID, status: "sent" }));
   });
 });
 
@@ -751,14 +743,44 @@ describe("removed Fanpage posting", () => {
   });
 });
 
-describe("Messenger referral secrets", () => {
-  test("all client roles are denied nonce and PSID reverse-index access", async () => {
+describe("Messenger server-only collections", () => {
+  test("all client roles are denied nonce, reverse-index, tombstone and delivery-job writes", async () => {
     const nonceRef = doc(asAdmin(), "messenger_link_nonces", "abcdefghijklmnopqrstuv");
     const psidRef = doc(asAdmin(), "messenger_psid_links", "psid-1");
-    await assertFails(setDoc(nonceRef, { uid: VIEWER_UID, status: "active" }));
+    const tombstoneRef = doc(asAdmin(), "messenger_conversation_tombstones", "thread-1");
+    const jobRef = doc(asAdmin(), "messenger_delivery_jobs", "job-1");
+    await assertFails(setDoc(nonceRef, { parentUid: VIEWER_UID, studentId: "student_001", status: "active" }));
     await assertFails(getDoc(nonceRef));
     await assertFails(setDoc(psidRef, { uid: VIEWER_UID }));
     await assertFails(getDoc(psidRef));
+    await assertFails(setDoc(tombstoneRef, { status: "deleting" }));
+    await assertFails(getDoc(tombstoneRef));
+    await assertFails(setDoc(jobRef, { status: "pending" }));
+    await assertSucceeds(getDoc(jobRef));
+    await assertFails(setDoc(doc(asTeacher(), "messenger_delivery_jobs", "job-2"), { status: "pending" }));
+  });
+
+  test("viewer reads only its materialized dashboard and no client writes it", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, "users", VIEWER_UID), {
+        email: VIEWER_EMAIL,
+        displayName: "Parent",
+        photoURL: null,
+        role: "viewer",
+        studentIds: ["student_001"],
+        status: "active",
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      });
+      await setDoc(doc(db, "viewer_dashboard", VIEWER_UID), {
+        studentIds: ["student_001"], updatedAt: Timestamp.now(),
+      });
+    });
+    await assertSucceeds(getDoc(doc(asViewer(), "viewer_dashboard", VIEWER_UID)));
+    await assertFails(getDoc(doc(asTeacher(), "viewer_dashboard", VIEWER_UID)));
+    await assertFails(getDoc(doc(asViewer("other-viewer", "other@example.com"), "viewer_dashboard", VIEWER_UID)));
+    await assertFails(setDoc(doc(asViewer(), "viewer_dashboard", VIEWER_UID), { studentIds: [] }));
   });
 });
 

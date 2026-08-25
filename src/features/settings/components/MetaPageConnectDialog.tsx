@@ -16,9 +16,10 @@ interface MetaPageConnectDialogProps {
   open: boolean;
   onClose: () => void;
   onConnected: (page: MetaManagedPageSummary) => void;
+  purpose?: "messenger" | "utility_setup";
 }
 
-export function MetaPageConnectDialog({ open, onClose, onConnected }: MetaPageConnectDialogProps) {
+export function MetaPageConnectDialog({ open, onClose, onConnected, purpose = "messenger" }: MetaPageConnectDialogProps) {
   const [step, setStep] = useState<Step>("intro");
   const [session, setSession] = useState<MetaConnectSession | null>(null);
   const [pages, setPages] = useState<MetaManagedPageSummary[]>([]);
@@ -40,6 +41,7 @@ export function MetaPageConnectDialog({ open, onClose, onConnected }: MetaPageCo
     try {
       const result = await getMetaPageConnectionStatus(currentSession.state);
       if (result.status === "failed") throw new Error(result.error || "Facebook chưa cấp quyền.");
+      if (result.status === "expired") throw new Error("Phiên kết nối đã hết hạn. Vui lòng bắt đầu lại.");
       if (result.status === "ready") {
         setPages(result.pages);
         setSelectedId(result.pages.length === 1 ? result.pages[0].id : "");
@@ -72,7 +74,7 @@ export function MetaPageConnectDialog({ open, onClose, onConnected }: MetaPageCo
       return;
     }
     try {
-      const nextSession = await startMetaPageConnection();
+      const nextSession = await startMetaPageConnection(purpose);
       popup.location.replace(nextSession.authorizationUrl);
       setSession(nextSession);
       setStep("waiting");

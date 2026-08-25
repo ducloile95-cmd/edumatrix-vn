@@ -15,7 +15,8 @@ export interface ChatThreadDoc {
   responseWindowEndsAt: Timestamp | null;
   unreadStaffCount: number;
   status: "open" | "resolved" | "blocked";
-  linkStatus?: "linked" | "unlinked";
+  linkStatus?: "linked" | "unlinked" | "migrated";
+  deletionState?: "active" | "deleting" | "deleted";
   messengerPsid?: string;
   facebookName?: string | null;
   facebookAvatarUrl?: string | null;
@@ -42,18 +43,4 @@ export interface ChatMessageDoc {
   errorCode: string | null;
   createdAt: Timestamp;
   updatedAt: Timestamp;
-}
-
-export interface MessageOutboxDoc {
-  type: string;
-  studentId: string | null;
-  recipientPsid: string;
-  content: string;
-  status: "sent" | "failed";
-  /** Tag Meta Message Tag da dung khi gui (vd ACCOUNT_UPDATE), null neu gui kieu RESPONSE thuong. */
-  messageTag: string | null;
-  /** Ma loi Meta khi status="failed" (Worker ghi, vd chua JSON co "code":190 khi token het han). */
-  error?: string | null;
-  actorUid: string;
-  createdAt: Timestamp | string;
 }

@@ -4,7 +4,7 @@ Webapp quản lý lớp học nội bộ (Admin/Giáo viên + Phụ huynh-Học 
 
 ## Stack
 
-React 18 + Vite + TypeScript · Tailwind CSS · React Router · Firebase Web SDK modular (Auth + Firestore + App Check) · React Hook Form + Zod · TanStack Query.
+React 19 + Vite + TypeScript · Tailwind CSS · React Router · Firebase Web SDK modular (Auth + Firestore + App Check) · React Hook Form + Zod · TanStack Query.
 
 ## Chạy local
 
@@ -163,9 +163,9 @@ App tự trỏ sang emulator khi bật cờ `VITE_USE_EMULATORS`. Toàn bộ ch�
 
 **Phase 1 (Foundation):** xong.
 
-**Phase 2 (Auth + phân quyền):** xong phần lõi — invite/claim, route guard, Rules siết theo invite, UI Admin quản lý người dùng, Emulator test. Còn thiếu: chạy thực tế `npm run test:rules` để xác nhận pass trên máy bạn, và audit log UI xem lại lịch sử (hiện chỉ ghi, chưa có màn hình đọc).
+**Trạng thái kiểm thử 25/08/2026:** frontend 305 test, Firestore Rules 214 test và Messenger Worker 59 test đều chạy xanh. Runbook production chuẩn là `docs/operations-runbook.md`; mọi thay đổi Rules/index/Worker phải đi qua gate trong tài liệu đó.
 
-Các collection nghiệp vụ khác (students, classes, sessions, attendance, assignments, scores, invoices...) chưa có Rules mở — mặc định bị chặn (`allow read, write: if false`) cho đến khi từng module được triển khai theo đúng vertical slice (xem `AI-AGENTS-GUIDE-EDUMATRIX-VN.md` mục A30).
+Các collection nghiệp vụ đã có Rules theo từng role; collection server-only vẫn bị chặn bởi mặc định deny-all. Không mở quyền client cho mapping Messenger, tombstone, trạng thái template hoặc delivery job.
 
 ## Design tokens (bảng màu hệ thống)
 

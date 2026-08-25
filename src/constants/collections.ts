@@ -38,10 +38,10 @@ export const COLLECTIONS = {
 
   ANNOUNCEMENTS: "announcements",
   NOTIFICATION_READS: "notification_reads",
-  MESSAGE_OUTBOX: "message_outbox",
   MESSENGER_CONNECTIONS: "messenger_connections",
   CHAT_THREADS: "chat_threads",
   CHAT_TAGS: "chat_tags",
+  VIEWER_DASHBOARD: "viewer_dashboard",
 
   AUDIT_LOGS: "audit_logs",
 } as const;

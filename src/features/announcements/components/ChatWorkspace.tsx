@@ -9,7 +9,7 @@ import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
 import { Modal } from "@/components/ui/Modal";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { createChatTag, deleteChatTag, listChatTags, listMessageOutbox, markChatThreadRead, setChatThreadTags } from "@/services/firestore/chat";
+import { createChatTag, deleteChatTag, listChatTags, markChatThreadRead, setChatThreadTags } from "@/services/firestore/chat";
 import { listStudents } from "@/services/firestore/students";
 import { listUsersByIds } from "@/services/firestore/users";
 import { isMessengerInviteConfigured, MessengerSendError, sendMessenger, type UtilityTemplateKey } from "@/services/integrations/messenger";
@@ -475,22 +475,6 @@ export function Conversations({ threads, configured, initialPickerOpen = false, 
       <aside className="hidden min-h-0 overflow-y-auto border-l border-neutral-200 bg-neutral-0 p-5 xl:block">{selected ? <ConversationContext thread={selected} parent={parentFor(selected)} tags={assignedTagsFor(selected)} onRemoveTag={(tagId) => { const tag = tagCatalog.find((item) => item.id === tagId); if (tag) toggleTag(selected, tag); }} onManageTags={role === "admin" ? () => setTagManagerOpen(true) : undefined} /> : null}</aside>
       <NewConversationPicker open={pickerOpen} onClose={() => setPickerOpen(false)} configured={configured} onSent={setPendingStudentId} />
       {role === "admin" && <ConversationTagManager open={tagManagerOpen} tags={tagCatalog} onClose={() => setTagManagerOpen(false)} onCreate={(label, color) => createTag.mutateAsync({ label, color }).then(() => undefined)} onDelete={(tagId) => removeCatalogTag.mutateAsync(tagId).then(() => undefined)} />}
-    </div>
-  );
-}
-
-export function Outbox({ role, uid }: { role: "admin" | "teacher"; uid: string }) {
-  const result = useQuery({ queryKey: ["message-outbox", role, uid], queryFn: () => listMessageOutbox(role, uid) });
-  if (result.isLoading) return <div className="p-5"><LoadingSkeleton rows={6} /></div>;
-  if (result.isError) return <div className="p-5"><ErrorState message="Không tải được nhật ký gửi." onRetry={() => result.refetch()} /></div>;
-  return (
-    <div className="min-h-0 flex-1 overflow-y-auto bg-neutral-50 p-3 sm:p-5">
-      <div className="mx-auto max-w-6xl overflow-hidden rounded-card border border-neutral-200 bg-neutral-0">
-        <header className="border-b border-neutral-200 px-4 py-4"><h2 className="text-sm font-bold">Nhật ký gửi</h2><p className="mt-1 text-xs text-neutral-500">{role === "admin" ? "Toàn bộ kết quả gửi gần nhất." : "Chỉ các tin do bạn gửi."}</p></header>
-        <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-sm"><thead className="bg-neutral-50 text-left text-xs font-bold text-neutral-500"><tr><th className="px-4 py-3">Mã gửi</th><th className="px-4 py-3">Học sinh</th><th className="px-4 py-3">Nội dung</th><th className="px-4 py-3">Loại gửi</th><th className="px-4 py-3">Thời gian</th><th className="px-4 py-3 text-right">Trạng thái</th></tr></thead><tbody>
-          {result.data?.length ? result.data.map((row) => <tr key={row.id} className="border-t border-neutral-100"><td className="px-4 py-3 font-mono text-xs">{row.id.slice(0, 14)}</td><td className="px-4 py-3">{row.studentId ?? "Fanpage"}</td><td className="max-w-sm truncate px-4 py-3 text-neutral-600">{row.content}</td><td className="px-4 py-3">{row.messageTag ? <span className="rounded-full bg-info-50 px-2 py-0.5 text-2xs font-semibold text-info-700">TAG · {row.messageTag}</span> : <span className="text-xs text-neutral-400">RESPONSE</span>}</td><td className="px-4 py-3 text-neutral-500">{time(row.createdAt)}</td><td className="px-4 py-3 text-right"><StatusBadge tone={row.status === "sent" ? "success" : "danger"}>{row.status === "sent" ? "Đã gửi" : "Thất bại"}</StatusBadge></td></tr>) : <tr><td colSpan={6} className="px-4 py-12 text-center text-neutral-500">Chưa có nhật ký gửi.</td></tr>}
-        </tbody></table></div>
-      </div>
     </div>
   );
 }

@@ -10,7 +10,6 @@ const serviceMocks = vi.hoisted(() => ({
   authRole: "teacher" as "admin" | "teacher",
   listChatThreads: vi.fn(),
   listChatTags: vi.fn(),
-  listMessageOutbox: vi.fn(),
   createChatTag: vi.fn(),
   deleteChatTag: vi.fn(),
   setChatThreadTags: vi.fn(),
@@ -39,7 +38,6 @@ vi.mock("@/components/ui/Modal", () => ({
 vi.mock("@/services/firestore/chat", () => ({
   listChatThreads: serviceMocks.listChatThreads,
   listChatTags: serviceMocks.listChatTags,
-  listMessageOutbox: serviceMocks.listMessageOutbox,
   createChatTag: serviceMocks.createChatTag,
   deleteChatTag: serviceMocks.deleteChatTag,
   setChatThreadTags: serviceMocks.setChatThreadTags,
@@ -106,7 +104,6 @@ describe("ChatPage messaging", () => {
     serviceMocks.deleteChatTag.mockResolvedValue(undefined);
     serviceMocks.setChatThreadTags.mockResolvedValue(undefined);
     serviceMocks.markChatThreadRead.mockResolvedValue(undefined);
-    serviceMocks.listMessageOutbox.mockResolvedValue([]);
     serviceMocks.listStudents.mockResolvedValue([]);
     serviceMocks.listUsersByIds.mockResolvedValue([{ uid: "parent-1", displayName: "Phụ huynh An", email: "phuhuynhan@example.com", phone: "0901234567" }]);
     serviceMocks.subscribeChatMessages.mockImplementation(
@@ -155,7 +152,6 @@ describe("ChatPage messaging", () => {
 
     await screen.findByLabelText("Soạn tin nhắn");
     expect(screen.queryByText("Nhật ký gửi")).toBeNull();
-    expect(serviceMocks.listMessageOutbox).not.toHaveBeenCalled();
   });
 
   test("persists a Composer tag assignment to Firestore", async () => {
@@ -274,7 +270,6 @@ describe("ChatPage utility templates", () => {
     serviceMocks.createChatTag.mockResolvedValue(undefined);
     serviceMocks.deleteChatTag.mockResolvedValue(undefined);
     serviceMocks.setChatThreadTags.mockResolvedValue(undefined);
-    serviceMocks.listMessageOutbox.mockResolvedValue([]);
     serviceMocks.listStudents.mockResolvedValue([student]);
     serviceMocks.listUsersByIds.mockResolvedValue([]);
     serviceMocks.subscribeChatMessages.mockImplementation((_id, onItems) => { onItems([]); return vi.fn(); });

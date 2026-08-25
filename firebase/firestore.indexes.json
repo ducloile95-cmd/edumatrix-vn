@@ -29,16 +29,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "assignedTeacherIds", "arrayConfig": "CONTAINS" },
-        { "fieldPath": "studentId", "order": "ASCENDING" },
         { "fieldPath": "lastMessageAt", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "message_outbox",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "actorUid", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     },
     {
@@ -142,5 +133,12 @@
       ]
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    {
+      "collectionGroup": "messenger_conversation_tombstones",
+      "fieldPath": "expiresAt",
+      "ttl": true,
+      "indexes": []
+    }
+  ]
 }

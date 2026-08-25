@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import worker, { assertStudentScope, buildMessengerPayload, buildUtilityPayload, checkMetaUtilityPermission, corsHeaders, deleteChatConversation, extractBearer, extractInboundMessages, extractReferralLinks, extractUtilityTemplateStatuses, firebaseCertificates, isMessengerTagShape, markWebhookMessageProcessed, META_OAUTH_SCOPES, META_UTILITY_OAUTH_SCOPE, META_UTILITY_WEBHOOK_FIELD, META_WEBHOOK_FIELDS, metaErrorCode, metaOAuthCompletionErrorMessage, metaOAuthErrorMessage, metaOAuthScopes, metaUtilityPermissionStatus, metaWebhookFields, nextUnreadStaffCount, parseMessengerProfile, publicErrorCode, referralClaimUid, referralTargetAllowed, resetFirebaseCachesForTest, safeConnectOrigin, sendGraph, serviceAccessToken, subscribePageWebhooks, validChatThreadId, validUtilityParameters, verifyMetaSignature, webhookMessageProcessed, type Env } from "../src/index";
+import worker, { assertStudentScope, buildMessengerPayload, buildUtilityPayload, checkMetaUtilityPermission, corsHeaders, deliveryJobEligible, deliveryJobId, extractBearer, extractInboundMessages, extractReferralLinks, extractUtilityTemplateStatuses, firebaseCertificates, isMessengerTagShape, latestUtilityTemplateStatus, markWebhookMessageProcessed, META_OAUTH_SCOPES, META_UTILITY_OAUTH_SCOPE, META_UTILITY_WEBHOOK_FIELD, META_WEBHOOK_FIELDS, metaErrorCode, metaOAuthCompletionErrorMessage, metaOAuthErrorMessage, metaOAuthScopes, metaUtilityPermissionStatus, metaWebhookFields, nextUnreadStaffCount, oauthStateActive, parseMessengerProfile, publicErrorCode, referralClaimUid, referralTargetAllowed, resetFirebaseCachesForTest, safeConnectOrigin, sendGraph, serviceAccessToken, startDeleteChatConversation, subscribePageWebhooks, threadId, UTILITY_TEMPLATES, validChatThreadId, validUtilityParameters, verifyMetaSignature, webhookMessageProcessed, type Env } from "../src/index";
 const env={FIREBASE_PROJECT_ID:"project",FIREBASE_CLIENT_EMAIL:"email",FIREBASE_PRIVATE_KEY:"key",META_APP_ID:"app-id",META_PAGE_ACCESS_TOKEN:"token",META_APP_SECRET:"app-secret",META_WEBHOOK_VERIFY_TOKEN:"verify-me",META_GRAPH_VERSION:"v25.0",META_PAGE_ID:"page-id",ALLOWED_ORIGIN:"http://localhost:5173"}satisfies Env;
 describe("messenger worker",()=>{
 afterEach(()=>{vi.restoreAllMocks();resetFirebaseCachesForTest()});
@@ -10,7 +10,7 @@ test("extracts a referral nonce",()=>expect(extractReferralLinks({entry:[{messag
 test("claims only an active unused referral nonce without overwriting links",()=>{
   const future=new Date(Date.now()+60_000).toISOString();
   const past=new Date(Date.now()-60_000).toISOString();
-  const nonce=(overrides:Record<string,unknown>={})=>({fields:{uid:{stringValue:"parent-1"},status:{stringValue:"active"},expiresAt:{timestampValue:future},usedAt:{nullValue:null},...overrides}});
+  const nonce=(overrides:Record<string,unknown>={})=>({fields:{parentUid:{stringValue:"parent-1"},studentId:{stringValue:"student-1"},status:{stringValue:"active"},expiresAt:{timestampValue:future},usedAt:{nullValue:null},...overrides}});
   const connection=(psid:string)=>({fields:{facebookPsid:{stringValue:psid}}});
   const psidLink=(uid:string)=>({fields:{uid:{stringValue:uid}}});
   expect(referralClaimUid(nonce(),null,null,"psid-1")).toBe("parent-1");
@@ -32,25 +32,55 @@ test("limits referral creation to the parent-student relation and teacher assign
 test("extracts inbound text messages",()=>expect(extractInboundMessages({entry:[{messaging:[{sender:{id:"psid"},recipient:{id:"page"},timestamp:123,message:{mid:"mid-1",text:" Xin chao "}}]}]})).toEqual([{psid:"psid",pageId:"page",timestamp:123,messageId:"mid-1",text:"Xin chao"}]));
 test("extracts utility template status updates without retaining the full payload",()=>expect(extractUtilityTemplateStatuses({entry:[{id:"page-1",time:123,changes:[{field:"message_template_status_update",value:{message_template_id:"template-1",message_template_name:"edumatrix_payment",message_template_status:"APPROVED",message_template_language:"vi",reason:"ok"}}]}]})).toEqual([{pageId:"page-1",templateId:"template-1",templateName:"edumatrix_payment",status:"APPROVED",language:"vi",reason:"ok",timestamp:123000}]));
 test("ignores unrelated or incomplete template status changes",()=>expect(extractUtilityTemplateStatuses({entry:[{id:"page-1",changes:[{field:"feed",value:{name:"x"}},{field:"messenger_template_status_update",value:{status:"APPROVED"}}]}]})).toEqual([]));
+test("uses only the latest template status for the configured Page and language",()=>{
+  const template=UTILITY_TEMPLATES.tuition_payment_reminder;
+  const statusDocument=(pageId:string,language:string,status:string,updatedAt:string)=>({fields:{
+    pageId:{stringValue:pageId},templateName:{stringValue:template.metaName},language:{stringValue:language},
+    status:{stringValue:status},updatedAt:{timestampValue:updatedAt},
+  }});
+  expect(latestUtilityTemplateStatus([
+    statusDocument("page-1","vi","APPROVED","2026-08-24T08:00:00.000Z"),
+    statusDocument("page-1","vi","PAUSED","2026-08-24T09:00:00.000Z"),
+    statusDocument("page-2","vi","APPROVED","2026-08-24T10:00:00.000Z"),
+    statusDocument("page-1","en","APPROVED","2026-08-24T11:00:00.000Z"),
+  ],template,"page-1")).toBe("PAUSED");
+  expect(latestUtilityTemplateStatus([],template,"page-1")).toBeNull();
+});
 test("parses Messenger account name and secure avatar",()=>{expect(parseMessengerProfile({first_name:"Le",last_name:"Loi",profile_pic:"https://cdn.example/avatar.jpg"})).toEqual({name:"Le Loi",avatarUrl:"https://cdn.example/avatar.jpg"});expect(parseMessengerProfile({first_name:"Le",profile_pic:"http://unsafe.example/avatar.jpg"})).toEqual({name:"Le",avatarUrl:null})});
 test("ignores message echoes",()=>expect(extractInboundMessages({entry:[{messaging:[{sender:{id:"page"},recipient:{id:"psid"},message:{mid:"mid-2",text:"echo",is_echo:true}}]}]})).toEqual([]));
 test("increments unread messages for inbound events and clears them for outbound events",()=>{const thread={fields:{unreadStaffCount:{integerValue:"2"}}};expect(nextUnreadStaffCount(thread,"inbound")).toBe(3);expect(nextUnreadStaffCount(thread,"outbound")).toBe(0)});
 test("validates conversation ids before deletion",()=>{expect(validChatThreadId("messenger_thread-1")).toBe(true);expect(validChatThreadId("chat_threads/thread-1")).toBe(false);expect(validChatThreadId("")).toBe(false)});
-test("deletes a conversation and its messages without deleting Messenger mappings",async()=>{
+test("keeps separate stable threads for each parent and student context",()=>{
+  expect(threadId("parent-1","student-1")).toBe("messenger_parent-1_student-1");
+  expect(threadId("parent-1","student-2")).not.toBe(threadId("parent-1","student-1"));
+  expect(threadId("parent-2","student-1")).not.toBe(threadId("parent-1","student-1"));
+});
+test("rejects expired OAuth state for the expected admin",()=>{
+  const state=(expiresAt:string,uid="admin-1")=>({fields:{uid:{stringValue:uid},status:{stringValue:"ready"},expiresAt:{timestampValue:expiresAt}}});
+  const now=new Date("2026-08-25T05:00:00.000Z");
+  expect(oauthStateActive(state("2026-08-25T05:01:00.000Z"),"admin-1",now)).toBe(true);
+  expect(oauthStateActive(state("2026-08-25T04:59:00.000Z"),"admin-1",now)).toBe(false);
+  expect(oauthStateActive(state("2026-08-25T05:01:00.000Z","admin-2"),"admin-1",now)).toBe(false);
+});
+test("uses a stable delivery idempotency key and finite retry lease",()=>{
+  expect(deliveryJobId("invoice_committed","invoice/1","2","parent-1")).toBe("invoice_committed:invoice_1:2:parent-1");
+  const timestamp=(value:string)=>({timestampValue:value});
+  const job=(status:string,attempts:number,nextAttemptAt:string,leaseUntil:string)=>({fields:{status:{stringValue:status},attempts:{integerValue:String(attempts)},nextAttemptAt:timestamp(nextAttemptAt),leaseUntil:timestamp(leaseUntil)}});
+  const now=Date.parse("2026-08-25T05:00:00.000Z");
+  expect(deliveryJobEligible(job("pending",0,"2026-08-25T04:59:00.000Z","2026-08-25T04:59:00.000Z"),now)).toBe(true);
+  expect(deliveryJobEligible(job("processing",1,"2026-08-25T04:59:00.000Z","2026-08-25T05:01:00.000Z"),now)).toBe(false);
+  expect(deliveryJobEligible(job("failed",3,"2026-08-25T04:59:00.000Z","2026-08-25T04:59:00.000Z"),now)).toBe(false);
+});
+test("starts idempotent two-phase conversation deletion without touching messages",async()=>{
   const fetchMock=vi.spyOn(globalThis,"fetch")
     .mockResolvedValueOnce(new Response(JSON.stringify({name:"projects/project/databases/(default)/documents/chat_threads/thread-1"}),{status:200}))
-    .mockResolvedValueOnce(new Response(JSON.stringify({documents:[
-      {name:"projects/project/databases/(default)/documents/chat_threads/thread-1/messages/message-1"},
-      {name:"projects/project/databases/(default)/documents/chat_threads/thread-1/messages/message-2"},
-    ]}),{status:200}))
+    .mockResolvedValueOnce(new Response("",{status:404}))
     .mockResolvedValueOnce(new Response(JSON.stringify({writeResults:[]}),{status:200}));
-  await expect(deleteChatConversation("thread-1","service-token",env)).resolves.toBe(2);
+  await expect(startDeleteChatConversation("thread-1","admin-1","service-token",env)).resolves.toBeUndefined();
   const commitBody=JSON.parse(String(fetchMock.mock.calls[2][1]?.body));
-  expect(commitBody.writes.map((write:{delete:string})=>write.delete)).toEqual([
-    "projects/project/databases/(default)/documents/chat_threads/thread-1/messages/message-1",
-    "projects/project/databases/(default)/documents/chat_threads/thread-1/messages/message-2",
-    "projects/project/databases/(default)/documents/chat_threads/thread-1",
-  ]);
+  expect(JSON.stringify(commitBody)).toContain("messenger_conversation_tombstones/thread-1");
+  expect(JSON.stringify(commitBody)).toContain("deletionState");
+  expect(JSON.stringify(commitBody)).not.toContain("/messages/");
   expect(JSON.stringify(commitBody)).not.toContain("messenger_psid_links");
   expect(JSON.stringify(commitBody)).not.toContain("messenger_connections");
 });
@@ -173,7 +203,7 @@ test("does not log or return the rejected Page token",async()=>{
   expect(publicErrorCode(failure)).toBe("meta_token_invalid");
   expect(JSON.stringify(warn.mock.calls)).not.toContain(secretToken);
 });
-test("health check exposes local service version",async()=>expect(await(await worker.fetch(new Request("https://worker/health"),env)).json()).toEqual({ok:true,service:"messenger-worker",version:"local",release:"local",environment:"development"}));
+test("health check exposes local service version",async()=>expect(await(await worker.fetch(new Request("https://worker/health"),env)).json()).toEqual({ok:true,service:"messenger-worker",version:"local",release:"local",environment:"development",utilityMessagingEnabled:false,utilityAutomationEnabled:false}));
 test("health check exposes Cloudflare production version",async()=>{
   const productionEnv={...env,ALLOWED_ORIGIN:"https://edumatrix-vn-576b1.web.app",RELEASE_SHA:"07a1036",CF_VERSION_METADATA:{id:"version-123",tag:"",timestamp:"2026-07-27T00:00:00Z"}};
   await expect((await worker.fetch(new Request("https://worker/health"),productionEnv)).json()).resolves.toMatchObject({version:"version-123",release:"07a1036",environment:"production"});
@@ -206,7 +236,7 @@ test("requests Utility permission only after its production flag is enabled",()=
   expect(META_OAUTH_SCOPES).toEqual(["pages_show_list","pages_manage_metadata","pages_messaging"]);
   expect(metaOAuthScopes(env)).toEqual(META_OAUTH_SCOPES);
   expect(metaOAuthScopes({...env,UTILITY_MESSAGING_ENABLED:"true"})).toEqual([...META_OAUTH_SCOPES,META_UTILITY_OAUTH_SCOPE]);
-  expect(META_UTILITY_OAUTH_SCOPE).toBe("pages_utility_messaging");
+  expect(META_UTILITY_OAUTH_SCOPE).toBe("page_utility_messaging");
 });
 test("subscribes to Utility template status updates only when Utility Messaging is enabled",()=>{
   expect(metaWebhookFields(env)).toEqual(META_WEBHOOK_FIELDS);
@@ -214,13 +244,13 @@ test("subscribes to Utility template status updates only when Utility Messaging 
   expect(META_UTILITY_WEBHOOK_FIELD).toBe("message_template_status_update");
 });
 test("recognizes granted, missing, and unknown Utility Messaging permission states",()=>{
-  expect(metaUtilityPermissionStatus({data:[{permission:"pages_utility_messaging",status:"granted"}]})).toBe("granted");
+  expect(metaUtilityPermissionStatus({data:[{permission:"page_utility_messaging",status:"granted"}]})).toBe("granted");
   expect(metaUtilityPermissionStatus({data:[{permission:"pages_messaging",status:"granted"}]})).toBe("missing");
   expect(metaUtilityPermissionStatus({error:"unavailable"})).toBe("unknown");
 });
 test("checks Utility permission without putting the access token in the URL",async()=>{
   const secretToken="utility-secret-token";
-  const fetchMock=vi.spyOn(globalThis,"fetch").mockResolvedValue(new Response(JSON.stringify({data:[{permission:"pages_utility_messaging",status:"declined"}]}),{status:200,headers:{"content-type":"application/json"}}));
+  const fetchMock=vi.spyOn(globalThis,"fetch").mockResolvedValue(new Response(JSON.stringify({data:[{permission:"page_utility_messaging",status:"declined"}]}),{status:200,headers:{"content-type":"application/json"}}));
   await expect(checkMetaUtilityPermission(secretToken,env)).resolves.toBe("missing");
   const [url,init]=fetchMock.mock.calls[0];
   expect(String(url)).not.toContain(secretToken);

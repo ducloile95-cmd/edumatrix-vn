@@ -1,79 +1,42 @@
 import {
-  addDoc, arrayRemove, collection, deleteDoc, doc, documentId, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where, writeBatch, type Unsubscribe,
+  addDoc, arrayRemove, collection, deleteDoc, doc, documentId, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, startAfter, updateDoc, where, writeBatch, type Timestamp, type Unsubscribe,
 } from "firebase/firestore";
 import { COLLECTIONS } from "@/constants/collections";
 import { db } from "@/services/firebase/firestoreClient";
-import { listAllQueryDocuments } from "@/services/firestore/pagination";
-import type { ChatMessageDoc, ChatTagColor, ChatTagDoc, ChatThreadDoc, MessageOutboxDoc } from "@/types/chat";
+import type { ChatMessageDoc, ChatTagColor, ChatTagDoc, ChatThreadDoc } from "@/types/chat";
 import type { UserRole } from "@/types/user";
 
 export async function listChatThreads(role: UserRole, uid: string): Promise<Array<ChatThreadDoc & { id: string }>> {
-  if (role === "admin") {
-    const documents = await listAllQueryDocuments(COLLECTIONS.CHAT_THREADS, [orderBy("lastMessageAt", "desc")], 30);
-    return documents.map((item) => ({ id: item.id, ...(item.data() as ChatThreadDoc) }));
-  }
-
-  const students = await listAllQueryDocuments(
-    COLLECTIONS.STUDENTS,
-    [where("teacherIds", "array-contains", uid)],
-    30,
-  );
-  const documents = (await Promise.all(students.map((student) => listAllQueryDocuments(
-    COLLECTIONS.CHAT_THREADS,
-    [
-      where("assignedTeacherIds", "array-contains", uid),
-      where("studentId", "==", student.id),
-      orderBy("lastMessageAt", "desc"),
-    ],
-    30,
-  )))).flat();
-  return documents.map((item) => ({ id: item.id, ...(item.data() as ChatThreadDoc) }));
+  const source = collection(db, COLLECTIONS.CHAT_THREADS);
+  const q = role === "admin"
+    ? query(source, orderBy("lastMessageAt", "desc"), limit(50))
+    : query(source, where("assignedTeacherIds", "array-contains", uid), orderBy("lastMessageAt", "desc"), limit(50));
+  const documents = await getDocs(q);
+  return documents.docs.map((item) => ({ id: item.id, ...(item.data() as ChatThreadDoc) }))
+    .filter((item) => item.deletionState !== "deleting" && item.deletionState !== "deleted");
 }
 
 export function subscribeChatThreads(role: UserRole, uid: string, listener: (items: Array<ChatThreadDoc & { id: string }>) => void, onError: (error: Error) => void): Unsubscribe {
-  if (role === "admin") {
-    const q = query(collection(db, COLLECTIONS.CHAT_THREADS), orderBy("lastMessageAt", "desc"));
-    return onSnapshot(q, (snapshot) => {
-      listener(snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as ChatThreadDoc) })));
-    }, onError);
-  }
-
-  const threadsByStudent = new Map<string, Array<ChatThreadDoc & { id: string }>>();
-  const threadSubscriptions = new Map<string, Unsubscribe>();
-  const emit = () => listener([...threadsByStudent.values()].flat().sort((left, right) => (
-    (right.lastMessageAt?.toMillis?.() ?? 0) - (left.lastMessageAt?.toMillis?.() ?? 0)
-  )));
-  const studentsQuery = query(
-    collection(db, COLLECTIONS.STUDENTS),
-    where("teacherIds", "array-contains", uid),
-  );
-  const unsubscribeStudents = onSnapshot(studentsQuery, (snapshot) => {
-    const activeStudentIds = new Set(snapshot.docs.map((student) => student.id));
-    threadSubscriptions.forEach((unsubscribe, studentId) => {
-      if (activeStudentIds.has(studentId)) return;
-      unsubscribe();
-      threadSubscriptions.delete(studentId);
-      threadsByStudent.delete(studentId);
-    });
-    snapshot.docs.forEach((student) => {
-      if (threadSubscriptions.has(student.id)) return;
-      const threadsQuery = query(
-        collection(db, COLLECTIONS.CHAT_THREADS),
-        where("assignedTeacherIds", "array-contains", uid),
-        where("studentId", "==", student.id),
-        orderBy("lastMessageAt", "desc"),
-      );
-      threadSubscriptions.set(student.id, onSnapshot(threadsQuery, (threads) => {
-        threadsByStudent.set(student.id, threads.docs.map((item) => ({ id: item.id, ...(item.data() as ChatThreadDoc) })));
-        emit();
-      }, onError));
-    });
-    emit();
+  const source = collection(db, COLLECTIONS.CHAT_THREADS);
+  const q = role === "admin"
+    ? query(source, orderBy("lastMessageAt", "desc"), limit(50))
+    : query(source, where("assignedTeacherIds", "array-contains", uid), orderBy("lastMessageAt", "desc"), limit(50));
+  return onSnapshot(q, (snapshot) => {
+    const items = snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as ChatThreadDoc) }))
+      .filter((item) => item.deletionState !== "deleting" && item.deletionState !== "deleted");
+    listener([...new Map(items.map((item) => [item.id, item])).values()]);
   }, onError);
-  return () => {
-    unsubscribeStudents();
-    threadSubscriptions.forEach((unsubscribe) => unsubscribe());
-  };
+}
+
+export async function loadOlderMessages(threadId: string, before: Timestamp, pageSize = 50): Promise<Array<ChatMessageDoc & { id: string }>> {
+  const q = query(
+    collection(db, COLLECTIONS.CHAT_THREADS, threadId, "messages"),
+    orderBy("createdAt", "desc"),
+    startAfter(before),
+    limit(Math.min(Math.max(pageSize, 1), 50)),
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as ChatMessageDoc) })).reverse();
 }
 
 export function subscribeChatMessages(threadId: string, listener: (items: Array<ChatMessageDoc & { id: string }>) => void, onError: (error: Error) => void): Unsubscribe {
@@ -130,13 +93,4 @@ export async function markChatThreadRead(threadId: string) {
     unreadStaffCount: 0,
     updatedAt: serverTimestamp(),
   });
-}
-
-export async function listMessageOutbox(role: UserRole, uid: string): Promise<Array<MessageOutboxDoc & { id: string }>> {
-  const source = collection(db, COLLECTIONS.MESSAGE_OUTBOX);
-  const q = role === "admin"
-    ? query(source, orderBy("createdAt", "desc"), limit(50))
-    : query(source, where("actorUid", "==", uid), orderBy("createdAt", "desc"), limit(50));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as MessageOutboxDoc) }));
 }

@@ -14,10 +14,11 @@ async function main() {
   }).trim();
   const allowedOrigin = "https://edumatrix.id.vn";
 
-  const healthResponse = await fetch(`${workerUrl}/health`);
+  const healthResponse = await fetch(`${workerUrl}/health.release`);
   const health = await healthResponse.json();
   if (!healthResponse.ok || health?.ok !== true) throw new Error(`Worker health failed with ${healthResponse.status}.`);
   if (health.release !== releaseSha) throw new Error(`Worker release mismatch: live=${health.release ?? "missing"}, expected=${releaseSha}.`);
+  if (health.utilityMessagingEnabled !== false || health.utilityAutomationEnabled !== false) throw new Error("R1 requires Utility Messaging and automation to remain disabled.");
 
   const authResponse = await fetch(`${workerUrl}/api/meta/connect/start`, {
     method: "POST",

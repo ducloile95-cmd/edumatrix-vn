@@ -9,6 +9,8 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
 import { getIntegrationSettings, getPaymentSettings, updateIntegrationSettings, type IntegrationSettingsInput } from "@/services/firestore/settings";
 import { connectGoogleDrive, disconnectGoogleDrive, driveErrorMessage, isGoogleDriveConfigured, isGoogleDriveConnected } from "@/services/integrations/googleDrive";
 import { MetaPageConnectDialog } from "@/features/settings/components/MetaPageConnectDialog";
+import { getUtilityTemplateStatus, setUtilityTemplateEnabled, syncUtilityTemplates, type UtilityTemplateKey } from "@/services/integrations/messenger";
+import { UTILITY_TEMPLATES } from "@/constants/utilityTemplates";
 
 const EMPTY: IntegrationSettingsInput = { facebookPageId: "", driveFolderId: "", webhookUrl: "" };
 const FIELD_CLASS = "min-h-touch w-full rounded-input border border-neutral-300 bg-neutral-0 px-3 text-sm text-neutral-800 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100";
@@ -32,6 +34,7 @@ export function IntegrationsWorkspace() {
   const [form, setForm] = useState(EMPTY);
   const [driveConnected, setDriveConnected] = useState(isGoogleDriveConnected());
   const [metaConnectOpen, setMetaConnectOpen] = useState(false);
+  const [metaConnectPurpose, setMetaConnectPurpose] = useState<"messenger" | "utility_setup">("messenger");
 
   useEffect(() => {
     if (settings.data) setForm({
@@ -58,6 +61,12 @@ export function IntegrationsWorkspace() {
     onSuccess: () => setDriveConnected(true),
     onError: () => setDriveConnected(isGoogleDriveConnected()),
   });
+  const utilityTemplates = useQuery({ queryKey: ["meta", "utility-templates"], queryFn: getUtilityTemplateStatus, enabled: Boolean(settings.data?.facebookPageId) });
+  const syncUtility = useMutation({ mutationFn: syncUtilityTemplates, onSuccess: (data) => queryClient.setQueryData(["meta", "utility-templates"], data) });
+  const toggleUtility = useMutation({
+    mutationFn: ({ templateKey, enabled }: { templateKey: UtilityTemplateKey; enabled: boolean }) => setUtilityTemplateEnabled(templateKey, enabled),
+    onSuccess: (data) => queryClient.setQueryData(["meta", "utility-templates"], data),
+  });
 
   if (settings.isLoading || payment.isLoading) return <LoadingSkeleton rows={6} />;
   if (settings.isError) return <ErrorState message="Không tải được cấu hình kết nối." onRetry={() => settings.refetch()} />;
@@ -80,7 +89,7 @@ export function IntegrationsWorkspace() {
         {driveConnected && <Button size="sm" variant="secondary" icon={<Unplug size={14} />} onClick={() => { disconnectGoogleDrive(); setDriveConnected(false); }}>Ngắt phiên</Button>}
       </IntegrationCard>
       <IntegrationCard icon={<Facebook size={19} />} title="Facebook & Messenger" description="Kết nối Fanpage để dùng Messenger." configured={messengerReady && webhookVerified} detail={`${settings.data?.facebookPageName ? `${settings.data.facebookPageName} · ${form.facebookPageId}` : form.facebookPageId ? `Page ID: ${form.facebookPageId}` : "Chưa kết nối Fanpage"}${messengerReady ? ` · Webhook: ${webhookVerified ? "Đã xác minh" : "Chưa xác minh"} · Utility: ${utilityPermission === "granted" ? "Đã cấp quyền" : utilityPermission === "missing" ? "Thiếu quyền" : "Chưa kiểm tra"}` : ""}`}>
-        <Button size="sm" variant={messengerReady ? "secondary" : "primary"} icon={messengerReady ? <RefreshCw size={14} /> : <Facebook size={14} />} onClick={() => setMetaConnectOpen(true)}>
+        <Button size="sm" variant={messengerReady ? "secondary" : "primary"} icon={messengerReady ? <RefreshCw size={14} /> : <Facebook size={14} />} onClick={() => { setMetaConnectPurpose(utilityReconnectRequired ? "utility_setup" : "messenger"); setMetaConnectOpen(true); }}>
           {utilityReconnectRequired ? "Kết nối lại Fanpage" : messengerReady ? "Đổi Fanpage" : "Kết nối Facebook"}
         </Button>
         {messengerWorker && <a href={messengerWorker} target="_blank" rel="noreferrer" className="inline-flex min-h-9 items-center gap-2 rounded-input border border-neutral-300 px-3 text-xs font-bold text-neutral-700 hover:bg-neutral-50">Mở Worker <ExternalLink size={14} /></a>}
@@ -93,7 +102,7 @@ export function IntegrationsWorkspace() {
     {utilityReconnectRequired && (
       <p role="alert" className="rounded-input border border-warning-200 bg-warning-50 px-4 py-3 text-sm font-semibold leading-6 text-warning-900">
         {utilityPermission === "missing"
-          ? "Fanpage hiện tại chưa cấp quyền pages_utility_messaging."
+          ? "Fanpage hiện tại chưa cấp quyền page_utility_messaging."
           : "Kết nối Fanpage này được tạo trước khi hệ thống kiểm tra quyền Utility Messaging."}{" "}
         Chọn “Kết nối lại Fanpage”, chấp thuận quyền Utility Messaging trên Facebook và chỉ bật tính năng sau khi trạng thái chuyển thành “Đã cấp quyền”.
       </p>
@@ -101,10 +110,30 @@ export function IntegrationsWorkspace() {
 
     {drive.isError && <p role="alert" className="rounded-input border border-danger-100 bg-danger-50 px-4 py-3 text-sm font-semibold text-danger-700">{driveErrorMessage(drive.error)}</p>}
 
+    {messengerReady && (
+      <section className="rounded-card border border-neutral-200 bg-neutral-0 shadow-[var(--shadow-1)]">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-100 px-5 py-4">
+          <div><h2 className="text-sm font-bold text-neutral-900">Utility Messaging</h2><p className="mt-1 text-xs text-neutral-500">Đồng bộ trực tiếp từ đúng Fanpage; Meta APPROVED không tự bật gửi.</p></div>
+          <div className="flex gap-2"><Button size="sm" variant="secondary" onClick={() => { setMetaConnectPurpose("utility_setup"); setMetaConnectOpen(true); }}>Cấp quyền Utility</Button><Button size="sm" variant="secondary" icon={<RefreshCw size={14} />} disabled={syncUtility.isPending} onClick={() => syncUtility.mutate()}>{syncUtility.isPending ? "Đang đồng bộ..." : "Đồng bộ Meta"}</Button></div>
+        </div>
+        <div className="divide-y divide-neutral-100">
+          {(utilityTemplates.data?.templates ?? []).map((template) => (
+            <div key={template.key} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+              <div className="min-w-0"><p className="truncate text-sm font-semibold text-neutral-800">{UTILITY_TEMPLATES.find((item) => item.key === template.key)?.label ?? template.templateName}</p><p className="mt-0.5 text-xs text-neutral-500">{template.status} · {template.language} · {template.category ?? "chưa có category"} · tham số {template.parameterCount}/{template.expectedParameterCount}{template.updatedAt ? ` · ${new Date(template.updatedAt).toLocaleString("vi-VN")}` : ""}</p>{template.reason && <p className="mt-1 text-xs text-danger-700">{template.reason}</p>}</div>
+              <button type="button" role="switch" aria-checked={template.enabled} disabled={!template.valid || toggleUtility.isPending} onClick={() => toggleUtility.mutate({ templateKey: template.key, enabled: !template.enabled })} className={`rounded-full px-3 py-1.5 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-50 ${template.enabled ? "bg-success-50 text-success-700" : "bg-neutral-100 text-neutral-600"}`}>{template.enabled ? "Đang bật" : template.valid ? "Đang tắt" : "Chưa hợp lệ"}</button>
+            </div>
+          ))}
+          {!utilityTemplates.isLoading && !(utilityTemplates.data?.templates.length) && <p className="px-5 py-4 text-sm text-neutral-500">Chưa có trạng thái. Chọn “Đồng bộ Meta”.</p>}
+        </div>
+        {(syncUtility.isError || toggleUtility.isError || utilityTemplates.isError) && <p role="alert" className="border-t border-danger-100 bg-danger-50 px-5 py-3 text-xs font-semibold text-danger-700">Không thể tải hoặc cập nhật trạng thái Utility. Kiểm tra quyền Page rồi thử lại.</p>}
+      </section>
+    )}
+
     <section className="rounded-card border border-neutral-200 bg-neutral-0 shadow-[var(--shadow-1)]"><div className="border-b border-neutral-100 px-5 py-4"><h2 className="text-sm font-bold text-neutral-900">Cấu hình công khai</h2></div><form onSubmit={(event) => { event.preventDefault(); save.mutate(); }} className="grid gap-4 p-5 md:grid-cols-2"><label className="block"><span className="mb-1.5 block text-xs font-bold text-neutral-700">Facebook Page ID</span><div className="relative"><input value={form.facebookPageId} readOnly className={`${FIELD_CLASS} bg-neutral-50 pr-9 text-neutral-600`} /><CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 text-success-600" size={16} /></div><span className="mt-1.5 block text-xs leading-5 text-neutral-500">Được cập nhật tự động sau khi chọn Fanpage.</span></label><label className="block"><span className="mb-1.5 block text-xs font-bold text-neutral-700">Google Drive folder ID</span><input value={form.driveFolderId} onChange={(event) => setForm((current) => ({ ...current, driveFolderId: event.target.value }))} className={FIELD_CLASS} /></label><label className="block"><span className="mb-1.5 block text-xs font-bold text-neutral-700">Webhook callback URL</span><input type="url" value={form.webhookUrl} onChange={(event) => setForm((current) => ({ ...current, webhookUrl: event.target.value }))} className={FIELD_CLASS} /><span className="mt-1.5 block text-xs leading-5 text-neutral-500">Chỉ URL HTTPS, không chứa token trong query string.</span></label><div className="flex items-end"><Button type="submit" variant="primary" disabled={save.isPending}>{save.isPending ? "Đang lưu..." : "Lưu cấu hình"}</Button></div>{save.isError && <p role="alert" className="text-xs font-semibold text-danger-700 md:col-span-2">{save.error instanceof Error ? save.error.message : "Lưu thất bại"}</p>}{save.isSuccess && <p role="status" className="text-xs font-semibold text-success-700 md:col-span-2">Đã lưu cấu hình kết nối.</p>}</form></section>
 
     <MetaPageConnectDialog
       open={metaConnectOpen}
+      purpose={metaConnectPurpose}
       onClose={() => setMetaConnectOpen(false)}
       onConnected={(page) => {
         setForm((current) => ({ ...current, facebookPageId: page.id }));

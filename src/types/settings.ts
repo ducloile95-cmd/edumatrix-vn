@@ -28,6 +28,8 @@ export interface IntegrationSettingsDoc {
   facebookWebhookSubscribedFields?: string[];
   facebookWebhookVerifiedAt?: Timestamp | null;
   facebookConnectedAt?: Timestamp | null;
+  messengerUtilityEnabledTemplates?: string[];
+  messengerUtilityUpdatedAt?: Timestamp | null;
   driveFolderId: string;
   webhookUrl: string;
   updatedAt: Timestamp;

@@ -10,5 +10,10 @@ export default defineConfig({
   test: {
     include: ["src/**/*.test.{ts,tsx}", "firebase/tests/**/*.test.ts"],
     exclude: ["node_modules/**", "dist/**", "Agents Instuctions/**"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text-summary", "json-summary"],
+      thresholds: { statements: 40, branches: 70, functions: 50, lines: 40 },
+    },
   },
 });

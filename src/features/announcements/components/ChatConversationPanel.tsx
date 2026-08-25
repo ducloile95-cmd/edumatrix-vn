@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/Button";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { Modal } from "@/components/ui/Modal";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { subscribeChatMessages } from "@/services/firestore/chat";
+import { loadOlderMessages, subscribeChatMessages } from "@/services/firestore/chat";
 import { listStudents } from "@/services/firestore/students";
+import { listUsersByIds } from "@/services/firestore/users";
 import { createMessengerInviteLink, deleteMessengerConversation, isMessengerInviteConfigured, linkMessengerConversation, MessengerSendError, sendMessenger } from "@/services/integrations/messenger";
 import { queryKeys } from "@/hooks/queryKeys";
 import type { ChatMessageDoc, ChatTagDoc, ChatThreadDoc } from "@/types/chat";
@@ -119,10 +120,18 @@ export function ConversationContext({ thread, parent, tags, onRemoveTag, onManag
   const queryClient = useQueryClient();
   const students = useQuery({ queryKey: queryKeys.students(), queryFn: listStudents, enabled: thread.linkStatus === "unlinked" });
   const [studentId, setStudentId] = useState("");
+  const [parentUid, setParentUid] = useState("");
+  const selectedStudent = students.data?.find((student) => student.id === studentId);
+  const parentUids = selectedStudent?.parentUids ?? [];
+  const parents = useQuery({
+    queryKey: ["messenger-link-parents", ...parentUids],
+    queryFn: () => listUsersByIds(parentUids),
+    enabled: thread.linkStatus === "unlinked" && parentUids.length > 0,
+  });
   const link = useMutation({
     mutationFn: async () => {
-      if (!thread.messengerPsid || !studentId) throw new Error("Chọn học sinh cần liên kết");
-      await linkMessengerConversation(thread.messengerPsid, studentId);
+      if (!thread.messengerPsid || !studentId || !parentUid) throw new Error("Chọn đúng học sinh và phụ huynh cần liên kết");
+      await linkMessengerConversation(thread.messengerPsid, parentUid, studentId);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["chat-threads"] }),
   });
@@ -136,12 +145,20 @@ export function ConversationContext({ thread, parent, tags, onRemoveTag, onManag
         </div>
         <label className="block">
           <span className="mb-1.5 block text-xs font-bold text-neutral-700">Liên kết với học sinh</span>
-          <select value={studentId} onChange={(event) => setStudentId(event.target.value)} className="min-h-touch w-full rounded-input border border-neutral-300 bg-neutral-0 px-3 text-sm">
+          <select value={studentId} onChange={(event) => { setStudentId(event.target.value); setParentUid(""); }} className="min-h-touch w-full rounded-input border border-neutral-300 bg-neutral-0 px-3 text-sm">
             <option value="">Chọn học sinh...</option>
             {(students.data ?? []).map((student) => <option key={student.id} value={student.id}>{student.fullName} · {student.studentCode}</option>)}
           </select>
         </label>
-        <Button type="button" variant="primary" disabled={!studentId || link.isPending} onClick={() => link.mutate()}>
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-bold text-neutral-700">Phụ huynh của học sinh</span>
+          <select value={parentUid} disabled={!studentId || parents.isLoading} onChange={(event) => setParentUid(event.target.value)} className="min-h-touch w-full rounded-input border border-neutral-300 bg-neutral-0 px-3 text-sm disabled:bg-neutral-100">
+            <option value="">{!studentId ? "Chọn học sinh trước..." : parents.isLoading ? "Đang tải phụ huynh..." : "Chọn phụ huynh..."}</option>
+            {(parents.data ?? []).map((parentItem) => <option key={parentItem.uid} value={parentItem.uid}>{parentItem.displayName || parentItem.email || parentItem.uid}</option>)}
+          </select>
+        </label>
+        {studentId && !parents.isLoading && parentUids.length === 0 && <p className="text-xs font-semibold text-warning-700">Học sinh chưa có phụ huynh active để liên kết.</p>}
+        <Button type="button" variant="primary" disabled={!studentId || !parentUid || link.isPending} onClick={() => link.mutate()}>
           {link.isPending ? "Đang liên kết..." : "Liên kết học sinh"}
         </Button>
         {link.isError && <p className="text-xs font-semibold text-danger-700">{link.error instanceof Error ? link.error.message : "Liên kết thất bại"}</p>}
@@ -164,6 +181,9 @@ export function ConversationContext({ thread, parent, tags, onRemoveTag, onManag
 
 export function ConversationPanel({ thread, parent, configured, tagCatalog, assignedTags, tagUpdatePending, canDelete = false, onBack, onToggleTag, onManageTags }: { thread: Thread; parent: ParentProfile; configured: boolean; tagCatalog: ChatTag[]; assignedTags: ChatTag[]; tagUpdatePending: boolean; canDelete?: boolean; onBack: () => void; onToggleTag: (tag: ChatTag) => void; onManageTags?: () => void }) {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [olderMessages, setOlderMessages] = useState<Message[]>([]);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [hasOlder, setHasOlder] = useState(true);
   const [messageError, setMessageError] = useState<Error | null>(null);
   const [draft, setDraft] = useState("");
   const [tag, setTag] = useState("");
@@ -182,10 +202,12 @@ export function ConversationPanel({ thread, parent, configured, tagCatalog, assi
     },
   });
 
-  useEffect(
-    () => subscribeChatMessages(thread.id, (items) => { setMessages(items); setMessageError(null); }, setMessageError),
-    [thread.id],
-  );
+  useEffect(() => {
+    setOlderMessages([]);
+    setHasOlder(true);
+    return subscribeChatMessages(thread.id, (items) => { setMessages(items); setMessageError(null); }, setMessageError);
+  }, [thread.id]);
+  const visibleMessages = [...new Map([...olderMessages, ...messages].map((item) => [item.id, item])).values()];
 
   const send = useMutation({
     mutationFn: async (text: string) => {
@@ -236,10 +258,20 @@ export function ConversationPanel({ thread, parent, configured, tagCatalog, assi
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5">
           <div className="w-full">
             <p className="mb-4 text-center text-xs font-medium text-neutral-400">Hôm nay</p>
-            {messageError ? <ErrorState message="Không tải được lịch sử hội thoại." /> : messages.length ? messages.map((message, index) => {
+            {messages.length > 0 && hasOlder && <div className="mb-4 text-center"><button type="button" disabled={loadingOlder} onClick={async () => {
+              const before = visibleMessages[0]?.createdAt;
+              if (!before) return;
+              setLoadingOlder(true);
+              try {
+                const page = await loadOlderMessages(thread.id, before, 50);
+                setOlderMessages((current) => [...new Map([...page, ...current].map((item) => [item.id, item])).values()]);
+                setHasOlder(page.length === 50);
+              } finally { setLoadingOlder(false); }
+            }} className="rounded-full border border-neutral-300 px-3 py-1.5 text-xs font-semibold text-neutral-600 hover:bg-neutral-50 disabled:opacity-50">{loadingOlder ? "Đang tải..." : "Tải tin nhắn cũ hơn"}</button></div>}
+            {messageError ? <ErrorState message="Không tải được lịch sử hội thoại." /> : visibleMessages.length ? visibleMessages.map((message, index) => {
               const inbound = message.direction === "inbound";
-              const groupedWithPrevious = messages[index - 1]?.direction === message.direction;
-              const showAvatar = inbound && messages[index + 1]?.direction !== "inbound";
+              const groupedWithPrevious = visibleMessages[index - 1]?.direction === message.direction;
+              const showAvatar = inbound && visibleMessages[index + 1]?.direction !== "inbound";
               return (
                 <div key={message.id} className={`${index === 0 ? "" : groupedWithPrevious ? "mt-0.5" : "mt-3"} flex items-end ${inbound ? "justify-start gap-2" : "justify-end"}`}>
                   {inbound && <span aria-hidden={!showAvatar} className={showAvatar ? "" : "invisible"}><AccountAvatar thread={thread} size="sm" /></span>}

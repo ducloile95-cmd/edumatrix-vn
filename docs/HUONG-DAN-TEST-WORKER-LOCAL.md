@@ -345,7 +345,7 @@ messaging_referrals
 6. Kiểm tra tin xuất hiện trong Chat.
 7. Gửi phản hồi từ EduMatrix.
 8. Kiểm tra Messenger nhận được phản hồi.
-9. Kiểm tra `message_outbox` có `status: sent`.
+9. Kiểm tra message trong `chat_threads/{threadId}/messages` có `status: sent` và structured log không chứa token/PSID đầy đủ/nội dung tin.
 
 Khi Meta App còn Development, tài khoản Facebook thử nghiệm phải có vai trò Admin/Developer/Tester trong App.
 
@@ -362,7 +362,7 @@ Chỉ chuyển production khi tất cả mục sau đạt:
 [ ] Meta webhook Verify and Save thành công
 [ ] Phụ huynh gửi tin vào Chat thành công
 [ ] EduMatrix gửi phản hồi thành công
-[ ] message_outbox ghi status: sent
+[ ] chat_threads/{threadId}/messages ghi status: sent
 [ ] Không có secret trong Git hoặc frontend
 ```
 

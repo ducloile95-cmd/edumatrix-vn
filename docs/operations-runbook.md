@@ -75,4 +75,6 @@ Emulator dùng cho dữ liệu test có thể export/import bằng Firebase CLI;
 - Production `ALLOWED_ORIGIN` phải là origin webapp thật, không phải localhost.
 - Secrets chỉ được đặt bằng `wrangler secret put`.
 - Nếu Meta lỗi hoặc hết quota, tắt feature Messenger ở UI và giữ webapp chính hoạt động.
-- Kiểm tra `message_outbox` sau smoke test; không coi test unit là bằng chứng gửi Meta thật.
+- Kiểm tra `chat_threads/{threadId}/messages` và structured log Worker sau smoke test; `message_outbox` cũ đã bị xóa. Không coi test unit là bằng chứng gửi Meta thật.
+- Xác nhận `GET /health.release` trả đúng SHA của commit phát hành trước khi mở frontend.
+- Utility phải giữ fail-closed cho đến khi quyền `page_utility_messaging`, webhook status và cả sáu template được đồng bộ live.

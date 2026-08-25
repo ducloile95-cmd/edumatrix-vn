@@ -1,4 +1,8 @@
 import { addDays, subDays } from "date-fns";
+import { doc, getDoc } from "firebase/firestore";
+import { COLLECTIONS } from "@/constants/collections";
+import { db } from "@/services/firebase/firestoreClient";
+import { refreshViewerDashboard } from "@/services/integrations/messenger";
 import { listAnnouncementsByStudents } from "@/services/firestore/announcements";
 import { listAssignmentPreviewByClass, listSubmissionPreviewsByStudents } from "@/services/firestore/assignments";
 import { listAttendancePreviewsByStudents } from "@/services/firestore/attendance";
@@ -52,7 +56,13 @@ const DASHBOARD_LIMITS = {
   submissionsPerStudent: 100,
 } as const;
 
-export async function buildViewerDashboard(studentIds: string[]): Promise<ViewerDashboardData> {
+export async function buildViewerDashboard(studentIds: string[], parentUid?: string): Promise<ViewerDashboardData> {
+  if (parentUid) {
+    await refreshViewerDashboard();
+    const snapshot = await getDoc(doc(db, COLLECTIONS.VIEWER_DASHBOARD, parentUid));
+    if (!snapshot.exists()) throw new Error("VIEWER_DASHBOARD_UNAVAILABLE");
+    return snapshot.data() as ViewerDashboardData;
+  }
   const studentResults = await Promise.all(studentIds.map(getStudent));
   const students = studentResults.filter((student): student is NonNullable<typeof student> => !!student);
   const requestedClassIds = [...new Set(students.flatMap((student) => student.currentClassIds ?? []))];

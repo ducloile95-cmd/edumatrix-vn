@@ -55,6 +55,7 @@ service cloud.firestore {
           'facebookConnectionStatus', 'facebookUtilityMessagingPermission',
           'facebookWebhookSubscriptionStatus', 'facebookWebhookSubscribedFields',
           'facebookWebhookVerifiedAt', 'facebookConnectedAt',
+          'messengerUtilityEnabledTemplates', 'messengerUtilityUpdatedAt',
           'driveFolderId', 'webhookUrl', 'updatedAt'
         ]) &&
         data.keys().hasAll(['facebookPageId', 'driveFolderId', 'webhookUrl', 'updatedAt']) &&
@@ -71,6 +72,8 @@ service cloud.firestore {
         (!('facebookWebhookSubscribedFields' in data) || (data.facebookWebhookSubscribedFields is list && data.facebookWebhookSubscribedFields.size() <= 10)) &&
         (!('facebookWebhookVerifiedAt' in data) || data.facebookWebhookVerifiedAt == null || data.facebookWebhookVerifiedAt is timestamp) &&
         (!('facebookConnectedAt' in data) || data.facebookConnectedAt == null || data.facebookConnectedAt is timestamp) &&
+        (!('messengerUtilityEnabledTemplates' in data) || (data.messengerUtilityEnabledTemplates is list && data.messengerUtilityEnabledTemplates.size() <= 6)) &&
+        (!('messengerUtilityUpdatedAt' in data) || data.messengerUtilityUpdatedAt == null || data.messengerUtilityUpdatedAt is timestamp) &&
         data.driveFolderId is string && data.driveFolderId.size() <= 200 &&
         data.webhookUrl is string && data.webhookUrl.size() <= 500;
     }
@@ -1003,10 +1006,19 @@ service cloud.firestore {
       allow read: if isAdmin() ||
         (docId in ['integrations', 'payment'] && isStaff()) ||
         (docId == 'academic' && isActive());
-      allow create, update: if isAdmin() && (
+      allow create: if isAdmin() && (
         (docId == 'general' && validGeneralSettings(request.resource.data)) ||
         (docId == 'academic' && validAcademicSettings(request.resource.data)) ||
-        (docId == 'integrations' && validIntegrationSettings(request.resource.data)) ||
+        (docId == 'integrations' && validIntegrationSettings(request.resource.data) &&
+          !request.resource.data.keys().hasAny(['messengerUtilityEnabledTemplates', 'messengerUtilityUpdatedAt'])) ||
+        (docId == 'payment' && validPaymentSettings(request.resource.data)) ||
+        (docId == 'messenger')
+      );
+      allow update: if isAdmin() && (
+        (docId == 'general' && validGeneralSettings(request.resource.data)) ||
+        (docId == 'academic' && validAcademicSettings(request.resource.data)) ||
+        (docId == 'integrations' && validIntegrationSettings(request.resource.data) &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['messengerUtilityEnabledTemplates', 'messengerUtilityUpdatedAt'])) ||
         (docId == 'payment' && validPaymentSettings(request.resource.data)) ||
         (docId == 'messenger')
       );
@@ -1633,12 +1645,6 @@ service cloud.firestore {
       }
     }
 
-    match /message_outbox/{messageId} {
-      allow read: if isAdmin() || (
-        isTeacher() && resource.data.actorUid == request.auth.uid
-      );
-      allow create, update, delete: if false;
-    }
     match /messenger_connections/{uid} {
       allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
       allow write: if false;
@@ -1651,6 +1657,20 @@ service cloud.firestore {
 
     match /messenger_psid_links/{psid} {
       allow read, write: if false;
+    }
+
+    match /messenger_conversation_tombstones/{threadId} {
+      allow read, write: if false;
+    }
+
+    match /messenger_delivery_jobs/{jobId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /viewer_dashboard/{parentUid} {
+      allow read: if isActive() && request.auth.uid == parentUid && currentUser().role == 'viewer';
+      allow write: if false;
     }
 
     // OAuth state và Page token đã mã hóa chỉ Worker service account được truy cập.
