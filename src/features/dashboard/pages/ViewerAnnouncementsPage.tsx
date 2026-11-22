@@ -99,7 +99,7 @@ function AnnouncementCard({ item }: { item: Announcement }) {
             </time>
           </div>
           <h3 className="mt-2 text-base font-bold text-neutral-900">{item.title || "Thông báo"}</h3>
-          <p className="mt-1.5 whitespace-pre-wrap break-words text-sm leading-6 text-neutral-600">{item.message}</p>
+          <p translate="no" className="mt-1.5 whitespace-pre-wrap break-words text-sm leading-6 text-neutral-600">{item.message}</p>
         </div>
       </div>
     </article>

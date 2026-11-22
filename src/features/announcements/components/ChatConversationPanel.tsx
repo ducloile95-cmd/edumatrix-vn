@@ -289,7 +289,7 @@ export function ConversationPanel({ thread, parent, configured, tagCatalog, assi
                   {inbound && <span aria-hidden={!showAvatar} className={showAvatar ? "" : "invisible"}><AccountAvatar thread={thread} size="sm" /></span>}
                   <div className={`flex min-w-0 max-w-[80%] flex-col sm:max-w-[70%] ${inbound ? "items-start" : "items-end"}`}>
                     <div title={`Gửi lúc ${time(message.createdAt)}`} className={`break-words rounded-[18px] px-3.5 py-2.5 text-sm leading-5 ${inbound ? "bg-neutral-100 text-neutral-800" : "bg-primary-600 text-white"}`}>
-                      <p>{message.text}</p>
+                      <p translate="no">{message.text}</p>
                       <span className="sr-only">Gửi lúc {time(message.createdAt)}</span>
                     </div>
                     {message.status === "failed" && <span className="mt-1 flex items-center gap-1 text-2xs text-danger-700"><AlertTriangle size={12} />Gửi thất bại</span>}

@@ -258,7 +258,7 @@ function NewConversationPicker({ open, onClose, configured, initialTemplateKey, 
                     className={`mb-1 flex w-full items-center gap-3 rounded-input px-3 py-2.5 text-left transition last:mb-0 ${active ? "bg-primary-50 shadow-[inset_3px_0_0_rgb(36_71_216)]" : "hover:bg-neutral-0"}`}
                   >
                     <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-bold text-primary-700">{initials(student.fullName)}</span>
-                    <span className="min-w-0"><b className="block truncate text-sm">{student.fullName}</b><span className="mt-0.5 block truncate text-xs text-neutral-500">{student.studentCode}</span></span>
+                    <span className="min-w-0"><b translate="no" className="block truncate text-sm">{student.fullName}</b><span className="mt-0.5 block truncate text-xs text-neutral-500">{student.studentCode}</span></span>
                   </button>
                 );
               }) : <p className="p-5 text-center text-sm text-neutral-500">Không tìm thấy học sinh phù hợp.</p>}
@@ -270,7 +270,7 @@ function NewConversationPicker({ open, onClose, configured, initialTemplateKey, 
             {selected ? (
               <>
                 <div className="flex items-center justify-between gap-3 rounded-input border border-primary-200 bg-primary-50 px-4 py-3">
-                  <span className="min-w-0"><b className="block truncate text-sm text-neutral-900">{selected.fullName}</b><span className="mt-0.5 block text-xs text-neutral-500">{selected.studentCode}</span></span>
+                  <span className="min-w-0"><b translate="no" className="block truncate text-sm text-neutral-900">{selected.fullName}</b><span className="mt-0.5 block text-xs text-neutral-500">{selected.studentCode}</span></span>
                   <StatusBadge tone={selected.parentUids.length ? "success" : "warning"}>{selected.parentUids.length ? "Có phụ huynh" : "Chưa liên kết"}</StatusBadge>
                 </div>
 
@@ -475,7 +475,7 @@ export function Conversations({ threads, configured, initialPickerOpen = false, 
           ) : filtered.map((thread) => (
             <button key={thread.id} type="button" onClick={() => { setSelectedId(thread.id); setMobileThreadOpen(true); if (thread.unreadStaffCount > 0) markRead.mutate(thread.id); }} aria-current={thread.id === selectedId ? "true" : undefined} className={`flex min-h-[76px] w-full gap-3 px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500 ${thread.id === selectedId ? "bg-primary-50" : "hover:bg-neutral-50"}`}>
               <span className="relative shrink-0"><AccountAvatar thread={thread} />{thread.linkStatus !== "unlinked" && thread.status !== "blocked" && <span className="absolute bottom-0 right-0 size-3 rounded-full border-2 border-neutral-0 bg-success-500" aria-label="Đã kết nối" />}</span>
-              <span className="min-w-0 flex-1"><span className="flex items-baseline justify-between gap-2"><b className="truncate text-sm font-semibold leading-5 text-neutral-900">{accountName(thread)}</b><span className="shrink-0 text-2xs text-neutral-400">{time(thread.lastMessageAt)}</span></span><span className={`mt-1 block truncate text-xs leading-5 ${thread.unreadStaffCount ? "font-semibold text-neutral-800" : "text-neutral-500"}`}>{thread.lastMessagePreview}</span>{assignedTagsFor(thread).length > 0 && <span className="mt-1.5 flex flex-wrap gap-1">{assignedTagsFor(thread).slice(0, 2).map((tag) => <span key={tag.id} className={`rounded px-1.5 py-0.5 text-3xs font-semibold leading-4 ${CHAT_TAG_STYLES[tag.color]}`}>{tag.label}</span>)}{assignedTagsFor(thread).length > 2 && <span className="px-1 py-0.5 text-3xs font-semibold text-neutral-500">+{assignedTagsFor(thread).length - 2}</span>}</span>}</span>
+              <span translate="no" className="min-w-0 flex-1"><span className="flex items-baseline justify-between gap-2"><b className="truncate text-sm font-semibold leading-5 text-neutral-900">{accountName(thread)}</b><span className="shrink-0 text-2xs text-neutral-400">{time(thread.lastMessageAt)}</span></span><span className={`mt-1 block truncate text-xs leading-5 ${thread.unreadStaffCount ? "font-semibold text-neutral-800" : "text-neutral-500"}`}>{thread.lastMessagePreview}</span>{assignedTagsFor(thread).length > 0 && <span className="mt-1.5 flex flex-wrap gap-1">{assignedTagsFor(thread).slice(0, 2).map((tag) => <span key={tag.id} className={`rounded px-1.5 py-0.5 text-3xs font-semibold leading-4 ${CHAT_TAG_STYLES[tag.color]}`}>{tag.label}</span>)}{assignedTagsFor(thread).length > 2 && <span className="px-1 py-0.5 text-3xs font-semibold text-neutral-500">+{assignedTagsFor(thread).length - 2}</span>}</span>}</span>
               <span className="flex w-5 shrink-0 flex-col items-center justify-end gap-1.5">{thread.unreadStaffCount > 0 && <span className="flex size-5 items-center justify-center rounded-full bg-primary-600 text-2xs font-bold text-white">{thread.unreadStaffCount}</span>}{(thread.status === "blocked" || thread.linkStatus === "unlinked") && <AlertTriangle size={15} className="text-warning-700" />}</span>
             </button>
           ))}

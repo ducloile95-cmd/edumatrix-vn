@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { translateToEnglish } from "@/features/preferences/translations";
+import { loadEnglishDictionary, translateToEnglish } from "@/features/preferences/translations";
 import type { Language } from "@/features/preferences/appearance";
 
 const TRANSLATED_ATTRIBUTES = ["aria-label", "aria-description", "placeholder", "title"] as const;
@@ -84,34 +84,35 @@ function applyTree(root: Node, language: Language): void {
 export function DocumentTranslationBridge({ language }: { language: Language }) {
   useEffect(() => {
     const root = document.documentElement;
-    const view = root.ownerDocument.defaultView;
-    if (!view) return;
-    const requestFrame = view.requestAnimationFrame?.bind(view) ?? ((callback: FrameRequestCallback) => view.setTimeout(() => callback(Date.now()), 0));
-    const cancelFrame = view.cancelAnimationFrame?.bind(view) ?? view.clearTimeout.bind(view);
-    let frame = 0;
     let disposed = false;
-    const translateDocument = () => {
-      frame = 0;
+    let observer: MutationObserver | null = null;
+
+    // Lan dau quet ca trang; sau do chi xu ly dung node vua them/doi (truoc day quet lai ca trang moi khung hinh).
+    const start = () => {
+      if (disposed) return;
       applyTree(root, language);
-    };
-    const scheduleTranslation = () => {
-      if (!disposed && !frame) frame = requestFrame(translateDocument);
+      observer = new MutationObserver((records) => {
+        for (const record of records) {
+          if (record.type === "characterData") applyTextNode(record.target as Text, language);
+          else if (record.type === "attributes") applyAttributes(record.target as Element, language);
+          else record.addedNodes.forEach((node) => applyTree(node, language));
+        }
+      });
+      observer.observe(root, {
+        subtree: true,
+        childList: true,
+        characterData: true,
+        attributes: true,
+        attributeFilter: [...TRANSLATED_ATTRIBUTES],
+      });
     };
 
-    translateDocument();
-    const observer = new MutationObserver(scheduleTranslation);
-    observer.observe(root, {
-      subtree: true,
-      childList: true,
-      characterData: true,
-      attributes: true,
-      attributeFilter: [...TRANSLATED_ATTRIBUTES],
-    });
+    if (language === "en") void loadEnglishDictionary().then(start);
+    else start();
 
     return () => {
       disposed = true;
-      observer.disconnect();
-      if (frame) cancelFrame(frame);
+      observer?.disconnect();
     };
   }, [language]);
 

@@ -1,5 +1,3 @@
-import generatedEnglish from "@/features/preferences/en.generated.json";
-
 const CURATED_ENGLISH: Record<string, string> = {
   "Tổng quan": "Overview",
   "Quản lý lớp học": "Class management",
@@ -58,27 +56,36 @@ const CURATED_ENGLISH: Record<string, string> = {
   "tháng 12": "December",
 };
 
-export const ENGLISH_TRANSLATIONS: Record<string, string> = {
-  ...(generatedEnglish as Record<string, string>),
-  ...CURATED_ENGLISH,
-};
-
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-const TRANSLATION_PATTERN = new RegExp(
-  Object.keys(ENGLISH_TRANSLATIONS)
+// Chi thay cum tu dung rieng (khong dinh chu/so lien truoc hoac lien sau): tranh "Thứ Hai" trong "Thứ Hailey".
+function buildPattern(dictionary: Record<string, string>): RegExp {
+  const alternatives = Object.keys(dictionary)
     .filter((source) => source.length >= 2)
     .sort((left, right) => right.length - left.length)
     .map(escapeRegExp)
-    .join("|"),
-  "g",
-);
+    .join("|");
+  return new RegExp(`(?<![\\p{L}\\p{N}])(?:${alternatives})(?![\\p{L}\\p{N}])`, "gu");
+}
+
+let dictionary: Record<string, string> = CURATED_ENGLISH;
+let pattern = buildPattern(dictionary);
+let loading: Promise<void> | null = null;
+
+/** Tu dien day du (~180 KB) chi tai khi nguoi dung chon tieng Anh, khong nam trong chunk chinh. */
+export function loadEnglishDictionary(): Promise<void> {
+  loading ??= import("@/features/preferences/en.generated.json").then((module) => {
+    dictionary = { ...(module.default as Record<string, string>), ...CURATED_ENGLISH };
+    pattern = buildPattern(dictionary);
+  });
+  return loading;
+}
 
 export function translateToEnglish(value: string): string {
   const trimmed = value.trim();
-  const exact = ENGLISH_TRANSLATIONS[trimmed];
+  const exact = dictionary[trimmed];
   if (exact) return value.replace(trimmed, exact);
-  return value.replace(TRANSLATION_PATTERN, (source) => ENGLISH_TRANSLATIONS[source] ?? source);
+  return value.replace(pattern, (source) => dictionary[source] ?? source);
 }
