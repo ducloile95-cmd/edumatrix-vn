@@ -30,7 +30,7 @@ import { RolesPermissionsPanel } from "@/features/users/components/RolesPermissi
 import { createInvite, listInvites, revokeInvite } from "@/services/firestore/invites";
 import { listStudents } from "@/services/firestore/students";
 import {
-  deleteUserAccount, listUsers, subscribeUsers, updateUserAccount,
+  deleteUserAccount, listTeacherVisibleUsers, listUsers, subscribeUsers, updateUserAccount,
 } from "@/services/firestore/users";
 import type { StudentDoc } from "@/types/academic";
 import type { InviteDoc, UserDoc, UserRole, UserStatus } from "@/types/user";
@@ -168,15 +168,23 @@ export default function UsersAdminPage() {
   const { firebaseUser, role } = useAuth();
   const isAdmin = role === USER_ROLES.ADMIN;
   const client = useQueryClient();
-  const usersQuery = useQuery({ queryKey: ["users"], queryFn: listUsers });
   const invitesQuery = useQuery({ queryKey: ["invites"], queryFn: listInvites, enabled: isAdmin });
-  const studentsQuery = useQuery({ queryKey: ["students"], queryFn: listStudents, enabled: isAdmin });
+  // listStudents da loc theo phan cong cho giao vien; phu huynh hien tren trang la phu huynh cua cac hoc sinh nay.
+  const studentsQuery = useQuery({ queryKey: ["students"], queryFn: listStudents });
+  const parentUids = useMemo(() => [...new Set((studentsQuery.data ?? []).flatMap((student) => student.parentUids ?? []))], [studentsQuery.data]);
+  // Rules khong cho giao vien quet toan bo users: admin nghe realtime, giao vien tai danh ba duoc phep.
+  const usersQuery = useQuery(isAdmin
+    ? { queryKey: ["users"], queryFn: listUsers }
+    : { queryKey: ["users", "teacher-visible", parentUids], queryFn: () => listTeacherVisibleUsers(parentUids), enabled: studentsQuery.isSuccess });
   const [tab, setTab] = useState<MainTab>("overview");
   const [inviteOpen, setInviteOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserRecord | null>(null);
   const [deletingUser, setDeletingUser] = useState<UserRecord | null>(null);
 
-  useEffect(() => subscribeUsers((users) => client.setQueryData(["users"], users)), [client]);
+  useEffect(() => {
+    if (!isAdmin) return undefined;
+    return subscribeUsers((users) => client.setQueryData(["users"], users));
+  }, [client, isAdmin]);
   useEffect(() => {
     if (!isAdmin && tab !== "staff" && tab !== "families") setTab("staff");
   }, [isAdmin, tab]);
@@ -214,12 +222,12 @@ export default function UsersAdminPage() {
     },
   });
 
-  const loading = usersQuery.isLoading || (isAdmin && (invitesQuery.isLoading || studentsQuery.isLoading));
+  const loading = usersQuery.isLoading || studentsQuery.isLoading || (isAdmin && invitesQuery.isLoading);
   const failedQuery = usersQuery.isError
     ? { label: "danh sách tài khoản", error: usersQuery.error }
     : isAdmin && invitesQuery.isError
       ? { label: "danh sách lời mời", error: invitesQuery.error }
-      : isAdmin && studentsQuery.isError
+      : studentsQuery.isError
         ? { label: "danh sách học sinh", error: studentsQuery.error }
         : null;
   const failed = Boolean(failedQuery);

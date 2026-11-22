@@ -126,3 +126,21 @@ describe("teacher list queries match the client query shapes", () => {
     await assertFails(getDocs(query(collection(asA(), "invoices"), where("studentId", "==", "s2"))));
   });
 });
+
+describe("users visible to a teacher", () => {
+  test("own profile, staff directory and parents of assigned students only", async () => {
+    await assertSucceeds(getDoc(doc(asA(), `users/${A}`)));
+    await assertSucceeds(getDoc(doc(asA(), "users/admin")));
+    await assertSucceeds(getDoc(doc(asA(), `users/${B}`)));
+    await assertSucceeds(getDoc(doc(asA(), "users/parent-1")));
+    await assertSucceeds(getDoc(doc(asA(), "users/parent-multi"))); // con thu 3 (s1) thuoc lop cua A
+    await assertFails(getDoc(doc(asA(), "users/parent-2")));
+  });
+
+  test("teacher queries: staff by role and parents by id; no full scan", async () => {
+    await assertSucceeds(getDocs(query(collection(asA(), "users"), where("role", "in", ["admin", "teacher"]))));
+    await assertSucceeds(getDocs(query(collection(asA(), "users"), where(documentId(), "in", ["parent-1"]))));
+    await assertFails(getDocs(query(collection(asA(), "users"), orderBy("createdAt", "desc"))));
+    await assertSucceeds(getDocs(query(collection(asAdmin(), "users"), orderBy("createdAt", "desc"))));
+  });
+});

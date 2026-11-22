@@ -22,7 +22,7 @@ vi.mock("@/services/firestore/authz", () => ({
   isTeacherUser: mocks.isTeacherUser,
 }));
 
-import { deleteUserAccount, listUsers, listUsersByRole, updateUserAccount } from "./users";
+import { deleteUserAccount, listTeacherVisibleUsers, listUsers, listUsersByRole, updateUserAccount } from "./users";
 
 function snapshot(id: string, data: Record<string, unknown> | null) {
   return { id, ref: { id, path: `students/${id}` }, exists: () => data !== null, data: () => data };
@@ -142,5 +142,22 @@ describe("user list queries", () => {
     expect(mocks.where).toHaveBeenCalledWith("role", "==", "teacher");
     expect(mocks.where).toHaveBeenCalledWith("status", "==", "active");
     expect(mocks.documentId).not.toHaveBeenCalled();
+  });
+});
+
+describe("listTeacherVisibleUsers", () => {
+  const user = (uid: string, role: string) => ({ id: uid, data: () => ({ email: `${uid}@x.vn`, displayName: uid, role, status: "active", studentIds: [] }) });
+  beforeEach(() => { mocks.getDocs.mockReset(); mocks.where.mockClear(); mocks.orderBy.mockClear(); });
+
+  test("returns the staff directory plus the given parents, without a full users scan", async () => {
+    mocks.getDocs
+      .mockResolvedValueOnce({ docs: [user("admin-1", "admin"), user("teacher-1", "teacher")] })
+      .mockResolvedValueOnce({ docs: [user("parent-1", "viewer"), user("teacher-1", "teacher")] });
+
+    const result = await listTeacherVisibleUsers(["parent-1", "teacher-1", "parent-1"]);
+
+    expect(mocks.where).toHaveBeenCalledWith("role", "in", ["admin", "teacher"]);
+    expect(mocks.orderBy).not.toHaveBeenCalled();
+    expect(result.map((item) => item.uid).sort()).toEqual(["admin-1", "parent-1", "teacher-1"]);
   });
 });

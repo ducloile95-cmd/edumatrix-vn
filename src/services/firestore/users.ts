@@ -126,6 +126,16 @@ export async function listUsersByIds(uids: string[]): Promise<(UserDoc & { uid: 
   return groups.flat();
 }
 
+/** Giao vien khong duoc quet toan bo users (rules): danh ba nhan su + phu huynh cua hoc sinh minh phu trach. */
+export async function listTeacherVisibleUsers(parentUids: string[]): Promise<(UserDoc & { uid: string })[]> {
+  const [staffSnap, parents] = await Promise.all([
+    getDocs(query(collection(db, COLLECTIONS.USERS), where("role", "in", ["admin", "teacher"]))),
+    listUsersByIds(parentUids),
+  ]);
+  const staff = staffSnap.docs.map((d) => ({ uid: d.id, ...decodeUserDoc(d.data(), `${COLLECTIONS.USERS}/${d.id}`) }));
+  return [...new Map([...staff, ...parents].map((user) => [user.uid, user])).values()];
+}
+
 export async function updateParentProfile(uid: string, input: ParentProfileInput): Promise<void> {
   const payload: Record<string, string | ReturnType<typeof serverTimestamp>> = {
     updatedAt: serverTimestamp(),

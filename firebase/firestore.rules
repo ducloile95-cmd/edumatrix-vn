@@ -204,6 +204,13 @@ service cloud.firestore {
         studentId in currentUser().studentIds;
     }
 
+    // shortcut: chi xet 3 con dau cua phu huynh; phu huynh co hon 3 con chi hien voi giao vien cua 3 con dau. Them nhanh neu co.
+    function isTeacherOfAnyChild(studentIds) {
+      return studentIds.size() > 0 && (isAssignedTeacherForStudent(studentIds[0]) ||
+        (studentIds.size() > 1 && isAssignedTeacherForStudent(studentIds[1])) ||
+        (studentIds.size() > 2 && isAssignedTeacherForStudent(studentIds[2])));
+    }
+
     function isAssignedTeacherForStudent(studentId) {
       return isTeacher() &&
         exists(/databases/$(database)/documents/students/$(studentId)) &&
@@ -992,7 +999,9 @@ service cloud.firestore {
     // phai khop dung role/studentIds lay tu invite - nguoi dung khong tu chon (A16.4).
 
     match /users/{uid} {
-      allow read: if isStaff() || request.auth.uid == uid;
+      allow read: if isAdmin() || request.auth.uid == uid ||
+        (isTeacher() && resource.data.role in ['admin', 'teacher']) ||
+        (isTeacher() && resource.data.role == 'viewer' && isTeacherOfAnyChild(resource.data.get('studentIds', [])));
 
       allow create: if validUserData(request.resource.data) && (isAdmin() || (
         request.auth.uid == uid &&

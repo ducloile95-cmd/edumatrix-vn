@@ -562,13 +562,20 @@ describe("teacher operational directory", () => {
     });
   });
 
-  test("Teacher doc duoc danh ba tai khoan de quet phu thuoc", async () => {
+  test("Teacher doc ho so ban than, nhan su va phu huynh cua hoc sinh minh phu trach", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, "students", "student_001"), { teacherIds: [TEACHER_UID] });
+      await setDoc(doc(db, "students", "student_999"), { teacherIds: ["other-teacher"] });
+      await setDoc(doc(db, "users", "other-parent"), { role: "viewer", status: "active", studentIds: ["student_999"] });
+    });
     await assertSucceeds(getDoc(doc(asTeacher(), "users", TEACHER_UID)));
     await assertSucceeds(getDoc(doc(asTeacher(), "users", VIEWER_UID)));
     await assertSucceeds(getDoc(doc(asTeacher(), "users", "teacher-colleague")));
+    await assertFails(getDoc(doc(asTeacher(), "users", "other-parent")));
   });
 
-  test("Teacher doc duoc ho so Admin de quet phu thuoc", async () => {
+  test("Teacher doc duoc ho so Admin (danh ba nhan su)", async () => {
     await assertSucceeds(getDoc(doc(asTeacher(), "users", ADMIN_UID)));
   });
 
