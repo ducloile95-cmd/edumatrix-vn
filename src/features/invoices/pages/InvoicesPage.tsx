@@ -79,20 +79,6 @@ export default function InvoicesPage() {
   const studentNameById = useMemo(() => new Map((students.data ?? []).map((student) => [student.id, student.fullName])), [students.data]);
   const invoiceById = useMemo(() => new Map((invoices.data ?? []).map((invoice) => [invoice.id, invoice])), [invoices.data]);
   const verifiedPaymentByInvoice = useMemo(() => new Map((payments.data ?? []).filter((payment) => payment.status === "verified").map((payment) => [payment.invoiceId, payment])), [payments.data]);
-  const utilityEntityIds = useMemo(() => [
-    ...(invoices.data ?? []).map((invoice) => invoice.id),
-    ...(payments.data ?? []).filter((payment) => payment.status === "verified").map((payment) => payment.id),
-  ], [invoices.data, payments.data]);
-  const utilityDeliveries = useQuery({
-    queryKey: ["utility-delivery", "finance", utilityEntityIds.join(",")],
-    queryFn: () => getUtilityDeliveryStatus(utilityEntityIds),
-    enabled: canManageFinance && utilityEntityIds.length > 0,
-    refetchInterval: (query) => utilityDeliveryRefetchInterval(query.state.data),
-  });
-  const retryDelivery = useMutation({
-    mutationFn: (jobIds: string[]) => Promise.all(jobIds.map(retryUtilityDeliveryJob)),
-    onSuccess: () => utilityDeliveries.refetch(),
-  });
 
   const create = useMutation({
     mutationFn: (values: InvoiceCreationValues) => createInvoices(values.studentIds.map((studentId) => ({
@@ -145,6 +131,22 @@ export default function InvoicesPage() {
       return `${invoice.invoiceCode} ${studentName} ${invoice.title}`.toLocaleLowerCase("vi").includes(term);
     });
   }, [invoices.data, search, statusFilter, studentNameById]);
+
+  // Chi hoi Worker cho hoa don dang hien o tab Cong no: moi ID la vai luot doc Firestore.
+  const utilityEntityIds = useMemo(() => [
+    ...filteredInvoices.map((invoice) => invoice.id),
+    ...filteredInvoices.flatMap((invoice) => verifiedPaymentByInvoice.get(invoice.id)?.id ?? []),
+  ], [filteredInvoices, verifiedPaymentByInvoice]);
+  const utilityDeliveries = useQuery({
+    queryKey: ["utility-delivery", "finance", utilityEntityIds.join(",")],
+    queryFn: () => getUtilityDeliveryStatus(utilityEntityIds),
+    enabled: canManageFinance && activeTab === "invoices" && utilityEntityIds.length > 0,
+    refetchInterval: (query) => utilityDeliveryRefetchInterval(query.state.data),
+  });
+  const retryDelivery = useMutation({
+    mutationFn: (jobIds: string[]) => Promise.all(jobIds.map(retryUtilityDeliveryJob)),
+    onSuccess: () => utilityDeliveries.refetch(),
+  });
 
   const financeSummary = useMemo(() => {
     const list = invoices.data ?? [];

@@ -26,6 +26,14 @@ const serviceMocks = vi.hoisted(() => ({
   listSubjects: vi.fn(),
   listAttendanceByClass: vi.fn(),
   reconcilePayment: vi.fn(),
+  getUtilityDeliveryStatus: vi.fn(),
+}));
+
+vi.mock("@/services/integrations/messenger", () => ({
+  getUtilityDeliveryStatus: serviceMocks.getUtilityDeliveryStatus,
+  retryUtilityDeliveryJob: vi.fn(),
+  summarizeUtilityDelivery: () => ({ status: "none", detail: "", retryableJobIds: [] }),
+  utilityDeliveryRefetchInterval: () => false,
 }));
 
 vi.mock("@/features/auth/hooks/useAuth", () => ({
@@ -264,6 +272,19 @@ describe("InvoicesPage", () => {
     expect(await screen.findByText(/Đã tạo 1 hóa đơn/)).toBeTruthy();
     expect((screen.getByLabelText(/Nguyễn An/) as HTMLInputElement).checked).toBe(false);
     expect(serviceMocks.listInvoices.mock.calls.length).toBeGreaterThan(1);
+  });
+
+  test("asks the worker for delivery status only on the invoice list, for the listed invoices", async () => {
+    serviceMocks.getUtilityDeliveryStatus.mockResolvedValue({ jobs: [], events: [] });
+    serviceMocks.listInvoices.mockResolvedValue([{ id: "invoice-1", invoiceCode: "HP-01", title: "Học phí", studentId: "student-1", amount: 300_000, status: "unpaid", dueAt: { toDate: () => new Date("2026-12-01T00:00:00"), toMillis: () => 0 } }]);
+    renderWithQueryClient(<InvoicesPage />);
+    await screen.findByRole("tab", { name: "Công nợ" });
+    await waitFor(() => expect(serviceMocks.listInvoices).toHaveBeenCalled());
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(serviceMocks.getUtilityDeliveryStatus).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Công nợ" }));
+    await waitFor(() => expect(serviceMocks.getUtilityDeliveryStatus).toHaveBeenCalledWith(["invoice-1"]));
   });
 
   test("lets a teacher create invoices but not reconcile payments", async () => {
