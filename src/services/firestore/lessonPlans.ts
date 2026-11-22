@@ -211,10 +211,13 @@ export async function listLessonPlanTemplates(): Promise<(LessonPlanTemplateDoc 
 export async function createLessonPlanTemplate(
   name: string,
   template: Pick<LessonPlanFormValues, "objectives" | "preparation" | "activities" | "homework">,
+  ownerUid: string,
 ): Promise<void> {
   await addDoc(collection(db, COLLECTIONS.LESSON_PLAN_TEMPLATES), {
     name,
     ...template,
+    // Rules (A4): mau moi phai ghi chu so huu = nguoi tao.
+    ownerUid,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });

@@ -1080,11 +1080,20 @@ service cloud.firestore {
         // ponytail: khong validate sau tung phan tu children - Rules khong lam gon duoc,
         // va Admin doc bang mat truoc khi duyet. Nang len neu sau nay tu dong duyet.
 
+      // A5: chu yeu cau chi sua noi dung trong khuon cua lenh tao; email/createdAt bat bien.
       allow update: if isAdmin() || (
         signedIn() &&
         request.auth.uid == uid &&
         resource.data.status != 'approved' &&
-        request.resource.data.status == 'pending'
+        request.resource.data.status == 'pending' &&
+        keepsImmutable(['email', 'createdAt']) &&
+        request.resource.data.children is list &&
+        request.resource.data.children.size() >= 1 &&
+        request.resource.data.children.size() <= 5 &&
+        request.resource.data.keys().hasOnly([
+          'email', 'parentName', 'phone', 'address', 'facebookUrl', 'relationship',
+          'children', 'status', 'createdAt', 'updatedAt'
+        ])
       );
 
       allow delete: if false;
@@ -1134,11 +1143,22 @@ service cloud.firestore {
     match /audit_logs/{logId} {
       allow read: if isAdmin();
 
+      // A6: chi cac AuditAction cua client (src/types/audit.ts), targetType theo writeAuditLog.
       allow create: if isStaff() &&
         request.resource.data.actorUid == request.auth.uid &&
         request.resource.data.keys().hasOnly(
           ['action', 'actorUid', 'actorEmail', 'targetType', 'targetId', 'meta', 'createdAt']
-        );
+        ) &&
+        request.resource.data.action in [
+          'invite_created', 'invite_revoked', 'user_status_changed', 'user_account_updated', 'user_account_deleted',
+          'link_request_approved', 'link_request_rejected', 'attendance_adjusted', 'scores_adjusted', 'settings_updated',
+          'messenger_linked', 'messenger_unlinked', 'messenger_conversation_delete_started', 'messenger_conversation_deleted',
+          'meta_integration_connected', 'meta_integration_disconnected', 'invoice_committed', 'payment_verified',
+          'payment_rejected', 'utility_template_synced', 'utility_template_enabled', 'utility_template_disabled',
+          'utility_delivery_retried'
+        ] &&
+        request.resource.data.targetType in ['invite', 'user', 'settings', 'attendance_session', 'gradebook'] &&
+        request.resource.data.get('meta', {}) is map && request.resource.data.get('meta', {}).size() <= 20;
 
       allow update, delete: if false;
     }
@@ -1495,8 +1515,11 @@ service cloud.firestore {
 
     match /lesson_plan_templates/{templateId} {
       allow read: if isStaff();
-      allow create: if isStaff() && validLessonPlanTemplateData(request.resource.data);
-      allow update: if isStaff() && validLessonPlanTemplateData(request.resource.data) && keepsImmutable(['createdAt']);
+      // A4: mau moi luon co chu; chi chu hoac Admin sua; mau cu khong co chu chi Admin sua.
+      allow create: if isStaff() && validLessonPlanTemplateData(request.resource.data) &&
+        request.resource.data.get('ownerUid', null) == request.auth.uid;
+      allow update: if validLessonPlanTemplateData(request.resource.data) && keepsImmutable(['createdAt', 'ownerUid']) &&
+        (isAdmin() || (isTeacher() && resource.data.get('ownerUid', null) == request.auth.uid));
       allow delete: if false;
     }
 
@@ -1512,11 +1535,11 @@ service cloud.firestore {
 
     match /course_curricula/{curriculumId} {
       allow read: if isStaff();
-      allow create: if isStaff() && request.resource.data.status == 'draft' &&
+      allow create: if (isAdmin() || isAssignedTeacherForCourse(request.resource.data.courseId)) && request.resource.data.status == 'draft' &&
         request.resource.data.publishedBy == null && request.resource.data.publishedAt == null &&
         validCourseCurriculumData(curriculumId, request.resource.data) &&
         validCurriculumCourseState(curriculumId, request.resource.data);
-      allow update: if isStaff() && validCourseCurriculumData(curriculumId, request.resource.data) &&
+      allow update: if (isAdmin() || isAssignedTeacherForCourse(resource.data.courseId)) && validCourseCurriculumData(curriculumId, request.resource.data) &&
         validCurriculumTransition() && validCurriculumCourseState(curriculumId, request.resource.data) &&
         keepsImmutable(['courseId', 'version', 'createdAt']);
       allow delete: if false;
@@ -1524,10 +1547,10 @@ service cloud.firestore {
 
     match /course_curriculum_items/{itemId} {
       allow read: if isStaff();
-      allow create: if isStaff() && request.resource.data.status == 'draft' &&
+      allow create: if (isAdmin() || isAssignedTeacherForCourse(request.resource.data.courseId)) && request.resource.data.status == 'draft' &&
         validCourseCurriculumItemData(itemId, request.resource.data) && validCurriculumStandardLesson(request.resource.data) &&
         curriculumItemVersionIsEditable(request.resource.data);
-      allow update: if isStaff() && validCourseCurriculumItemData(itemId, request.resource.data) &&
+      allow update: if (isAdmin() || isAssignedTeacherForCourse(resource.data.courseId)) && validCourseCurriculumItemData(itemId, request.resource.data) &&
         validCurriculumStandardLesson(request.resource.data) &&
         curriculumItemVersionIsEditable(request.resource.data) &&
         keepsImmutable(['courseId', 'curriculumVersion', 'sequenceNumber', 'createdAt']);
@@ -1794,7 +1817,8 @@ service cloud.firestore {
     match /messenger_delivery_events/{eventId} {
       allow read: if isAdmin() || isAssignedTeacherForStudent(resource.data.studentId);
       allow update, delete: if false;
-      allow create: if isStaff() && validMessengerDeliveryEvent(eventId, request.resource.data);
+      allow create: if (isAdmin() || isAssignedTeacherForStudent(request.resource.data.studentId)) &&
+        validMessengerDeliveryEvent(eventId, request.resource.data);
     }
 
     match /viewer_dashboard/{parentUid} {

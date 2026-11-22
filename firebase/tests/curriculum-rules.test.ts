@@ -79,6 +79,7 @@ beforeEach(async () => {
     const db = ctx.firestore();
     await setDoc(doc(db, "users", "admin-1"), { role: "admin", status: "active", studentIds: [] });
     await setDoc(doc(db, "users", "teacher-1"), { role: "teacher", status: "active", studentIds: [] });
+    await setDoc(doc(db, "users", "teacher-2"), { role: "teacher", status: "active", studentIds: [] });
     await setDoc(doc(db, "users", "viewer-1"), { role: "viewer", status: "active", studentIds: ["student-1"] });
     await setDoc(doc(db, "subjects", "english"), { name: "English", code: "english", status: "active" });
     await setDoc(doc(db, "courses", "course-1"), {
@@ -120,6 +121,12 @@ describe("Standard Lessons security rules", () => {
 });
 
 describe("Course Curricula security rules", () => {
+  test("a teacher not assigned to the course cannot create its curriculum or items (A4)", async () => {
+    const db = env.authenticatedContext("teacher-2").firestore();
+    await assertFails(setDoc(doc(db, "course_curricula", "course-1_v1"), curriculum));
+    await assertFails(setDoc(doc(db, "course_curriculum_items", "course-1_v1_s001"), curriculumItem));
+  });
+
   test("Staff can create and read course curricula", async () => {
     const db = env.authenticatedContext("teacher-1").firestore();
     await assertSucceeds(setDoc(doc(db, "course_curricula", "course-1_v1"), curriculum));

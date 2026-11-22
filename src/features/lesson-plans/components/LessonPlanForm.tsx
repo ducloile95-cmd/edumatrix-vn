@@ -200,7 +200,7 @@ export function LessonPlanForm({ editingPlan, onDone, initialValues }: LessonPla
         preparation: values.preparation,
         activities: values.activities,
         homework: values.homework,
-      });
+      }, uid);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lesson-plan-templates"] }),
   });
