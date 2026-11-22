@@ -3,7 +3,12 @@ import path from "node:path";
 import { createRequire } from "node:module";
 import { GoogleAuth } from "google-auth-library";
 
-const projectId = process.env.FIREBASE_PROJECT_ID || "edumatrix-vn-576b1";
+const projectId = process.env.FIREBASE_PROJECT_ID;
+// Khong mac dinh project production: phai chi ro project dich moi chay.
+if (!projectId) {
+  console.error("Set FIREBASE_PROJECT_ID explicitly (no default to production).");
+  process.exit(1);
+}
 const base = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
 const apply = process.argv.includes("--apply");
 const rollbackIndex = process.argv.indexOf("--rollback");

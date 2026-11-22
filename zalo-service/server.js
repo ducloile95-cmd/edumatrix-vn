@@ -33,7 +33,8 @@ if (allowedPhones.size === 0) {
 
 const app = express();
 app.disable("x-powered-by");
-app.set("trust proxy", 1);
+// Chi tin X-Forwarded-For khi thuc su chay sau reverse proxy; neu khong, nguoi goi gia mao IP de ne rate limit.
+if (process.env.TRUST_PROXY === "1") app.set("trust proxy", 1);
 app.use(express.json({ limit: "16kb" }));
 
 const zalo = new Zalo({ selfListen: false, checkUpdate: true });
@@ -78,6 +79,9 @@ function authenticate(req, res, next) {
 
 function rateLimit(req, res, next) {
   const now = Date.now();
+  for (const [bucketKey, entry] of rateBuckets) {
+    if (now - entry.startedAt >= RATE_WINDOW_MS) rateBuckets.delete(bucketKey);
+  }
   const key = req.ip;
   const bucket = rateBuckets.get(key);
   if (!bucket || now - bucket.startedAt >= RATE_WINDOW_MS) {
@@ -109,7 +113,12 @@ app.post("/api/send-message", authenticate, rateLimit, async (req, res) => {
   for (const [key, entry] of idempotencyCache) {
     if (entry.expiresAt <= now) idempotencyCache.delete(key);
   }
+  const fingerprint = `${phone}
+${message}`;
   let entry = idempotencyCache.get(idempotencyKey);
+  if (entry && entry.fingerprint !== fingerprint) {
+    return res.status(409).json({ error: "Idempotency-Key was already used for a different message" });
+  }
   if (!entry) {
     const operation = (async () => {
       const user = await zaloApi.findUser(phone);
@@ -117,7 +126,7 @@ app.post("/api/send-message", authenticate, rateLimit, async (req, res) => {
       await zaloApi.sendMessage({ msg: message }, user.uid, ThreadType.User);
       return { status: 200, body: { success: true } };
     })();
-    entry = { expiresAt: now + IDEMPOTENCY_TTL_MS, operation };
+    entry = { expiresAt: now + IDEMPOTENCY_TTL_MS, operation, fingerprint };
     idempotencyCache.set(idempotencyKey, entry);
   }
 

@@ -71,3 +71,8 @@ Mọi request gửi lên API cần được gửi kèm Header để xác thực:
 ## Lưu ý quan trọng
 - **Lạm dụng gửi tin cho người lạ:** Nếu số điện thoại nhận tin chưa từng kết bạn hoặc trò chuyện với số Zalo này, tin nhắn dễ bị chặn và tài khoản có thể bị khóa. **Khuyến cáo trung tâm nên yêu cầu phụ huynh kết bạn trước** khi kích hoạt luồng nhận tin nhắn Zalo.
 - **Duy trì session:** Hạn chế đăng nhập Zalo Web trên trình duyệt máy tính khác bằng chính số điện thoại này, vì Zalo chỉ duy trì một phiên đăng nhập Web tại một thời điểm. Nếu bị logout, chỉ cần quét lại mã QR trên server.
+
+## Proxy và chống gửi trùng
+
+- Chỉ đặt `TRUST_PROXY=1` khi service thật sự chạy sau reverse proxy (nginx, Cloudflare Tunnel...). Mặc định không tin `X-Forwarded-For`, để người gọi không giả mạo IP mà né rate limit.
+- Gửi lại cùng `Idempotency-Key` nhưng khác số điện thoại hoặc nội dung sẽ nhận `409`, thay vì âm thầm trả kết quả cũ.

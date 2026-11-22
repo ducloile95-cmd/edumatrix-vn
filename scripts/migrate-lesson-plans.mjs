@@ -1,27 +1,34 @@
 // Resumable migration script for lesson plans to add new schema fields
 // Batch size limited to 400.
-// Usage: node scripts/migrate-lesson-plans.mjs
+// Usage (emulator only): FIRESTORE_EMULATOR_HOST=127.0.0.1:8091 node scripts/migrate-lesson-plans.mjs [--apply]
+// Without --apply it only counts the documents it would change.
 
 import { initializeApp } from "firebase/app";
 import {
   collection,
+  connectFirestoreEmulator,
   doc,
   getDocs,
   getFirestore,
   writeBatch,
 } from "firebase/firestore";
 
+const apply = process.argv.includes("--apply");
+const emulatorHost = process.env.FIRESTORE_EMULATOR_HOST;
+// Client SDK voi API key gia: chi chay duoc tren emulator; tren production Rules se chan.
+if (!emulatorHost) {
+  console.error("Set FIRESTORE_EMULATOR_HOST (e.g. 127.0.0.1:8091). This script only runs against the emulator.");
+  process.exit(1);
+}
+
 const projectId = process.env.FIREBASE_PROJECT_ID || "demo-edumatrix";
 const app = initializeApp({ apiKey: "demo-key", projectId });
 const db = getFirestore(app);
-
-// Use emulator if host is defined in env
-if (process.env.FIRESTORE_EMULATOR_HOST) {
-  console.log(`Connecting to firestore emulator at ${process.env.FIRESTORE_EMULATOR_HOST}`);
-}
+const [host, port] = emulatorHost.split(":");
+connectFirestoreEmulator(db, host, Number(port));
+console.log(`Project ${projectId} on emulator ${emulatorHost} (${apply ? "APPLY" : "dry run"})`);
 
 async function runMigration() {
-  console.log("Starting lesson plans migration...");
   const snapshot = await getDocs(collection(db, "lesson_plans"));
   console.log(`Found ${snapshot.docs.length} total lesson plan documents.`);
 
@@ -31,23 +38,21 @@ async function runMigration() {
 
   for (const snap of snapshot.docs) {
     const data = snap.data();
-    // Check if fields are missing
-    if (data.readinessStatus === undefined || data.curriculumItemId === undefined) {
-      batch.update(doc(db, "lesson_plans", snap.id), {
-        readinessStatus: data.readinessStatus !== undefined 
-          ? data.readinessStatus 
-          : (data.status === "published" ? "ready" : "draft"),
-        curriculumItemId: data.curriculumItemId !== undefined ? data.curriculumItemId : null,
-      });
-      count++;
-      totalMigrated++;
-
-      if (count === 400) {
-        console.log(`Writing batch of ${count} updates...`);
-        await batch.commit();
-        batch = writeBatch(db);
-        count = 0;
-      }
+    if (data.readinessStatus !== undefined && data.curriculumItemId !== undefined) continue;
+    totalMigrated++;
+    if (!apply) continue;
+    batch.update(doc(db, "lesson_plans", snap.id), {
+      readinessStatus: data.readinessStatus !== undefined
+        ? data.readinessStatus
+        : (data.status === "published" ? "ready" : "draft"),
+      curriculumItemId: data.curriculumItemId !== undefined ? data.curriculumItemId : null,
+    });
+    count++;
+    if (count === 400) {
+      console.log(`Writing batch of ${count} updates...`);
+      await batch.commit();
+      batch = writeBatch(db);
+      count = 0;
     }
   }
 
@@ -56,7 +61,9 @@ async function runMigration() {
     await batch.commit();
   }
 
-  console.log(`Migration finished. Successfully updated ${totalMigrated} documents.`);
+  console.log(apply
+    ? `Migration finished. Updated ${totalMigrated} documents.`
+    : `Dry run: ${totalMigrated} documents need migration. Re-run with --apply to write.`);
   process.exit(0);
 }
 

@@ -379,3 +379,5 @@ npm run deploy:prod
 ```
 
 Không chạy các lệnh production trong giai đoạn kiểm thử local.
+
+> **Cập nhật 23/11/2026:** môi trường mặc định của `wrangler dev` giờ dùng `FIREBASE_PROJECT_ID = demo-edumatrix` (emulator). Chỉ `env.production` trỏ vào project thật, nên chạy local với khoá service account trong `.dev.vars` không còn ghi nhầm vào production.
