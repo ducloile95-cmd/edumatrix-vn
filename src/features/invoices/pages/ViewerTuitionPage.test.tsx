@@ -98,6 +98,17 @@ afterEach(() => {
 });
 
 describe("ViewerTuitionPage mobile workflow", () => {
+  test("shows an unpaid invoice past its due day as overdue", async () => {
+    serviceMocks.listInvoicesByStudents.mockResolvedValue([
+      invoice({ id: "invoice-late", title: "Học phí trễ hạn", status: "unpaid", dueAt: timestamp(new Date("2020-01-15T12:00:00")) }),
+    ]);
+    renderWithQueryClient(<ViewerTuitionPage />);
+
+    await screen.findByRole("heading", { name: "Học phí trễ hạn" });
+    expect(screen.getAllByText("Quá hạn").length).toBeGreaterThan(0);
+    expect(screen.getByText("Đã quá hạn")).toBeTruthy();
+  });
+
   test("prioritizes actionable invoices and isolates each student's tuition", async () => {
     renderWithQueryClient(<ViewerTuitionPage />);
 

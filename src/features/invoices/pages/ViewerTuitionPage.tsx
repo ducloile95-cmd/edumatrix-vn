@@ -13,6 +13,7 @@ import { useViewerStudentSelection } from "@/features/students/hooks/useViewerSt
 import { listInvoicesByStudents, reportPayment } from "@/services/firestore/invoices";
 import { getStudent } from "@/services/firestore/students";
 import type { InvoiceDoc, InvoiceStatus } from "@/types/academic";
+import { effectiveInvoiceStatus } from "@/features/invoices/invoiceStatus";
 import { formatVnd } from "@/utils/currency";
 import { buildVietQrImageUrl } from "@/utils/payment";
 
@@ -24,6 +25,7 @@ const INVOICE_PRIORITY: Record<InvoiceStatus, number> = {
   unpaid: 2,
   pending: 3,
   paid: 4,
+  void: 5,
 };
 
 const REPORTABLE_STATUSES: InvoiceStatus[] = ["unpaid", "overdue", "rejected"];
@@ -53,6 +55,7 @@ export default function ViewerTuitionPage() {
 
   const visibleInvoices = useMemo(() => (invoices.data ?? [])
     .filter((invoice) => invoice.studentId === activeStudentId)
+    .map((invoice) => ({ ...invoice, status: effectiveInvoiceStatus(invoice) }))
     .sort((left, right) => {
       const priorityDifference = INVOICE_PRIORITY[left.status] - INVOICE_PRIORITY[right.status];
       return priorityDifference || left.dueAt.toMillis() - right.dueAt.toMillis();

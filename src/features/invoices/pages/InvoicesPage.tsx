@@ -33,6 +33,7 @@ import type { InvoiceStatus } from "@/types/academic";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { USER_ROLES } from "@/constants/roles";
 import { INVOICE_STATUS_LABEL, INVOICE_STATUS_TONE } from "@/features/invoices/constants";
+import { effectiveInvoiceStatus } from "@/features/invoices/invoiceStatus";
 import { getUtilityDeliveryStatus, retryUtilityDeliveryJob, summarizeUtilityDelivery, utilityDeliveryRefetchInterval, type UtilityDeliveryAggregateStatus } from "@/services/integrations/messenger";
 
 type FinanceTab = "overview" | "invoices" | "reconcile";
@@ -61,6 +62,8 @@ export default function InvoicesPage() {
   const client = useQueryClient();
   const students = useQuery({ queryKey: ["students", role, firebaseUser?.uid], queryFn: listStudents });
   const invoices = useQuery({ queryKey: ["invoices", role, firebaseUser?.uid], queryFn: listInvoices });
+  // Trang thai hien thi: "Quá hạn" tinh tu hanh thanh toan (khong ghi xuong Firestore).
+  const invoiceList = useMemo(() => (invoices.data ?? []).map((invoice) => ({ ...invoice, status: effectiveInvoiceStatus(invoice) })), [invoices.data]);
   const payments = useQuery({ queryKey: ["payments", role, firebaseUser?.uid], queryFn: listPayments });
   const classes = useQuery({ queryKey: ["classes", role, firebaseUser?.uid], queryFn: listClasses });
   const courses = useQuery({ queryKey: ["courses"], queryFn: listCourses });
@@ -77,7 +80,7 @@ export default function InvoicesPage() {
   const [statusFilter, setStatusFilter] = useState<InvoiceStatus | "all">("all");
 
   const studentNameById = useMemo(() => new Map((students.data ?? []).map((student) => [student.id, student.fullName])), [students.data]);
-  const invoiceById = useMemo(() => new Map((invoices.data ?? []).map((invoice) => [invoice.id, invoice])), [invoices.data]);
+  const invoiceById = useMemo(() => new Map(invoiceList.map((invoice) => [invoice.id, invoice])), [invoiceList]);
   const verifiedPaymentByInvoice = useMemo(() => new Map((payments.data ?? []).filter((payment) => payment.status === "verified").map((payment) => [payment.invoiceId, payment])), [payments.data]);
 
   const create = useMutation({
@@ -124,13 +127,13 @@ export default function InvoicesPage() {
 
   const filteredInvoices = useMemo(() => {
     const term = search.trim().toLocaleLowerCase("vi");
-    return (invoices.data ?? []).filter((invoice) => {
+    return invoiceList.filter((invoice) => {
       if (statusFilter !== "all" && invoice.status !== statusFilter) return false;
       if (!term) return true;
       const studentName = studentNameById.get(invoice.studentId) ?? "";
       return `${invoice.invoiceCode} ${studentName} ${invoice.title}`.toLocaleLowerCase("vi").includes(term);
     });
-  }, [invoices.data, search, statusFilter, studentNameById]);
+  }, [invoiceList, search, statusFilter, studentNameById]);
 
   // Chi hoi Worker cho hoa don dang hien o tab Cong no: moi ID la vai luot doc Firestore.
   const utilityEntityIds = useMemo(() => [
@@ -149,7 +152,7 @@ export default function InvoicesPage() {
   });
 
   const financeSummary = useMemo(() => {
-    const list = invoices.data ?? [];
+    const list = invoiceList;
     const valid = list.filter((invoice) => invoice.status !== "rejected");
     const billed = valid.reduce((sum, invoice) => sum + invoice.amount, 0);
     const collected = valid.filter((invoice) => invoice.status === "paid").reduce((sum, invoice) => sum + invoice.amount, 0);
@@ -157,11 +160,11 @@ export default function InvoicesPage() {
     const pendingCount = (payments.data ?? []).filter((payment) => payment.status === "reported").length;
     const collectionRate = billed > 0 ? Math.round((collected / billed) * 100) : 0;
     return { billed, collected, outstanding, pendingCount, collectionRate };
-  }, [invoices.data, payments.data]);
+  }, [invoiceList, payments.data]);
 
   const monthlyChart = useMemo(() => {
     const buckets = new Map<string, { month: string; duKien: number; thucThu: number }>();
-    (invoices.data ?? []).forEach((invoice) => {
+    invoiceList.forEach((invoice) => {
       if (invoice.status === "rejected") return;
       const key = format(invoice.dueAt.toDate(), "MM/yyyy");
       const bucket = buckets.get(key) ?? { month: key, duKien: 0, thucThu: 0 };
@@ -172,13 +175,13 @@ export default function InvoicesPage() {
     return [...buckets.values()]
       .sort((a, b) => a.month.split("/").reverse().join("").localeCompare(b.month.split("/").reverse().join("")))
       .slice(-6);
-  }, [invoices.data]);
+  }, [invoiceList]);
 
   const statusChart = useMemo(() => {
-    const counts: Record<InvoiceStatus, number> = { unpaid: 0, pending: 0, paid: 0, overdue: 0, rejected: 0 };
-    (invoices.data ?? []).forEach((invoice) => { counts[invoice.status] += 1; });
+    const counts: Record<InvoiceStatus, number> = { unpaid: 0, pending: 0, paid: 0, overdue: 0, rejected: 0, void: 0 };
+    invoiceList.forEach((invoice) => { counts[invoice.status] += 1; });
     return (Object.keys(counts) as InvoiceStatus[]).map((status) => ({ status: INVOICE_STATUS_LABEL[status], count: counts[status] }));
-  }, [invoices.data]);
+  }, [invoiceList]);
 
   const reportedPayments = (payments.data ?? []).filter((payment) => payment.status === "reported");
   const historyPayments = (payments.data ?? []).filter((payment) => payment.status !== "reported");

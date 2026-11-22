@@ -7,6 +7,7 @@ export const INVOICE_STATUS_TONE: Record<InvoiceStatus, "success" | "warning" | 
   unpaid: "neutral",
   overdue: "danger",
   rejected: "warning",
+  void: "neutral",
 };
 
 export const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = {
@@ -15,4 +16,5 @@ export const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = {
   unpaid: "Chưa thanh toán",
   overdue: "Quá hạn",
   rejected: "Từ chối",
+  void: "Đã huỷ",
 };
