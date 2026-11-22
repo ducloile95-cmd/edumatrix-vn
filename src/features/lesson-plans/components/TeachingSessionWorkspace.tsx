@@ -13,6 +13,7 @@ import { updateDoc, doc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/services/firebase/firestoreClient";
 import { COLLECTIONS } from "@/constants/collections";
 import type { LessonPlanDoc, SessionDoc } from "@/types/academic";
+import { invalidateLessonPlanQueries } from "@/hooks/queryInvalidation";
 
 type TeachingSession = SessionDoc & { id: string; courseId?: string };
 type SessionWithPlan = TeachingSession & { linkedPlan?: (LessonPlanDoc & { id: string }) };
@@ -103,7 +104,7 @@ export function TeachingSessionWorkspace({ onEditLessonPlan, onCreateLessonPlan 
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["lesson-plans"] });
+      invalidateLessonPlanQueries(queryClient);
       setEditingSessionId(null);
       setDiaryNote("");
       showToast({

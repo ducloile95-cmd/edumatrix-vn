@@ -30,6 +30,7 @@ import {
 } from "@/services/integrations/googleDrive";
 import { lessonPlanFormSchema, type LessonPlanFormValues } from "@/schemas/lessonPlan";
 import type { LessonPlanDoc, LessonPlanDriveAttachment } from "@/types/academic";
+import { invalidateLessonPlanQueries } from "@/hooks/queryInvalidation";
 
 interface LessonPlanFormProps {
   /** Neu co gia tri => form o che do sua. */
@@ -186,7 +187,7 @@ export function LessonPlanForm({ editingPlan, onDone, initialValues }: LessonPla
     onSuccess: () => {
       removeLessonPlanDraft(uid, watchedValues.classId, watchedValues.sessionId);
       reset(DEFAULT_VALUES);
-      queryClient.invalidateQueries({ queryKey: ["lesson-plans"] });
+      invalidateLessonPlanQueries(queryClient);
       onDone?.();
     },
   });

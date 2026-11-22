@@ -34,6 +34,7 @@ import { SessionDetailModal } from "@/features/sessions/components/SessionDetail
 import { RescheduleReasonDialog, type RescheduleRequest } from "@/features/sessions/components/RescheduleReasonDialog";
 import type { SessionStatus } from "@/types/academic";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { invalidateSessionQueries } from "@/hooks/queryInvalidation";
 
 type TimetableView = "fit-week" | "day" | "week" | "month";
 
@@ -164,7 +165,7 @@ export default function SessionsPage() {
   const createMutation = useMutation({
     mutationFn: (input: CreateSessionsInput) => createSessions(input),
     onSuccess: (_, input) => {
-      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      invalidateSessionQueries(queryClient);
       setCreateOpen(false);
       showToast({
         tone: "success",
@@ -184,7 +185,7 @@ export default function SessionsPage() {
       return updateSession(id, changes, firebaseUser.uid);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      invalidateSessionQueries(queryClient);
       showToast({ tone: "success", title: "Đã cập nhật buổi học" });
     },
     onError: () => showToast({ tone: "error", title: "Không thể cập nhật buổi học" }),

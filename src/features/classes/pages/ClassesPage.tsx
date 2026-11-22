@@ -11,6 +11,7 @@ import { deleteClass } from "@/services/firestore/classes";
 import { USER_ROLES } from "@/constants/roles";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import type { ClassDoc } from "@/types/academic";
+import { invalidateSessionQueries } from "@/hooks/queryInvalidation";
 
 export default function ClassesPage() {
   const [editingClass, setEditingClass] = useState<(ClassDoc & { id: string }) | null>(null);
@@ -27,7 +28,7 @@ export default function ClassesPage() {
     mutationFn: (classId: string) => deleteClass(classId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["classes"] });
-      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      invalidateSessionQueries(queryClient);
       setDeletingClass(null);
     },
   });

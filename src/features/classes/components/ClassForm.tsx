@@ -22,6 +22,7 @@ import {
   DEFAULT_RECURRENCE,
 } from "@/features/classes/components/classFormDefaults";
 import type { ClassDoc } from "@/types/academic";
+import { invalidateSessionQueries } from "@/hooks/queryInvalidation";
 
 const DAY_LABELS = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
 
@@ -239,7 +240,7 @@ export function ClassForm({ editingClass, onDone }: ClassFormProps) {
       reset(DEFAULT_CLASS_FORM_VALUES);
       setRecurrence(DEFAULT_RECURRENCE);
       queryClient.invalidateQueries({ queryKey: ["classes"] });
-      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      invalidateSessionQueries(queryClient);
       onDone?.();
     },
   });

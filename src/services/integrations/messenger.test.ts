@@ -113,7 +113,7 @@ describe("utilityDeliveryRefetchInterval", () => {
   test("stops polling once everything is terminal", () => {
     expect(utilityDeliveryRefetchInterval({ jobs: [item("sent"), item("failed"), item("skipped")], events: [item("expanded")] })).toBe(false);
   });
-  test("polls once more when nothing has loaded yet", () => {
-    expect(utilityDeliveryRefetchInterval(undefined)).toBe(30_000);
+  test("does not keep polling while the status request has no data (failing)", () => {
+    expect(utilityDeliveryRefetchInterval(undefined)).toBe(false);
   });
 });

@@ -197,7 +197,7 @@ const ACTIVE_DELIVERY_STATUSES = new Set(["pending", "processing"]);
 
 /** Poll cham va chi khi con viec dang chay: moi lan poll la vai chuc luot doc Firestore qua Worker. */
 export function utilityDeliveryRefetchInterval(response: UtilityDeliveryStatusResponse | undefined): number | false {
-  if (!response) return 30_000;
+  if (!response) return false; // chua co du lieu = request dang loi; khong poll lien tuc
   const active = [...response.jobs, ...response.events].some((item) => ACTIVE_DELIVERY_STATUSES.has(item.status));
   return active ? 30_000 : false;
 }
