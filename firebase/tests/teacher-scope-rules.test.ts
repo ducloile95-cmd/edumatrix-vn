@@ -205,15 +205,15 @@ describe("teacher scope by assigned class", () => {
       title: "Schedule changed", message: "", createdAt: serverTimestamp(), resolvedAt: null,
     }));
   });
-  test("teacher reads all classes for dependency preflight", async () => {
+  test("teacher reads only assigned classes", async () => {
     await assertSucceeds(getDoc(doc(asTeacher(assignedTeacher), "classes", "class-owned")));
-    await assertSucceeds(getDoc(doc(asTeacher(otherTeacher), "classes", "class-owned")));
+    await assertFails(getDoc(doc(asTeacher(otherTeacher), "classes", "class-owned")));
   });
 
-  test("teacher reads all students for dependency preflight", async () => {
+  test("teacher reads only assigned students", async () => {
     await assertSucceeds(getDoc(doc(asTeacher(assignedTeacher), "students", "student-1")));
-    await assertSucceeds(getDoc(doc(asTeacher(assignedTeacher), "students", "student-available")));
-    await assertSucceeds(getDoc(doc(asTeacher(assignedTeacher), "students", "student-2")));
+    await assertFails(getDoc(doc(asTeacher(assignedTeacher), "students", "student-available")));
+    await assertFails(getDoc(doc(asTeacher(assignedTeacher), "students", "student-2")));
   });
 
   test("teacher enrolls a student only into an assigned class", async () => {
@@ -405,14 +405,14 @@ describe("teacher scope by assigned class", () => {
     );
   });
 
-  test("teacher attendance queries support dependency preflight without class scope", async () => {
+  test("teacher attendance queries must be scoped to an assigned class", async () => {
     const teacherDb = asTeacher(assignedTeacher);
     await assertSucceeds(getDocs(query(
       collection(teacherDb, "attendance"),
       where("classId", "==", "class-owned"),
       where("sessionId", "==", "session-owned"),
     )));
-    await assertSucceeds(getDocs(query(
+    await assertFails(getDocs(query(
       collection(teacherDb, "attendance"),
       where("sessionId", "==", "session-owned"),
     )));

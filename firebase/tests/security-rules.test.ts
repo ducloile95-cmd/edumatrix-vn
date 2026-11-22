@@ -430,15 +430,15 @@ describe("chat threads and server-owned messages", () => {
     await assertSucceeds(getDoc(doc(asAdmin(), "chat_threads", "thread_other")));
   });
 
-  test("Teacher doc duoc thread toan he thong de quet phu thuoc", async () => {
+  test("Teacher chi doc thread cua hoc sinh duoc phan cong", async () => {
     await assertSucceeds(getDoc(doc(asTeacher(), "chat_threads", "thread_assigned")));
-    await assertSucceeds(getDoc(doc(asTeacher(), "chat_threads", "thread_other")));
+    await assertFails(getDoc(doc(asTeacher(), "chat_threads", "thread_other")));
+    // Dang truy van cua subscribeChatThreads cho giao vien.
     await assertSucceeds(getDocs(query(
       collection(asTeacher(), "chat_threads"),
       where("assignedTeacherIds", "array-contains", TEACHER_UID),
-      where("studentId", "==", "student_001"),
     )));
-    await assertSucceeds(getDocs(collection(asTeacher(), "chat_threads")));
+    await assertFails(getDocs(collection(asTeacher(), "chat_threads")));
   });
 
   test("Teacher doc message trong thread duoc phan cong", async () => {
@@ -637,15 +637,15 @@ describe("teacher scoped finance and assignment summaries", () => {
     });
   });
 
-  test("Teacher doc tai chinh toan he thong de quet phu thuoc", async () => {
+  test("Teacher chi doc tai chinh cua hoc sinh duoc phan cong", async () => {
     await assertSucceeds(getDoc(doc(asTeacher(), "invoices", "invoice_assigned")));
-    await assertSucceeds(getDoc(doc(asTeacher(), "invoices", "invoice_other")));
+    await assertFails(getDoc(doc(asTeacher(), "invoices", "invoice_other")));
     await assertSucceeds(getDoc(doc(asTeacher(), "payments", "payment_assigned")));
-    await assertSucceeds(getDoc(doc(asTeacher(), "payments", "payment_other")));
+    await assertFails(getDoc(doc(asTeacher(), "payments", "payment_other")));
     await assertSucceeds(getDocs(query(collection(asTeacher(), "invoices"), where("studentId", "==", "student_assigned"))));
     await assertSucceeds(getDocs(query(collection(asTeacher(), "payments"), where("studentId", "==", "student_assigned"))));
-    await assertSucceeds(getDocs(collection(asTeacher(), "invoices")));
-    await assertSucceeds(getDocs(collection(asTeacher(), "payments")));
+    await assertFails(getDocs(collection(asTeacher(), "invoices")));
+    await assertFails(getDocs(collection(asTeacher(), "payments")));
   });
 
   test("Teacher khong duoc doi soat thanh toan, ke ca lop duoc phan cong", async () => {

@@ -343,10 +343,10 @@ describe("class curriculum payload and private demo requests", () => {
 });
 
 describe("students - ownership", () => {
-  test("Staff doc duoc danh ba hoc sinh de quet phu thuoc", async () => {
+  test("Teacher chi doc hoc sinh duoc phan cong", async () => {
     await assertSucceeds(getDoc(doc(asAdmin(), "students", STUDENT_OWNED)));
     await assertSucceeds(getDoc(doc(asTeacher(), "students", STUDENT_OWNED)));
-    await assertSucceeds(getDoc(doc(asTeacher(), "students", STUDENT_OTHER)));
+    await assertFails(getDoc(doc(asTeacher(), "students", STUDENT_OTHER)));
   });
 
   test("Viewer doc duoc hoc sinh cua minh", async () => {

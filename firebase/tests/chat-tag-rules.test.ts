@@ -68,7 +68,7 @@ describe("conversation tag assignment", () => {
     await assertFails(updateDoc(doc(as(VIEWER_UID), "chat_threads", "thread-1"), { tagIds: ["tag-red"], updatedAt: serverTimestamp() }));
   });
 
-  test("a former teacher keeps preflight read but loses write access", async () => {
+  test("a former teacher keeps read while still in assignedTeacherIds but loses write access", async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await updateDoc(doc(ctx.firestore(), "students", "student-1"), { teacherIds: [] });
     });
