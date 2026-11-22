@@ -2,7 +2,7 @@ import { lazy, Suspense, useMemo, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { AlertTriangle, BookOpenCheck, CalendarDays, ChevronRight, ClipboardCheck, Cloud, GraduationCap, MessageCircle, QrCode, Settings2, UserRound, UserX, type LucideIcon } from "lucide-react";
+import { AlertTriangle, BookOpenCheck, RefreshCw, CalendarDays, ChevronRight, ClipboardCheck, Cloud, GraduationCap, MessageCircle, QrCode, Settings2, UserRound, UserX, type LucideIcon } from "lucide-react";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
@@ -22,6 +22,10 @@ import { listUsersByRole } from "@/services/firestore/users";
 import { isGoogleDriveConfigured } from "@/services/integrations/googleDrive";
 import { buildFinanceMetrics } from "@/utils/dashboardMetrics";
 import { DEFAULT_RANK_THRESHOLDS } from "@/utils/ranking";
+import { Button } from "@/components/ui/Button";
+
+// Dashboard doc toan bo lop/hoc sinh/bai nop; tinh lai moi 15 phut (hoac khi bam Lam moi) la du cho quan ly.
+const DASHBOARD_STALE_MS = 15 * 60_000;
 
 // Lazy: recharts (~450KB) chi tai khi thuc su ve bieu do, khong chan first paint dashboard.
 const QualityCharts = lazy(() => import("@/features/dashboard/components/QualityCharts"));
@@ -104,6 +108,7 @@ export default function StaffDashboardPage() {
     queryKey: ["staff-dashboard", "overview", role, firebaseUser?.uid, days, filters],
     queryFn: () => isAdmin ? getAdminDashboard(range, filters) : getTeacherDashboard(firebaseUser?.uid ?? "", range, filters),
     enabled: !!firebaseUser && (isAdmin || role === USER_ROLES.TEACHER),
+    staleTime: DASHBOARD_STALE_MS,
   });
   const learning = useQuery({
     queryKey: ["staff-dashboard", "learning", role, firebaseUser?.uid, days, filters, academic.data?.rankThresholds],
@@ -111,11 +116,13 @@ export default function StaffDashboardPage() {
     // Chi tai khi tab tuong ung dang mo - giam tu 8 xuong 5 query luc vao trang.
     // React Query giu cache 60s nen quay lai tab la hien ngay, khong goi lai Firestore.
     enabled: !!firebaseUser && academic.isSuccess && tab === "quality",
+    staleTime: DASHBOARD_STALE_MS,
   });
   const finance = useQuery({
     queryKey: ["staff-dashboard", "finance", role, firebaseUser?.uid, days, filters.classId, filters.courseId, filters.teacherId],
     queryFn: listInvoices,
     enabled: !!firebaseUser && tab === "finance",
+    staleTime: DASHBOARD_STALE_MS,
   });
   const integrationSettings = useQuery({ queryKey: ["settings", "integrations"], queryFn: getIntegrationSettings, enabled: isAdmin && tab === "system" });
   const paymentSettings = useQuery({ queryKey: ["settings", "payment"], queryFn: getPaymentSettings, enabled: isAdmin && tab === "system" });
@@ -145,6 +152,8 @@ export default function StaffDashboardPage() {
     {isAdmin && <select aria-label="Khóa học" value={filters.courseId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, courseId: event.target.value || undefined, classId: undefined }))} className={`${FIELD_CLASS} w-full sm:w-40`}><option value="">Tất cả khóa học</option>{courses.data?.map((course) => <option key={course.id} value={course.id}>{course.name}</option>)}</select>}
     <select aria-label={isAdmin ? "Lớp học" : "Lớp phụ trách"} value={filters.classId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, classId: event.target.value || undefined }))} className={`${FIELD_CLASS} w-full sm:w-40`}><option value="">{isAdmin ? "Tất cả lớp" : "Lớp phụ trách"}</option>{classes.data?.filter((klass) => !filters.courseId || klass.courseId === filters.courseId).map((klass) => <option key={klass.id} value={klass.id}>{klass.name}</option>)}</select>
     {isAdmin && <select aria-label="Giáo viên" value={filters.teacherId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, teacherId: event.target.value || undefined }))} className={`${FIELD_CLASS} w-full sm:w-40`}><option value="">Tất cả giáo viên</option>{teachers.data?.map((teacher) => <option key={teacher.uid} value={teacher.uid}>{teacher.displayName}</option>)}</select>}
+    <Button size="sm" variant="secondary" icon={<RefreshCw size={15} />} aria-label="Làm mới số liệu" loading={overview.isFetching || learning.isFetching || finance.isFetching}
+      onClick={() => { overview.refetch(); if (tab === "quality") learning.refetch(); if (tab === "finance") finance.refetch(); }}>Làm mới</Button>
   </div>;
 
   return <>
