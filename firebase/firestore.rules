@@ -930,7 +930,7 @@ service cloud.firestore {
     // Khop InvoiceCreationForm: pricePerSession, neu khoa cu thi round(tuitionFee / totalSessions).
     function coursePricePerSession(courseId) {
       let course = get(/databases/$(database)/documents/courses/$(courseId)).data;
-      return 'pricePerSession' in course ? course.pricePerSession : math.round(course.tuitionFee / course.totalSessions);
+      return 'pricePerSession' in course ? course.pricePerSession : math.round(float(course.tuitionFee) / course.totalSessions);
     }
 
     function validInvoiceData(data) {

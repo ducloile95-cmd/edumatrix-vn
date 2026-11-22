@@ -391,6 +391,16 @@ describe("Invoice integrity (A1)", () => {
       unitPriceSnapshot: 333333, amount: 999999,
     })));
 
+  test("legacy price rounds half up like the client (1,000,000 / 6 -> 166667)", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), "courses", "course-legacy"), { totalSessions: 6 });
+    });
+    await assertSucceeds(setDoc(doc(asAdminDb(), "invoices", "class-legacy-half"), {
+      ...classInvoice, courseId: "course-legacy", sourceId: "class-legacy", classId: "class-legacy",
+      unitPriceSnapshot: 166667, amount: 166667, quantity: 1,
+    }));
+  });
+
   test("nobody can send payment to another bank account", async () => {
     await assertFails(setDoc(doc(asAdminDb(), "invoices", "bank-admin"), { ...invoice, accountNumber: "999" }));
     await assertFails(setDoc(doc(asTeacherDb(), "invoices", "bank-teacher"), { ...billingItemInvoice, accountName: "TEACHER", createdBy: "teacher" }));
