@@ -226,6 +226,19 @@ describe("ClassroomInteractionPage publishing", () => {
     ).toBeTruthy();
   });
 
+  test("never shows an editable form built from a failed load of saved reviews", async () => {
+    serviceMocks.getSessionStudentReviews.mockRejectedValue(new Error("permission-denied"));
+    renderPage();
+
+    expect(await screen.findByText("Không tải được dữ liệu buổi học.")).toBeTruthy();
+    expect(screen.queryByRole("tab", { name: "Gửi thông báo" })).toBeNull();
+    expect(serviceMocks.saveClassroomDraft).not.toHaveBeenCalled();
+
+    const calls = serviceMocks.getSessionStudentReviews.mock.calls.length;
+    fireEvent.click(screen.getByRole("button", { name: /Thử lại/ }));
+    await waitFor(() => expect(serviceMocks.getSessionStudentReviews.mock.calls.length).toBeGreaterThan(calls));
+  });
+
   test("does not expose publishing when the session is inaccessible", async () => {
     serviceMocks.getSession.mockResolvedValueOnce(null);
     renderPage();

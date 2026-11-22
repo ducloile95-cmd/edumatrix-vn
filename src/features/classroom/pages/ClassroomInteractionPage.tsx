@@ -110,8 +110,9 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
     if (
       initializedSessionId === sessionId ||
       students.data === undefined ||
-      savedEntries.isLoading ||
-      interaction.isLoading ||
+      // Chi khoi tao tu du lieu da tai thanh cong: tai loi ma van dien "present"/rong roi bam luu se ghi de du lieu that.
+      !savedEntries.isSuccess ||
+      !interaction.isSuccess ||
       !klass.data
     ) return;
     const reviewByStudent = new Map(savedEntries.data?.reviews.map((review) => [review.studentId, review]));
@@ -131,7 +132,7 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
     setHomeworkText(interaction.data?.homeworkText ?? "");
     setDraftExists(Boolean(interaction.data));
     setInitializedSessionId(sessionId);
-  }, [classStudents, initializedSessionId, interaction.data, interaction.isLoading, klass.data, savedEntries.data, savedEntries.isLoading, sessionId, students.data]);
+  }, [classStudents, initializedSessionId, interaction.data, interaction.isSuccess, klass.data, savedEntries.data, savedEntries.isSuccess, sessionId, students.data]);
 
   const workflowStatus = interaction.data?.workflowStatus ?? "draft";
   const isPublished = workflowStatus === "published";
@@ -254,7 +255,8 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
   }, [entries, taughtContent, quickSummary, homeworkText, initializedSessionId, sessionId, isPublished, classStudents.length]);
 
   if (session.isLoading || klass.isLoading || students.isLoading || interaction.isLoading || savedEntries.isLoading) return <LoadingSkeleton rows={7} />;
-  if (session.isError || klass.isError || students.isError || interaction.isError) return <ErrorState message="Không tải được dữ liệu buổi học." onRetry={() => session.refetch()} />;
+  const loadQueries = [session, klass, students, interaction, savedEntries];
+  if (loadQueries.some((query) => query.isError)) return <ErrorState message="Không tải được dữ liệu buổi học." onRetry={() => loadQueries.forEach((query) => { if (query.isError) void query.refetch(); })} />;
   if (!session.data || !klass.data) return <EmptyState title="Không tìm thấy buổi học" description="Buổi học không tồn tại hoặc bạn không có quyền truy cập." />;
   if (session.data.status === "cancelled") return <EmptyState title="Buổi học đã bị hủy" description="Không thể nhập dữ liệu cho buổi học đã hủy." />;
 
