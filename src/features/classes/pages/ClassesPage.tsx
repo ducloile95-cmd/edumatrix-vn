@@ -19,7 +19,7 @@ export default function ClassesPage() {
   const queryClient = useQueryClient();
   const { role } = useAuth();
   const canManageClasses = role === USER_ROLES.ADMIN || role === USER_ROLES.TEACHER;
-  const canDeleteClasses = role === USER_ROLES.ADMIN || role === USER_ROLES.TEACHER;
+  const canDeleteClasses = role === USER_ROLES.ADMIN;
   const deletePreflight = useDeletionPreflight("class", deletingClass?.id ?? null);
 
   const openEdit = (klass: ClassDoc & { id: string }) => { setEditingClass(klass); setOpen(true); };

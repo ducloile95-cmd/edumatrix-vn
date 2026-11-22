@@ -389,7 +389,7 @@ export function StudentsList() {
       <StudentInfoDialog
         actorUid={firebaseUser?.uid}
         canManageLinks={role === USER_ROLES.ADMIN}
-        canDelete={role === USER_ROLES.ADMIN || role === USER_ROLES.TEACHER}
+        canDelete={role === USER_ROLES.ADMIN}
         open={!!viewingStudent}
         student={viewingStudent}
         onClose={() => setViewingStudent(null)}

@@ -18,7 +18,7 @@ type CatalogTab = "dashboard" | "catalog" | "billing-items";
 export default function CatalogPage() {
   const { role } = useAuth();
   const isAdmin = role === USER_ROLES.ADMIN;
-  const canHardDelete = isAdmin || role === USER_ROLES.TEACHER;
+  const canHardDelete = isAdmin;
   const initialCreate = new URLSearchParams(window.location.search).get("create");
   const [tab, setTab] = useState<CatalogTab>(initialCreate ? "catalog" : "dashboard");
 
