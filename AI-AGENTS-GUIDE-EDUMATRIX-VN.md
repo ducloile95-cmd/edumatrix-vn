@@ -2653,13 +2653,17 @@ function ownsStudent(studentId) {
 }
 ```
 
+> **Quy tắc đọc theo phân công (đợt 3, 23/11/2026):** dữ liệu gắn lớp/học sinh dùng `isAdmin() || isAssignedTeacherForClass(resource.data.classId)` (hoặc `isAssignedTeacherForStudent(...)`) thay cho `isStaff()`. Chỉ danh mục dùng chung (môn, khoá, đồ dùng, giáo án mẫu, bài chuẩn, giáo trình, thẻ chat, settings) giữ `isStaff()`. Truy vấn danh sách của giáo viên phải lọc đúng trường mà rule kiểm tra (`classId ==`, `studentId ==`, `teacherIds array-contains`), và mỗi dạng truy vấn mới cần một test trong `firebase/tests/teacher-read-scope-rules.test.ts`. Chỉ Admin được xoá và đối soát thanh toán.
+
 ### 20.3. Ví dụ điểm số
 
 ```javascript
 match /scores/{scoreId} {
-  allow create, update, delete: if isStaff();
+  allow create, update: if isAdmin() || isAssignedTeacherForClass(request.resource.data.classId);
+  allow delete: if isAdmin();
 
-  allow read: if isStaff()
+  allow read: if isAdmin()
+    || isAssignedTeacherForClass(resource.data.classId)
     || ownsStudent(resource.data.studentId);
 }
 ```
@@ -2668,9 +2672,11 @@ match /scores/{scoreId} {
 
 ```javascript
 match /invoices/{invoiceId} {
-  allow create, update, delete: if isStaff();
+  // Tao: xem firestore.rules (khop settings/payment, gia khoa hoc); doi soat chi Admin.
+  allow delete: if false;
 
-  allow read: if isStaff()
+  allow read: if isAdmin()
+    || isAssignedTeacherForStudent(resource.data.studentId)
     || ownsStudent(resource.data.studentId);
 }
 ```
@@ -2679,7 +2685,8 @@ match /invoices/{invoiceId} {
 
 ```javascript
 match /submissions/{submissionId} {
-  allow read: if isStaff()
+  allow read: if isAdmin()
+    || isAssignedTeacherForClass(resource.data.classId)
     || ownsStudent(resource.data.studentId);
 
   allow create: if ownsStudent(request.resource.data.studentId)
