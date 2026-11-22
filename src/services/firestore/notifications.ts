@@ -20,9 +20,11 @@ export interface ViewerNotification {
   isRead: boolean;
 }
 
-const PER_STUDENT_LIMIT = 50;
-const TOTAL_LIMIT = 200;
+const PER_STUDENT_LIMIT = 20;
+const TOTAL_LIMIT = 50;
 const READ_BATCH_LIMIT = 10;
+// Moi lan tai ~20 doc/hoc sinh; poll 15s tung chiem gan het 50k doc/ngay cua Spark.
+export const VIEWER_NOTIFICATION_REFRESH_MS = 5 * 60_000;
 
 function readId(uid: string, announcementId: string): string {
   return `${uid}_${announcementId}`;

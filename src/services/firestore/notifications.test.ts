@@ -36,6 +36,19 @@ describe("viewer notifications", () => {
     mocks.writeBatch.mockReturnValue({ set: mocks.batchSet, commit: mocks.batchCommit });
   });
 
+  test("requests at most 20 announcements per student and keeps every child", async () => {
+    mocks.listAnnouncementsByStudent.mockImplementation(async (studentId: string) => [
+      { id: `a-${studentId}`, title: studentId, message: "", createdAt: { toMillis: () => 1 } },
+    ]);
+    mocks.getDocs.mockResolvedValue(snapshot([]));
+
+    const result = await listViewerNotifications("parent-1", ["student-1", "student-2"]);
+
+    expect(mocks.listAnnouncementsByStudent).toHaveBeenCalledWith("student-1", 20);
+    expect(mocks.listAnnouncementsByStudent).toHaveBeenCalledWith("student-2", 20);
+    expect(result.map((item) => item.id).sort()).toEqual(["a-student-1", "a-student-2"]);
+  });
+
   test("deduplicates announcements and joins read state for the current user", async () => {
     const first = { id: "announcement-1", title: "One", message: "First", createdAt: { toMillis: () => 2 } };
     mocks.listAnnouncementsByStudent

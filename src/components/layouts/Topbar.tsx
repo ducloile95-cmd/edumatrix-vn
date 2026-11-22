@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { markChatThreadRead, subscribeChatThreads } from "@/services/firestore/chat";
-import { dismissNotifications, listViewerNotifications, markNotificationsRead, type ViewerNotification } from "@/services/firestore/notifications";
+import { dismissNotifications, listViewerNotifications, markNotificationsRead, VIEWER_NOTIFICATION_REFRESH_MS, type ViewerNotification } from "@/services/firestore/notifications";
 import { ROUTES, systemGuidePath, systemGuideRoleForUserRole } from "@/constants/routes";
 import { findPageTitle } from "@/constants/navigation";
 import { playNotificationSound, unlockNotificationSound } from "@/utils/notificationSound";
@@ -22,7 +22,9 @@ function useNotifications() {
     queryKey,
     queryFn: () => listViewerNotifications(firebaseUser!.uid, studentIds),
     enabled: !!firebaseUser && !isStaff && studentIds.length > 0,
-    refetchInterval: 15_000,
+    staleTime: VIEWER_NOTIFICATION_REFRESH_MS,
+    refetchInterval: VIEWER_NOTIFICATION_REFRESH_MS,
+    refetchOnWindowFocus: true,
   });
   const [staffNotifications, setStaffNotifications] = useState<Notification[]>([]);
   const [staffNotificationsLoaded, setStaffNotificationsLoaded] = useState(false);
