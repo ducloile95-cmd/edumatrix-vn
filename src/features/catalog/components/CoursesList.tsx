@@ -60,7 +60,7 @@ export function CoursesList({ canManage = true, canDelete = canManage, onEdit, o
   });
   // Tai dung listSubjects() (cung queryKey voi CourseForm/SubjectsList) de hien chip ten mon
   // thay vi ID tho, khong phat sinh loai truy van Firestore moi.
-  const subjectsQuery = useQuery({ queryKey: ["subjects"], queryFn: listSubjects, staleTime: 60_000 });
+  const subjectsQuery = useQuery({ queryKey: ["subjects"], queryFn: listSubjects });
   const deletePreflight = useDeletionPreflight("course", deletingCourse?.id ?? null);
   const subjectById = useMemo(
     () => new Map((subjectsQuery.data ?? []).map((s) => [s.id, s])),

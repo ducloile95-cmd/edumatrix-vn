@@ -48,7 +48,6 @@ export function LearningOverview({ onOpenAssignments }: { onOpenAssignments: () 
     queryKey: ["learning-overview-scores", classIds],
     queryFn: async () => (await Promise.all(classIds.map((classId) => listScoresByClass(classId)))).flat(),
     enabled: classIds.length > 0,
-    staleTime: 60_000,
   });
 
   const totals = useMemo(() => (summaries.data ?? []).reduce((value, item) => ({

@@ -81,18 +81,16 @@ export default function SessionsPage() {
   const classesQuery = useQuery({ queryKey: ["classes"], queryFn: listClasses });
   // courses/subjects/teachers: chi de lam giau the buoi hoc trong FitWeekTimetable (course/mon
   // hoc/giao vien/si so) - tai dung dung queryKey voi ClassesList/ClassForm nen chia se cache.
-  const coursesQuery = useQuery({ queryKey: ["courses"], queryFn: listCourses, staleTime: 60_000 });
-  const subjectsQuery = useQuery({ queryKey: ["subjects"], queryFn: listSubjects, staleTime: 60_000 });
+  const coursesQuery = useQuery({ queryKey: ["courses"], queryFn: listCourses });
+  const subjectsQuery = useQuery({ queryKey: ["subjects"], queryFn: listSubjects });
   const studentsQuery = useQuery({
     queryKey: ["students"],
     queryFn: listStudents,
     enabled: !!selectedSession,
-    staleTime: 60_000,
   });
   const teachersQuery = useQuery({
     queryKey: ["users", "teacher"],
     queryFn: () => listUsersByRole(USER_ROLES.TEACHER),
-    staleTime: 60_000,
   });
   const sessionsQuery = useQuery({
     queryKey: ["sessions", range.from.toISOString(), range.to.toISOString()],

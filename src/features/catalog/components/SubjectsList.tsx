@@ -37,7 +37,7 @@ export function SubjectsList({ canManage = true, canDelete = canManage, onEdit, 
     queryKey: ["subjects"],
     queryFn: listSubjects,
   });
-  const coursesQuery = useQuery({ queryKey: ["courses"], queryFn: listCourses, staleTime: 60_000 });
+  const coursesQuery = useQuery({ queryKey: ["courses"], queryFn: listCourses });
   const deletePreflight = useDeletionPreflight("subject", deletingSubject?.id ?? null);
 
   const courseCountBySubject = useMemo(() => {

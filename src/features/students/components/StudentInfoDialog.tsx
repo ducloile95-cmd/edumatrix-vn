@@ -72,7 +72,6 @@ export function StudentInfoDialog({ actorUid = "unknown", canManageLinks, canDel
     queryKey: ["student-parent-profiles", student?.id, student?.parentUids ?? []],
     queryFn: () => listUsersByIds(student?.parentUids ?? []),
     enabled: open && !!student && student.parentUids.length > 0,
-    staleTime: 60_000,
   });
 
   const primaryParent = parentProfilesQuery.data?.[0] ?? null;
@@ -81,25 +80,21 @@ export function StudentInfoDialog({ actorUid = "unknown", canManageLinks, canDel
     queryKey: ["classes"],
     queryFn: listClasses,
     enabled: open && !!student,
-    staleTime: 60_000,
   });
   const coursesQuery = useQuery({
     queryKey: ["courses"],
     queryFn: listCourses,
     enabled: open && !!student,
-    staleTime: 60_000,
   });
   const teacherProfilesQuery = useQuery({
     queryKey: ["student-teacher-profiles", student?.teacherIds ?? []],
     queryFn: () => listUsersByIds(student?.teacherIds ?? []),
     enabled: open && !!student && student.teacherIds.length > 0,
-    staleTime: 60_000,
   });
   const allTeachersQuery = useQuery({
     queryKey: ["users", "teacher", "active"],
     queryFn: () => listUsersByRole("teacher"),
     enabled: open && !!student && canManageLinks,
-    staleTime: 60_000,
   });
 
   useEffect(() => {

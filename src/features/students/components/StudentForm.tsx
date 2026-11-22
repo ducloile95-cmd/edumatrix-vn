@@ -25,7 +25,7 @@ export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
   const isEditing = !!editingStudent;
   const { role } = useAuth();
   const isAdmin = role === USER_ROLES.ADMIN;
-  const classes = useQuery({ queryKey: ["classes"], queryFn: listClasses, staleTime: 60_000 });
+  const classes = useQuery({ queryKey: ["classes"], queryFn: listClasses });
 
   const {
     register,

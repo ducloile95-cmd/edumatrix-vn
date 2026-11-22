@@ -53,13 +53,11 @@ export function StudentsList() {
   const classesQuery = useQuery({
     queryKey: ["classes"],
     queryFn: listClasses,
-    staleTime: 60_000,
   });
 
   const coursesQuery = useQuery({
     queryKey: ["courses"],
     queryFn: listCourses,
-    staleTime: 60_000,
   });
 
   const classById = useMemo(
@@ -103,21 +101,18 @@ export function StudentsList() {
     queryKey: ["student-attendance-page", visibleStudentIds],
     queryFn: () => listAttendanceByStudents(visibleStudentIds),
     enabled: visibleStudentIds.length > 0,
-    staleTime: 60_000,
   });
 
   const submissionsQuery = useQuery({
     queryKey: ["student-submissions-page", visibleStudentIds],
     queryFn: () => listSubmissionsByStudents(visibleStudentIds),
     enabled: visibleStudentIds.length > 0,
-    staleTime: 60_000,
   });
 
   const summariesQuery = useQuery({
     queryKey: ["student-score-summaries-page", visibleStudentIds],
     queryFn: () => listStudentSummariesByIds(visibleStudentIds),
     enabled: visibleStudentIds.length > 0,
-    staleTime: 60_000,
   });
 
   const attendanceByStudent = useMemo(

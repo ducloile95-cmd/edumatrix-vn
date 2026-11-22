@@ -96,7 +96,7 @@ export default function StaffDashboardPage() {
     setSearchParams(next, { replace: true });
   }
 
-  const classes = useQuery({ queryKey: ["dashboard-filter-classes", role, firebaseUser?.uid], queryFn: listClasses, enabled: !!firebaseUser });
+  const classes = useQuery({ queryKey: ["classes"], queryFn: listClasses, enabled: !!firebaseUser });
   const courses = useQuery({ queryKey: ["dashboard-filter-courses"], queryFn: listCourses, enabled: isAdmin });
   const teachers = useQuery({ queryKey: ["dashboard-filter-teachers"], queryFn: () => listUsersByRole("teacher"), enabled: isAdmin });
   const academic = useQuery({ queryKey: ["settings", "academic"], queryFn: getAcademicSettings, enabled: !!firebaseUser });

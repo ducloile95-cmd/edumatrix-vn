@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/features/auth/context/AuthContext";
 import { ToastProvider } from "@/components/feedback/ToastProvider";
 import { AppearanceProvider } from "@/features/preferences/AppearanceContext";
+import { QueryCacheUserBoundary } from "@/app/QueryCacheUserBoundary";
 
 export function AppProviders({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
@@ -10,8 +11,8 @@ export function AppProviders({ children }: { children: ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            // Danh muc it doi (lop, mon, hoc sinh) - tranh refetch lien tuc (A14).
-            staleTime: 60_000,
+            // Danh muc it doi; mutation da invalidateQueries nen cache 10 phut khong lam du lieu cu (A14, dot 2).
+            staleTime: 10 * 60_000,
             gcTime: 30 * 60_000,
             refetchOnWindowFocus: false,
             retry: 1,
@@ -24,7 +25,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
     <AppearanceProvider>
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider><QueryCacheUserBoundary />{children}</AuthProvider>
         </ToastProvider>
       </QueryClientProvider>
     </AppearanceProvider>
