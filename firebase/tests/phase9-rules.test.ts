@@ -434,6 +434,20 @@ describe("Invoice integrity (A1)", () => {
   });
 });
 
+describe("Void and duplicate invoices (C1)", () => {
+  test("only an admin can void an unpaid invoice; parents cannot pay a void invoice", async () => {
+    await assertFails(updateDoc(doc(env.authenticatedContext("teacher").firestore(), "invoices", "invoice-1"), { status: "void", updatedAt: Timestamp.now() }));
+    await assertSucceeds(updateDoc(doc(env.authenticatedContext("admin").firestore(), "invoices", "invoice-1"), { status: "void", updatedAt: Timestamp.now() }));
+    await assertFails(updateDoc(doc(env.authenticatedContext("viewer").firestore(), "invoices", "invoice-1"), { status: "pending", updatedAt: Timestamp.now() }));
+  });
+
+  test("creating the same deterministic class invoice id twice is denied", async () => {
+    const db = env.authenticatedContext("admin").firestore();
+    await assertSucceeds(setDoc(doc(db, "invoices", "class_class-1_student-1_0_3"), { ...classInvoice, createdAt: Timestamp.fromMillis(1) }));
+    await assertFails(setDoc(doc(db, "invoices", "class_class-1_student-1_0_3"), { ...classInvoice, createdAt: Timestamp.fromMillis(2) }));
+  });
+});
+
 describe("Billing item integrity", () => {
   test("admin manages a billing item linked to the selected course subject", async () =>
     assertSucceeds(setDoc(doc(env.authenticatedContext("admin").firestore(), "billing_items", "item-new"), billingItem)));

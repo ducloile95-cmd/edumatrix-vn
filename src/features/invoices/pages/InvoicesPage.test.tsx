@@ -27,6 +27,7 @@ const serviceMocks = vi.hoisted(() => ({
   listAttendanceByClass: vi.fn(),
   reconcilePayment: vi.fn(),
   getUtilityDeliveryStatus: vi.fn(),
+  voidInvoice: vi.fn(),
 }));
 
 vi.mock("@/services/integrations/messenger", () => ({
@@ -64,6 +65,7 @@ vi.mock("@/services/firestore/invoices", () => ({
   listInvoices: serviceMocks.listInvoices,
   listPayments: serviceMocks.listPayments,
   reconcilePayment: serviceMocks.reconcilePayment,
+  voidInvoice: serviceMocks.voidInvoice,
 }));
 
 vi.mock("@/services/firestore/settings", () => ({
@@ -258,6 +260,32 @@ describe("InvoicesPage", () => {
     await waitFor(() => expect(serviceMocks.createInvoices).toHaveBeenCalledWith([
       expect.objectContaining({ studentId: "student-1", amount: 100_000, quantity: 1 }),
     ]));
+  });
+
+  test("still counts sessions on a rejected invoice (it remains owed) and passes the billed count", async () => {
+    serviceMocks.listInvoices.mockResolvedValue([{
+      id: "invoice-rejected", studentId: "student-1", sourceType: "class", sourceId: "class-1", status: "rejected",
+      quantity: 1, amount: 100_000, dueAt: { toDate: () => new Date("2026-08-15") },
+    }]);
+    renderWithQueryClient(<InvoicesPage />);
+    await openAndFillInvoiceForm();
+    fireEvent.click(screen.getByRole("button", { name: "Tạo 1 hóa đơn" }));
+
+    await waitFor(() => expect(serviceMocks.createInvoices).toHaveBeenCalledWith([
+      expect.objectContaining({ studentId: "student-1", quantity: 1, billedSessionsBefore: 1 }),
+    ]));
+  });
+
+  test("lets an admin void an unpaid invoice after confirming", async () => {
+    serviceMocks.voidInvoice.mockResolvedValue(undefined);
+    serviceMocks.getUtilityDeliveryStatus.mockResolvedValue({ jobs: [], events: [] });
+    serviceMocks.listInvoices.mockResolvedValue([{ id: "invoice-1", invoiceCode: "HP-01", title: "Học phí", studentId: "student-1", amount: 300_000, status: "unpaid", dueAt: { toDate: () => new Date("2030-12-01T00:00:00"), toMillis: () => 0 } }]);
+    renderWithQueryClient(<InvoicesPage />);
+    fireEvent.click(await screen.findByRole("tab", { name: "Công nợ" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Huỷ hóa đơn HP-01" }));
+    expect(serviceMocks.voidInvoice).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Xác nhận huỷ" }));
+    await waitFor(() => expect(serviceMocks.voidInvoice).toHaveBeenCalledWith("invoice-1"));
   });
 
   test("unselects already billed students after a partial failure so a retry cannot bill twice", async () => {

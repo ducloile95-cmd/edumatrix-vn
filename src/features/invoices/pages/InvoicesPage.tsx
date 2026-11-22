@@ -20,7 +20,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Tab, Tabs } from "@/components/ui/Tabs";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { InvoiceCreationForm, type InvoiceCreationValues } from "@/features/invoices/components/InvoiceCreationForm";
-import { createInvoices, listInvoices, listPayments, reconcilePayment } from "@/services/firestore/invoices";
+import { createInvoices, listInvoices, listPayments, reconcilePayment, voidInvoice } from "@/services/firestore/invoices";
 import { InvoiceBatchPartialError } from "@/services/firestore/invoiceErrors";
 import { getPaymentSettings } from "@/services/firestore/settings";
 import { listStudents } from "@/services/firestore/students";
@@ -52,6 +52,9 @@ const TABS: Array<{ value: FinanceTab; label: string }> = [
   { value: "invoices", label: "Công nợ" },
   { value: "reconcile", label: "Đối soát" },
 ];
+
+// Q5: chi Admin huy han hoa don chua thanh toan hoac bi tu choi chung tu.
+const VOIDABLE_STATUSES: InvoiceStatus[] = ["unpaid", "overdue", "rejected"];
 
 export default function InvoicesPage() {
   const reducedMotion = useReducedMotion();
@@ -102,6 +105,7 @@ export default function InvoicesPage() {
       itemNameSnapshot: values.itemNameSnapshot,
       unitPriceSnapshot: values.unitPriceSnapshot,
       quantity: values.studentCharges[studentId].quantity,
+      billedSessionsBefore: values.studentCharges[studentId].billedSessionsBefore,
     }))),
     // Mot phan da ghi: tai lai hoa don de so buoi da tinh tien dung truoc khi thu lai.
     onError: (error) => { if (error instanceof InvoiceBatchPartialError) client.invalidateQueries({ queryKey: ["invoices"] }); },
@@ -112,6 +116,11 @@ export default function InvoicesPage() {
     },
   });
 
+  const [voiding, setVoiding] = useState<{ id: string; invoiceCode: string; amount: number; studentId: string } | null>(null);
+  const voidMutation = useMutation({
+    mutationFn: (invoiceId: string) => voidInvoice(invoiceId),
+    onSuccess: () => { setVoiding(null); client.invalidateQueries({ queryKey: ["invoices"] }); },
+  });
   const [confirming, setConfirming] = useState<{ payment: NonNullable<typeof payments.data>[number]; status: "verified" | "rejected" } | null>(null);
   const reconcile = useMutation({
     mutationFn: ({ payment, status }: { payment: NonNullable<typeof payments.data>[number]; status: "verified" | "rejected" }) => {
@@ -153,7 +162,8 @@ export default function InvoicesPage() {
 
   const financeSummary = useMemo(() => {
     const list = invoiceList;
-    const valid = list.filter((invoice) => invoice.status !== "rejected");
+    // Q5: hoa don bi tu choi chung tu van la khoan no; chi "void" moi khong tinh.
+    const valid = list.filter((invoice) => invoice.status !== "void");
     const billed = valid.reduce((sum, invoice) => sum + invoice.amount, 0);
     const collected = valid.filter((invoice) => invoice.status === "paid").reduce((sum, invoice) => sum + invoice.amount, 0);
     const outstanding = valid.filter((invoice) => invoice.status !== "paid").reduce((sum, invoice) => sum + invoice.amount, 0);
@@ -165,7 +175,7 @@ export default function InvoicesPage() {
   const monthlyChart = useMemo(() => {
     const buckets = new Map<string, { month: string; duKien: number; thucThu: number }>();
     invoiceList.forEach((invoice) => {
-      if (invoice.status === "rejected") return;
+      if (invoice.status === "void") return;
       const key = format(invoice.dueAt.toDate(), "MM/yyyy");
       const bucket = buckets.get(key) ?? { month: key, duKien: 0, thucThu: 0 };
       bucket.duKien += invoice.amount;
@@ -297,7 +307,7 @@ export default function InvoicesPage() {
                       <td className="px-4 py-4 font-medium text-neutral-700">{studentNameById.get(invoice.studentId) ?? invoice.studentId}</td>
                       <td className="px-4 py-4"><p className="tabular-nums text-neutral-700">{format(invoice.dueAt.toDate(), "dd/MM/yyyy")}</p>{invoice.status === "overdue" && <p className="mt-0.5 text-xs font-semibold text-danger-700">Đã quá hạn</p>}</td>
                       <td className="px-4 py-4 text-right font-bold tabular-nums text-neutral-900">{formatVnd(invoice.amount)}</td>
-                      <td className="px-5 py-4 text-right"><StatusBadge tone={INVOICE_STATUS_TONE[invoice.status]}>{INVOICE_STATUS_LABEL[invoice.status]}</StatusBadge><UtilityDeliveryLine label="Nhắc phí" status={reminder.status} detail={reminder.detail} retryableJobIds={reminder.retryableJobIds} retrying={retryDelivery.isPending} onRetry={(ids) => retryDelivery.mutate(ids)} />{confirmation && <UtilityDeliveryLine label="Xác nhận" status={confirmation.status} detail={confirmation.detail} retryableJobIds={confirmation.retryableJobIds} retrying={retryDelivery.isPending} onRetry={(ids) => retryDelivery.mutate(ids)} />}</td>
+                      <td className="px-5 py-4 text-right"><StatusBadge tone={INVOICE_STATUS_TONE[invoice.status]}>{INVOICE_STATUS_LABEL[invoice.status]}</StatusBadge><UtilityDeliveryLine label="Nhắc phí" status={reminder.status} detail={reminder.detail} retryableJobIds={reminder.retryableJobIds} retrying={retryDelivery.isPending} onRetry={(ids) => retryDelivery.mutate(ids)} />{confirmation && <UtilityDeliveryLine label="Xác nhận" status={confirmation.status} detail={confirmation.detail} retryableJobIds={confirmation.retryableJobIds} retrying={retryDelivery.isPending} onRetry={(ids) => retryDelivery.mutate(ids)} />}{canReconcile && VOIDABLE_STATUSES.includes(invoice.status) && <Button size="sm" variant="secondary" className="mt-2" aria-label={`Huỷ hóa đơn ${invoice.invoiceCode}`} onClick={() => { voidMutation.reset(); setVoiding(invoice); }}>Huỷ</Button>}</td>
                     </tr>
                   })}
                 </tbody>
@@ -330,6 +340,17 @@ export default function InvoicesPage() {
           </div>
           <div className={DATA_LIST_FOOTER}><p className="text-xs text-neutral-500">Lịch sử đã xử lý: {historyPayments.length} giao dịch</p>{reconcile.isError && <p role="alert" className="mt-1 text-xs font-semibold text-danger-700">Không thể đối soát. Kiểm tra kết nối và thử lại.</p>}</div>
         </DataListPanel>
+      )}
+
+      {canReconcile && voiding && (
+        <Modal open onClose={() => setVoiding(null)} size="sm" title="Huỷ hóa đơn?" description="Hóa đơn đã huỷ không tính vào công nợ và phụ huynh không thể báo chuyển khoản. Không hoàn tác được.">
+          <p className="text-sm">{voiding.invoiceCode} · {studentNameById.get(voiding.studentId) ?? voiding.studentId} · <span className="tabular-nums">{formatVnd(voiding.amount)}</span></p>
+          {voidMutation.isError && <p role="alert" className="mt-3 text-sm font-semibold text-danger-700">Không thể huỷ hóa đơn. Kiểm tra kết nối và thử lại.</p>}
+          <div className="mt-5 flex justify-end gap-2">
+            <Button variant="secondary" disabled={voidMutation.isPending} onClick={() => setVoiding(null)}>Đóng</Button>
+            <Button variant="danger" loading={voidMutation.isPending} onClick={() => voidMutation.mutate(voiding.id)}>Xác nhận huỷ</Button>
+          </div>
+        </Modal>
       )}
 
       {canReconcile && confirming && (() => {

@@ -9,6 +9,7 @@ import {
   query,
   runTransaction,
   serverTimestamp,
+  updateDoc,
   startAfter,
   where,
   writeBatch,
@@ -46,6 +47,8 @@ export interface CreateInvoiceInput {
   itemNameSnapshot: string;
   unitPriceSnapshot: number;
   quantity: number;
+  /** So buoi da tinh tien truoc hoa don nay (hoa don lop) - tao ID tat dinh chong tao trung. */
+  billedSessionsBefore?: number;
 }
 
 export async function createInvoice(input: CreateInvoiceInput): Promise<void> {
@@ -67,9 +70,12 @@ export async function createInvoices(inputs: CreateInvoiceInput[]): Promise<void
     const group = inputs.slice(offset, offset + INVOICES_PER_BATCH);
     const batch = writeBatch(db);
     group.forEach((input) => {
-      const invoiceRef = doc(collection(db, COLLECTIONS.INVOICES));
+      const { actorUid, billedSessionsBefore, ...invoiceData } = input;
+      // Hoa don lop: cung lop/hoc sinh/so buoi da tinh -> cung ID; rules khong cho ghi de (createdAt bat bien).
+      const invoiceRef = input.sourceType === "class" && input.classId && billedSessionsBefore !== undefined
+        ? doc(db, COLLECTIONS.INVOICES, stableDocumentId(["class", input.classId, input.studentId, String(billedSessionsBefore), String(input.quantity)]))
+        : doc(collection(db, COLLECTIONS.INVOICES));
       const invoiceCode = createInvoiceCode(input.studentId, invoiceRef.id);
-      const { actorUid, ...invoiceData } = input;
 
       batch.set(invoiceRef, {
         ...invoiceData,
@@ -223,6 +229,11 @@ export async function listPaymentsByStudents(ids: string[], pageSize = 100): Pro
     return documents.map((item) => ({ id: item.id, ...(item.data() as PaymentDoc) }));
   }));
   return groups.flat();
+}
+
+/** Huy han mot hoa don (Q5) - chi Admin (rules); khong tinh vao cong no, phu huynh khong nop chung tu duoc nua. */
+export async function voidInvoice(invoiceId: string): Promise<void> {
+  await updateDoc(doc(db, COLLECTIONS.INVOICES, invoiceId), { status: "void", updatedAt: serverTimestamp() });
 }
 
 export async function reconcilePayment(

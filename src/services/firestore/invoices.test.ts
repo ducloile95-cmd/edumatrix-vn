@@ -122,6 +122,13 @@ describe("createInvoices", () => {
     await expect(createInvoices([{ ...baseInput, studentId: "student-1" }])).rejects.toThrow("permission-denied");
   });
 
+  test("gives class invoices a deterministic id so a double submit cannot create a second one", async () => {
+    await createInvoices([{ ...baseInput, sourceType: "class", sourceId: "class-1", classId: "class-1", billingItemId: null, subjectId: null, studentId: "student-1", quantity: 3, billedSessionsBefore: 8 }]);
+
+    expect(firestore.batchSet.mock.calls[0][0]).toMatchObject({ id: "class_class-1_student-1_8_3" });
+    expect(firestore.batchSet.mock.calls[0][1]).not.toHaveProperty("billedSessionsBefore");
+  });
+
   test("rejects a batch larger than the Firestore limit", async () => {
     await expect(createInvoices(Array.from({ length: 251 }, (_, index) => ({
       ...baseInput,

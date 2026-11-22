@@ -32,3 +32,14 @@ describe("dashboard metrics", () => {
     expect(studentRiskReasons({ attendanceRate: 0, attendanceTotal: 0, consecutiveAbsences: 0, assignmentRate: 0, assignmentTotal: 0, recentScores: [], rank: null })).toEqual([]);
   });
 });
+
+it("a rejected invoice is still owed; a void invoice is not", () => {
+  const now = new Date("2026-07-15T00:00:00Z");
+  const result = buildFinanceMetrics([
+    invoice("rejected", 300, "rejected", new Date("2026-08-01T00:00:00Z")),
+    invoice("void", 500, "void", new Date("2026-08-01T00:00:00Z")),
+    invoice("paid", 100, "paid", new Date("2026-07-01T00:00:00Z")),
+  ], now);
+  expect(result.outstandingAmount).toBe(300);
+  expect(result.collectionRate).toBe(25);
+});

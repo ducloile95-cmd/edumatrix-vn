@@ -958,7 +958,7 @@ service cloud.firestore {
         data.amount is int && data.amount > 0 && data.dueAt is timestamp &&
         data.paymentContent is string && data.bankBin is string &&
         data.accountNumber is string && data.accountName is string &&
-        data.status in ['unpaid', 'pending', 'paid', 'overdue', 'rejected'] &&
+        data.status in ['unpaid', 'pending', 'paid', 'overdue', 'rejected', 'void'] &&
         data.createdBy is string && hasTimestamps(data) &&
         existsAfter(/databases/$(database)/documents/students/$(data.studentId)) &&
         (data.courseId == null || exists(/databases/$(database)/documents/courses/$(data.courseId))) &&

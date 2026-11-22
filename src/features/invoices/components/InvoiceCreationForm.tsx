@@ -12,7 +12,7 @@ type BillingMode = "class" | "item";
 export interface InvoiceCreationValues {
   studentIds: string[];
   studentClassIds: Record<string, string>;
-  studentCharges: Record<string, { amount: number; quantity: number }>;
+  studentCharges: Record<string, { amount: number; quantity: number; billedSessionsBefore: number }>;
   courseId: string;
   title: string;
   dueAt: Date;
@@ -115,7 +115,7 @@ export function InvoiceCreationForm({
     const counts = new Map<string, number>();
     if (!selectedClass) return counts;
     invoices.forEach((invoice) => {
-      if (invoice.sourceType !== "class" || invoice.sourceId !== selectedClass.id || invoice.status === "rejected") return;
+      if (invoice.sourceType !== "class" || invoice.sourceId !== selectedClass.id || invoice.status === "void") return;
       const quantity = Number.isInteger(invoice.quantity) && (invoice.quantity ?? 0) > 0 ? invoice.quantity! : 0;
       counts.set(invoice.studentId, (counts.get(invoice.studentId) ?? 0) + quantity);
     });
@@ -180,6 +180,7 @@ export function InvoiceCreationForm({
           studentCharges: Object.fromEntries(selectedStudents.map((student) => [student.id, {
             amount: amountForStudent(student.id),
             quantity: quantityForStudent(student.id),
+            billedSessionsBefore: billedSessionCountByStudent.get(student.id) ?? 0,
           }])),
           courseId: selectedCourse.id,
           title: title.trim(),
