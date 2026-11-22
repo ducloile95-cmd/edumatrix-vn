@@ -21,6 +21,7 @@ import { Tab, Tabs } from "@/components/ui/Tabs";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { InvoiceCreationForm, type InvoiceCreationValues } from "@/features/invoices/components/InvoiceCreationForm";
 import { createInvoices, listInvoices, listPayments, reconcilePayment } from "@/services/firestore/invoices";
+import { InvoiceBatchPartialError } from "@/services/firestore/invoiceErrors";
 import { getPaymentSettings } from "@/services/firestore/settings";
 import { listStudents } from "@/services/firestore/students";
 import { listClasses } from "@/services/firestore/classes";
@@ -113,6 +114,8 @@ export default function InvoicesPage() {
       unitPriceSnapshot: values.unitPriceSnapshot,
       quantity: values.studentCharges[studentId].quantity,
     }))),
+    // Mot phan da ghi: tai lai hoa don de so buoi da tinh tien dung truoc khi thu lai.
+    onError: (error) => { if (error instanceof InvoiceBatchPartialError) client.invalidateQueries({ queryKey: ["invoices"] }); },
     onSuccess: () => {
       client.invalidateQueries({ queryKey: ["invoices"] });
       setCreateOpen(false);
@@ -362,6 +365,7 @@ export default function InvoicesPage() {
           accountName={paymentSettings.data?.accountName ?? "EDUMATRIX"}
           isPending={create.isPending}
           isError={create.isError}
+          createdStudentIds={create.error instanceof InvoiceBatchPartialError ? create.error.createdStudentIds : []}
           onCancel={() => setCreateOpen(false)}
           onSubmit={(values) => create.mutate(values)}
         />

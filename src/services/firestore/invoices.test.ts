@@ -40,6 +40,7 @@ vi.mock("@/services/firestore/authz", () => ({
 vi.mock("@/services/firestore/students", () => ({ listStudents: vi.fn() }));
 
 import { createInvoices, listInvoices, reconcilePayment, reportPayment } from "@/services/firestore/invoices";
+import { InvoiceBatchPartialError } from "@/services/firestore/invoiceErrors";
 
 const baseInput = {
   courseId: "course-1",
@@ -104,6 +105,21 @@ describe("createInvoices", () => {
 
     expect(firestore.batchSet).toHaveBeenCalledTimes(24);
     expect(firestore.batchCommit).toHaveBeenCalledTimes(3);
+  });
+
+  test("reports which students were already billed when a later group fails", async () => {
+    firestore.batchCommit.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("permission-denied"));
+
+    const error = await createInvoices(Array.from({ length: 7 }, (_, index) => ({ ...baseInput, studentId: `student-${index}` })))
+      .catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(InvoiceBatchPartialError);
+    expect((error as InvoiceBatchPartialError).createdStudentIds).toEqual(["student-0", "student-1", "student-2", "student-3", "student-4"]);
+  });
+
+  test("rethrows the original error when the first group fails", async () => {
+    firestore.batchCommit.mockRejectedValueOnce(new Error("permission-denied"));
+    await expect(createInvoices([{ ...baseInput, studentId: "student-1" }])).rejects.toThrow("permission-denied");
   });
 
   test("rejects a batch larger than the Firestore limit", async () => {

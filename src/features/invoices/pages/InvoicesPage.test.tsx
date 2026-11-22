@@ -5,6 +5,7 @@ import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import InvoicesPage from "@/features/invoices/pages/InvoicesPage";
 import { renderWithQueryClient } from "@/test/renderWithQueryClient";
+import { InvoiceBatchPartialError } from "@/services/firestore/invoiceErrors";
 
 const authState = vi.hoisted(() => ({
   value: {
@@ -249,6 +250,20 @@ describe("InvoicesPage", () => {
     await waitFor(() => expect(serviceMocks.createInvoices).toHaveBeenCalledWith([
       expect.objectContaining({ studentId: "student-1", amount: 100_000, quantity: 1 }),
     ]));
+  });
+
+  test("unselects already billed students after a partial failure so a retry cannot bill twice", async () => {
+    serviceMocks.createInvoices.mockRejectedValue(new InvoiceBatchPartialError(["student-1"], new Error("network")));
+    renderWithQueryClient(<InvoicesPage />);
+    await openAndFillInvoiceForm();
+    const checkbox = screen.getByLabelText(/Nguyễn An/) as HTMLInputElement;
+    expect(checkbox.checked).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "Tạo 1 hóa đơn" }));
+
+    expect(await screen.findByText(/Đã tạo 1 hóa đơn/)).toBeTruthy();
+    expect((screen.getByLabelText(/Nguyễn An/) as HTMLInputElement).checked).toBe(false);
+    expect(serviceMocks.listInvoices.mock.calls.length).toBeGreaterThan(1);
   });
 
   test("lets a teacher create invoices but not reconcile payments", async () => {

@@ -19,6 +19,7 @@ import {
 } from "firebase/firestore";
 import { COLLECTIONS } from "@/constants/collections";
 import { db } from "@/services/firebase/firestoreClient";
+import { InvoiceBatchPartialError } from "@/services/firestore/invoiceErrors";
 import { stableDocumentId } from "@/utils/idempotency";
 import { createInvoiceCode, createPaymentContent } from "@/utils/payment";
 import { getCurrentUserDoc, isAdminUser, isTeacherUser } from "@/services/firestore/authz";
@@ -61,9 +62,11 @@ export async function createInvoices(inputs: CreateInvoiceInput[]): Promise<void
 
   // shortcut: rules chi duoc doc ~20 document moi batch; nhom 5 hoa don (+5 event) da test o phase9.
   // Moi nhom la nguyen tu, khong phai ca lop. Tang khi Firestore noi gioi han truy cap.
+  const createdStudentIds: string[] = [];
   for (let offset = 0; offset < inputs.length; offset += INVOICES_PER_BATCH) {
+    const group = inputs.slice(offset, offset + INVOICES_PER_BATCH);
     const batch = writeBatch(db);
-    inputs.slice(offset, offset + INVOICES_PER_BATCH).forEach((input) => {
+    group.forEach((input) => {
       const invoiceRef = doc(collection(db, COLLECTIONS.INVOICES));
       const invoiceCode = createInvoiceCode(input.studentId, invoiceRef.id);
       const { actorUid, ...invoiceData } = input;
@@ -87,7 +90,13 @@ export async function createInvoices(inputs: CreateInvoiceInput[]): Promise<void
         actorUid,
       });
     });
-    await batch.commit();
+    try {
+      await batch.commit();
+    } catch (error) {
+      if (createdStudentIds.length === 0) throw error;
+      throw new InvoiceBatchPartialError(createdStudentIds, error);
+    }
+    createdStudentIds.push(...group.map((input) => input.studentId));
   }
 }
 

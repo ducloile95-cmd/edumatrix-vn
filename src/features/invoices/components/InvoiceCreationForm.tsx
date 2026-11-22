@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { PackageCheck, ReceiptText, School, UsersRound } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -37,6 +37,8 @@ interface InvoiceCreationFormProps {
   accountName: string;
   isPending: boolean;
   isError: boolean;
+  /** Hoc sinh da duoc tao hoa don truoc khi mot nhom sau bi loi. */
+  createdStudentIds?: string[];
   onCancel: () => void;
   onSubmit: (values: InvoiceCreationValues) => void;
 }
@@ -56,12 +58,16 @@ export function InvoiceCreationForm({
   accountName,
   isPending,
   isError,
+  createdStudentIds = [],
   onCancel,
   onSubmit,
 }: InvoiceCreationFormProps) {
   const [billingMode, setBillingMode] = useState<BillingMode>("class");
   const [selectedTargetId, setSelectedTargetId] = useState("");
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  useEffect(() => {
+    if (createdStudentIds.length > 0) setSelectedStudentIds((current) => current.filter((id) => !createdStudentIds.includes(id)));
+  }, [createdStudentIds]);
   const [title, setTitle] = useState("Học phí");
   const [dueAt, setDueAt] = useState("");
 
@@ -266,7 +272,7 @@ export function InvoiceCreationForm({
       </div>
 
       <footer className="flex flex-col gap-3 border-t border-neutral-200 bg-neutral-0 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <div><p aria-live="polite" className="text-xs text-neutral-500">{selectedStudents.length} học sinh đã chọn.</p>{isError && <p role="alert" className="mt-1 text-xs font-semibold text-danger-700">Không thể tạo hóa đơn. Dữ liệu vẫn được giữ lại.</p>}</div>
+        <div><p aria-live="polite" className="text-xs text-neutral-500">{selectedStudents.length} học sinh đã chọn.</p>{isError && <p role="alert" className="mt-1 text-xs font-semibold text-danger-700">{createdStudentIds.length > 0 ? `Đã tạo ${createdStudentIds.length} hóa đơn và bỏ chọn các học sinh đó; phần còn lại chưa tạo được. Kiểm tra rồi thử lại.` : "Không thể tạo hóa đơn. Dữ liệu vẫn được giữ lại."}</p>}</div>
         <div className="grid grid-cols-2 gap-2 sm:flex"><Button type="button" onClick={onCancel}>Hủy</Button><Button type="submit" variant="primary" disabled={!canSubmit || isPending}>{isPending ? "Đang tạo..." : selectedStudents.length > 0 ? `Tạo ${selectedStudents.length} hóa đơn` : "Tạo hóa đơn"}</Button></div>
       </footer>
     </form>
