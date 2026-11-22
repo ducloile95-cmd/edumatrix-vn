@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import worker, { pagedStructuredQuery, assertStudentScope, buildMessengerPayload, buildUtilityPayload, checkMetaUtilityPermission, conversationTombstoneExpired, corsHeaders, deliveryEventEligible, deliveryEventTemplateKey, deliveryJobEligible, deliveryJobId, deliveryJobLeaseExpired, extractBearer, extractInboundMessages, extractReferralLinks, extractUtilityTemplateStatuses, firebaseCertificates, isMessengerTagShape, latestUtilityTemplateStatus, markWebhookMessageProcessed, META_OAUTH_SCOPES, META_UTILITY_OAUTH_SCOPE, META_UTILITY_WEBHOOK_FIELD, META_WEBHOOK_FIELDS, metaErrorCode, metaOAuthCompletionErrorMessage, metaOAuthErrorMessage, metaOAuthScopes, metaUtilityPermissionStatus, metaWebhookFields, nextUnreadStaffCount, normalizeMetaUtilityReason, oauthStateActive, parseMessengerProfile, publicErrorCode, referralClaimUid, referralTargetAllowed, resetFirebaseCachesForTest, safeConnectOrigin, sendGraph, serviceAccessToken, startDeleteChatConversation, subscribePageWebhooks, threadId, UTILITY_TEMPLATES, validChatThreadId, validUtilityParameters, verifyMetaSignature, webhookMessageProcessed, type Env } from "../src/index";
+import worker, { viewerDashboardQueries, viewerVisibleDashboard, pagedStructuredQuery, assertStudentScope, buildMessengerPayload, buildUtilityPayload, checkMetaUtilityPermission, conversationTombstoneExpired, corsHeaders, deliveryEventEligible, deliveryEventTemplateKey, deliveryJobEligible, deliveryJobId, deliveryJobLeaseExpired, extractBearer, extractInboundMessages, extractReferralLinks, extractUtilityTemplateStatuses, firebaseCertificates, isMessengerTagShape, latestUtilityTemplateStatus, markWebhookMessageProcessed, META_OAUTH_SCOPES, META_UTILITY_OAUTH_SCOPE, META_UTILITY_WEBHOOK_FIELD, META_WEBHOOK_FIELDS, metaErrorCode, metaOAuthCompletionErrorMessage, metaOAuthErrorMessage, metaOAuthScopes, metaUtilityPermissionStatus, metaWebhookFields, nextUnreadStaffCount, normalizeMetaUtilityReason, oauthStateActive, parseMessengerProfile, publicErrorCode, referralClaimUid, referralTargetAllowed, resetFirebaseCachesForTest, safeConnectOrigin, sendGraph, serviceAccessToken, startDeleteChatConversation, subscribePageWebhooks, threadId, UTILITY_TEMPLATES, validChatThreadId, validUtilityParameters, verifyMetaSignature, webhookMessageProcessed, type Env } from "../src/index";
 const env={FIREBASE_PROJECT_ID:"project",FIREBASE_CLIENT_EMAIL:"email",FIREBASE_PRIVATE_KEY:"key",META_APP_ID:"app-id",META_PAGE_ACCESS_TOKEN:"token",META_APP_SECRET:"app-secret",META_WEBHOOK_VERIFY_TOKEN:"verify-me",META_GRAPH_VERSION:"v25.0",META_PAGE_ID:"page-id",ALLOWED_ORIGIN:"http://localhost:5173"}satisfies Env;
 describe("messenger worker",()=>{
 afterEach(()=>{vi.restoreAllMocks();resetFirebaseCachesForTest()});
@@ -337,4 +337,35 @@ test("pages Firestore queries with a __name__ cursor instead of offset",()=>{
   const next=pagedStructuredQuery(base,"projects/p/databases/(default)/documents/chat_threads/t200");
   expect(next).toMatchObject({startAt:{values:[{referenceValue:"projects/p/databases/(default)/documents/chat_threads/t200"}],before:false}});
   expect(next).not.toHaveProperty("offset");
+});
+
+test("viewer dashboard queries are bounded and ordered like the client",()=>{
+  const now=new Date("2026-11-23T10:00:00.000Z");
+  const plan=viewerDashboardQueries(["c1"],["s1","s2"],now);
+  const sq=(key:keyof typeof plan,index=0)=>plan[key][index] as {from:unknown;where:unknown;orderBy:unknown;limit:number};
+  expect(plan.sessions).toHaveLength(1);
+  expect(plan.scores).toHaveLength(2);
+  expect(sq("sessions")).toMatchObject({from:[{collectionId:"sessions"}],orderBy:[{field:{fieldPath:"startAt"},direction:"ASCENDING"}],limit:12});
+  expect(JSON.stringify(sq("sessions").where)).toContain('"timestampValue":"2026-11-22T10:00:00.000Z"');
+  expect(JSON.stringify(sq("sessions").where)).toContain('"timestampValue":"2026-12-23T10:00:00.000Z"');
+  expect(JSON.stringify(sq("assignments").where)).toContain('"stringValue":"published"');
+  expect(sq("assignments")).toMatchObject({orderBy:[{field:{fieldPath:"dueAt"},direction:"ASCENDING"}],limit:25});
+  expect(sq("scores",1)).toMatchObject({orderBy:[{field:{fieldPath:"createdAt"},direction:"DESCENDING"}],limit:10});
+  expect(JSON.stringify(sq("scores",1).where)).toContain('"stringValue":"s2"');
+  expect(sq("submissions")).toMatchObject({orderBy:[{field:{fieldPath:"submittedAt"},direction:"DESCENDING"}],limit:100});
+  expect(sq("attendance")).toMatchObject({orderBy:[{field:{fieldPath:"markedAt"},direction:"DESCENDING"}],limit:50});
+  expect(sq("invoices")).toMatchObject({orderBy:[{field:{fieldPath:"dueAt"},direction:"ASCENDING"}],limit:30});
+  expect(sq("lessonPlans")).toMatchObject({orderBy:[{field:{fieldPath:"publishedAt"},direction:"DESCENDING"}],limit:12});
+  expect(sq("announcements")).toMatchObject({orderBy:[{field:{fieldPath:"createdAt"},direction:"DESCENDING"}],limit:10});
+});
+
+test("viewer dashboard hides unpublished scores, resolved announcements and classmates",()=>{
+  const visible=viewerVisibleDashboard({
+    classes:[{id:"c1",name:"A1",studentIds:["s1","other-child"]}],
+    scores:[{id:"x",published:true},{id:"y",published:false},{id:"z"}],
+    announcements:[{id:"a"},{id:"b",resolvedAt:new Date()}],
+  });
+  expect(visible.classes).toEqual([{id:"c1",name:"A1",studentIds:[]}]);
+  expect(visible.scores.map((item)=>item.id)).toEqual(["x","z"]);
+  expect(visible.announcements.map((item)=>item.id)).toEqual(["a"]);
 });

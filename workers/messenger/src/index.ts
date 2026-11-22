@@ -1075,30 +1075,77 @@ function valueStrings(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }
 
+type FirestoreFilter = [string, "EQUAL" | "GREATER_THAN_OR_EQUAL" | "LESS_THAN_OR_EQUAL", Record<string, unknown>];
+
+function boundedQuery(collectionId: string, filters: FirestoreFilter[], orderField: string, direction: "ASCENDING" | "DESCENDING", limit: number): Record<string, unknown> {
+  const fieldFilters = filters.map(([fieldPath, op, value]) => ({ fieldFilter: { field: { fieldPath }, op, value } }));
+  return {
+    from: [{ collectionId }],
+    where: fieldFilters.length === 1 ? fieldFilters[0] : { compositeFilter: { op: "AND", filters: fieldFilters } },
+    orderBy: [{ field: { fieldPath: orderField }, direction }],
+    limit,
+  };
+}
+
+/** Giong nhanh client du phong (src/services/firestore/viewerDashboard.ts): moi query co limit + orderBy, dung index san co. */
+export function viewerDashboardQueries(classIds: string[], studentIds: string[], now: Date) {
+  const id = (value: string) => ({ stringValue: value });
+  const at = (date: Date) => ({ timestampValue: date.toISOString() });
+  const from = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const to = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  return {
+    sessions: classIds.map((classId) => boundedQuery("sessions", [["classId", "EQUAL", id(classId)], ["startAt", "GREATER_THAN_OR_EQUAL", at(from)], ["startAt", "LESS_THAN_OR_EQUAL", at(to)]], "startAt", "ASCENDING", 12)),
+    lessonPlans: classIds.map((classId) => boundedQuery("lesson_plan_public", [["classId", "EQUAL", id(classId)]], "publishedAt", "DESCENDING", 12)),
+    assignments: classIds.map((classId) => boundedQuery("assignments", [["classId", "EQUAL", id(classId)], ["status", "EQUAL", id("published")]], "dueAt", "ASCENDING", 25)),
+    submissions: studentIds.map((studentId) => boundedQuery("submissions", [["studentId", "EQUAL", id(studentId)]], "submittedAt", "DESCENDING", 100)),
+    scores: studentIds.map((studentId) => boundedQuery("scores", [["studentId", "EQUAL", id(studentId)]], "createdAt", "DESCENDING", 10)),
+    attendance: studentIds.map((studentId) => boundedQuery("attendance", [["studentId", "EQUAL", id(studentId)]], "markedAt", "DESCENDING", 50)),
+    invoices: studentIds.map((studentId) => boundedQuery("invoices", [["studentId", "EQUAL", id(studentId)]], "dueAt", "ASCENDING", 30)),
+    announcements: studentIds.map((studentId) => boundedQuery("announcements", [["studentId", "EQUAL", id(studentId)]], "createdAt", "DESCENDING", 10)),
+  };
+}
+
+/** Service account bo qua Rules: ap lai dung dieu kien viewer duoc doc (diem da cong bo, thong bao chua xu ly, khong lo ban cung lop). */
+export function viewerVisibleDashboard<T extends { classes: Record<string, unknown>[]; scores: Record<string, unknown>[]; announcements: Record<string, unknown>[] }>(parts: T): T {
+  return {
+    ...parts,
+    classes: parts.classes.map((klass) => ({ ...klass, studentIds: [] })),
+    scores: parts.scores.filter((score) => score.published !== false),
+    announcements: parts.announcements.filter((announcement) => !announcement.resolvedAt),
+  };
+}
+
+async function runStructuredQuery(structuredQuery: Record<string, unknown>, token: string, env: Env): Promise<Record<string, unknown>[]> {
+  const response = await fetch(`https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:runQuery`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ structuredQuery }),
+  });
+  if (!response.ok) throw new Error("firestore_query_failed");
+  const rows = await response.json<Array<{ document?: unknown }>>();
+  return rows.flatMap((row) => row.document ? [decodeFirestoreDocument(row.document)] : []);
+}
+
 async function materializeViewerDashboard(parentUid: string, token: string, env: Env): Promise<Record<string, unknown>> {
   const parent = await readDocument("users", parentUid, token, env);
   const studentIds = fieldStringArray(parent, "studentIds");
   const students = (await Promise.all(studentIds.map((id) => readDocument("students", id, token, env))))
     .filter(Boolean).map(decodeFirestoreDocument);
   const classIds = [...new Set(students.flatMap((student) => valueStrings(student.currentClassIds)))];
-  const classes = (await Promise.all(classIds.map((id) => readDocument("classes", id, token, env))))
+  const classRows = (await Promise.all(classIds.map((id) => readDocument("classes", id, token, env))))
     .filter(Boolean).map(decodeFirestoreDocument);
-  const courseIds = [...new Set(classes.flatMap((klass) => typeof klass.courseId === "string" ? [klass.courseId] : []))];
+  const courseIds = [...new Set(classRows.flatMap((klass) => typeof klass.courseId === "string" ? [klass.courseId] : []))];
   const courses = (await Promise.all(courseIds.map((id) => readDocument("courses", id, token, env))))
     .filter(Boolean).map(decodeFirestoreDocument);
-  const byField = async (collectionId: string, fieldPath: string, ids: string[], perId: number) => (await Promise.all(ids.map(async (id) => (
-    await queryDocuments(collectionId, token, env, { fieldPath, op: "EQUAL", value: id })
-  ).slice(0, perId).map(decodeFirestoreDocument)))).flat();
-  const [sessions, lessonPlans, assignments, submissions, scores, attendance, invoices, announcements] = await Promise.all([
-    byField("sessions", "classId", classIds, 12),
-    byField("lesson_plan_public", "classId", classIds, 12),
-    byField("assignments", "classId", classIds, 25),
-    byField("submissions", "studentId", studentIds, 100),
-    byField("scores", "studentId", studentIds, 10),
-    byField("attendance", "studentId", studentIds, 50),
-    byField("invoices", "studentId", studentIds, 30),
-    byField("announcements", "studentId", studentIds, 10),
+  const plan = viewerDashboardQueries(classIds, studentIds, new Date());
+  const run = async (queries: Record<string, unknown>[]) => (await Promise.all(queries.map((query) => runStructuredQuery(query, token, env)))).flat();
+  const [sessionRows, lessonPlans, assignments, submissions, scoreRows, attendance, invoices, announcementRows] = await Promise.all([
+    run(plan.sessions), run(plan.lessonPlans), run(plan.assignments), run(plan.submissions),
+    run(plan.scores), run(plan.attendance), run(plan.invoices), run(plan.announcements),
   ]);
+  const sessions = sessionRows.sort((a, b) => new Date(a.startAt as Date).getTime() - new Date(b.startAt as Date).getTime());
+  const visible = viewerVisibleDashboard({ classes: classRows, scores: scoreRows, announcements: announcementRows });
+  const { classes, scores, announcements } = visible;
   const submitted = new Set(submissions.flatMap((submission) => typeof submission.assignmentId === "string" ? [submission.assignmentId] : []));
   const dashboard = {
     studentIds, students, classes, courses, assignments, submissions, scores,
