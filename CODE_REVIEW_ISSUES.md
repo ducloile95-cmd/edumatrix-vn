@@ -4,6 +4,8 @@ Phạm vi review: nhánh `codex/meta-sync-full-fix` so với `origin/main`, merg
 
 ## 1. [P1] Không xóa Staff khi UID vẫn còn được phân công
 
+> **Trạng thái 23/11/2026:** đã chặn ở rules — chỉ Admin được xoá tài khoản (commit `fc4aead`, nhánh `fix/dot-1-quyen-tien-du-lieu`); kiểm tra phụ thuộc vẫn chạy ở client trước khi xoá.
+
 - File: `src/services/firestore/users.ts`
 - Vị trí: hàm `deleteUserAccount`, khoảng dòng 201–212.
 - Hiện trạng: hàm chỉ gỡ liên kết thông qua `currentUser.studentIds`, trường này thường rỗng với Teacher/Admin, rồi xóa hồ sơ `users/{uid}`.

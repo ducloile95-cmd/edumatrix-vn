@@ -92,3 +92,10 @@ Emulator dùng cho dữ liệu test có thể export/import bằng Firebase CLI;
 - Rollback nhanh nhất là đặt `UTILITY_AUTOMATION_ENABLED=false` và deploy Worker. Việc này dừng cron gửi mới nhưng giữ nguyên event/job để điều tra; chat 24 giờ và Utility thủ công không bị tắt.
 - R3.1 dùng `session_schedule_changed` cho template `class_schedule_adjustment`. Chỉ tăng `scheduleVersion` và tạo event khi thời gian bắt đầu/kết thúc thực sự đổi hoặc session lần đầu chuyển sang `cancelled`; sửa địa điểm/ghi chú hay ghi lại cùng trạng thái không gửi Messenger.
 - Event lịch dùng ID `session_schedule_changed:schedule_<sessionId>_<studentId>:v<scheduleVersion>`. Worker chỉ mở event khớp phiên bản session mới nhất, nên thay đổi cũ chưa xử lý sẽ bị bỏ qua thay vì gửi lịch đã lỗi thời.
+
+## Quyền theo vai trò (đợt 1, 23/11/2026)
+
+- Chỉ Admin được xoá cứng tài khoản, môn học, khoá học, học sinh, lớp học và đối soát thanh toán. Giáo viên vẫn tạo được hoá đơn cho lớp được phân công.
+- **Xoá tài khoản Admin:** client không xoá được tài khoản có `role == 'admin'` (`firestore.rules`). Muốn gỡ một Admin: Firebase Console → Firestore → `users/{uid}`, đổi `status` thành `disabled` hoặc xoá document; xoá tài khoản ở Authentication. Luôn giữ ít nhất 1 Admin `active`.
+- **Cấu hình thanh toán:** hoá đơn chỉ tạo được khi `settings/payment` đã cấu hình, và `bankBin/accountNumber/accountName` của hoá đơn phải trùng cấu hình đó. Kiểm tra `settings/payment` trên production trước khi deploy rules. Đổi tài khoản ngân hàng không ảnh hưởng hoá đơn cũ.
+- **Tạo nhiều hoá đơn:** client ghi theo nhóm 5 hoá đơn (giới hạn số lần đọc của rules mỗi batch). Nếu báo lỗi giữa chừng, các nhóm trước đã được tạo — kiểm tra danh sách rồi tạo lại cho học sinh còn thiếu.
