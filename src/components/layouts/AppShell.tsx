@@ -1,5 +1,6 @@
 import { Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { Outlet, useLocation } from "react-router";
+import { RouteErrorBoundary } from "@/components/feedback/RouteErrorBoundary";
 import { BottomNavigation } from "@/components/layouts/BottomNavigation";
 import { Topbar } from "@/components/layouts/Topbar";
 import { Sidebar } from "@/components/layouts/Sidebar";
@@ -41,7 +42,7 @@ export function AppShell({ children }: { children?: ReactNode }) {
         <Topbar onMenuClick={() => setSidebarOpen(true)} />
         <main ref={mainRef} id="main-content" tabIndex={-1} className="page-view w-full flex-1 px-3 pb-[calc(5rem+env(safe-area-inset-bottom))] pt-3 outline-none sm:px-4 md:pb-3 lg:px-5 lg:py-4">
           <Suspense fallback={<RouteLoadingState />}>
-            <div key={pathname} className={routeEnterClass}>{children ?? <Outlet />}</div>
+            <div key={pathname} className={routeEnterClass}><RouteErrorBoundary>{children ?? <Outlet />}</RouteErrorBoundary></div>
           </Suspense>
         </main>
         <BottomNavigation onMoreClick={() => setSidebarOpen(true)} />

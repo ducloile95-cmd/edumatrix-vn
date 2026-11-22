@@ -8,7 +8,7 @@ function manualChunks(id: string): string | undefined {
   if (
     normalizedId.includes("/node_modules/react/") ||
     normalizedId.includes("/node_modules/react-dom/") ||
-    normalizedId.includes("/node_modules/react-router-dom/") ||
+    normalizedId.includes("/node_modules/react-router/") ||
     normalizedId.includes("/node_modules/@tanstack/react-query/")
   ) {
     return "react-vendor";

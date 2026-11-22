@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router";
 import { Modal } from "@/components/ui/Modal";
 import { Tabs, Tab } from "@/components/ui/Tabs";
 import { LessonPlanForm } from "@/features/lesson-plans/components/LessonPlanForm";
@@ -10,26 +11,19 @@ import type { LessonPlanDoc, SessionDoc, StandardLessonDoc } from "@/types/acade
 type InitialSession = SessionDoc & { id: string; courseId?: string };
 
 export default function LessonPlansPage() {
-  const [searchParams, setSearchParams] = useState(() => new URLSearchParams(window.location.search));
+  const [searchParams, setSearchParams] = useSearchParams();
   const activeWorkspace = searchParams.get("workspace") || "teaching";
 
   const [formOpen, setFormOpen] = useState(() => searchParams.get("create") === "lesson-plan");
   const [editingPlan, setEditingPlan] = useState<(LessonPlanDoc & { id: string }) | null>(null);
   const [initialSession, setInitialSession] = useState<InitialSession | null>(null);
 
-  useEffect(() => {
-    const handlePopState = () => {
-      setSearchParams(new URLSearchParams(window.location.search));
-    };
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
-  }, []);
-
   const changeWorkspace = (ws: string) => {
-    const newParams = new URLSearchParams(window.location.search);
-    newParams.set("workspace", ws);
-    window.history.pushState({}, "", `${window.location.pathname}?${newParams.toString()}`);
-    setSearchParams(newParams);
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      next.set("workspace", ws);
+      return next;
+    });
   };
 
   function openCreate() {
@@ -71,7 +65,8 @@ export default function LessonPlansPage() {
   }
 
   // Pre-fill fields for standard vs session lesson plan in mode
-  const formInitialValues = initialSession
+  // Giu tham chieu on dinh: LessonPlanForm reset form moi khi initialValues doi (truoc day doi moi lan render).
+  const formInitialValues = useMemo(() => (initialSession
     ? {
         classId: initialSession.classId,
         sessionId: initialSession.id,
@@ -82,7 +77,7 @@ export default function LessonPlansPage() {
     ? {
         isStandardLesson: true,
       }
-    : undefined;
+    : undefined), [activeWorkspace, initialSession]);
 
   return (
     <div className="flex flex-col h-full bg-neutral-50">

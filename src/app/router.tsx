@@ -123,15 +123,8 @@ export function AppRouter() {
             <Route path={ROUTES.STAFF_CHAT} element={<ChatPage />} />
             <Route path={ROUTES.STAFF_SETTINGS} element={<SettingsPage />} />
 
-            {/* Admin va Teacher truy cap module Nguoi dung; UI Teacher chi mo luong xoa co preflight. */}
-            <Route
-              path={ROUTES.STAFF_USERS}
-              element={
-                <RequireRole roles={[USER_ROLES.ADMIN, USER_ROLES.TEACHER]} redirectTo={ROUTES.STAFF_DASHBOARD}>
-                  <UsersPage />
-                </RequireRole>
-              }
-            />
+            {/* Admin va Teacher truy cap module Nguoi dung (layout route da chan theo role); chi Admin xoa. */}
+            <Route path={ROUTES.STAFF_USERS} element={<UsersPage />} />
           </Route>
 
           {/* Layout route Viewer: ViewerShell boc AppShell + BottomNavigation. */}

@@ -315,6 +315,28 @@ describe("InvoicesPage", () => {
     await waitFor(() => expect(serviceMocks.getUtilityDeliveryStatus).toHaveBeenCalledWith(["invoice-1"]));
   });
 
+  test("a new confirmation does not show the previous reconcile error", async () => {
+    serviceMocks.listInvoices.mockResolvedValue([{ id: "invoice-1", invoiceCode: "HP-01", title: "Học phí", studentId: "student-1", amount: 300_000, status: "pending", dueAt: { toDate: () => new Date("2030-12-01T00:00:00"), toMillis: () => 0 } }]);
+    serviceMocks.listPayments.mockResolvedValue([{ id: "payment-1", invoiceId: "invoice-1", studentId: "student-1", amount: 300_000, status: "reported", transactionReference: "TX1", note: "" }]);
+    serviceMocks.reconcilePayment.mockRejectedValue(new Error("network"));
+    renderWithQueryClient(<InvoicesPage />);
+    fireEvent.click(await screen.findByRole("tab", { name: "Đối soát" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Xác nhận" }));
+    fireEvent.click(screen.getByRole("button", { name: "Xác nhận đã nhận tiền" }));
+    await waitFor(() => expect(screen.getAllByText("Không thể đối soát. Kiểm tra kết nối và thử lại.").length).toBeGreaterThan(1));
+    fireEvent.click(screen.getByRole("button", { name: "Hủy" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Từ chối" }));
+    expect(screen.queryAllByText("Không thể đối soát. Kiểm tra kết nối và thử lại.")).toHaveLength(0);
+  });
+
+  test("tells staff to configure the receiving account before invoicing", async () => {
+    serviceMocks.getPaymentSettings.mockResolvedValue(null);
+    renderWithQueryClient(<InvoicesPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Tạo hóa đơn" }));
+    expect(await screen.findByText(/Admin cần cấu hình tài khoản nhận tiền/)).toBeTruthy();
+  });
+
   test("lets a teacher create invoices but not reconcile payments", async () => {
     authState.value = { firebaseUser: { uid: "teacher-1" }, role: "teacher" };
     renderWithQueryClient(<InvoicesPage />);

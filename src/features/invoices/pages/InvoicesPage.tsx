@@ -332,7 +332,7 @@ export default function InvoicesPage() {
                   <li key={payment.id} className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[1.2fr_1fr_auto] lg:items-center">
                     <div><p className="text-sm font-bold text-neutral-900">{studentNameById.get(payment.studentId) ?? payment.studentId}</p><p className="mt-1 text-xs text-neutral-500">{invoice?.invoiceCode ?? payment.invoiceId} · {invoice?.title ?? "Thanh toán học phí"}</p></div>
                     <div><p className="text-lg font-bold tabular-nums text-neutral-900">{formatVnd(payment.amount)}</p><p className="mt-1 font-mono text-xs text-neutral-500">Mã GD: {payment.transactionReference || "Chưa cung cấp"}</p>{payment.note && <p className="mt-1 text-xs text-neutral-500">{payment.note}</p>}</div>
-                    <div className="flex gap-2"><Button size="sm" variant="primary" disabled={reconcile.isPending} onClick={() => setConfirming({ payment, status: "verified" })}>Xác nhận</Button><Button size="sm" variant="danger" disabled={reconcile.isPending} onClick={() => setConfirming({ payment, status: "rejected" })}>Từ chối</Button></div>
+                    <div className="flex gap-2"><Button size="sm" variant="primary" disabled={reconcile.isPending} onClick={() => { reconcile.reset(); setConfirming({ payment, status: "verified" }); }}>Xác nhận</Button><Button size="sm" variant="danger" disabled={reconcile.isPending} onClick={() => { reconcile.reset(); setConfirming({ payment, status: "rejected" }); }}>Từ chối</Button></div>
                   </li>
                 );
               })}
