@@ -58,6 +58,13 @@ describe("saveClassScores", () => {
     expect(runTransaction).not.toHaveBeenCalled();
   });
 
+  test("rejects NaN or infinite scores and max score (C4)", async () => {
+    await expect(saveClassScores({ ...baseInput, entries: [{ studentId: "student-1", score: Number.NaN, comment: "" }] })).rejects.toThrow("SCORE_INVALID");
+    await expect(saveClassScores({ ...baseInput, maxScore: Number.POSITIVE_INFINITY, entries: [{ studentId: "student-1", score: 5, comment: "" }] })).rejects.toThrow("MAX_SCORE_INVALID");
+    await expect(saveClassScores({ ...baseInput, maxScore: Number.NaN, entries: [{ studentId: "student-1", score: 5, comment: "" }] })).rejects.toThrow("MAX_SCORE_INVALID");
+    expect(runTransaction).not.toHaveBeenCalled();
+  });
+
   test("rejects blank metadata and an empty score batch before opening a transaction", async () => {
     await expect(saveClassScores({ ...baseInput, assessmentName: "  ", entries: [{ studentId: "student-1", score: 8, comment: "" }] })).rejects.toThrow("SCORE_METADATA_INVALID");
     await expect(saveClassScores({ ...baseInput, entries: [] })).rejects.toThrow("SCORES_EMPTY");

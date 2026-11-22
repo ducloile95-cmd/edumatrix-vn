@@ -313,6 +313,7 @@ async function cancelClass(classId: string): Promise<void> {
 
 /** Xoa cung lop hoc chi khi khong con bat ky du lieu nghiep vu nao tham chieu. */
 export async function deleteClass(classId: string): Promise<void> {
+  // shortcut: kiem tra phu thuoc chay ngoai transaction (dem khong lam trong transaction duoc), con mot khe nho neu ban ghi lien quan duoc tao giua chung; chi Admin xoa. Nang len neu xuat hien tham chieu treo.
   await assertDeletionAllowed("class", classId);
   const classRef = doc(db, COLLECTIONS.CLASSES, classId);
   await runTransaction(db, async (transaction) => {

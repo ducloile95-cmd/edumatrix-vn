@@ -2,6 +2,10 @@ import { describe, expect, test } from "vitest";
 import { buildVietQrImageUrl, createInvoiceCode, createPaymentContent } from "@/utils/payment";
 
 describe("payment helpers", () => {
+  test("uses the Vietnam month for the invoice code (C6)", () => {
+    // 31/07 17:30Z = 01/08 00:30 gio Viet Nam
+    expect(createInvoiceCode("hs001", "abc123XYZ", new Date("2026-07-31T17:30:00.000Z"))).toBe("HP-HS001-202608-3XYZ");
+  });
   test("creates reconcilable invoice code", () => expect(createInvoiceCode("hs001", "abc123XYZ", new Date("2026-07-01"))).toBe("HP-HS001-202607-3XYZ"));
   test("distinguishes two invoices for the same student and month", () =>
     expect(createInvoiceCode("hs001", "invoice-aaa", new Date("2026-07-01"))).not.toBe(createInvoiceCode("hs001", "invoice-bbb", new Date("2026-07-01"))));

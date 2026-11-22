@@ -342,6 +342,7 @@ export async function setStudentStatus(studentDocId: string, status: StudentStat
 }
 
 export async function deleteStudent(studentDocId: string): Promise<void> {
+  // shortcut: kiem tra phu thuoc chay ngoai transaction (dem khong lam trong transaction duoc), con mot khe nho neu ban ghi lien quan duoc tao giua chung; chi Admin xoa. Nang len neu xuat hien tham chieu treo.
   await assertDeletionAllowed("student", studentDocId);
   await runTransaction(db, async (transaction) => {
     const studentRef = doc(db, COLLECTIONS.STUDENTS, studentDocId);

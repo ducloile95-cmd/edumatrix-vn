@@ -17,7 +17,7 @@ vi.mock("firebase/firestore", () => ({
 
 vi.mock("@/services/firebase/firestoreClient", () => ({ db: {} }));
 
-import { enrollStudent, syncStudentEnrollments } from "@/services/firestore/enrollments";
+import { enrollStudent, syncStudentEnrollments, unenrollStudent } from "@/services/firestore/enrollments";
 
 describe("syncStudentEnrollments", () => {
   let studentCurrentClassIds: string[];
@@ -137,5 +137,22 @@ describe("syncStudentEnrollments", () => {
 
     await expect(enrollStudent("class-new", "student-1", "admin-1")).rejects.toThrow("student_not_active");
     expect(mocks.transactionSet).not.toHaveBeenCalled();
+  });
+});
+
+describe("unenrollStudent (C7)", () => {
+  test("removes a legacy student without an enrollment record instead of failing", async () => {
+    vi.clearAllMocks();
+    mocks.runTransaction.mockImplementation(async (_db, callback) => callback({ get: mocks.transactionGet, set: mocks.transactionSet, update: mocks.transactionUpdate }));
+    mocks.transactionGet.mockImplementation(async (ref: string) => {
+      const data = ref === "students/student-1" ? { currentClassIds: ["class-1"], teacherIds: ["t"] } : undefined;
+      return { id: ref.split("/")[1], exists: () => data !== undefined, data: () => data };
+    });
+
+    await unenrollStudent("class-1", "student-1");
+
+    const updatedRefs = mocks.transactionUpdate.mock.calls.map((call) => call[0]);
+    expect(updatedRefs).not.toContain("enrollments/class-1_student-1");
+    expect(updatedRefs).toEqual(expect.arrayContaining(["classes/class-1", "students/student-1"]));
   });
 });

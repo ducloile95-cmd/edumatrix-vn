@@ -101,12 +101,15 @@ export async function unenrollStudent(classId: string, studentId: string): Promi
       remainingClasses.flatMap((snap) => (snap.exists() ? (snap.data() as ClassDoc).teacherIds : [])),
     )];
 
-    transaction.update(enrollmentRef, {
-      status: "ended",
-      endedAt: serverTimestamp(),
-      version: Math.max(1, Number(enrollmentSnap.data()?.version ?? 1)),
-      updatedAt: serverTimestamp(),
-    });
+    // Hoc sinh cu/nhap tay co the khong co ban ghi enrollment (giong syncStudentEnrollments): bo qua thay vi loi.
+    if (enrollmentSnap.exists()) {
+      transaction.update(enrollmentRef, {
+        status: "ended",
+        endedAt: serverTimestamp(),
+        version: Math.max(1, Number(enrollmentSnap.data()?.version ?? 1)),
+        updatedAt: serverTimestamp(),
+      });
+    }
     transaction.update(doc(db, COLLECTIONS.CLASSES, classId), {
       studentIds: arrayRemove(studentId),
       updatedAt: serverTimestamp(),
