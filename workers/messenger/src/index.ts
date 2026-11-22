@@ -578,6 +578,12 @@ function firestoreDocumentId(document: unknown): string | null {
   return name.split("/").pop() || null;
 }
 
+/** offset van bi tinh phi cho moi doc bi bo qua; cursor theo __name__ chi tinh doc tra ve. */
+export function pagedStructuredQuery(baseQuery: Record<string, unknown>, lastDocumentName: string | null): Record<string, unknown> {
+  const ordered = { ...baseQuery, orderBy: [{ field: { fieldPath: "__name__" }, direction: "ASCENDING" }] };
+  return lastDocumentName ? { ...ordered, startAt: { values: [{ referenceValue: lastDocumentName }], before: false } } : ordered;
+}
+
 async function queryDocuments(
   collectionId: string,
   token: string,
@@ -598,17 +604,19 @@ async function queryDocuments(
     };
   }
   const documents: unknown[] = [];
-  for (let offset = 0; ; offset += 200) {
-    const response = await fetch(`https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:runQuery`, {
+  let lastDocumentName: string | null = null;
+  for (;;) {
+    const response: Response = await fetch(`https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:runQuery`, {
       method: "POST",
       headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-      body: JSON.stringify({ structuredQuery: { ...baseQuery, offset } }),
+      body: JSON.stringify({ structuredQuery: pagedStructuredQuery(baseQuery, lastDocumentName) }),
     });
     if (!response.ok) throw new Error("firestore_query_failed");
     const rows = await response.json<Array<{ document?: unknown }>>();
     const page = rows.flatMap((row) => row.document ? [row.document] : []);
     documents.push(...page);
     if (page.length < 200) return documents;
+    lastDocumentName = (page[page.length - 1] as { name: string }).name;
   }
 }
 
