@@ -152,7 +152,7 @@ export async function registerLeave(
       transaction.get(summaryRef),
     ]);
     const previousStatus = attendanceSnap.exists() ? (attendanceSnap.data() as AttendanceDoc).status : null;
-    const summary = summarySnap.exists()
+    const summary: Omit<AttendanceSummaryDoc, "updatedAt"> = summarySnap.exists()
       ? summarySnap.data() as AttendanceSummaryDoc
       : { sessionId, classId, total: 0, present: 0, absent: 0, late: 0, excused: 0 };
     const counts: Record<AttendanceStatus, number> = {
