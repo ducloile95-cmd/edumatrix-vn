@@ -251,15 +251,29 @@ describe("InvoicesPage", () => {
     ]));
   });
 
-  test("exposes invoice creation and reconciliation to a teacher", async () => {
-    authState.value = {
-      firebaseUser: { uid: "teacher-1" },
-      role: "teacher",
-    };
+  test("lets a teacher create invoices but not reconcile payments", async () => {
+    authState.value = { firebaseUser: { uid: "teacher-1" }, role: "teacher" };
     renderWithQueryClient(<InvoicesPage />);
 
     await screen.findByRole("button", { name: "Tạo hóa đơn" });
-    expect(screen.getByRole("tab", { name: "Đối soát" })).toBeTruthy();
+    expect(screen.queryByRole("tab", { name: "Đối soát" })).toBeNull();
     expect(serviceMocks.getPaymentSettings).toHaveBeenCalledTimes(1);
+  });
+
+  test("asks an admin to confirm before verifying a payment", async () => {
+    serviceMocks.listInvoices.mockResolvedValue([{ id: "invoice-1", invoiceCode: "HP-01", title: "Học phí", studentId: "student-1", amount: 300_000, status: "pending", dueAt: { toDate: () => new Date("2026-12-01T00:00:00"), toMillis: () => 0 } }]);
+    serviceMocks.listPayments.mockResolvedValue([{ id: "payment-1", invoiceId: "invoice-1", studentId: "student-1", amount: 300_000, status: "reported", transactionReference: "TX1", note: "" }]);
+    serviceMocks.reconcilePayment.mockResolvedValue(undefined);
+    renderWithQueryClient(<InvoicesPage />);
+
+    fireEvent.click(await screen.findByRole("tab", { name: "Đối soát" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Xác nhận" }));
+    expect(serviceMocks.reconcilePayment).not.toHaveBeenCalled();
+    expect(screen.getAllByText(/HP-01/).length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole("button", { name: "Xác nhận đã nhận tiền" }));
+    await waitFor(() => expect(serviceMocks.reconcilePayment).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "payment-1" }), "verified", "admin-1",
+    ));
   });
 });

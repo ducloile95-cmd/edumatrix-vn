@@ -55,6 +55,8 @@ export default function InvoicesPage() {
   const reducedMotion = useReducedMotion();
   const { firebaseUser, role } = useAuth();
   const canManageFinance = role === USER_ROLES.ADMIN || role === USER_ROLES.TEACHER;
+  // Q2 (spec 22/11/2026): chi Admin doi soat thanh toan; khop firestore.rules payments update.
+  const canReconcile = role === USER_ROLES.ADMIN;
   const client = useQueryClient();
   const students = useQuery({ queryKey: ["students", role, firebaseUser?.uid], queryFn: listStudents });
   const invoices = useQuery({ queryKey: ["invoices", role, firebaseUser?.uid], queryFn: listInvoices });
@@ -118,12 +120,14 @@ export default function InvoicesPage() {
     },
   });
 
+  const [confirming, setConfirming] = useState<{ payment: NonNullable<typeof payments.data>[number]; status: "verified" | "rejected" } | null>(null);
   const reconcile = useMutation({
     mutationFn: ({ payment, status }: { payment: NonNullable<typeof payments.data>[number]; status: "verified" | "rejected" }) => {
-      if (!canManageFinance) throw new Error("Tài khoản không có quyền đối soát thanh toán");
+      if (!canReconcile) throw new Error("Tài khoản không có quyền đối soát thanh toán");
       return reconcilePayment(payment, status, firebaseUser?.uid ?? "unknown");
     },
     onSuccess: () => {
+      setConfirming(null);
       client.invalidateQueries({ queryKey: ["payments"] });
       client.invalidateQueries({ queryKey: ["invoices"] });
     },
@@ -182,7 +186,7 @@ export default function InvoicesPage() {
       />
 
       <Tabs label="Điều hướng tài chính" className="mb-5">
-        {TABS.filter((tab) => canManageFinance || tab.value !== "reconcile").map((tab) => (
+        {TABS.filter((tab) => canReconcile || tab.value !== "reconcile").map((tab) => (
           <Tab
             key={tab.value}
             active={activeTab === tab.value}
@@ -241,7 +245,7 @@ export default function InvoicesPage() {
             </ChartPanel>
           </section>
 
-          {canManageFinance && financeSummary.pendingCount > 0 && (
+          {canReconcile && financeSummary.pendingCount > 0 && (
             <button type="button" onClick={() => setActiveTab("reconcile")} className="flex w-full items-center justify-between rounded-card border border-warning-100 bg-warning-50 p-4 text-left transition hover:border-warning-200">
               <span className="flex items-center gap-3"><ShieldCheck className="text-warning-700" size={21} /><span><span className="block text-sm font-bold text-neutral-900">Có {financeSummary.pendingCount} giao dịch đang chờ</span><span className="text-xs text-neutral-600">Mở hàng đợi đối soát để xác nhận hoặc từ chối.</span></span></span>
               <span className="text-sm font-bold text-warning-700">Xử lý ngay</span>
@@ -296,7 +300,7 @@ export default function InvoicesPage() {
         </DataListPanel>
       )}
 
-      {canManageFinance && activeTab === "reconcile" && (
+      {canReconcile && activeTab === "reconcile" && (
         <DataListPanel className="motion-content-enter rounded-card border border-neutral-200 bg-neutral-0 shadow-[var(--shadow-1)]">
           <div className="shrink-0 border-b border-neutral-200 p-4 sm:p-5"><div className="flex items-center justify-between gap-3"><div><h2 className="text-base font-bold text-neutral-900">Hàng đợi đối soát</h2><p className="mt-1 text-sm text-neutral-500">Kiểm tra mã giao dịch trước khi xác nhận thu tiền.</p></div><span className="rounded-full bg-warning-50 px-3 py-1 text-xs font-bold text-warning-700">{reportedPayments.length} đang chờ</span></div></div>
           <div className={DATA_LIST_SCROLL}>
@@ -310,7 +314,7 @@ export default function InvoicesPage() {
                   <li key={payment.id} className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[1.2fr_1fr_auto] lg:items-center">
                     <div><p className="text-sm font-bold text-neutral-900">{studentNameById.get(payment.studentId) ?? payment.studentId}</p><p className="mt-1 text-xs text-neutral-500">{invoice?.invoiceCode ?? payment.invoiceId} · {invoice?.title ?? "Thanh toán học phí"}</p></div>
                     <div><p className="text-lg font-bold tabular-nums text-neutral-900">{formatVnd(payment.amount)}</p><p className="mt-1 font-mono text-xs text-neutral-500">Mã GD: {payment.transactionReference || "Chưa cung cấp"}</p>{payment.note && <p className="mt-1 text-xs text-neutral-500">{payment.note}</p>}</div>
-                    <div className="flex gap-2"><Button size="sm" variant="primary" disabled={reconcile.isPending} onClick={() => reconcile.mutate({ payment, status: "verified" })}>Xác nhận</Button><Button size="sm" variant="danger" disabled={reconcile.isPending} onClick={() => reconcile.mutate({ payment, status: "rejected" })}>Từ chối</Button></div>
+                    <div className="flex gap-2"><Button size="sm" variant="primary" disabled={reconcile.isPending} onClick={() => setConfirming({ payment, status: "verified" })}>Xác nhận</Button><Button size="sm" variant="danger" disabled={reconcile.isPending} onClick={() => setConfirming({ payment, status: "rejected" })}>Từ chối</Button></div>
                   </li>
                 );
               })}
@@ -319,6 +323,31 @@ export default function InvoicesPage() {
           <div className={DATA_LIST_FOOTER}><p className="text-xs text-neutral-500">Lịch sử đã xử lý: {historyPayments.length} giao dịch</p>{reconcile.isError && <p role="alert" className="mt-1 text-xs font-semibold text-danger-700">Không thể đối soát. Kiểm tra kết nối và thử lại.</p>}</div>
         </DataListPanel>
       )}
+
+      {canReconcile && confirming && (() => {
+        const invoice = invoiceById.get(confirming.payment.invoiceId);
+        const verifying = confirming.status === "verified";
+        return (
+          <Modal open onClose={() => setConfirming(null)} size="sm"
+            title={verifying ? "Xác nhận đã nhận tiền?" : "Từ chối giao dịch?"}
+            description="Thao tác này không hoàn tác được.">
+            <dl className="space-y-1 text-sm">
+              <div><dt className="inline font-semibold">Học sinh: </dt><dd className="inline">{studentNameById.get(confirming.payment.studentId) ?? confirming.payment.studentId}</dd></div>
+              <div><dt className="inline font-semibold">Hóa đơn: </dt><dd className="inline">{invoice?.invoiceCode ?? confirming.payment.invoiceId}</dd></div>
+              <div><dt className="inline font-semibold">Số tiền: </dt><dd className="inline tabular-nums">{formatVnd(confirming.payment.amount)}</dd></div>
+              <div><dt className="inline font-semibold">Mã GD: </dt><dd className="inline font-mono">{confirming.payment.transactionReference || "Chưa cung cấp"}</dd></div>
+            </dl>
+            {reconcile.isError && <p role="alert" className="mt-3 text-sm font-semibold text-danger-700">Không thể đối soát. Kiểm tra kết nối và thử lại.</p>}
+            <div className="mt-5 flex justify-end gap-2">
+              <Button variant="secondary" disabled={reconcile.isPending} onClick={() => setConfirming(null)}>Hủy</Button>
+              <Button variant={verifying ? "primary" : "danger"} loading={reconcile.isPending}
+                onClick={() => reconcile.mutate({ payment: confirming.payment, status: confirming.status })}>
+                {verifying ? "Xác nhận đã nhận tiền" : "Từ chối giao dịch"}
+              </Button>
+            </div>
+          </Modal>
+        );
+      })()}
 
       {canManageFinance && <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Tạo hóa đơn" description="Tạo học phí theo lớp hoặc khoản thu đồ dùng học tập." size="2xl" bodyClassName="flex overflow-hidden p-0">
         <InvoiceCreationForm
