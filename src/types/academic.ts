@@ -254,6 +254,8 @@ export interface AttendanceSummaryDoc {
   absent: number;
   late: number;
   excused: number;
+  /** Si so lop luc diem danh day du (C3); du lieu cu khong co. */
+  expectedTotal?: number;
   updatedAt: Timestamp;
 }
 

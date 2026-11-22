@@ -460,6 +460,13 @@ describe("teacher scope by assigned class", () => {
     }));
   });
 
+  test("attendance summary accepts an integer expectedTotal only (C3)", async () => {
+    const teacherDb = asTeacher(assignedTeacher);
+    const summary = { sessionId: "session-owned-new", classId: "class-owned", total: 1, present: 1, absent: 0, late: 0, excused: 0, updatedAt: Timestamp.now() };
+    await assertFails(setDoc(doc(teacherDb, "attendance_summaries", "session-owned-new"), { ...summary, expectedTotal: "1" }));
+    await assertSucceeds(setDoc(doc(teacherDb, "attendance_summaries", "session-owned-new"), { ...summary, expectedTotal: 1 }));
+  });
+
   test("teacher can resolve an attendance alert for an assigned class", async () => {
     await assertSucceeds(updateDoc(
       doc(asTeacher(assignedTeacher), "announcements", "attendance_session-owned_student-1"),

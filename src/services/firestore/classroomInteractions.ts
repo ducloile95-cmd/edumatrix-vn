@@ -161,6 +161,7 @@ export async function saveClassroomDraft(input: SaveClassroomDraftInput): Promis
       sessionId: input.sessionId,
       classId: input.classId,
       total: input.entries.length,
+      expectedTotal: input.entries.length,
       ...counts,
       updatedAt: serverTimestamp(),
     }, { merge: true });

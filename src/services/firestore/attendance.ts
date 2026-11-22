@@ -110,6 +110,7 @@ export async function saveAttendance(sessionId: string, classId: string, entries
     sessionId,
     classId,
     total: entries.length,
+    expectedTotal: entries.length,
     ...counts,
     updatedAt: serverTimestamp(),
   });
@@ -167,6 +168,8 @@ export async function registerLeave(
       sessionId,
       classId,
       total: summary.total + Number(!previousStatus),
+      // Dang ky nghi chi ghi 1 hoc sinh: giu si so cua lan diem danh day du neu da co.
+      ...(summary.expectedTotal !== undefined ? { expectedTotal: summary.expectedTotal } : {}),
       ...counts,
       updatedAt: serverTimestamp(),
     });
@@ -299,10 +302,11 @@ export async function listSessionsWithoutAttendance(days = 14): Promise<(Session
   const summaryBySessionId = new Map(summaries.map((summary) => [summary.sessionId, summary]));
 
   return pastSessions.filter((session) => {
-    const rosterSize = rosterSizeByClass.get(session.classId) ?? 0;
-    if (rosterSize === 0) return false;
-    const marked = summaryBySessionId.get(session.id)?.total ?? 0;
-    return marked < rosterSize;
+    const summary = summaryBySessionId.get(session.id);
+    // So voi si so luc diem danh, khong phai si so hom nay - hoc sinh vao lop sau khong lam buoi cu thanh "thieu".
+    const expected = summary?.expectedTotal ?? rosterSizeByClass.get(session.classId) ?? 0;
+    if (expected === 0) return false;
+    return (summary?.total ?? 0) < expected;
   });
 }
 

@@ -28,7 +28,7 @@ vi.mock("@/services/firestore/classes", () => ({ listClasses }));
 vi.mock("@/services/firestore/sessions", () => ({ listSessions: vi.fn() }));
 vi.mock("@/services/firestore/students", () => ({ listStudents: vi.fn() }));
 
-import { listAttendanceByClass, listAttendanceBySession, listAttendanceBySessionIds, listAttendanceByStudents, queueAttendanceEntryWrite, saveAttendance } from "@/services/firestore/attendance";
+import { listAttendanceByClass, listAttendanceBySession, listAttendanceBySessionIds, listAttendanceByStudents, listSessionsWithoutAttendance, queueAttendanceEntryWrite, saveAttendance } from "@/services/firestore/attendance";
 
 function snapshot(offset: number, count: number) {
   return {
@@ -154,5 +154,35 @@ describe("session-scoped attendance", () => {
     expect(batchSet).toHaveBeenCalledTimes(5);
     expect(batchSet).toHaveBeenLastCalledWith(undefined, expect.objectContaining({ total: 2, present: 1, absent: 1 }));
     expect(batchCommit).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("roster size at marking time (C3)", () => {
+  const past = { toMillis: () => Date.now() - 3_600_000 };
+  beforeEach(async () => {
+    getDocs.mockReset();
+    batchSet.mockReset();
+    batchCommit.mockReset().mockResolvedValue(undefined);
+    writeBatch.mockReset().mockReturnValue({ set: batchSet, commit: batchCommit });
+    getCurrentUserDoc.mockReset().mockResolvedValue({ role: "admin" });
+    isTeacherUser.mockReset().mockReturnValue(false);
+    listClasses.mockReset().mockResolvedValue([{ id: "class-1", studentIds: ["s1", "s2", "s3"] }]);
+    const sessions = await import("@/services/firestore/sessions");
+    vi.mocked(sessions.listSessions).mockResolvedValue([{ id: "session-1", classId: "class-1", status: "completed", endAt: past }] as never);
+  });
+
+  test("saveAttendance records the roster size it was marked against", async () => {
+    await saveAttendance("session-1", "class-1", [{ studentId: "s1", status: "present", note: "" }, { studentId: "s2", status: "late", note: "" }], "teacher-1");
+    expect(batchSet).toHaveBeenLastCalledWith(undefined, expect.objectContaining({ total: 2, expectedTotal: 2 }));
+  });
+
+  test("a student who joins later does not turn a fully marked session into a gap", async () => {
+    getDocs.mockResolvedValue({ docs: [{ id: "session-1", data: () => ({ sessionId: "session-1", classId: "class-1", total: 2, expectedTotal: 2 }) }] });
+    expect(await listSessionsWithoutAttendance(14)).toEqual([]);
+  });
+
+  test("an old summary without expectedTotal still compares with today's roster", async () => {
+    getDocs.mockResolvedValue({ docs: [{ id: "session-1", data: () => ({ sessionId: "session-1", classId: "class-1", total: 2 }) }] });
+    expect((await listSessionsWithoutAttendance(14)).map((session) => session.id)).toEqual(["session-1"]);
   });
 });

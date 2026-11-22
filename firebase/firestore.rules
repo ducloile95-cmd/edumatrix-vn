@@ -875,7 +875,8 @@ service cloud.firestore {
 
     function validAttendanceSummary(data) {
       return data.keys().hasAll(['sessionId', 'classId', 'total', 'present', 'absent', 'late', 'excused', 'updatedAt']) &&
-        data.keys().hasOnly(['sessionId', 'classId', 'total', 'present', 'absent', 'late', 'excused', 'updatedAt']) &&
+        data.keys().hasOnly(['sessionId', 'classId', 'total', 'present', 'absent', 'late', 'excused', 'expectedTotal', 'updatedAt']) &&
+        (!data.keys().hasAny(['expectedTotal']) || (data.expectedTotal is int && data.expectedTotal >= 0)) &&
         data.sessionId is string && data.classId is string && data.updatedAt is timestamp &&
         data.total is int && data.total >= 0 &&
         data.present is int && data.present >= 0 &&
