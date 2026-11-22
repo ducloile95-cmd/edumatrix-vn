@@ -99,3 +99,14 @@ Emulator dùng cho dữ liệu test có thể export/import bằng Firebase CLI;
 - **Xoá tài khoản Admin:** client không xoá được tài khoản có `role == 'admin'` (`firestore.rules`). Muốn gỡ một Admin: Firebase Console → Firestore → `users/{uid}`, đổi `status` thành `disabled` hoặc xoá document; xoá tài khoản ở Authentication. Luôn giữ ít nhất 1 Admin `active`.
 - **Cấu hình thanh toán:** hoá đơn chỉ tạo được khi `settings/payment` đã cấu hình, và `bankBin/accountNumber/accountName` của hoá đơn phải trùng cấu hình đó. Kiểm tra `settings/payment` trên production trước khi deploy rules. Đổi tài khoản ngân hàng không ảnh hưởng hoá đơn cũ.
 - **Tạo nhiều hoá đơn:** client ghi theo nhóm 5 hoá đơn (giới hạn số lần đọc của rules mỗi batch). Nếu báo lỗi giữa chừng, các nhóm trước đã được tạo — kiểm tra danh sách rồi tạo lại cho học sinh còn thiếu.
+
+## Ngân sách Firestore (đợt 2, 23/11/2026)
+
+- **Mục tiêu:** 0đ/tháng trên Spark, hoặc dưới 100.000đ/tháng nếu lên Blaze. Hạn mức miễn phí: 50.000 lượt đọc, 20.000 lượt ghi, 20.000 lượt xoá mỗi ngày, 1 GiB dữ liệu. Cloudflare Workers free: 100.000 request/ngày.
+- **Theo dõi:** Firebase Console → Firestore → Usage (Reads/Writes theo ngày); Cloudflare → Workers → `edumatrix-messenger` → Metrics. Ngưỡng cần xử lý: trên 40.000 lượt đọc/ngày.
+- **Spark:** chi phí luôn 0đ; khi chạm hạn mức, app ngừng đọc/ghi đến 0h (giờ Thái Bình Dương) hôm sau. **Blaze:** Google Cloud → Billing → Budgets & alerts, budget 100.000đ/tháng, cảnh báo 50/90/100% (budget chỉ cảnh báo, không tự chặn chi).
+- **Quy tắc cho code mới:**
+  - Không dùng `refetchInterval` dưới 30 giây cho query Firestore; cần realtime thì dùng `onSnapshot` có `limit`.
+  - Poll trạng thái gửi tin dùng `utilityDeliveryRefetchInterval` (chỉ poll khi còn job đang chạy).
+  - Cache mặc định 10 phút (`src/app/providers.tsx`); không đặt `staleTime` ngắn hơn nếu không có lý do.
+  - Worker phân trang bằng cursor `__name__` (`pagedStructuredQuery`), không dùng `offset`.
