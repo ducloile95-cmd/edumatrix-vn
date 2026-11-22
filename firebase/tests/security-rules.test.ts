@@ -286,9 +286,17 @@ describe("phan quyen Admin/Teacher", () => {
     );
   });
 
-  test("Staff duoc xoa cung tai khoan nguoi khac", async () => {
-    await assertSucceeds(deleteDoc(doc(asTeacher(), "users", VIEWER_UID)));
+  test("Chi Admin duoc xoa cung tai khoan nguoi khac", async () => {
+    await assertFails(deleteDoc(doc(asTeacher(), "users", VIEWER_UID)));
     await assertSucceeds(deleteDoc(doc(asAdmin(), "users", TEACHER_UID)));
+  });
+
+  test("Khong ai duoc xoa tai khoan Admin qua client", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "users", "admin_2"), { role: "admin", status: "active", studentIds: [] });
+    });
+    await assertFails(deleteDoc(doc(asAdmin(), "users", "admin_2")));
+    await assertFails(deleteDoc(doc(asTeacher(), "users", ADMIN_UID)));
   });
 
   test("Staff khong duoc tu xoa tai khoan dang dang nhap", async () => {

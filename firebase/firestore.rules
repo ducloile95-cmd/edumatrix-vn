@@ -1003,7 +1003,7 @@ service cloud.firestore {
         request.resource.data.status == resource.data.status
       ));
 
-      allow delete: if isStaff() && request.auth.uid != uid;
+      allow delete: if isAdmin() && request.auth.uid != uid && resource.data.role != 'admin';
     }
 
     // ---------- invites/{normalizedEmail} ----------
@@ -1131,7 +1131,7 @@ service cloud.firestore {
       allow update: if isAdmin() &&
         validSubjectData(subjectId, request.resource.data) &&
         keepsImmutable(['code', 'createdAt']);
-      allow delete: if isStaff();
+      allow delete: if isAdmin();
     }
 
     // ---------- courses/{courseId} ----------
@@ -1150,7 +1150,7 @@ service cloud.firestore {
         validCourseClassRevisionUpdate() &&
         (request.resource.data.totalSessions <= 200 || request.resource.data.totalSessions == resource.data.totalSessions) &&
         keepsImmutable(['createdAt']);
-      allow delete: if isStaff();
+      allow delete: if isAdmin();
     }
 
     // ---------- billing_items/{billingItemId} ----------
@@ -1205,7 +1205,7 @@ service cloud.firestore {
             request.resource.data.parentUids == resource.data.parentUids
           )
         );
-      allow delete: if isStaff();
+      allow delete: if isAdmin();
     }
 
     // ---------- classes/{classId} ----------
@@ -1276,7 +1276,7 @@ service cloud.firestore {
             request.resource.data.status != 'cancelled'
           )
         );
-      allow delete: if isStaff();
+      allow delete: if isAdmin();
     }
 
     // ---------- enrollments/{classId_studentId} ----------

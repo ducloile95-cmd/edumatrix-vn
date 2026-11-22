@@ -203,7 +203,7 @@ describe("subjects", () => {
     await assertSucceeds(getDoc(doc(asViewer(), "subjects", "TOEIC")));
   });
 
-  test("Staff duoc xoa cung mon hoc, Viewer bi chan", async () => {
+  test("Chi Admin duoc xoa cung mon hoc", async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(doc(ctx.firestore(), "subjects", "TOEIC"), {
         name: "TOEIC", code: "TOEIC", description: "", status: "active",
@@ -211,7 +211,8 @@ describe("subjects", () => {
       });
     });
     await assertFails(deleteDoc(doc(asViewer(), "subjects", "TOEIC")));
-    await assertSucceeds(deleteDoc(doc(asTeacher(), "subjects", "TOEIC")));
+    await assertFails(deleteDoc(doc(asTeacher(), "subjects", "TOEIC")));
+    await assertSucceeds(deleteDoc(doc(asAdmin(), "subjects", "TOEIC")));
   });
 });
 
@@ -271,9 +272,10 @@ describe("courses", () => {
     );
   });
 
-  test("Staff duoc xoa cung khoa hoc, Viewer bi chan", async () => {
+  test("Chi Admin duoc xoa cung khoa hoc", async () => {
     await assertFails(deleteDoc(doc(asViewer(), "courses", "course_001")));
-    await assertSucceeds(deleteDoc(doc(asTeacher(), "courses", "course_001")));
+    await assertFails(deleteDoc(doc(asTeacher(), "courses", "course_001")));
+    await assertSucceeds(deleteDoc(doc(asAdmin(), "courses", "course_001")));
   });
 });
 
@@ -376,9 +378,10 @@ describe("students - ownership", () => {
     );
   });
 
-  test("Staff duoc xoa cung hoc sinh, Viewer bi chan", async () => {
+  test("Chi Admin duoc xoa cung hoc sinh", async () => {
     await assertFails(deleteDoc(doc(asViewer(), "students", STUDENT_OWNED)));
-    await assertSucceeds(deleteDoc(doc(asTeacher(), "students", STUDENT_OWNED)));
+    await assertFails(deleteDoc(doc(asTeacher(), "students", STUDENT_OWNED)));
+    await assertSucceeds(deleteDoc(doc(asAdmin(), "students", STUDENT_OWNED)));
     await assertSucceeds(deleteDoc(doc(asAdmin(), "students", STUDENT_OTHER)));
   });
 });
@@ -487,9 +490,10 @@ describe("classes - ownership qua studentIds", () => {
     );
   });
 
-  test("Staff duoc xoa cung lop hoc, Viewer bi chan", async () => {
+  test("Chi Admin duoc xoa cung lop hoc", async () => {
     await assertFails(deleteDoc(doc(asViewer(), "classes", "class_001")));
-    await assertSucceeds(deleteDoc(doc(asTeacher(), "classes", "class_001")));
+    await assertFails(deleteDoc(doc(asTeacher(), "classes", "class_001")));
+    await assertSucceeds(deleteDoc(doc(asAdmin(), "classes", "class_001")));
   });
 });
 
