@@ -648,14 +648,14 @@ describe("teacher scoped finance and assignment summaries", () => {
     await assertSucceeds(getDocs(collection(asTeacher(), "payments")));
   });
 
-  test("Teacher doi soat trong lop duoc phan cong, khong duoc xu ly lop khac", async () => {
+  test("Teacher khong duoc doi soat thanh toan, ke ca lop duoc phan cong", async () => {
     const db = asTeacher();
     const batch = writeBatch(db);
     batch.update(doc(db, "invoices", "invoice_assigned"), { status: "paid", updatedAt: serverTimestamp() });
     batch.update(doc(db, "payments", "payment_assigned"), {
       status: "verified", verifiedBy: TEACHER_UID, verifiedAt: serverTimestamp(), updatedAt: serverTimestamp(),
     });
-    await assertSucceeds(batch.commit());
+    await assertFails(batch.commit());
     await assertFails(updateDoc(doc(asTeacher(), "payments", "payment_other"), {
       status: "verified", verifiedBy: TEACHER_UID, verifiedAt: serverTimestamp(), updatedAt: serverTimestamp(),
     }));

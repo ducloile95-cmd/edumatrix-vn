@@ -356,7 +356,7 @@ describe("Phase 9 payment", () => {
     await assertSucceeds(batch.commit());
   });
 
-  test("assigned teacher verifies payment and its invoice atomically", async () => {
+  test("assigned teacher cannot verify payments (admin only)", async () => {
     await env.withSecurityRulesDisabled(async (ctx) => {
       await updateDoc(doc(ctx.firestore(), "invoices", "invoice-1"), { status: "pending" });
     });
@@ -366,7 +366,7 @@ describe("Phase 9 payment", () => {
       status: "verified", verifiedBy: "teacher", verifiedAt: Timestamp.now(), updatedAt: Timestamp.now(),
     });
     batch.update(doc(db, "invoices", "invoice-1"), { status: "paid", updatedAt: Timestamp.now() });
-    await assertSucceeds(batch.commit());
+    await assertFails(batch.commit());
   });
 });
 
