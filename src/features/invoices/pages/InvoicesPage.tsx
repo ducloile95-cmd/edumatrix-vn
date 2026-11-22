@@ -33,7 +33,7 @@ import type { InvoiceStatus } from "@/types/academic";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { USER_ROLES } from "@/constants/roles";
 import { INVOICE_STATUS_LABEL, INVOICE_STATUS_TONE } from "@/features/invoices/constants";
-import { getUtilityDeliveryStatus, retryUtilityDeliveryJob, summarizeUtilityDelivery, type UtilityDeliveryAggregateStatus } from "@/services/integrations/messenger";
+import { getUtilityDeliveryStatus, retryUtilityDeliveryJob, summarizeUtilityDelivery, utilityDeliveryRefetchInterval, type UtilityDeliveryAggregateStatus } from "@/services/integrations/messenger";
 
 type FinanceTab = "overview" | "invoices" | "reconcile";
 
@@ -87,7 +87,7 @@ export default function InvoicesPage() {
     queryKey: ["utility-delivery", "finance", utilityEntityIds.join(",")],
     queryFn: () => getUtilityDeliveryStatus(utilityEntityIds),
     enabled: canManageFinance && utilityEntityIds.length > 0,
-    refetchInterval: 10_000,
+    refetchInterval: (query) => utilityDeliveryRefetchInterval(query.state.data),
   });
   const retryDelivery = useMutation({
     mutationFn: (jobIds: string[]) => Promise.all(jobIds.map(retryUtilityDeliveryJob)),

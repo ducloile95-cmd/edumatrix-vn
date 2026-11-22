@@ -65,6 +65,7 @@ vi.mock("@/services/integrations/messenger", () => ({
   getUtilityDeliveryStatus: serviceMocks.getUtilityDeliveryStatus,
   retryUtilityDeliveryJob: serviceMocks.retryUtilityDeliveryJob,
   summarizeUtilityDelivery: () => ({ status: "pending", detail: "Đã xếp hàng", retryableJobIds: [] }),
+  utilityDeliveryRefetchInterval: () => false,
 }));
 
 vi.mock("@/services/firestore/classroomInteractions", async (importOriginal) => {

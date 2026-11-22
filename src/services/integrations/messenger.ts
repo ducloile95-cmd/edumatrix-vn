@@ -193,6 +193,15 @@ export interface UtilityDeliveryStatusResponse {
 
 export type UtilityDeliveryAggregateStatus = "pending" | "sent" | "failed" | "skipped" | "none";
 
+const ACTIVE_DELIVERY_STATUSES = new Set(["pending", "processing"]);
+
+/** Poll cham va chi khi con viec dang chay: moi lan poll la vai chuc luot doc Firestore qua Worker. */
+export function utilityDeliveryRefetchInterval(response: UtilityDeliveryStatusResponse | undefined): number | false {
+  if (!response) return 30_000;
+  const active = [...response.jobs, ...response.events].some((item) => ACTIVE_DELIVERY_STATUSES.has(item.status));
+  return active ? 30_000 : false;
+}
+
 export function summarizeUtilityDelivery(response: UtilityDeliveryStatusResponse | undefined, entityId: string): {
   status: UtilityDeliveryAggregateStatus;
   detail: string;

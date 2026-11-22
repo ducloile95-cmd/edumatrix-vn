@@ -30,7 +30,7 @@ import {
   type ClassroomStudentEntry,
   type PublishStudentResult,
 } from "@/services/firestore/classroomInteractions";
-import { getUtilityDeliveryStatus, retryUtilityDeliveryJob, summarizeUtilityDelivery } from "@/services/integrations/messenger";
+import { getUtilityDeliveryStatus, retryUtilityDeliveryJob, summarizeUtilityDelivery, utilityDeliveryRefetchInterval } from "@/services/integrations/messenger";
 import { getSession, listSessionsByClass } from "@/services/firestore/sessions";
 import { getLessonPlanBySession } from "@/services/firestore/lessonPlans";
 import { listStudentsByIds } from "@/services/firestore/students";
@@ -143,7 +143,7 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
     queryKey: ["utility-delivery", "lesson-feedback", sessionId, deliveryEntityIds.join(",")],
     queryFn: () => getUtilityDeliveryStatus(deliveryEntityIds),
     enabled: isPublished && deliveryEntityIds.length > 0,
-    refetchInterval: 5_000,
+    refetchInterval: (query) => utilityDeliveryRefetchInterval(query.state.data),
   });
   const blockers = classroomPublishBlockers({
     students: publishStudents,

@@ -10,7 +10,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import type { StudentDoc } from "@/types/academic";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { getUtilityDeliveryStatus, retryUtilityDeliveryJob, summarizeUtilityDelivery } from "@/services/integrations/messenger";
+import { getUtilityDeliveryStatus, retryUtilityDeliveryJob, summarizeUtilityDelivery, utilityDeliveryRefetchInterval } from "@/services/integrations/messenger";
 
 interface EnrollmentManagerProps {
   classId: string;
@@ -63,7 +63,7 @@ export function EnrollmentManager({ classId, enrolledStudentIds, canUnenroll = t
     queryKey: ["utility-delivery", "enrollment", classId, deliveryEntityIds.join(",")],
     queryFn: () => getUtilityDeliveryStatus(deliveryEntityIds),
     enabled: deliveryEntityIds.length > 0,
-    refetchInterval: 10_000,
+    refetchInterval: (query) => utilityDeliveryRefetchInterval(query.state.data),
   });
   const retryDelivery = useMutation({
     mutationFn: (jobIds: string[]) => Promise.all(jobIds.map(retryUtilityDeliveryJob)),

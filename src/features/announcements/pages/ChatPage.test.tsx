@@ -75,6 +75,7 @@ vi.mock("@/services/integrations/messenger", () => {
     sendMessenger: serviceMocks.sendMessenger,
     retryUtilityDeliveryJob: vi.fn(),
     summarizeUtilityDelivery: () => ({ status: "none", detail: "", retryableJobIds: [] }),
+    utilityDeliveryRefetchInterval: () => false,
     syncMessengerThreadContexts: serviceMocks.syncMessengerThreadContexts,
   };
 });

@@ -4,7 +4,7 @@ vi.mock("@/services/firebase/authClient", () => ({
   auth: { currentUser: { getIdToken: vi.fn().mockResolvedValue("firebase-id-token") } },
 }));
 
-import { createMessengerInviteLink, friendlyMessengerError, sendMessenger, summarizeUtilityDelivery, syncMessengerThreadContexts } from "@/services/integrations/messenger";
+import { createMessengerInviteLink, friendlyMessengerError, sendMessenger, summarizeUtilityDelivery, syncMessengerThreadContexts, utilityDeliveryRefetchInterval } from "@/services/integrations/messenger";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -101,5 +101,19 @@ describe("Messenger integration adapter", () => {
     expect(summarizeUtilityDelivery({ events: [], jobs: [
       { ...base, id: "job-4", status: "skipped", lastErrorCode: "meta_delivery_outcome_unknown" },
     ] }, "invoice-1")).toMatchObject({ status: "skipped", retryableJobIds: [], detail: expect.stringContaining("không gửi lại tự động") });
+  });
+});
+
+describe("utilityDeliveryRefetchInterval", () => {
+  const item = (status: string) => ({ id: status, entityId: "e1", status }) as never;
+  test("polls every 30s while a job or event is pending or processing", () => {
+    expect(utilityDeliveryRefetchInterval({ jobs: [item("processing")], events: [] })).toBe(30_000);
+    expect(utilityDeliveryRefetchInterval({ jobs: [], events: [item("pending")] })).toBe(30_000);
+  });
+  test("stops polling once everything is terminal", () => {
+    expect(utilityDeliveryRefetchInterval({ jobs: [item("sent"), item("failed"), item("skipped")], events: [item("expanded")] })).toBe(false);
+  });
+  test("polls once more when nothing has loaded yet", () => {
+    expect(utilityDeliveryRefetchInterval(undefined)).toBe(30_000);
   });
 });

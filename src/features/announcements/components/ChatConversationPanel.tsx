@@ -8,7 +8,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { loadOlderMessages, subscribeChatMessages } from "@/services/firestore/chat";
 import { listStudents } from "@/services/firestore/students";
 import { listUsersByIds } from "@/services/firestore/users";
-import { createMessengerInviteLink, deleteMessengerConversation, getUtilityDeliveryStatus, isMessengerInviteConfigured, linkMessengerConversation, MessengerSendError, retryUtilityDeliveryJob, sendMessenger, summarizeUtilityDelivery } from "@/services/integrations/messenger";
+import { createMessengerInviteLink, deleteMessengerConversation, getUtilityDeliveryStatus, isMessengerInviteConfigured, linkMessengerConversation, MessengerSendError, retryUtilityDeliveryJob, sendMessenger, summarizeUtilityDelivery, utilityDeliveryRefetchInterval } from "@/services/integrations/messenger";
 import { queryKeys } from "@/hooks/queryKeys";
 import type { ChatMessageDoc, ChatTagDoc, ChatThreadDoc } from "@/types/chat";
 import type { UserDoc } from "@/types/user";
@@ -139,7 +139,7 @@ export function ConversationContext({ thread, parent, tags, onRemoveTag, onManag
     queryKey: ["utility-delivery", "parent-link", thread.id],
     queryFn: () => getUtilityDeliveryStatus([thread.id]),
     enabled: thread.linkStatus !== "unlinked",
-    refetchInterval: 10_000,
+    refetchInterval: (query) => utilityDeliveryRefetchInterval(query.state.data),
   });
   const linkConfirmation = summarizeUtilityDelivery(utilityDelivery.data, thread.id);
   const retryConfirmation = useMutation({
