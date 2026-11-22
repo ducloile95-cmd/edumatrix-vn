@@ -51,38 +51,44 @@ export async function createInvoice(input: CreateInvoiceInput): Promise<void> {
   await createInvoices([input]);
 }
 
-/** Phát hành nhiều hóa đơn trong một batch để tránh chỉ tạo được một phần danh sách. */
+const INVOICES_PER_BATCH = 5;
+
+/** Phát hành nhiều hóa đơn theo từng nhóm nguyên tử (xem INVOICES_PER_BATCH). */
 export async function createInvoices(inputs: CreateInvoiceInput[]): Promise<void> {
   if (inputs.length === 0) return;
-  // Moi hoa don kem mot event intent trong cung batch (toi da 500 writes).
+  // Moi hoa don kem mot event intent trong cung batch.
   if (inputs.length > 250) throw new Error("invoice_batch_limit");
 
-  const batch = writeBatch(db);
-  inputs.forEach((input) => {
-    const invoiceRef = doc(collection(db, COLLECTIONS.INVOICES));
-    const invoiceCode = createInvoiceCode(input.studentId, invoiceRef.id);
-    const { actorUid, ...invoiceData } = input;
+  // shortcut: rules chi duoc doc ~20 document moi batch; nhom 5 hoa don (+5 event) da test o phase9.
+  // Moi nhom la nguyen tu, khong phai ca lop. Tang khi Firestore noi gioi han truy cap.
+  for (let offset = 0; offset < inputs.length; offset += INVOICES_PER_BATCH) {
+    const batch = writeBatch(db);
+    inputs.slice(offset, offset + INVOICES_PER_BATCH).forEach((input) => {
+      const invoiceRef = doc(collection(db, COLLECTIONS.INVOICES));
+      const invoiceCode = createInvoiceCode(input.studentId, invoiceRef.id);
+      const { actorUid, ...invoiceData } = input;
 
-    batch.set(invoiceRef, {
-      ...invoiceData,
-      invoiceCode,
-      paymentContent: createPaymentContent(invoiceCode),
-      dueAt: Timestamp.fromDate(input.dueAt),
-      status: "unpaid",
-      createdBy: actorUid,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+      batch.set(invoiceRef, {
+        ...invoiceData,
+        invoiceCode,
+        paymentContent: createPaymentContent(invoiceCode),
+        dueAt: Timestamp.fromDate(input.dueAt),
+        status: "unpaid",
+        createdBy: actorUid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      queueUtilityDeliveryEvent(batch, {
+        eventType: "invoice_committed",
+        entityId: invoiceRef.id,
+        sourceId: invoiceRef.id,
+        studentId: input.studentId,
+        version: 1,
+        actorUid,
+      });
     });
-    queueUtilityDeliveryEvent(batch, {
-      eventType: "invoice_committed",
-      entityId: invoiceRef.id,
-      sourceId: invoiceRef.id,
-      studentId: input.studentId,
-      version: 1,
-      actorUid,
-    });
-  });
-  await batch.commit();
+    await batch.commit();
+  }
 }
 
 async function listAllDocuments(collectionName: string, baseConstraints: QueryConstraint[], pageSize: number): Promise<QueryDocumentSnapshot<DocumentData, DocumentData>[]> {

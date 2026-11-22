@@ -99,6 +99,13 @@ describe("createInvoices", () => {
     expect(firestore.batchCommit).toHaveBeenCalledTimes(1);
   });
 
+  test("commits invoices in groups of 5 to stay under the rules lookup limit", async () => {
+    await createInvoices(Array.from({ length: 12 }, (_, index) => ({ ...baseInput, studentId: `student-${index}` })));
+
+    expect(firestore.batchSet).toHaveBeenCalledTimes(24);
+    expect(firestore.batchCommit).toHaveBeenCalledTimes(3);
+  });
+
   test("rejects a batch larger than the Firestore limit", async () => {
     await expect(createInvoices(Array.from({ length: 251 }, (_, index) => ({
       ...baseInput,

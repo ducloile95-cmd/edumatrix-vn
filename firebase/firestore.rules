@@ -919,6 +919,20 @@ service cloud.firestore {
         getAfter(/databases/$(database)/documents/invoices/$(data.invoiceId)).data.studentId == data.studentId;
     }
 
+    // Tien hoc phi chi duoc chuyen ve tai khoan trung tam dang cau hinh.
+    function matchesPaymentSettings(data) {
+      let payment = get(/databases/$(database)/documents/settings/payment).data;
+      return data.bankBin == payment.bankBin &&
+        data.accountNumber == payment.accountNumber &&
+        data.accountName == payment.accountName;
+    }
+
+    // Khop InvoiceCreationForm: pricePerSession, neu khoa cu thi round(tuitionFee / totalSessions).
+    function coursePricePerSession(courseId) {
+      let course = get(/databases/$(database)/documents/courses/$(courseId)).data;
+      return 'pricePerSession' in course ? course.pricePerSession : math.round(course.tuitionFee / course.totalSessions);
+    }
+
     function validInvoiceData(data) {
       return data.keys().hasAll([
           'invoiceCode', 'studentId', 'courseId', 'title', 'amount', 'dueAt',
@@ -1639,12 +1653,17 @@ service cloud.firestore {
     match /invoices/{invoiceId} {
       allow read: if isStaff() || ownsStudent(resource.data.studentId);
       allow create: if (isAdmin() || (
-          isTeacher() && request.resource.data.classId is string &&
+          isTeacher() &&
+          request.resource.data.get('sourceType', null) in ['class', 'billing_item'] &&
+          request.resource.data.classId is string &&
           isAssignedTeacherForClass(request.resource.data.classId)
         )) &&
         request.resource.data.createdBy == request.auth.uid &&
         request.resource.data.status == 'unpaid' &&
-        validInvoiceData(request.resource.data);
+        validInvoiceData(request.resource.data) &&
+        matchesPaymentSettings(request.resource.data) &&
+        (request.resource.data.get('sourceType', null) != 'class' ||
+          request.resource.data.unitPriceSnapshot == coursePricePerSession(request.resource.data.courseId));
       allow update: if keepsImmutable(
         ['invoiceCode', 'studentId', 'courseId', 'amount', 'paymentContent', 'bankBin', 'accountNumber', 'accountName', 'createdBy', 'createdAt', 'sourceType', 'sourceId', 'classId', 'subjectId', 'billingItemId', 'itemNameSnapshot', 'unitPriceSnapshot', 'quantity']
       ) && validInvoiceData(request.resource.data) && (
