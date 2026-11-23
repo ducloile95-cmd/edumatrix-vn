@@ -276,6 +276,20 @@ describe("InvoicesPage", () => {
     ]));
   });
 
+  test("re-billing sessions of a void invoice gets a new invoice id", async () => {
+    serviceMocks.listInvoices.mockResolvedValue([{
+      id: "invoice-void", studentId: "student-1", sourceType: "class", sourceId: "class-1", status: "void",
+      quantity: 2, amount: 200_000, dueAt: { toDate: () => new Date("2026-08-15") },
+    }]);
+    renderWithQueryClient(<InvoicesPage />);
+    await openAndFillInvoiceForm();
+    fireEvent.click(screen.getByRole("button", { name: "Tạo 1 hóa đơn" }));
+
+    await waitFor(() => expect(serviceMocks.createInvoices).toHaveBeenCalledWith([
+      expect.objectContaining({ studentId: "student-1", quantity: 2, billedSessionsBefore: 0, priorClassInvoiceCount: 1 }),
+    ]));
+  });
+
   test("lets an admin void an unpaid invoice after confirming", async () => {
     serviceMocks.voidInvoice.mockResolvedValue(undefined);
     serviceMocks.getUtilityDeliveryStatus.mockResolvedValue({ jobs: [], events: [] });

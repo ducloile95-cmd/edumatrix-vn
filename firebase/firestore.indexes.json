@@ -141,6 +141,14 @@
       ]
     },
     {
+      "collectionGroup": "invoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "studentId", "order": "ASCENDING" },
+        { "fieldPath": "dueAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "messenger_delivery_events",
       "queryScope": "COLLECTION",
       "fields": [

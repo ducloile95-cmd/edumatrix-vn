@@ -106,6 +106,7 @@ export default function InvoicesPage() {
       unitPriceSnapshot: values.unitPriceSnapshot,
       quantity: values.studentCharges[studentId].quantity,
       billedSessionsBefore: values.studentCharges[studentId].billedSessionsBefore,
+      priorClassInvoiceCount: values.studentCharges[studentId].priorClassInvoiceCount,
     }))),
     // Mot phan da ghi: tai lai hoa don de so buoi da tinh tien dung truoc khi thu lai.
     onError: (error) => { if (error instanceof InvoiceBatchPartialError) client.invalidateQueries({ queryKey: ["invoices"] }); },

@@ -49,6 +49,8 @@ export interface CreateInvoiceInput {
   quantity: number;
   /** So buoi da tinh tien truoc hoa don nay (hoa don lop) - tao ID tat dinh chong tao trung. */
   billedSessionsBefore?: number;
+  /** So hoa don lop da co cua hoc sinh (ke ca da huy) - dua vao ID de lap lai sau khi huy khong trung ID. */
+  priorClassInvoiceCount?: number;
 }
 
 export async function createInvoice(input: CreateInvoiceInput): Promise<void> {
@@ -70,10 +72,10 @@ export async function createInvoices(inputs: CreateInvoiceInput[]): Promise<void
     const group = inputs.slice(offset, offset + INVOICES_PER_BATCH);
     const batch = writeBatch(db);
     group.forEach((input) => {
-      const { actorUid, billedSessionsBefore, ...invoiceData } = input;
+      const { actorUid, billedSessionsBefore, priorClassInvoiceCount, ...invoiceData } = input;
       // Hoa don lop: cung lop/hoc sinh/so buoi da tinh -> cung ID; rules khong cho ghi de (createdAt bat bien).
       const invoiceRef = input.sourceType === "class" && input.classId && billedSessionsBefore !== undefined
-        ? doc(db, COLLECTIONS.INVOICES, stableDocumentId(["class", input.classId, input.studentId, String(billedSessionsBefore), String(input.quantity)]))
+        ? doc(db, COLLECTIONS.INVOICES, stableDocumentId(["class", input.classId, input.studentId, String(billedSessionsBefore), String(input.quantity), String(priorClassInvoiceCount ?? 0)]))
         : doc(collection(db, COLLECTIONS.INVOICES));
       const invoiceCode = createInvoiceCode(input.studentId, invoiceRef.id);
 
@@ -154,7 +156,8 @@ export async function listInvoicePreviewsByStudents(ids: string[], maxPerStudent
   const groups = await Promise.all([...new Set(ids)].filter(Boolean).map(async (studentId) => {
     const documents = await listQueryDocumentsPage(
       COLLECTIONS.INVOICES,
-      [where("studentId", "==", studentId), orderBy("dueAt", "asc")],
+      // Moi nhat truoc: lay N cu nhat roi loc "da tra" se giau hoa don chua tra moi sau khoang N hoa don.
+      [where("studentId", "==", studentId), orderBy("dueAt", "desc")],
       maxPerStudent,
     );
     return documents.map((item) => ({ id: item.id, ...(item.data() as InvoiceDoc) }));

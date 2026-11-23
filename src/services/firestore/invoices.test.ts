@@ -123,9 +123,11 @@ describe("createInvoices", () => {
   });
 
   test("gives class invoices a deterministic id so a double submit cannot create a second one", async () => {
-    await createInvoices([{ ...baseInput, sourceType: "class", sourceId: "class-1", classId: "class-1", billingItemId: null, subjectId: null, studentId: "student-1", quantity: 3, billedSessionsBefore: 8 }]);
+    await createInvoices([{ ...baseInput, sourceType: "class", sourceId: "class-1", classId: "class-1", billingItemId: null, subjectId: null, studentId: "student-1", quantity: 3, billedSessionsBefore: 8, priorClassInvoiceCount: 2 }]);
 
-    expect(firestore.batchSet.mock.calls[0][0]).toMatchObject({ id: "class_class-1_student-1_8_3" });
+    // priorClassInvoiceCount gom ca hoa don da huy: lap lai sau khi huy ra ID moi.
+    expect(firestore.batchSet.mock.calls[0][0]).toMatchObject({ id: "class_class-1_student-1_8_3_2" });
+    expect(firestore.batchSet.mock.calls[0][1]).not.toHaveProperty("priorClassInvoiceCount");
     expect(firestore.batchSet.mock.calls[0][1]).not.toHaveProperty("billedSessionsBefore");
   });
 

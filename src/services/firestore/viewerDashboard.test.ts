@@ -105,6 +105,7 @@ describe("buildViewerDashboard course reads", () => {
     serviceMocks.listInvoicePreviewsByStudents.mockResolvedValue([
       { id: "invoice-1", studentId: "student-1", status: "unpaid", dueAt: { toMillis: () => 1 } },
       { id: "invoice-2", studentId: "student-2", status: "unpaid", dueAt: { toMillis: () => 2 } },
+      { id: "invoice-void", studentId: "student-2", status: "void", dueAt: { toMillis: () => 3 } },
     ]);
     serviceMocks.listAttendancePreviewsByStudents.mockResolvedValue([
       { id: "attendance-1", studentId: "student-1" },

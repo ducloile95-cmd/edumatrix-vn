@@ -114,7 +114,7 @@ export async function buildViewerDashboard(studentIds: string[], parentUid?: str
     pendingAssignments: assignments.filter((assignment) => !submitted.has(assignment.id)),
     latestScores: scores,
     attendance,
-    unpaidInvoices: invoices.filter((invoice) => invoice.status !== "paid"),
+    unpaidInvoices: invoices.filter((invoice) => invoice.status !== "paid" && invoice.status !== "void"),
     announcements,
     updatedAt: null,
   };

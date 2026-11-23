@@ -1100,7 +1100,7 @@ export function viewerDashboardQueries(classIds: string[], studentIds: string[],
     submissions: studentIds.map((studentId) => boundedQuery("submissions", [["studentId", "EQUAL", id(studentId)]], "submittedAt", "DESCENDING", 100)),
     scores: studentIds.map((studentId) => boundedQuery("scores", [["studentId", "EQUAL", id(studentId)]], "createdAt", "DESCENDING", 10)),
     attendance: studentIds.map((studentId) => boundedQuery("attendance", [["studentId", "EQUAL", id(studentId)]], "markedAt", "DESCENDING", 50)),
-    invoices: studentIds.map((studentId) => boundedQuery("invoices", [["studentId", "EQUAL", id(studentId)]], "dueAt", "ASCENDING", 30)),
+    invoices: studentIds.map((studentId) => boundedQuery("invoices", [["studentId", "EQUAL", id(studentId)]], "dueAt", "DESCENDING", 30)),
     announcements: studentIds.map((studentId) => boundedQuery("announcements", [["studentId", "EQUAL", id(studentId)]], "createdAt", "DESCENDING", 10)),
   };
 }
@@ -1113,6 +1113,10 @@ export function viewerVisibleDashboard<T extends { classes: Record<string, unkno
     scores: parts.scores.filter((score) => score.published !== false),
     announcements: parts.announcements.filter((announcement) => !announcement.resolvedAt),
   };
+}
+
+export function viewerUnpaidInvoices<T extends Record<string, unknown>>(invoices: T[]): T[] {
+  return invoices.filter((invoice) => invoice.status !== "paid" && invoice.status !== "void");
 }
 
 async function runStructuredQuery(structuredQuery: Record<string, unknown>, token: string, env: Env): Promise<Record<string, unknown>[]> {
@@ -1155,7 +1159,7 @@ async function materializeViewerDashboard(parentUid: string, token: string, env:
     pendingAssignments: assignments.filter((assignment) => !submitted.has(String(assignment.id))),
     latestScores: scores,
     attendance,
-    unpaidInvoices: invoices.filter((invoice) => invoice.status !== "paid"),
+    unpaidInvoices: viewerUnpaidInvoices(invoices),
     announcements,
     updatedAt: new Date(),
   };

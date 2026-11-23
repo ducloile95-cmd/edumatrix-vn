@@ -12,7 +12,7 @@ type BillingMode = "class" | "item";
 export interface InvoiceCreationValues {
   studentIds: string[];
   studentClassIds: Record<string, string>;
-  studentCharges: Record<string, { amount: number; quantity: number; billedSessionsBefore: number }>;
+  studentCharges: Record<string, { amount: number; quantity: number; billedSessionsBefore: number; priorClassInvoiceCount: number }>;
   courseId: string;
   title: string;
   dueAt: Date;
@@ -121,6 +121,15 @@ export function InvoiceCreationForm({
     });
     return counts;
   }, [invoices, selectedClass]);
+  // Gom ca hoa don da huy: lap lai cac buoi cua hoa don da huy phai ra ID moi (khong trung ID hoa don void).
+  const priorClassInvoiceCountByStudent = useMemo(() => {
+    const counts = new Map<string, number>();
+    if (!selectedClass) return counts;
+    invoices.forEach((invoice) => {
+      if (invoice.sourceType === "class" && invoice.sourceId === selectedClass.id) counts.set(invoice.studentId, (counts.get(invoice.studentId) ?? 0) + 1);
+    });
+    return counts;
+  }, [invoices, selectedClass]);
   const unitPrice = selectedBillingItem?.unitPrice ?? (selectedCourse
     ? selectedCourse.pricePerSession ?? Math.round(selectedCourse.tuitionFee / selectedCourse.totalSessions)
     : 0);
@@ -181,6 +190,7 @@ export function InvoiceCreationForm({
             amount: amountForStudent(student.id),
             quantity: quantityForStudent(student.id),
             billedSessionsBefore: billedSessionCountByStudent.get(student.id) ?? 0,
+            priorClassInvoiceCount: priorClassInvoiceCountByStudent.get(student.id) ?? 0,
           }])),
           courseId: selectedCourse.id,
           title: title.trim(),

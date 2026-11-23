@@ -143,7 +143,7 @@ export default function ViewerDashboardPage() {
       .filter((session) => classIdSet.has(session.classId) && session.status !== "cancelled")
       .sort((a, b) => a.startAt.toMillis() - b.startAt.toMillis());
     const unpaidInvoices = data.unpaidInvoices
-      .filter((invoice) => invoice.studentId === student.id && invoice.status !== "paid")
+      .filter((invoice) => invoice.studentId === student.id && invoice.status !== "paid" && invoice.status !== "void")
       .sort((a, b) => a.dueAt.toMillis() - b.dueAt.toMillis());
     const announcements = data.announcements.filter((item) => !item.studentId || item.studentId === student.id);
 
