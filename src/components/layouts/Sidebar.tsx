@@ -245,7 +245,7 @@ export function Sidebar({ collapsed, mobileOpen, onClose, onToggle }: SidebarPro
   return (
     <>
       <button
-        className={`fixed inset-0 z-30 bg-neutral-900/40 transition-opacity duration-standard lg:hidden ${mobileOpen ? "opacity-100 backdrop-blur-[2px]" : "pointer-events-none opacity-0"}`}
+        className={`fixed inset-0 z-30 bg-ink/40 transition-opacity duration-standard lg:hidden ${mobileOpen ? "opacity-100 backdrop-blur-[2px]" : "pointer-events-none opacity-0"}`}
         aria-label="Đóng menu điều hướng"
         aria-hidden={!mobileOpen}
         tabIndex={mobileOpen ? 0 : -1}
@@ -272,7 +272,7 @@ export function Sidebar({ collapsed, mobileOpen, onClose, onToggle }: SidebarPro
         </div>
 
         <div className={`px-4 pb-3 transition-opacity duration-fast ${collapsed ? "lg:pointer-events-none lg:h-0 lg:overflow-hidden lg:px-2 lg:pb-0 lg:opacity-0" : "opacity-100"}`}>
-          <label className="flex h-9 items-center gap-2 rounded-input border border-neutral-200 bg-neutral-50 px-2.5 text-neutral-500 shadow-[0_1px_2px_rgba(15,23,42,.04)] focus-within:border-primary-400 focus-within:bg-neutral-0 focus-within:ring-2 focus-within:ring-primary-100">
+          <label className="flex h-9 items-center gap-2 rounded-input border border-neutral-200 bg-neutral-50 px-2.5 text-neutral-500 shadow-xs focus-within:border-primary-400 focus-within:bg-neutral-0 focus-within:ring-2 focus-within:ring-primary-100">
             <Search size={16} className="shrink-0" />
             <input
               value={query}
@@ -325,7 +325,7 @@ export function Sidebar({ collapsed, mobileOpen, onClose, onToggle }: SidebarPro
             title={collapsed ? userDoc?.displayName ?? "Tài khoản" : undefined}
             className="flex w-full items-center gap-2.5 rounded-input bg-neutral-100 p-2 text-left transition hover:bg-neutral-200/70"
           >
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-gradient-to-br from-primary-500 to-primary-700 text-xs font-semibold text-white shadow-[0_6px_16px_rgba(35,72,214,.18)]">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-input bg-primary-600 text-xs font-semibold text-white">
               {userDoc?.displayName?.trim().charAt(0).toUpperCase() || "E"}
             </span>
             <span className={`min-w-0 flex-1 transition-opacity duration-fast ${collapsed ? "lg:pointer-events-none lg:opacity-0" : "opacity-100"}`}>

@@ -1,11 +1,13 @@
+// Gia tri attribute SVG khong doc duoc var(); mau theo theme do CSS .recharts-* trong index.css ghi de.
 export const CHART_GRID_COLOR = "#EEECEA";
 export const CHART_ANIMATION_DURATION = 600;
 export const CHART_AXIS_TICK = { fontSize: 10, fill: "#78746D" } as const;
 export const CHART_TOOLTIP_STYLE = {
   borderRadius: 12,
-  border: "1px solid #E7E5E2",
-  background: "rgba(255,255,255,.98)",
-  boxShadow: "0 16px 38px rgba(28,51,137,.18), inset 0 1px rgba(255,255,255,.9)",
+  border: "1px solid rgb(var(--n-200))",
+  background: "rgb(var(--n-0))",
+  color: "rgb(var(--n-800))",
+  boxShadow: "var(--shadow-3)",
   fontSize: 12,
 } as const;
 
@@ -29,9 +31,9 @@ export const CHART_TONE_ACCENT: Record<ChartTone, string> = {
 };
 
 export const CHART_TONE_BG: Record<ChartTone, string> = {
-  primary: "#EFF4FF",
-  success: "#ECFDF3",
-  warning: "#FFFBEB",
-  danger: "#FEF2F2",
-  neutral: "#F4F3F1",
+  primary: "rgb(var(--primary-50))",
+  success: "rgb(var(--success-50))",
+  warning: "rgb(var(--warning-50))",
+  danger: "rgb(var(--danger-50))",
+  neutral: "rgb(var(--n-100))",
 };

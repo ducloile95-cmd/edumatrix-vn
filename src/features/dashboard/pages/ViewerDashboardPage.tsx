@@ -224,7 +224,7 @@ export default function ViewerDashboardPage() {
                 <div>
                   <p className="flex items-center gap-2 text-xs font-bold text-primary-100"><Trophy size={16} />Xếp hạng từ Teacher</p>
                   <div className="mt-3 flex items-end gap-3">
-                    <strong className="text-[68px] font-black leading-[0.76] tracking-[-0.07em] drop-shadow-[0_6px_20px_rgba(5,18,74,0.22)] sm:text-[76px] lg:text-[84px]">{overview.rank ?? "–"}</strong>
+                    <strong className="text-[68px] font-black leading-[0.76] tracking-[-0.07em] drop-shadow-[var(--shadow-2)] sm:text-[76px] lg:text-[84px]">{overview.rank ?? "–"}</strong>
                     <span className="pb-1 text-sm font-extrabold text-white">
                       {overview.rank ? RANK_META[overview.rank].label : "Chưa đủ dữ liệu"}
                     </span>

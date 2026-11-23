@@ -120,7 +120,7 @@ export function MultiSelectDropdown({
                   className={`flex min-h-touch w-full items-center justify-between rounded-input px-3 text-left text-sm font-semibold transition ${selected ? "bg-primary-50 text-primary-800" : "text-neutral-700 hover:bg-neutral-50"}`}
                 >
                   <span>{option.label}</span>
-                  <span className={`grid size-5 shrink-0 place-items-center rounded-md border ${selected ? "border-primary-500 bg-primary-500 text-white" : "border-neutral-300 text-transparent"}`}>
+                  <span className={`grid size-5 shrink-0 place-items-center rounded-input border ${selected ? "border-primary-500 bg-primary-500 text-white" : "border-neutral-300 text-transparent"}`}>
                     <Check size={13} aria-hidden="true" />
                   </span>
                 </button>

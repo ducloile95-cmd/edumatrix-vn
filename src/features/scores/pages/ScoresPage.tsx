@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Download, Plus, RotateCcw, Save } from "lucide-react";
 import { AppShell } from "@/components/layouts/AppShell";
 import { Button } from "@/components/ui/Button";
+import { useConfirm } from "@/components/feedback/confirmContext";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
@@ -34,6 +35,7 @@ function assessmentKey(score: Pick<ScoreDoc, "subjectId" | "assessmentName" | "a
 
 export default function ScoresPage({ embedded = false, onDirtyChange }: ScoresPageProps) {
   const { firebaseUser, role } = useAuth();
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const [classId, setClassId] = useState("");
   const [meta, setMeta] = useState({ name: "", type: "quiz" as AssessmentType, max: 10, subjectId: "" });
@@ -136,12 +138,8 @@ export default function ScoresPage({ embedded = false, onDirtyChange }: ScoresPa
     },
   });
 
-  function confirmDiscard(): boolean {
-    return !dirty || window.confirm("Bạn có thay đổi điểm chưa lưu. Bỏ các thay đổi này?");
-  }
-
-  function changeClass(nextClassId: string) {
-    if (!confirmDiscard()) return;
+  async function changeClass(nextClassId: string) {
+    if (dirty && !(await confirm({ title: "Bỏ điểm chưa lưu?", message: "Đổi lớp sẽ bỏ các điểm bạn vừa nhập nhưng chưa lưu.", confirmLabel: "Bỏ thay đổi" }))) return;
     setClassId(nextClassId);
     setMeta({ name: "", type: "quiz", max: 10, subjectId: "" });
     setEntries({});
@@ -150,8 +148,8 @@ export default function ScoresPage({ embedded = false, onDirtyChange }: ScoresPa
     save.reset();
   }
 
-  function updateMeta(changes: Partial<typeof meta>) {
-    if (dirty && !window.confirm("Đổi đầu điểm sẽ bỏ dữ liệu chưa lưu. Tiếp tục?")) return;
+  async function updateMeta(changes: Partial<typeof meta>) {
+    if (dirty && !(await confirm({ title: "Bỏ điểm chưa lưu?", message: "Đổi đầu điểm sẽ bỏ các điểm bạn vừa nhập nhưng chưa lưu.", confirmLabel: "Bỏ thay đổi" }))) return;
     setMeta((current) => ({ ...current, ...changes }));
     setEntries({});
     setBaseline({});

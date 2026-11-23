@@ -34,7 +34,7 @@ interface ClassFormProps {
 function FormSectionHeader({ icon, title, description }: { icon: ReactNode; title: string; description: string }) {
   return (
     <div className="mb-4 flex items-start gap-3">
-      <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary-50 text-primary-700">{icon}</span>
+      <span className="grid size-9 shrink-0 place-items-center rounded-card bg-primary-50 text-primary-700">{icon}</span>
       <div>
         <h3 className="text-sm font-bold text-neutral-950">{title}</h3>
         <p className="mt-0.5 text-xs leading-5 text-neutral-500">{description}</p>
@@ -106,7 +106,7 @@ function MultiSelect({
         </span>
       </button>
       {open && (
-        <div role="listbox" aria-multiselectable="true" aria-labelledby={labelId} className="absolute bottom-full inset-x-0 z-40 mb-1 max-h-52 overflow-y-auto rounded-xl border border-neutral-200 bg-neutral-0 p-1.5 shadow-xl">
+        <div role="listbox" aria-multiselectable="true" aria-labelledby={labelId} className="absolute bottom-full inset-x-0 z-40 mb-1 max-h-52 overflow-y-auto rounded-card border border-neutral-200 bg-neutral-0 p-1.5 shadow-xl">
           {options.length === 0 && <p className="px-3 py-2 text-xs text-neutral-500">Chưa có lựa chọn phù hợp.</p>}
           {options.map((option) => {
             const selected = value.includes(option.value);
@@ -117,16 +117,16 @@ function MultiSelect({
                 role="option"
                 aria-selected={selected}
                 onClick={() => onChange(selected ? value.filter((item) => item !== option.value) : [...value, option.value])}
-                className={`flex min-h-10 w-full items-center justify-between rounded-lg px-3 text-left text-sm font-semibold transition ${selected ? "bg-primary-50 text-primary-800" : "text-neutral-700 hover:bg-neutral-50"}`}
+                className={`flex min-h-10 w-full items-center justify-between rounded-input px-3 text-left text-sm font-semibold transition ${selected ? "bg-primary-50 text-primary-800" : "text-neutral-700 hover:bg-neutral-50"}`}
               >
                 {option.label}
-                <span className={`grid size-5 shrink-0 place-items-center rounded-md border ${selected ? "border-primary-500 bg-primary-500 text-white" : "border-neutral-300 text-transparent"}`}>
+                <span className={`grid size-5 shrink-0 place-items-center rounded-input border ${selected ? "border-primary-500 bg-primary-500 text-white" : "border-neutral-300 text-transparent"}`}>
                   <Check size={13} aria-hidden="true" />
                 </span>
               </button>
             );
           })}
-          <button type="button" onClick={() => setOpen(false)} className="mt-1 min-h-9 w-full rounded-lg border border-neutral-200 text-xs font-bold text-neutral-700 transition hover:border-primary-300 hover:text-primary-700">Xong</button>
+          <button type="button" onClick={() => setOpen(false)} className="mt-1 min-h-9 w-full rounded-input border border-neutral-200 text-xs font-bold text-neutral-700 transition hover:border-primary-300 hover:text-primary-700">Xong</button>
         </div>
       )}
     </div>
@@ -278,7 +278,7 @@ export function ClassForm({ editingClass, onDone }: ClassFormProps) {
         </div>
 
         <div className="grid content-start gap-3 p-3 xl:min-h-0 xl:overflow-hidden">
-          <section className="rounded-2xl border border-neutral-200 bg-neutral-0 p-4 shadow-sm">
+          <section className="rounded-modal border border-neutral-200 bg-neutral-0 p-4 shadow-sm">
             <FormSectionHeader icon={<BookOpen size={18} />} title="Thông tin lớp học" description="Thông tin nhận diện và trạng thái vận hành của lớp." />
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="sm:col-span-2">
@@ -305,7 +305,7 @@ export function ClassForm({ editingClass, onDone }: ClassFormProps) {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-neutral-200 bg-neutral-0 p-4 shadow-sm">
+          <section className="rounded-modal border border-neutral-200 bg-neutral-0 p-4 shadow-sm">
             <FormSectionHeader icon={<MapPin size={18} />} title="Lịch và địa điểm" description="Lịch học thông minh được đồng bộ trực tiếp từ bảng bên trái." />
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
@@ -327,7 +327,7 @@ export function ClassForm({ editingClass, onDone }: ClassFormProps) {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-neutral-200 bg-neutral-0 p-4 shadow-sm">
+          <section className="rounded-modal border border-neutral-200 bg-neutral-0 p-4 shadow-sm">
             <FormSectionHeader icon={<UsersRound size={18} />} title="Môn học & Phân công" description="Các danh sách hỗ trợ chọn nhiều lựa chọn trong cùng một dropdown." />
             <div className="grid gap-3 sm:grid-cols-2">
               <div>

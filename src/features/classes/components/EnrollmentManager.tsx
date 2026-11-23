@@ -110,14 +110,14 @@ export function EnrollmentManager({ classId, enrolledStudentIds, canUnenroll = t
                       <p className="truncate text-sm font-medium text-neutral-800">{s.fullName}</p>
                       <p className="font-mono text-xs text-neutral-500">{s.studentCode}</p>
                     </div>
-                    <button
+                    <Button variant="secondary" size="sm"
                       type="button"
                       disabled={enrollMutation.isPending}
                       onClick={() => enrollMutation.mutate(s.id)}
-                      className="min-h-touch rounded-input border border-neutral-300 px-3 text-xs font-semibold text-neutral-600 transition hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 disabled:opacity-40"
+                     
                     >
                       Ghi danh
-                    </button>
+                    </Button>
                   </li>
                 ))}
               </ul>
@@ -151,13 +151,13 @@ export function EnrollmentManager({ classId, enrolledStudentIds, canUnenroll = t
                       })()}
                     </div>
                     {canUnenroll && (
-                      <button
+                      <Button variant="secondary" size="sm"
                         type="button"
                         onClick={() => setConfirmTarget(s)}
-                        className="min-h-touch rounded-input border border-neutral-300 px-3 text-xs font-semibold text-neutral-600 transition hover:border-danger-300 hover:bg-danger-50 hover:text-danger-700"
+                       
                       >
                         Rút khỏi lớp
-                      </button>
+                      </Button>
                     )}
                   </li>
                 ))}

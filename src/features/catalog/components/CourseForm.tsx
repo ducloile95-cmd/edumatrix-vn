@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/Button";
 import { useEffect, type ReactNode } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -106,7 +107,7 @@ export function CourseForm({ editingCourse, presetSubjectId, onDone }: CourseFor
   const activeSubjects = subjects?.filter((s) => s.status === "active") ?? [];
   const activeTeachers = (teachers ?? []).filter((teacher) => teacher.status === "active");
   const inputClass = "min-h-touch w-full rounded-input border border-neutral-300 bg-neutral-0 px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100";
-  const sectionClass = "flex min-w-0 flex-col rounded-card border border-neutral-200 bg-neutral-0 shadow-[0_1px_2px_rgba(28,51,137,.04)]";
+  const sectionClass = "flex min-w-0 flex-col rounded-card border border-neutral-200 bg-neutral-0 shadow-xs";
 
   return (
     <form onSubmit={handleSubmit((values) => mutation.mutate(values))} className="grid items-stretch gap-4 lg:grid-cols-[minmax(0,1.08fr)_minmax(320px,.92fr)]">
@@ -189,21 +190,21 @@ export function CourseForm({ editingCourse, presetSubjectId, onDone }: CourseFor
 
       <div className="flex justify-end gap-2 border-t border-neutral-200 pt-4 lg:col-span-full">
         {isEditing && (
-          <button
+          <Button variant="secondary"
             type="button"
             onClick={() => onDone?.()}
-            className="min-h-touch rounded-input border border-neutral-300 px-5 text-sm font-medium text-neutral-600 hover:bg-neutral-50"
+           
           >
             Hủy
-          </button>
+          </Button>
         )}
-        <button
+        <Button variant="primary"
           type="submit"
           disabled={mutation.isPending}
-          className="min-h-touch rounded-input bg-primary-500 px-5 text-sm font-medium text-white transition hover:bg-primary-600 active:scale-[.98] disabled:opacity-60"
+         
         >
           {mutation.isPending ? "Đang lưu..." : isEditing ? "Lưu thay đổi" : "Thêm khóa học"}
-        </button>
+        </Button>
       </div>
     </form>
   );

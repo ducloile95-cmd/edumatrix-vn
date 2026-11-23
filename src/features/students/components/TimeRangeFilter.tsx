@@ -74,7 +74,7 @@ export function TimeRangeFilter({ value, onApply }: TimeRangeFilterProps) {
 
       {open && (
         <div
-          className="fixed inset-0 z-50 grid place-items-center bg-neutral-900/45 p-4"
+          className="fixed inset-0 z-50 grid place-items-center bg-ink/45 p-4"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) setOpen(false);
           }}

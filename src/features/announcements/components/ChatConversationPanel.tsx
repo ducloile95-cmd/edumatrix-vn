@@ -36,7 +36,7 @@ const CHAT_TAG_STYLES = {
 export function AccountAvatar({ thread, size = "md" }: { thread: Thread; size?: "sm" | "md" | "lg" }) {
   const [imageFailed, setImageFailed] = useState(false);
   useEffect(() => setImageFailed(false), [thread.facebookAvatarUrl]);
-  const sizeClass = size === "lg" ? "size-16 text-base" : size === "sm" ? "size-7 text-4xs" : "size-10 text-xs";
+  const sizeClass = size === "lg" ? "size-16 text-base" : size === "sm" ? "size-7 text-3xs" : "size-10 text-xs";
   const name = accountName(thread);
   return (
     <span className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary-100 font-bold text-primary-700 ${sizeClass}`}>
@@ -185,7 +185,7 @@ export function ConversationContext({ thread, parent, tags, onRemoveTag, onManag
         <h4 className="text-sm font-semibold text-neutral-900">Tag hội thoại</h4>
         {tags.length ? <div className="mt-3 flex flex-wrap gap-1.5">{tags.map((tag) => <button key={tag.id} type="button" onClick={() => onRemoveTag(tag.id)} aria-label={`Bỏ tag ${tag.label}`} className={`flex min-h-8 items-center gap-1.5 rounded-full px-2.5 text-xs font-semibold transition-opacity hover:opacity-85 ${CHAT_TAG_STYLES[tag.color]}`}>{tag.label}<X size={12} aria-hidden="true" /></button>)}</div> : <p className="mt-2 text-xs leading-5 text-neutral-500">Chưa có tag.</p>}
         <p className="mt-2 text-xs leading-5 text-neutral-500">Gắn tag nhanh tại thanh phía trên ô nhập tin nhắn.</p>
-        {onManageTags && <button type="button" onClick={onManageTags} className="mt-3 flex min-h-10 w-full items-center justify-center gap-2 rounded-card border border-neutral-300 bg-neutral-0 px-3 text-xs font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 active:scale-[.99]"><Settings2 size={15} />Quản lý tag mẫu</button>}
+        {onManageTags && <Button variant="secondary" size="sm" type="button" onClick={onManageTags} className="mt-3 w-full"><Settings2 size={15} />Quản lý tag mẫu</Button>}
       </div>
     </div>
   );
@@ -288,7 +288,7 @@ export function ConversationPanel({ thread, parent, configured, tagCatalog, assi
                 <div key={message.id} className={`${index === 0 ? "" : groupedWithPrevious ? "mt-0.5" : "mt-3"} flex items-end ${inbound ? "justify-start gap-2" : "justify-end"}`}>
                   {inbound && <span aria-hidden={!showAvatar} className={showAvatar ? "" : "invisible"}><AccountAvatar thread={thread} size="sm" /></span>}
                   <div className={`flex min-w-0 max-w-[80%] flex-col sm:max-w-[70%] ${inbound ? "items-start" : "items-end"}`}>
-                    <div title={`Gửi lúc ${time(message.createdAt)}`} className={`break-words rounded-[18px] px-3.5 py-2.5 text-sm leading-5 ${inbound ? "bg-neutral-100 text-neutral-800" : "bg-primary-600 text-white"}`}>
+                    <div title={`Gửi lúc ${time(message.createdAt)}`} className={`break-words rounded-modal px-3.5 py-2.5 text-sm leading-5 ${inbound ? "bg-neutral-100 text-neutral-800" : "bg-primary-600 text-white"}`}>
                       <p translate="no">{message.text}</p>
                       <span className="sr-only">Gửi lúc {time(message.createdAt)}</span>
                     </div>
@@ -330,7 +330,7 @@ export function ConversationPanel({ thread, parent, configured, tagCatalog, assi
               </label>
             </details>
             <div className="flex items-end gap-2">
-              <label className="min-w-0 flex-1 rounded-[20px] bg-neutral-100 px-4">
+              <label className="min-w-0 flex-1 rounded-modal bg-neutral-100 px-4">
                 <span className="sr-only">Soạn tin nhắn</span>
                 <textarea
                   value={draft}

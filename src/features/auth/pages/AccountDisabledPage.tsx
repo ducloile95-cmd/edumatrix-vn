@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/Button";
 import { signOut } from "firebase/auth";
 import { auth } from "@/services/firebase/authClient";
 
@@ -8,13 +9,13 @@ export default function AccountDisabledPage() {
       <p className="max-w-sm text-sm text-neutral-500">
         Tài khoản của bạn hiện không thể truy cập hệ thống. Vui lòng liên hệ Admin nếu đây là nhầm lẫn.
       </p>
-      <button
+      <Button variant="secondary"
         type="button"
         onClick={() => signOut(auth)}
-        className="mt-2 min-h-touch rounded-input border border-neutral-300 px-4 text-sm font-medium hover:bg-neutral-50"
+        className="mt-2"
       >
         Đăng xuất
-      </button>
+      </Button>
     </div>
   );
 }

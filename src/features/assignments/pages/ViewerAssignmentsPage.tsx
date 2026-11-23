@@ -157,7 +157,7 @@ export default function ViewerAssignmentsPage() {
             </section>
           )}
 
-              <FilterTabs filter={filter} counts={counts} onChange={setFilter} className="fixed inset-x-0 z-30 grid grid-cols-4 border-t border-neutral-200 bg-neutral-0/95 px-2 py-2 shadow-[0_-10px_30px_rgba(37,61,124,.1)] backdrop-blur-md [bottom:calc(60px+env(safe-area-inset-bottom))] sm:hidden" mobile />
+              <FilterTabs filter={filter} counts={counts} onChange={setFilter} className="fixed inset-x-0 z-30 grid grid-cols-4 border-t border-neutral-200 bg-neutral-0/95 px-2 py-2 shadow-up backdrop-blur-md [bottom:calc(60px+env(safe-area-inset-bottom))] sm:hidden" mobile />
             </>
           )}
         </div>
@@ -203,7 +203,7 @@ function AssignmentCard({ assignment, submission, className }: { assignment: Ass
   const state = assignmentFilter(submission);
   const due = getDueMeta(assignment.dueAt.toDate(), state);
   return (
-    <article className="grid gap-4 rounded-card border border-neutral-200 bg-neutral-0 p-4 shadow-[0_4px_18px_rgba(37,61,124,.035)] transition-colors hover:border-primary-200 lg:grid-cols-[minmax(0,1fr)_310px] lg:gap-6 lg:p-5">
+    <article className="grid gap-4 rounded-card border border-neutral-200 bg-neutral-0 p-4 shadow-xs transition-colors hover:border-primary-200 lg:grid-cols-[minmax(0,1fr)_310px] lg:gap-6 lg:p-5">
       <div className="min-w-0">
         <div className="mb-2 flex items-start justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-primary-700">

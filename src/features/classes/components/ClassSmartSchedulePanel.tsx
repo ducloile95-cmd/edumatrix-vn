@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/Button";
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import {
   addMonths,
@@ -83,10 +84,10 @@ export function ClassSmartSchedulePanel({
   };
 
   return (
-    <section className="flex h-full min-h-0 flex-col rounded-2xl border border-neutral-200 bg-neutral-0 p-4 shadow-sm">
+    <section className="flex h-full min-h-0 flex-col rounded-modal border border-neutral-200 bg-neutral-0 p-4 shadow-sm">
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
-          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary-50 text-primary-700"><Sparkles size={18} /></span>
+          <span className="grid size-9 shrink-0 place-items-center rounded-card bg-primary-50 text-primary-700"><Sparkles size={18} /></span>
           <div>
             <h3 className="text-sm font-bold text-neutral-950">Lịch học thông minh</h3>
             <p className="mt-0.5 text-xs leading-5 text-neutral-500">Tự động sinh buổi học theo tuần và kiểm tra trực tiếp trên lịch tháng.</p>
@@ -99,7 +100,7 @@ export function ClassSmartSchedulePanel({
       </div>
 
         <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[250px_minmax(0,1fr)]">
-          <div className="space-y-3 rounded-xl border border-neutral-200 bg-neutral-50 p-3">
+          <div className="space-y-3 rounded-card border border-neutral-200 bg-neutral-50 p-3">
             <div>
               <label htmlFor="recurrence-start-date" className="mb-1.5 block text-xs font-bold text-neutral-700">Ngày bắt đầu<span className="ml-0.5 text-danger-500">*</span></label>
               <input id="recurrence-start-date" type="date" value={recurrence.startDate} disabled={readOnly} onChange={(event) => setStartDate(event.target.value)} className={FIELD_CLASS} />
@@ -110,7 +111,7 @@ export function ClassSmartSchedulePanel({
                 {WEEKDAYS.map(({ day, short, full }) => {
                   const checked = recurrence.daysOfWeek.includes(day);
                   return (
-                    <button key={day} type="button" disabled={readOnly} aria-label={full} aria-pressed={checked} onClick={() => toggleDay(day)} className={`min-h-9 rounded-lg border text-xs font-bold transition disabled:cursor-default ${checked ? "border-primary-500 bg-primary-500 text-white" : "border-neutral-300 bg-neutral-0 text-neutral-600 hover:border-primary-300 hover:text-primary-700"}`}>
+                    <button key={day} type="button" disabled={readOnly} aria-label={full} aria-pressed={checked} onClick={() => toggleDay(day)} className={`min-h-9 rounded-input border text-xs font-bold transition disabled:cursor-default ${checked ? "border-primary-500 bg-primary-500 text-white" : "border-neutral-300 bg-neutral-0 text-neutral-600 hover:border-primary-300 hover:text-primary-700"}`}>
                       {short}
                     </button>
                   );
@@ -122,21 +123,21 @@ export function ClassSmartSchedulePanel({
               <div><label htmlFor="recurrence-end-time" className="mb-1.5 block text-xs font-bold text-neutral-700">Kết thúc<span className="ml-0.5 text-danger-500">*</span></label><input id="recurrence-end-time" type="time" value={recurrence.endTime} disabled={readOnly} onChange={(event) => setRecurrence((current) => ({ ...current, endTime: event.target.value }))} className={FIELD_CLASS} /></div>
             </div>
             <div><label htmlFor="recurrence-session-count" className="mb-1.5 block text-xs font-bold text-neutral-700">Tổng số buổi<span className="ml-0.5 text-danger-500">*</span></label><input id="recurrence-session-count" type="number" min={1} max={200} step={1} value={recurrence.sessionCount} disabled={readOnly || expectedSessionCount !== undefined} onChange={(event) => setRecurrence((current) => ({ ...current, sessionCount: Number(event.target.value) }))} className={FIELD_CLASS} /></div>
-            <div className="rounded-xl border border-success-100 bg-success-50 p-2.5 text-xs leading-5 text-success-900">
+            <div className="rounded-card border border-success-100 bg-success-50 p-2.5 text-xs leading-5 text-success-900">
               {recurrencePreview ? <><strong className="block text-sm">{recurrencePreview.sessions.length} buổi dự kiến</strong>Buổi đầu {format(recurrencePreview.sessions[0].startAt, "dd/MM/yyyy")}, bế giảng {format(recurrencePreview.endDate, "dd/MM/yyyy")}.</> : "Điền đủ ngày bắt đầu, thứ trong tuần, giờ học và tổng số buổi để xem trước."}
             </div>
           </div>
 
-          <div className="min-w-0 rounded-xl border border-neutral-200 bg-neutral-0 p-3">
+          <div className="min-w-0 rounded-card border border-neutral-200 bg-neutral-0 p-3">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <div><p className="flex items-center gap-1.5 text-xs font-semibold text-neutral-500"><CalendarDays size={14} /> Lịch tháng tương tác</p><h4 className="mt-0.5 text-base font-black text-neutral-950">Tháng {format(visibleMonth, "MM / yyyy")}</h4></div>
               <div className="flex items-center gap-1.5">
-                <button type="button" onClick={goToStartMonth} disabled={!recurrence.startDate} className="min-h-9 cursor-pointer rounded-lg border border-neutral-300 bg-neutral-0 px-3 text-xs font-semibold text-neutral-600 transition hover:border-primary-300 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-50">Tháng bắt đầu</button>
-                <button type="button" aria-label="Tháng trước" onClick={() => setVisibleMonth((month) => subMonths(month, 1))} className="grid size-9 cursor-pointer place-items-center rounded-lg border border-neutral-300 text-neutral-600 transition hover:border-primary-300 hover:text-primary-700"><ChevronLeft size={17} /></button>
-                <button type="button" aria-label="Tháng sau" onClick={() => setVisibleMonth((month) => addMonths(month, 1))} className="grid size-9 cursor-pointer place-items-center rounded-lg border border-neutral-300 text-neutral-600 transition hover:border-primary-300 hover:text-primary-700"><ChevronRight size={17} /></button>
+                <Button variant="secondary" size="sm" type="button" onClick={goToStartMonth} disabled={!recurrence.startDate}>Tháng bắt đầu</Button>
+                <button type="button" aria-label="Tháng trước" onClick={() => setVisibleMonth((month) => subMonths(month, 1))} className="grid size-9 cursor-pointer place-items-center rounded-input border border-neutral-300 text-neutral-600 transition hover:border-primary-300 hover:text-primary-700"><ChevronLeft size={17} /></button>
+                <button type="button" aria-label="Tháng sau" onClick={() => setVisibleMonth((month) => addMonths(month, 1))} className="grid size-9 cursor-pointer place-items-center rounded-input border border-neutral-300 text-neutral-600 transition hover:border-primary-300 hover:text-primary-700"><ChevronRight size={17} /></button>
               </div>
             </div>
-            <div className="grid grid-cols-7 border-b border-neutral-200 pb-2 text-center text-[10px] font-bold uppercase tracking-wide text-neutral-400">{WEEKDAYS.map((weekday) => <span key={weekday.day}>{weekday.short}</span>)}</div>
+            <div className="grid grid-cols-7 border-b border-neutral-200 pb-2 text-center text-3xs font-bold uppercase tracking-wide text-neutral-400">{WEEKDAYS.map((weekday) => <span key={weekday.day}>{weekday.short}</span>)}</div>
             <div className="mt-2 grid grid-cols-7 gap-1 sm:gap-1.5">
               {monthDays.map((date) => {
                 const key = format(date, "yyyy-MM-dd");
@@ -144,9 +145,9 @@ export function ClassSmartSchedulePanel({
                 const isStart = key === recurrence.startDate;
                 const inMonth = isSameMonth(date, visibleMonth);
                 return (
-                  <button key={key} type="button" disabled={readOnly} onClick={() => selectCalendarDate(date)} aria-label={`Chọn ngày bắt đầu ${format(date, "dd/MM/yyyy")}`} aria-pressed={isStart} className={`relative min-h-10 rounded-lg border p-1.5 text-left transition 2xl:min-h-12 ${readOnly ? "cursor-default" : "cursor-pointer"} ${isStart ? "border-primary-500 bg-primary-50 ring-2 ring-primary-100" : sessionNumber ? "border-success-200 bg-success-50 hover:border-success-300" : "border-transparent hover:border-primary-200 hover:bg-neutral-50"} ${inMonth ? "text-neutral-800" : "text-neutral-300"}`}>
+                  <button key={key} type="button" disabled={readOnly} onClick={() => selectCalendarDate(date)} aria-label={`Chọn ngày bắt đầu ${format(date, "dd/MM/yyyy")}`} aria-pressed={isStart} className={`relative min-h-10 rounded-input border p-1.5 text-left transition 2xl:min-h-12 ${readOnly ? "cursor-default" : "cursor-pointer"} ${isStart ? "border-primary-500 bg-primary-50 ring-2 ring-primary-100" : sessionNumber ? "border-success-200 bg-success-50 hover:border-success-300" : "border-transparent hover:border-primary-200 hover:bg-neutral-50"} ${inMonth ? "text-neutral-800" : "text-neutral-300"}`}>
                     <span className="text-xs font-bold">{format(date, "d")}</span>
-                    {sessionNumber && <span className="mt-1 flex items-center gap-1 text-[9px] font-bold text-success-700 sm:text-[10px]"><Clock3 size={10} /> Buổi {sessionNumber}</span>}
+                    {sessionNumber && <span className="mt-1 flex items-center gap-1 text-3xs font-bold text-success-700 sm:text-3xs"><Clock3 size={10} /> Buổi {sessionNumber}</span>}
                   </button>
                 );
               })}

@@ -176,7 +176,7 @@ export function FitWeekTimetable({ days, sessions, today, onSessionClick, onSess
                                 draggable={canDrag}
                                 onDragStart={(event) => handleDragStart(event, session)}
                                 onClick={() => onSessionClick(session)}
-                                className={`overflow-hidden rounded-input border border-l-[3px] px-2 py-1.5 text-left shadow-[0_1px_2px_rgba(28,26,21,.05)] transition hover:-translate-y-px hover:border-primary-300 hover:shadow-[0_5px_14px_rgba(35,72,214,.1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-1 ${
+                                className={`overflow-hidden rounded-input border border-l-[3px] px-2 py-1.5 text-left shadow-xs transition hover:-translate-y-px hover:border-primary-300 hover:focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-1 ${
                                   canDrag ? "cursor-grab active:cursor-grabbing" : ""
                                 } ${tone.border} ${tone.bg}`}
                               >
@@ -184,7 +184,7 @@ export function FitWeekTimetable({ days, sessions, today, onSessionClick, onSess
                                   <span className="min-w-0 flex-1 truncate text-xs font-extrabold leading-tight text-neutral-900">
                                     {session.className}
                                   </span>
-                                  <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-4xs font-extrabold uppercase text-white ${tone.pillBg}`}>
+                                  <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-3xs font-extrabold uppercase text-white ${tone.pillBg}`}>
                                     {tone.label}
                                   </span>
                                 </div>

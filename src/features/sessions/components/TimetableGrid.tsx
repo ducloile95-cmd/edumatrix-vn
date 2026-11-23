@@ -115,7 +115,7 @@ export function TimetableGrid({ days, sessions, today, onSessionClick }: Timetab
                     key={session.id}
                     type="button"
                     onClick={() => onSessionClick(session)}
-                    className={`absolute overflow-hidden rounded-md border-l-[3px] px-1.5 py-1 text-left transition hover:brightness-95 ${tone.bg} ${tone.border} ${tone.text}`}
+                    className={`absolute overflow-hidden rounded-input border-l-[3px] px-1.5 py-1 text-left transition hover:brightness-95 ${tone.bg} ${tone.border} ${tone.text}`}
                     style={{
                       top: layout.topPx,
                       height: layout.heightPx,
@@ -129,7 +129,7 @@ export function TimetableGrid({ days, sessions, today, onSessionClick }: Timetab
                       {wide && session.location ? ` · ${session.location}` : ""}
                     </p>
                     {tone.tagLabel && (
-                      <span className={`mt-0.5 inline-block rounded px-1 py-px text-4xs font-extrabold uppercase tracking-wide text-white ${tone.tagBg}`}>
+                      <span className={`mt-0.5 inline-block rounded px-1 py-px text-3xs font-extrabold uppercase tracking-wide text-white ${tone.tagBg}`}>
                         {tone.tagLabel}
                       </span>
                     )}

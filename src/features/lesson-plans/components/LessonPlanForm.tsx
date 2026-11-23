@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { addDays, subDays } from "date-fns";
 import { Save } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { useConfirm } from "@/components/feedback/confirmContext";
 import { LessonPlanActivitiesSection } from "@/features/lesson-plans/components/LessonPlanActivitiesSection";
 import { LessonPlanBasicsSection } from "@/features/lesson-plans/components/LessonPlanBasicsSection";
 import { LessonPlanDriveSection } from "@/features/lesson-plans/components/LessonPlanDriveSection";
@@ -81,6 +82,7 @@ function driveAttachmentFromPlan(plan?: LessonPlanDoc | null): LessonPlanDriveAt
 
 export function LessonPlanForm({ editingPlan, onDone, initialValues }: LessonPlanFormProps) {
   const { firebaseUser } = useAuth();
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const isEditing = !!editingPlan;
   const driveInputRef = useRef<HTMLInputElement>(null);
@@ -156,11 +158,14 @@ export function LessonPlanForm({ editingPlan, onDone, initialValues }: LessonPla
       const classId = initialValues?.classId ?? null;
       const sessionId = initialValues?.sessionId ?? null;
       const saved = loadLessonPlanDraft(uid, classId, sessionId);
-      reset(saved && confirm("Phát hiện bản nháp tự động lưu chưa được lưu lại. Bạn có muốn phục hồi không?")
-        ? saved
-        : { ...DEFAULT_VALUES, ...initialValues });
+      reset({ ...DEFAULT_VALUES, ...initialValues });
+      if (!saved) return;
+      let cancelled = false;
+      void confirm({ title: "Khôi phục bản nháp?", message: "Có một bản nháp tự động lưu của giáo án này chưa được lưu lại.", confirmLabel: "Khôi phục", cancelLabel: "Bắt đầu mới", tone: "primary" })
+        .then((restore) => { if (restore && !cancelled) reset(saved); });
+      return () => { cancelled = true; };
     }
-  }, [editingPlan, initialValues, reset, uid]);
+  }, [confirm, editingPlan, initialValues, reset, uid]);
 
   const classId = watch("classId");
   const selectedClass = classes?.find((item) => item.id === classId) ?? null;
@@ -334,7 +339,7 @@ export function LessonPlanForm({ editingPlan, onDone, initialValues }: LessonPla
         </div>
       </div>
 
-      <div className="flex flex-none flex-col gap-2 border-t border-neutral-200 bg-neutral-0/95 px-4 py-3 shadow-[0_-8px_24px_rgba(28,26,21,.06)] backdrop-blur sm:px-5">
+      <div className="flex flex-none flex-col gap-2 border-t border-neutral-200 bg-neutral-0/95 px-4 py-3 shadow-up backdrop-blur sm:px-5">
         {saveMutation.isError && (
           <p role="alert" className="text-sm text-danger-700">Không thể lưu giáo án. Vui lòng thử lại.</p>
         )}
@@ -344,11 +349,9 @@ export function LessonPlanForm({ editingPlan, onDone, initialValues }: LessonPla
           </Button>
           <Button
             type="button"
-            onClick={() => {
-              if (formState.isDirty) {
-                if (!confirm("Bạn có các thay đổi chưa lưu. Bạn thực sự muốn thoát?")) {
-                  return;
-                }
+            onClick={async () => {
+              if (formState.isDirty && !(await confirm({ title: "Thoát mà không lưu?", message: "Các thay đổi trên giáo án sẽ bị bỏ.", confirmLabel: "Thoát" }))) {
+                return;
               }
               removeLessonPlanDraft(uid, watchedValues.classId, watchedValues.sessionId);
               onDone?.();

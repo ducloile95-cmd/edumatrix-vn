@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/Button";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { listSubmissionsByStudents } from "@/services/firestore/assignments";
@@ -270,14 +271,14 @@ export function StudentsList() {
                       <ScoreRing label="Đánh giá" value={assessmentPercent} total={summary?.scoreCount ?? 0} grade={grade} />
                     </div>
 
-                    <button
+                    <Button variant="soft"
                       type="button"
                       aria-label={`Xem thông tin ${studentLabel(student)}`}
                       onClick={() => setViewingStudent(student)}
-                      className="mt-3 min-h-touch w-full rounded-input border border-primary-200 bg-primary-50 px-4 text-sm font-semibold text-primary-700 transition hover:border-primary-300 hover:bg-primary-100 active:scale-[.99]"
+                      className="mt-3 w-full"
                     >
                       Xem thông tin
-                    </button>
+                    </Button>
                   </article>
                 </li>
               ))}
@@ -298,7 +299,7 @@ export function StudentsList() {
                   <div className="text-center">Lớp học</div>
                   <div className="text-center">Khóa học</div>
                   <div className="text-center">Tiến độ</div>
-                  <div className="rounded-md bg-primary-100 py-1 text-center text-primary-800 ring-1 ring-primary-200">Đánh giá</div>
+                  <div className="rounded-input bg-primary-100 py-1 text-center text-primary-800 ring-1 ring-primary-200">Đánh giá</div>
                   <div className="text-center">Thao tác</div>
                 </div>
                 <ul className="divide-y divide-neutral-100">
@@ -350,13 +351,13 @@ export function StudentsList() {
                       </div>
 
                       <div className="flex justify-start xl:justify-end">
-                        <button
+                        <Button variant="secondary" size="sm"
                           type="button"
                           onClick={() => setViewingStudent(student)}
-                          className="min-h-touch rounded-input border border-neutral-300 bg-neutral-0 px-3 text-2xs font-semibold text-neutral-700 transition hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 active:scale-[.98]"
+                         
                         >
                           Thông tin
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   </li>

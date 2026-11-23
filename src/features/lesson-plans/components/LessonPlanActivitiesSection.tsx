@@ -28,7 +28,7 @@ export function LessonPlanActivitiesSection({
             <h3 className={SECTION_TITLE}>Tiến trình buổi học</h3>
             <div className="space-y-3">
               {activities.fields.map((field, index) => (
-                <div key={field.id} className="rounded-card border border-neutral-200 bg-neutral-50/80 p-4 shadow-[0_1px_2px_rgba(28,26,21,.04)]">
+                <div key={field.id} className="rounded-card border border-neutral-200 bg-neutral-50/80 p-4 shadow-xs">
                   <div className="mb-2 flex items-center gap-2">
                     <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary-500 text-xs font-bold text-white">
                       {index + 1}

@@ -37,7 +37,7 @@ export function SegmentedPreference<T extends string>({
               aria-checked={selected}
               aria-label={option.ariaLabel}
               onClick={() => onChange(option.value)}
-              className={`relative inline-flex items-center justify-center gap-1.5 rounded-full font-bold transition-[background-color,color,box-shadow,transform] duration-fast active:scale-[.97] ${compact ? "h-7 min-w-14 px-2 text-2xs" : "h-8 min-w-[68px] px-3 text-xs"} ${selected ? `bg-neutral-0 text-neutral-900 shadow-[0_1px_5px_rgba(15,23,42,.14)] ${option.activeClassName ?? ""}` : "text-neutral-500 hover:text-neutral-800"}`}
+              className={`relative inline-flex items-center justify-center gap-1.5 rounded-full font-bold transition-[background-color,color,box-shadow,transform] duration-fast active:scale-[.97] ${compact ? "h-7 min-w-14 px-2 text-2xs" : "h-8 min-w-[68px] px-3 text-xs"} ${selected ? `bg-neutral-0 text-neutral-900 shadow-sm ${option.activeClassName ?? ""}` : "text-neutral-500 hover:text-neutral-800"}`}
             >
               {option.visual}
               {option.label && <span>{option.label}</span>}

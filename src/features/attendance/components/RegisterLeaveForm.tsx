@@ -19,7 +19,7 @@ type LeaveType = Extract<AttendanceStatus, "absent" | "excused">;
 const INPUT = "min-h-touch w-full rounded-input border border-neutral-300 bg-neutral-0 px-3 text-sm text-neutral-900 outline-none transition placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-500";
 const TEXTAREA = `${INPUT} min-h-[116px] resize-none py-3 leading-6`;
 const LABEL = "mb-1.5 block text-xs font-bold text-neutral-700";
-const SECTION = "min-w-0 overflow-hidden rounded-card border border-neutral-200 bg-neutral-0 shadow-[0_1px_2px_rgba(28,51,137,.04)]";
+const SECTION = "min-w-0 overflow-hidden rounded-card border border-neutral-200 bg-neutral-0 shadow-xs";
 
 /**
  * Dang ky nghi hoc truoc cho 1 hoc sinh - single-action, dat trong Modal

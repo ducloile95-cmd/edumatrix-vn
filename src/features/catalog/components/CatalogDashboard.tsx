@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/Button";
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
@@ -154,7 +155,7 @@ export function CatalogDashboard({ canManage = false, onCreateCourseForSubject }
                   <XAxis type="number" allowDecimals={false} hide />
                   <YAxis type="category" dataKey="status" width={90} tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} />
                   <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number) => [`${value} khóa học`, "Số lượng"]} />
-                  <Bar dataKey="count" filter={CHART_DEPTH_FILTER} radius={[0, 10, 10, 0]} barSize={18} isAnimationActive={!reducedMotion} animationDuration={CHART_ANIMATION_DURATION}>
+                  <Bar dataKey="count" filter={CHART_DEPTH_FILTER} radius={[0, 4, 4, 0]} barSize={18} isAnimationActive={!reducedMotion} animationDuration={CHART_ANIMATION_DURATION}>
                     {statusData.map((entry, index) => (
                       <Cell key={entry.status} fill={[CHART_GRADIENT.warning, CHART_GRADIENT.success, CHART_GRADIENT.neutral][index]} />
                     ))}
@@ -176,7 +177,7 @@ export function CatalogDashboard({ canManage = false, onCreateCourseForSubject }
                   <XAxis type="number" allowDecimals={false} hide />
                   <YAxis type="category" dataKey="name" width={90} tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} />
                   <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number) => [`${value} khóa học`, "Số lượng"]} />
-                  <Bar dataKey="count" fill={CHART_GRADIENT.primary} filter={CHART_DEPTH_FILTER} radius={[0, 10, 10, 0]} barSize={18} isAnimationActive={!reducedMotion} animationDuration={CHART_ANIMATION_DURATION} />
+                  <Bar dataKey="count" fill={CHART_GRADIENT.primary} filter={CHART_DEPTH_FILTER} radius={[0, 4, 4, 0]} barSize={18} isAnimationActive={!reducedMotion} animationDuration={CHART_ANIMATION_DURATION} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -196,7 +197,7 @@ export function CatalogDashboard({ canManage = false, onCreateCourseForSubject }
                   <XAxis dataKey="label" tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} />
                   <YAxis allowDecimals={false} tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} />
                   <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number) => [`${value} khóa học`, "Số lượng"]} />
-                  <Bar dataKey="count" fill={CHART_GRADIENT.primary} filter={CHART_DEPTH_FILTER} radius={[10, 10, 3, 3]} barSize={28} isAnimationActive={!reducedMotion} animationDuration={CHART_ANIMATION_DURATION} />
+                  <Bar dataKey="count" fill={CHART_GRADIENT.primary} filter={CHART_DEPTH_FILTER} radius={[4, 4, 0, 0]} barSize={28} isAnimationActive={!reducedMotion} animationDuration={CHART_ANIMATION_DURATION} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -218,13 +219,13 @@ export function CatalogDashboard({ canManage = false, onCreateCourseForSubject }
                   <span className="text-sm font-semibold text-neutral-900">
                     {subject.name} <span className="font-normal text-neutral-500">({subject.code})</span>
                   </span>
-                  {canManage && <button
+                  {canManage && <Button variant="secondary" size="sm"
                     type="button"
                     onClick={() => onCreateCourseForSubject(subject.id)}
-                    className="min-h-touch rounded-input border border-neutral-300 bg-neutral-0 px-3 text-xs font-medium text-neutral-700 hover:bg-neutral-50"
+                   
                   >
                     Thêm khóa học
-                  </button>}
+                  </Button>}
                 </li>
               ))}
             </ul>

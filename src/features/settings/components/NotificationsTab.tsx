@@ -65,7 +65,7 @@ export function NotificationsTab() {
             >
               <span
                 aria-hidden="true"
-                className={`absolute left-0.5 top-0.5 size-5 rounded-full bg-neutral-0 shadow-[0_1px_3px_rgba(15,23,42,.25)] transition-transform ${
+                className={`absolute left-0.5 top-0.5 size-5 rounded-full bg-neutral-0 shadow-sm transition-transform ${
                   enabled ? "translate-x-4" : "translate-x-0"
                 }`}
                 style={{ transitionDuration: "var(--motion-duration)" }}

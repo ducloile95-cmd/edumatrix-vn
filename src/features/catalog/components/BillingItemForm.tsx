@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/Button";
 import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -112,8 +113,8 @@ export function BillingItemForm({ editingItem, onDone }: BillingItemFormProps) {
 
       {mutation.isError && <p role="alert" className="rounded-input bg-danger-50 px-3 py-2 text-sm text-danger-700">Không thể lưu đồ dùng học tập. Vui lòng kiểm tra dữ liệu và thử lại.</p>}
       <div className="flex justify-end gap-2 border-t border-neutral-200 pt-4">
-        <button type="button" onClick={onDone} className="min-h-touch rounded-input border border-neutral-300 px-4 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50 active:scale-[.98]">Hủy</button>
-        <button type="submit" disabled={mutation.isPending} className="min-h-touch rounded-input bg-primary-500 px-5 text-sm font-bold text-white transition hover:bg-primary-600 active:scale-[.98] disabled:opacity-60">{mutation.isPending ? "Đang lưu..." : editingItem ? "Lưu thay đổi" : "Thêm đồ dùng"}</button>
+        <Button variant="secondary" type="button" onClick={onDone}>Hủy</Button>
+        <Button variant="primary" type="submit" disabled={mutation.isPending}>{mutation.isPending ? "Đang lưu..." : editingItem ? "Lưu thay đổi" : "Thêm đồ dùng"}</Button>
       </div>
     </form>
   );

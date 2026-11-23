@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/Button";
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { format } from "date-fns";
@@ -93,7 +94,7 @@ export function SessionDetailModal({
           </dl>
           {session.note && <p className="mt-4 rounded-input border border-neutral-200 bg-neutral-50 p-3 text-sm leading-6 text-neutral-700">{session.note}</p>}
           <div className="mt-5 flex justify-end">
-            <button type="button" onClick={closeModal} className="min-h-touch rounded-input border border-neutral-300 px-5 text-sm font-medium text-neutral-700 hover:bg-neutral-50">Đóng</button>
+            <Button variant="secondary" type="button" onClick={closeModal}>Đóng</Button>
           </div>
         </div>
       ) : (
@@ -208,7 +209,7 @@ export function SessionDetailModal({
             </div>
 
             <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-neutral-200 bg-neutral-50 px-4 py-3 sm:px-6">
-              <button type="button" onClick={closeModal} className="min-h-touch rounded-input border border-neutral-300 bg-neutral-0 px-4 text-sm font-bold text-neutral-700 hover:bg-neutral-50">Đóng</button>
+              <Button variant="secondary" type="button" onClick={closeModal}>Đóng</Button>
               <div className="flex flex-wrap gap-2">
                 <Link to={classroomSessionPath(session.id)} className="inline-flex min-h-touch items-center justify-center rounded-input border border-primary-200 bg-neutral-0 px-4 text-sm font-bold text-primary-700 hover:bg-primary-50">Mở sổ lớp</Link>
                 <Link to={`${ROUTES.STAFF_ATTENDANCE}?session=${session.id}`} className="inline-flex min-h-touch items-center justify-center rounded-input bg-primary-700 px-4 text-sm font-bold text-white hover:bg-primary-800">Điểm danh</Link>

@@ -143,7 +143,7 @@ export function AttendanceOverview({ onJumpToSession }: AttendanceOverviewProps)
                 <Bar dataKey="present" name={STATUS_LABEL.present} stackId="a" fill={CHART_GRADIENT.success} filter={CHART_DEPTH_FILTER} isAnimationActive={!reducedMotion} animationDuration={CHART_ANIMATION_DURATION} />
                 <Bar dataKey="late" name={STATUS_LABEL.late} stackId="a" fill={CHART_GRADIENT.warning} filter={CHART_DEPTH_FILTER} isAnimationActive={!reducedMotion} animationDuration={CHART_ANIMATION_DURATION} />
                 <Bar dataKey="absent" name={STATUS_LABEL.absent} stackId="a" fill={CHART_GRADIENT.danger} filter={CHART_DEPTH_FILTER} isAnimationActive={!reducedMotion} animationDuration={CHART_ANIMATION_DURATION} />
-                <Bar dataKey="excused" name={STATUS_LABEL.excused} stackId="a" fill={CHART_GRADIENT.info} filter={CHART_DEPTH_FILTER} radius={[9, 9, 2, 2]} isAnimationActive={!reducedMotion} animationDuration={CHART_ANIMATION_DURATION} />
+                <Bar dataKey="excused" name={STATUS_LABEL.excused} stackId="a" fill={CHART_GRADIENT.info} filter={CHART_DEPTH_FILTER} radius={[4, 4, 0, 0]} isAnimationActive={!reducedMotion} animationDuration={CHART_ANIMATION_DURATION} />
               </BarChart>
             </ResponsiveContainer>
           </div>

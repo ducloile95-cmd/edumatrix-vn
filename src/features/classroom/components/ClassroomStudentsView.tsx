@@ -71,7 +71,7 @@ export function ClassroomStudentsView({
           </div>
           {classStudents.length ? <ul className="space-y-3 bg-neutral-50/80 p-3 sm:p-4">{classStudents.map((student, index) => {
             const entry = entries[student.id];
-            return <li key={student.id} className="overflow-hidden rounded-card border border-neutral-200 bg-neutral-0 shadow-[0_1px_2px_rgba(28,51,137,.04)]">
+            return <li key={student.id} className="overflow-hidden rounded-card border border-neutral-200 bg-neutral-0 shadow-xs">
               <div className="flex items-center gap-3 border-b border-neutral-100 px-4 py-3">
                 <span className="grid size-9 shrink-0 place-items-center rounded-input bg-neutral-100 text-xs font-black tabular-nums text-neutral-500">{String(index + 1).padStart(2, "0")}</span>
                 <div className="min-w-0 flex-1"><p className="truncate font-bold text-neutral-950">{student.fullName}</p><p className="mt-0.5 text-xs text-neutral-500">{student.studentCode}</p></div>

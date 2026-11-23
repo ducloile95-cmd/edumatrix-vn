@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/Button";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router";
 import {
@@ -374,7 +375,7 @@ export default function SystemGuidePage() {
             )}
             <a href="#support" className="text-sm font-semibold text-neutral-600 hover:text-primary-700">Xử lý lỗi</a>
           </nav>
-          <Link to={isSignedIn ? returnHref : ROUTES.LOGIN} className="ml-auto hidden min-h-touch shrink-0 items-center gap-2 rounded-input bg-primary-600 px-4 text-sm font-bold text-white shadow-[0_8px_20px_rgba(51,102,240,.2)] transition hover:bg-primary-700 active:scale-[.98] lg:ml-2 lg:inline-flex">
+          <Link to={isSignedIn ? returnHref : ROUTES.LOGIN} className="ml-auto hidden min-h-touch shrink-0 items-center gap-2 rounded-input bg-primary-600 px-4 text-sm font-bold text-white transition hover:bg-primary-700 active:scale-[.98] lg:ml-2 lg:inline-flex">
             {isSignedIn ? "Về hệ thống" : "Đăng nhập"} <ExternalLink size={16} />
           </Link>
           <button type="button" aria-label={mobileOpen ? "Đóng menu" : "Mở menu"} aria-expanded={mobileOpen} onClick={() => setMobileOpen((current) => !current)} className="ml-auto grid min-h-touch min-w-touch place-items-center rounded-input border border-neutral-200 text-neutral-700 lg:hidden">
@@ -415,13 +416,13 @@ export default function SystemGuidePage() {
                   : "Hướng dẫn phụ huynh xem lịch học, bài tập, kết quả và học phí trên Edumatrix."}
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <button type="button" onClick={() => chooseRole(role)} className="inline-flex min-h-touch items-center justify-center gap-2 whitespace-nowrap rounded-input bg-primary-600 px-5 text-sm font-bold text-white shadow-[0_10px_24px_rgba(51,102,240,.22)] transition hover:bg-primary-700 active:scale-[.98]">
+                <button type="button" onClick={() => chooseRole(role)} className="inline-flex min-h-touch items-center justify-center gap-2 whitespace-nowrap rounded-input bg-primary-600 px-5 text-sm font-bold text-white transition hover:bg-primary-700 active:scale-[.98]">
                   Bắt đầu với {roleLabel} <ArrowRight size={17} />
                 </button>
                 {!lockedRole && (
-                  <button type="button" onClick={() => chooseRole(role === "teacher" ? "parent" : "teacher")} className="inline-flex min-h-touch items-center justify-center gap-2 whitespace-nowrap rounded-input border border-neutral-300 bg-neutral-0 px-5 text-sm font-bold text-neutral-800 transition hover:border-primary-300 hover:bg-primary-50 active:scale-[.98]">
+                  <Button variant="secondary" type="button" onClick={() => chooseRole(role === "teacher" ? "parent" : "teacher")}>
                     Xem hướng dẫn {role === "teacher" ? "Phụ huynh" : "Teacher"}
-                  </button>
+                  </Button>
                 )}
               </div>
               <div className="mt-9 grid grid-cols-3 gap-4 border-t border-neutral-200 pt-6">
@@ -432,14 +433,14 @@ export default function SystemGuidePage() {
             </div>
 
             {role === "teacher" ? (
-              <button type="button" onClick={() => setLightbox(teacherScreenshots.classroom)} aria-label="Mở ảnh màn hình Tương tác lớp học" className="group relative min-w-0 max-w-full overflow-hidden rounded-modal border border-primary-100 bg-neutral-0 p-2 text-left shadow-[0_24px_70px_rgba(28,51,137,.18)] transition hover:-translate-y-1 hover:shadow-[0_28px_78px_rgba(28,51,137,.24)]">
+              <button type="button" onClick={() => setLightbox(teacherScreenshots.classroom)} aria-label="Mở ảnh màn hình Tương tác lớp học" className="group relative min-w-0 max-w-full overflow-hidden rounded-modal border border-primary-100 bg-neutral-0 p-2 text-left shadow-[var(--shadow-4)] transition hover:-translate-y-1 hover:shadow-[var(--shadow-4)]">
                 <img src={teacherScreenshots.classroom.src} alt={teacherScreenshots.classroom.alt} className="aspect-[16/10] w-full rounded-card object-cover object-top" fetchPriority="high" />
-                <span className="absolute bottom-5 right-5 inline-flex min-h-touch items-center gap-2 rounded-input bg-neutral-950/90 px-4 text-xs font-bold text-white shadow-[var(--shadow-2)]">
+                <span className="absolute bottom-5 right-5 inline-flex min-h-touch items-center gap-2 rounded-input bg-ink/90 px-4 text-xs font-bold text-white shadow-[var(--shadow-2)]">
                   <Images size={16} /> Xem toàn màn hình
                 </span>
               </button>
             ) : (
-              <section aria-label="Nội dung chính dành cho phụ huynh" className="min-w-0 rounded-modal border border-primary-100 bg-neutral-0 p-5 shadow-[0_24px_70px_rgba(28,51,137,.14)] sm:p-7">
+              <section aria-label="Nội dung chính dành cho phụ huynh" className="min-w-0 rounded-modal border border-primary-100 bg-neutral-0 p-5 shadow-[var(--shadow-4)] sm:p-7">
                 <div className="flex items-center gap-3 border-b border-neutral-200 pb-5">
                   <span className="grid size-11 place-items-center rounded-input bg-primary-50 text-primary-700"><Users size={22} /></span>
                   <div>
@@ -471,7 +472,7 @@ export default function SystemGuidePage() {
                 {businessFlow.map((step, index) => (
                   <li key={step.label} className="relative pr-5">
                     <div className="mb-4 flex items-center">
-                      <span className="grid size-10 shrink-0 place-items-center rounded-input bg-primary-600 text-white shadow-[0_7px_16px_rgba(51,102,240,.18)]">{step.icon}</span>
+                      <span className="grid size-10 shrink-0 place-items-center rounded-input bg-primary-600 text-white">{step.icon}</span>
                       {index < businessFlow.length - 1 && <span aria-hidden="true" className="h-px flex-1 bg-primary-200" />}
                     </div>
                     <h3 className="text-sm font-bold text-neutral-900">{step.label}</h3>
@@ -489,9 +490,9 @@ export default function SystemGuidePage() {
               <div>
                 <h2 className="text-3xl font-bold tracking-[-.025em] text-neutral-950 sm:text-4xl">Nhịp làm việc của Teacher</h2>
                 <p className="mt-4 max-w-md text-base leading-7 text-neutral-600">Bốn mốc này giúp giáo viên không bỏ sót dữ liệu trước, trong và sau buổi học.</p>
-                <button type="button" onClick={() => chooseRole("teacher")} className="mt-7 inline-flex min-h-touch items-center gap-2 rounded-input border border-primary-200 bg-primary-50 px-4 text-sm font-bold text-primary-700 hover:bg-primary-100">
+                <Button variant="soft" type="button" onClick={() => chooseRole("teacher")} className="mt-7">
                   Mở quy trình chi tiết <ChevronRight size={17} />
-                </button>
+                </Button>
               </div>
               <ol className="grid gap-3 sm:grid-cols-2">
                 {teacherRoutine.map((item, index) => (
@@ -566,7 +567,7 @@ export default function SystemGuidePage() {
                     <CircleHelp size={30} className="mx-auto text-neutral-400" />
                     <h3 className="mt-4 text-lg font-bold text-neutral-900">Không tìm thấy nội dung phù hợp</h3>
                     <p className="mt-2 text-sm text-neutral-600">Thử từ khóa ngắn hơn như giáo án, học sinh, điểm danh hoặc học phí.</p>
-                    <button type="button" onClick={() => setQuery("")} className="mt-5 min-h-touch rounded-input bg-primary-600 px-4 text-sm font-bold text-white">Xóa tìm kiếm</button>
+                    <Button variant="primary" type="button" onClick={() => setQuery("")} className="mt-5">Xóa tìm kiếm</Button>
                   </div>
                 )}
               </div>
@@ -640,7 +641,7 @@ export default function SystemGuidePage() {
       </footer>
 
       {lightbox && (
-        <div role="dialog" aria-modal="true" aria-label={lightbox.title} className="modal-backdrop fixed inset-0 z-[60] grid place-items-center bg-neutral-950/75 p-3 backdrop-blur-sm sm:p-6" onMouseDown={(event) => { if (event.currentTarget === event.target) setLightbox(null); }}>
+        <div role="dialog" aria-modal="true" aria-label={lightbox.title} className="modal-backdrop fixed inset-0 z-[60] grid place-items-center bg-ink/75 p-3 backdrop-blur-sm sm:p-6" onMouseDown={(event) => { if (event.currentTarget === event.target) setLightbox(null); }}>
           <div className="modal-panel flex max-h-[94dvh] w-full max-w-[1500px] flex-col overflow-hidden rounded-modal bg-neutral-0 shadow-[var(--shadow-4)]">
             <div className="flex items-start justify-between gap-4 border-b border-neutral-200 px-4 py-3 sm:px-5">
               <div>
@@ -670,7 +671,7 @@ function HeroMetric({ value, label }: { value: string; label: string }) {
 
 function RoleButton({ active, icon, label, onClick }: { active: boolean; icon: ReactNode; label: string; onClick: () => void }) {
   return (
-    <button type="button" aria-pressed={active} onClick={onClick} className={`inline-flex min-h-touch items-center justify-center gap-2 rounded-input px-5 text-sm font-bold transition ${active ? "bg-primary-600 text-white shadow-[0_7px_16px_rgba(51,102,240,.2)]" : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"}`}>
+    <button type="button" aria-pressed={active} onClick={onClick} className={`inline-flex min-h-touch items-center justify-center gap-2 rounded-input px-5 text-sm font-bold transition ${active ? "bg-primary-600 text-white" : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"}`}>
       {icon} {label}
     </button>
   );

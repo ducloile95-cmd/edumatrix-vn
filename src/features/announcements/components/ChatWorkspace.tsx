@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
 import { Modal } from "@/components/ui/Modal";
+import { useConfirm } from "@/components/feedback/confirmContext";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { createChatTag, deleteChatTag, listChatTags, markChatThreadRead, setChatThreadTags } from "@/services/firestore/chat";
 import { listStudents } from "@/services/firestore/students";
@@ -94,6 +95,7 @@ export function UtilityTemplatesModal({ open, onClose, onUseTemplate, role, conf
 
 function ConversationTagManager({ open, tags, onClose, onCreate, onDelete }: { open: boolean; tags: ChatTag[]; onClose: () => void; onCreate: (label: string, color: ChatTagColor) => Promise<void>; onDelete: (id: string) => Promise<void> }) {
   const [search, setSearch] = useState("");
+  const confirm = useConfirm();
   const [creating, setCreating] = useState(false);
   const [label, setLabel] = useState("");
   const [color, setColor] = useState<ChatTagColor>("blue");
@@ -130,17 +132,17 @@ function ConversationTagManager({ open, tags, onClose, onCreate, onDelete }: { o
         </div>
         <div className="mt-4 overflow-hidden rounded-card border border-neutral-200">
           <div className="grid grid-cols-[minmax(0,1fr)_56px] bg-neutral-100 px-4 py-2.5 text-xs font-semibold text-neutral-600"><span>Tag hội thoại</span><span className="text-center">Xóa</span></div>
-          {filtered.length ? <div className="divide-y divide-neutral-200">{filtered.map((tag) => <div key={tag.id} className="grid min-h-12 grid-cols-[minmax(0,1fr)_56px] items-center px-4 py-2"><span className="flex items-center gap-2 text-sm font-medium text-neutral-700"><span className={`size-2 rounded-full ${CHAT_TAG_COLORS.find((item) => item.value === tag.color)?.swatch}`} />{tag.label}</span><button type="button" onClick={async () => { if (!window.confirm(`Xóa tag mẫu "${tag.label}" khỏi mọi hội thoại?`)) return; setPending(true); setError(null); try { await onDelete(tag.id); } catch (cause) { setError(cause instanceof Error ? cause.message : "Không xóa được tag."); } finally { setPending(false); } }} disabled={pending} aria-label={`Xóa tag mẫu ${tag.label}`} className="mx-auto flex size-9 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-danger-50 hover:text-danger-700 disabled:opacity-40"><Trash2 size={16} /></button></div>)}</div> : <p className="px-4 py-8 text-center text-sm text-neutral-500">Không tìm thấy tag phù hợp.</p>}
+          {filtered.length ? <div className="divide-y divide-neutral-200">{filtered.map((tag) => <div key={tag.id} className="grid min-h-12 grid-cols-[minmax(0,1fr)_56px] items-center px-4 py-2"><span className="flex items-center gap-2 text-sm font-medium text-neutral-700"><span className={`size-2 rounded-full ${CHAT_TAG_COLORS.find((item) => item.value === tag.color)?.swatch}`} />{tag.label}</span><button type="button" onClick={async () => { if (!(await confirm({ title: `Xóa tag "${tag.label}"?`, message: "Tag sẽ bị gỡ khỏi mọi hội thoại đang dùng.", confirmLabel: "Xóa tag" }))) return; setPending(true); setError(null); try { await onDelete(tag.id); } catch (cause) { setError(cause instanceof Error ? cause.message : "Không xóa được tag."); } finally { setPending(false); } }} disabled={pending} aria-label={`Xóa tag mẫu ${tag.label}`} className="mx-auto flex size-9 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-danger-50 hover:text-danger-700 disabled:opacity-40"><Trash2 size={16} /></button></div>)}</div> : <p className="px-4 py-8 text-center text-sm text-neutral-500">Không tìm thấy tag phù hợp.</p>}
         </div>
         {error && <p role="alert" className="mt-3 text-xs font-semibold text-danger-700">{error}</p>}
       </Modal>
       <Modal open={open && creating} onClose={() => { setCreating(false); setError(null); }} title="Thêm tag mẫu" size="sm">
         <form onSubmit={save}>
           <label className="block text-sm font-medium text-neutral-700">Tên tag<input value={label} onChange={(event) => setLabel(event.target.value)} maxLength={24} autoFocus placeholder="Nhập tên tag" className="mt-2 min-h-11 w-full rounded-input border border-neutral-300 bg-neutral-0 px-3 text-sm outline-none placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-100" /></label>
-          <fieldset className="mt-5"><legend className="text-sm font-medium text-neutral-700">Màu tag</legend><div className="mt-2 flex gap-1">{CHAT_TAG_COLORS.map((item) => <button key={item.value} type="button" onClick={() => setColor(item.value)} aria-label={`Chọn màu ${item.label}`} aria-pressed={color === item.value} className={`flex size-10 items-center justify-center rounded-input transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 ${color === item.value ? "bg-neutral-100 ring-1 ring-neutral-300" : "hover:bg-neutral-100"}`}><span className={`size-6 rounded-md ${item.swatch}`} /></button>)}</div></fieldset>
+          <fieldset className="mt-5"><legend className="text-sm font-medium text-neutral-700">Màu tag</legend><div className="mt-2 flex gap-1">{CHAT_TAG_COLORS.map((item) => <button key={item.value} type="button" onClick={() => setColor(item.value)} aria-label={`Chọn màu ${item.label}`} aria-pressed={color === item.value} className={`flex size-10 items-center justify-center rounded-input transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 ${color === item.value ? "bg-neutral-100 ring-1 ring-neutral-300" : "hover:bg-neutral-100"}`}><span className={`size-6 rounded-input ${item.swatch}`} /></button>)}</div></fieldset>
           <div className="mt-5 border-t border-neutral-200 pt-4"><span className="text-xs font-medium text-neutral-500">Xem trước</span><div className="mt-2"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${CHAT_TAG_STYLES[color]}`}>{label.trim() || "Tên tag"}</span></div></div>
           {error && <p role="alert" className="mt-3 text-xs font-semibold text-danger-700">{error}</p>}
-          <div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => { setCreating(false); setError(null); }} className="min-h-10 rounded-input border border-neutral-300 px-4 text-sm font-semibold text-neutral-700 hover:bg-neutral-50">Hủy</button><button type="submit" disabled={!label.trim() || pending} className="min-h-10 rounded-input bg-primary-600 px-4 text-sm font-semibold text-white transition hover:bg-primary-700 active:scale-[.98] disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-neutral-400">{pending ? "Đang lưu..." : "Lưu tag"}</button></div>
+          <div className="mt-6 flex justify-end gap-2"><Button variant="secondary" type="button" onClick={() => { setCreating(false); setError(null); }}>Hủy</Button><Button variant="primary" type="submit" disabled={!label.trim() || pending}>{pending ? "Đang lưu..." : "Lưu tag"}</Button></div>
         </form>
       </Modal>
     </>

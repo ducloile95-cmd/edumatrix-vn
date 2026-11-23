@@ -41,7 +41,7 @@ export function SearchInput({
           type="button"
           onClick={() => onChange("")}
           aria-label={`Xóa ${accessibleName.toLocaleLowerCase("vi")}`}
-          className="absolute right-1 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-md text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+          className="absolute right-1 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-input text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
         >
           <X size={15} aria-hidden="true" />
         </button>

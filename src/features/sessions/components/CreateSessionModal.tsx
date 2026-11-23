@@ -203,7 +203,7 @@ export function CreateSessionModal({
                     type="button"
                     aria-pressed={mode === value}
                     onClick={() => setValue("scheduleMode", value, { shouldValidate: true })}
-                    className={`min-h-9 rounded-[7px] px-3 text-xs font-semibold transition ${
+                    className={`min-h-9 rounded-input px-3 text-xs font-semibold transition ${
                       mode === value ? "bg-neutral-0 text-primary-700 shadow-sm" : "text-neutral-600 hover:text-neutral-900"
                     }`}
                   >

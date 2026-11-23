@@ -26,6 +26,8 @@ export function DataListPanel({
   useLayoutEffect(() => {
     const updateHeight = () => {
       if (!panelRef.current) return;
+      // Mobile: để cả trang cuộn, tránh ô cuộn lồng chỉ hiện được một dòng.
+      if (window.matchMedia?.("(max-width: 767px)").matches) { setHeight(undefined); return; }
       const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
       const top = panelRef.current.getBoundingClientRect().top;
       setHeight(Math.max(minimumHeight, Math.floor(viewportHeight - top - bottomGap)));

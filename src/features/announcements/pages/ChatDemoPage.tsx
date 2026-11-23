@@ -249,7 +249,7 @@ function TagManager({ open, tags, onClose, onAdd, onRemove }: { open: boolean; t
         <form onSubmit={saveTag}>
           <label className="block text-sm font-medium text-neutral-700">Tên tag<input value={tagInput} onChange={(event) => setTagInput(event.target.value)} maxLength={24} autoFocus placeholder="Nhập tên tag" className="mt-2 min-h-11 w-full rounded-card border border-neutral-300 bg-neutral-0 px-3 text-sm outline-none placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-100" /></label>
           <fieldset className="mt-5"><legend className="text-sm font-medium text-neutral-700">Màu tag</legend><div className="mt-2 flex gap-1">{TAG_COLORS.map((color) => (
-            <button key={color.value} type="button" onClick={() => setTagColor(color.value)} aria-label={`Chọn màu ${color.label}`} aria-pressed={tagColor === color.value} className={`flex size-10 items-center justify-center rounded-card transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 ${tagColor === color.value ? "bg-neutral-100 ring-1 ring-neutral-300" : "hover:bg-neutral-100"}`}><span className={`size-6 rounded-md ${color.swatch}`} /></button>
+            <button key={color.value} type="button" onClick={() => setTagColor(color.value)} aria-label={`Chọn màu ${color.label}`} aria-pressed={tagColor === color.value} className={`flex size-10 items-center justify-center rounded-card transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 ${tagColor === color.value ? "bg-neutral-100 ring-1 ring-neutral-300" : "hover:bg-neutral-100"}`}><span className={`size-6 rounded-input ${color.swatch}`} /></button>
           ))}</div></fieldset>
           <div className="mt-5 border-t border-neutral-200 pt-4"><span className="text-xs font-medium text-neutral-500">Xem trước</span><div className="mt-2"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${TAG_STYLES[tagColor]}`}>{tagInput.trim() || "Tên tag"}</span></div></div>
           <div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => setCreating(false)} className="min-h-10 rounded-card border border-neutral-300 px-4 text-sm font-semibold text-neutral-700 hover:bg-neutral-50">Hủy</button><button type="submit" disabled={!tagInput.trim()} className="min-h-10 rounded-card bg-primary-600 px-4 text-sm font-semibold text-white transition hover:bg-primary-700 active:scale-[.98] disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-neutral-400">Lưu tag</button></div>
@@ -299,12 +299,12 @@ function Conversation({ thread, messages, tagCatalog, tags, onBack, onInfo, onSe
             return (
               <div key={message.id} className={`${index === 0 ? "" : groupedWithPrevious ? "mt-0.5" : "mt-3"} flex items-end ${inbound ? "justify-start gap-2" : "justify-end"}`}>
                 {inbound && (
-                  <span aria-label={showAvatar ? `Ảnh đại diện ${thread.parentName}` : undefined} aria-hidden={!showAvatar} className={`flex size-7 shrink-0 items-center justify-center rounded-full bg-primary-100 text-4xs font-semibold text-primary-700 ${showAvatar ? "" : "invisible"}`}>
+                  <span aria-label={showAvatar ? `Ảnh đại diện ${thread.parentName}` : undefined} aria-hidden={!showAvatar} className={`flex size-7 shrink-0 items-center justify-center rounded-full bg-primary-100 text-3xs font-semibold text-primary-700 ${showAvatar ? "" : "invisible"}`}>
                     {initials(thread.parentName)}
                   </span>
                 )}
                 <div className={`flex min-w-0 max-w-[80%] flex-col sm:max-w-[70%] ${inbound ? "items-start" : "items-end"}`}>
-                  <div title={`Gửi lúc ${message.time}`} className={`break-words rounded-[18px] px-3.5 py-2.5 text-sm leading-5 ${inbound ? "bg-neutral-100 text-neutral-800" : "bg-primary-600 text-white"}`}>
+                  <div title={`Gửi lúc ${message.time}`} className={`break-words rounded-modal px-3.5 py-2.5 text-sm leading-5 ${inbound ? "bg-neutral-100 text-neutral-800" : "bg-primary-600 text-white"}`}>
                     <p>{message.text}</p>
                     <span className="sr-only">Gửi lúc {message.time}</span>
                   </div>
@@ -329,7 +329,7 @@ function Conversation({ thread, messages, tagCatalog, tags, onBack, onInfo, onSe
         </div>
       <form onSubmit={submit} className="shrink-0 bg-neutral-0 px-3 pb-3 pt-2 sm:px-4 sm:pb-4">
         <div className="mx-auto flex max-w-[760px] items-end gap-2">
-          <label className="min-w-0 flex-1 rounded-[20px] bg-neutral-100 px-4"><span className="sr-only">Soạn tin nhắn</span><textarea value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={handleComposerKeyDown} aria-describedby="chat-composer-help" rows={1} maxLength={2000} disabled={!thread.connected} placeholder={thread.connected ? "Aa" : "Chưa thể gửi tin nhắn"} className="max-h-28 min-h-11 w-full resize-none overflow-y-auto bg-transparent py-2.5 text-sm leading-6 text-neutral-800 outline-none [field-sizing:content] placeholder:text-neutral-500 focus-visible:ring-0 focus-visible:ring-offset-0 disabled:cursor-not-allowed" /></label>
+          <label className="min-w-0 flex-1 rounded-modal bg-neutral-100 px-4"><span className="sr-only">Soạn tin nhắn</span><textarea value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={handleComposerKeyDown} aria-describedby="chat-composer-help" rows={1} maxLength={2000} disabled={!thread.connected} placeholder={thread.connected ? "Aa" : "Chưa thể gửi tin nhắn"} className="max-h-28 min-h-11 w-full resize-none overflow-y-auto bg-transparent py-2.5 text-sm leading-6 text-neutral-800 outline-none [field-sizing:content] placeholder:text-neutral-500 focus-visible:ring-0 focus-visible:ring-offset-0 disabled:cursor-not-allowed" /></label>
           <button type="submit" disabled={!draft.trim() || !thread.connected} aria-label="Gửi tin nhắn demo" className="flex size-11 shrink-0 items-center justify-center rounded-full bg-transparent text-primary-600 transition-colors hover:bg-primary-50 active:scale-[.97] disabled:cursor-not-allowed disabled:text-neutral-300"><Send size={20} /></button>
         </div>
         <span id="chat-composer-help" className="sr-only">Nhấn Enter để gửi. Nhấn Shift và Enter để xuống dòng.</span>

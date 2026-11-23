@@ -334,7 +334,7 @@ function WeekNavigator({
               onClick={() => onSelect(day)}
               className={`motion-control relative min-h-[58px] rounded-input border px-1 py-2 text-center ${
                 selected
-                  ? "border-primary-600 bg-primary-700 text-white shadow-[0_6px_16px_rgba(35,72,214,.2)]"
+                  ? "border-primary-600 bg-primary-700 text-white"
                   : isToday
                     ? "border-primary-200 bg-primary-50 text-primary-800"
                     : "border-transparent text-neutral-500 hover:border-neutral-200 hover:bg-neutral-50"

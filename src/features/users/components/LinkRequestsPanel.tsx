@@ -74,7 +74,7 @@ function RequestCard({ onDone, request, students }: { onDone: () => void; reques
   }
 
   return (
-    <section className="overflow-hidden rounded-card border border-neutral-200 bg-neutral-0 shadow-[0_1px_2px_rgba(28,51,137,.04)]">
+    <section className="overflow-hidden rounded-card border border-neutral-200 bg-neutral-0 shadow-xs">
       <div className="border-b border-neutral-200 bg-neutral-50 px-4 py-3">
         <h3 className="text-sm font-semibold text-neutral-900">{request.parentName}</h3>
         <p className="mt-1 text-xs leading-5 text-neutral-500">

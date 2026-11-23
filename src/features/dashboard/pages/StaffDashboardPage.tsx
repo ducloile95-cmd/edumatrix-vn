@@ -2,7 +2,7 @@ import { lazy, Suspense, useMemo, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { AlertTriangle, BookOpenCheck, RefreshCw, CalendarDays, ChevronRight, ClipboardCheck, Cloud, GraduationCap, MessageCircle, QrCode, Settings2, UserRound, UserX, type LucideIcon } from "lucide-react";
+import { AlertTriangle, BookOpenCheck, RefreshCw, CalendarDays, ChevronDown, ChevronRight, ClipboardCheck, Cloud, GraduationCap, MessageCircle, QrCode, Settings2, UserRound, UserX, type LucideIcon } from "lucide-react";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
@@ -34,7 +34,7 @@ const FinanceAgingChart = lazy(() => import("@/features/dashboard/components/Fin
 const FIELD_CLASS = "min-h-10 min-w-0 rounded-input border border-neutral-200 bg-neutral-50 px-3 text-sm font-medium text-neutral-700 outline-none transition hover:border-neutral-300 focus:border-primary-500 focus:bg-neutral-0 focus:ring-2 focus:ring-primary-100";
 
 function Panel({ title, description, children, action }: { title: string; description?: string; children: ReactNode; action?: ReactNode }) {
-  return <section className="min-w-0 overflow-hidden rounded-card border border-neutral-200/80 bg-neutral-0 shadow-[0_1px_2px_rgba(15,23,42,.04)]"><div className="flex flex-wrap items-start justify-between gap-3 border-b border-neutral-100 px-5 py-4"><div><h2 className="text-base font-bold tracking-tight text-neutral-900">{title}</h2>{description && <p className="mt-1 text-xs leading-5 text-neutral-500">{description}</p>}</div>{action}</div>{children}</section>;
+  return <section className="min-w-0 overflow-hidden rounded-card border border-neutral-200/80 bg-neutral-0 shadow-xs"><div className="flex flex-wrap items-start justify-between gap-3 border-b border-neutral-100 px-5 py-4"><div><h2 className="text-base font-bold tracking-tight text-neutral-900">{title}</h2>{description && <p className="mt-1 text-xs leading-5 text-neutral-500">{description}</p>}</div>{action}</div>{children}</section>;
 }
 
 function MetricCell({ icon: Icon, value, label, hint, tone = "primary" }: { icon: LucideIcon; value: ReactNode; label: string; hint: string; tone?: "primary" | "warning" | "accent" }) {
@@ -47,16 +47,16 @@ function StaffGreeting({ name, intro, metrics }: { name: string; intro: string; 
     <div className="grid gap-4 px-5 py-4 lg:grid-cols-[minmax(260px,.8fr)_minmax(0,1.2fr)] lg:items-center lg:px-6">
       <div>
         <h2 className="text-2xl font-black tracking-tight text-neutral-950"><span className="text-primary-700">Xin chào!</span> {name}</h2>
-        <p className="mt-1.5 text-sm leading-6 text-neutral-600">{intro}</p>
+        <p className="mt-1.5 hidden text-sm leading-6 text-neutral-600 sm:block">{intro}</p>
       </div>
-      <dl className="grid overflow-hidden rounded-input border border-primary-100 bg-neutral-0 sm:grid-cols-3 sm:divide-x sm:divide-primary-100">
+      <dl className="hidden overflow-hidden rounded-input border border-primary-100 bg-neutral-0 sm:grid sm:grid-cols-3 sm:divide-x sm:divide-primary-100">
         {metrics.map(({ label, value, icon: Icon }) => <div key={label} className="flex items-center gap-3 border-b border-primary-100 px-4 py-3 last:border-b-0 sm:border-b-0">
           <span className="grid size-9 shrink-0 place-items-center rounded-input bg-primary-50 text-primary-700"><Icon size={17} strokeWidth={1.8} /></span>
           <div className="min-w-0"><dt className="text-xs font-semibold text-neutral-500">{label}</dt><dd className="mt-0.5 text-xl font-black tabular-nums text-neutral-950">{value}</dd></div>
         </div>)}
       </dl>
     </div>
-    <p className="border-t border-primary-100 bg-neutral-0/70 px-5 py-2.5 text-xs font-semibold text-primary-800 lg:px-6">Edumatrix chúc Thầy cô và trò học tốt, dạy tốt!</p>
+    <p className="hidden border-t border-primary-100 bg-neutral-0/70 px-5 sm:block py-2.5 text-xs font-semibold text-primary-800 lg:px-6">Edumatrix chúc Thầy cô và trò học tốt, dạy tốt!</p>
   </section>;
 }
 
@@ -88,6 +88,7 @@ export default function StaffDashboardPage() {
   const reducedMotion = useReducedMotion();
   const [days, setDays] = useState<7 | 30 | 90>(30);
   const [filters, setFilters] = useState<DashboardFilters>({});
+  const [showFilters, setShowFilters] = useState(false);
   const range = useMemo(() => dashboardRange(days), [days]);
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -148,12 +149,15 @@ export default function StaffDashboardPage() {
   // Bo loc o cap trang: no ap cho ca khoi Van hanh lan moi tab ben duoi.
   // Dat vao header cua CollapsibleSection de khong ton them mot hang rieng.
   const filterBar = <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center xl:justify-end" aria-label="Phạm vi dữ liệu">
-    <div className="flex shrink-0 rounded-input bg-neutral-100 p-1" aria-label="Khoảng thời gian">{([7, 30, 90] as const).map((value) => <button key={value} type="button" onClick={() => setDays(value)} className={`min-h-8 flex-1 rounded-[7px] px-3 text-xs font-bold transition sm:flex-none ${days === value ? "bg-neutral-0 text-primary-700 shadow-sm" : "text-neutral-500 hover:text-neutral-800"}`}>{value} ngày</button>)}</div>
+    <div className="flex shrink-0 rounded-input bg-neutral-100 p-1" aria-label="Khoảng thời gian">{([7, 30, 90] as const).map((value) => <button key={value} type="button" onClick={() => setDays(value)} className={`min-h-8 flex-1 rounded-input px-3 text-xs font-bold transition sm:flex-none ${days === value ? "bg-neutral-0 text-primary-700 shadow-sm" : "text-neutral-500 hover:text-neutral-800"}`}>{value} ngày</button>)}</div>
+    <button type="button" aria-expanded={showFilters} onClick={() => setShowFilters((value) => !value)} className="flex min-h-touch items-center justify-center gap-1.5 rounded-input text-sm font-semibold text-primary-700 hover:bg-primary-50 sm:hidden">{showFilters ? "Ẩn bộ lọc" : "Lọc theo khóa, lớp, giáo viên"}<ChevronDown size={16} aria-hidden="true" className={`transition-transform ${showFilters ? "rotate-180" : ""}`} /></button>
+    <div className={`${showFilters ? "flex" : "hidden"} flex-col gap-2 sm:contents`}>
     {isAdmin && <select aria-label="Khóa học" value={filters.courseId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, courseId: event.target.value || undefined, classId: undefined }))} className={`${FIELD_CLASS} w-full sm:w-40`}><option value="">Tất cả khóa học</option>{courses.data?.map((course) => <option key={course.id} value={course.id}>{course.name}</option>)}</select>}
     <select aria-label={isAdmin ? "Lớp học" : "Lớp phụ trách"} value={filters.classId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, classId: event.target.value || undefined }))} className={`${FIELD_CLASS} w-full sm:w-40`}><option value="">{isAdmin ? "Tất cả lớp" : "Lớp phụ trách"}</option>{classes.data?.filter((klass) => !filters.courseId || klass.courseId === filters.courseId).map((klass) => <option key={klass.id} value={klass.id}>{klass.name}</option>)}</select>
     {isAdmin && <select aria-label="Giáo viên" value={filters.teacherId ?? ""} onChange={(event) => setFilters((current) => ({ ...current, teacherId: event.target.value || undefined }))} className={`${FIELD_CLASS} w-full sm:w-40`}><option value="">Tất cả giáo viên</option>{teachers.data?.map((teacher) => <option key={teacher.uid} value={teacher.uid}>{teacher.displayName}</option>)}</select>}
     <Button size="sm" variant="secondary" icon={<RefreshCw size={15} />} aria-label="Làm mới số liệu" loading={overview.isFetching || learning.isFetching || finance.isFetching}
       onClick={() => { overview.refetch(); if (tab === "quality") learning.refetch(); if (tab === "finance") finance.refetch(); }}>Làm mới</Button>
+    </div>
   </div>;
 
   return <>
@@ -180,8 +184,8 @@ export default function StaffDashboardPage() {
         action={filterBar}
       >
       <QueryPanel loading={overview.isLoading} error={overview.isError} retry={() => overview.refetch()}>
-        {overview.data && <>
-          <section className="grid overflow-hidden rounded-card border border-neutral-200/80 bg-neutral-0 shadow-[0_1px_2px_rgba(15,23,42,.04)] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 [&>*]:border-neutral-100 [&>*:not(:last-child)]:border-b sm:[&>*]:border-b sm:[&>*]:border-r xl:[&>*]:border-b-0">
+        {overview.data && <div className="flex flex-col gap-4">
+          <section className="max-md:order-2 grid overflow-hidden rounded-card border border-neutral-200/80 bg-neutral-0 shadow-xs sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 [&>*]:border-neutral-100 [&>*:not(:last-child)]:border-b sm:[&>*]:border-b sm:[&>*]:border-r xl:[&>*]:border-b-0">
             <MetricCell icon={CalendarDays} value={overview.data.today.total} label={isAdmin ? "Buổi học hôm nay" : "Buổi dạy hôm nay"} hint={`${overview.data.today.done} đã xong · ${overview.data.today.upcoming} sắp tới`} />
             <MetricCell icon={GraduationCap} value={overview.data.activeClasses} label="Lớp đang hoạt động" hint={isAdmin ? "Theo bộ lọc hiện tại" : "Được phân công"} />
             <MetricCell icon={UserRound} value={overview.data.activeStudents} label={isAdmin ? "Học sinh active" : "Học sinh phụ trách"} hint="Không trùng học sinh" />
@@ -190,11 +194,11 @@ export default function StaffDashboardPage() {
             <MetricCell icon={BookOpenCheck} value={overview.data.lessonPlanGaps} label="Thiếu giáo án" hint="Trong 7 ngày tới" tone="warning" />
           </section>
 
-          <div className="mt-4 grid gap-4 xl:grid-cols-[1.35fr_.65fr]">
+          <div className="grid gap-4 xl:grid-cols-[1.35fr_.65fr] max-md:[&>*:last-child]:order-first">
             <Panel title={isAdmin ? "Lịch hôm nay" : "Lịch giảng dạy hôm nay"} description="Giờ, lớp, địa điểm và sĩ số."><div className="p-4">{overview.data.sessions.length === 0 ? <EmptyState title="Không có lịch hôm nay" description="Không có buổi học phù hợp với bộ lọc." /> : <ul className="divide-y divide-neutral-100">{overview.data.sessions.map((session) => <li key={session.id} className="flex flex-wrap items-center gap-3 py-3"><span className="min-w-14 rounded-input bg-primary-50 px-2 py-1.5 text-center text-xs font-bold tabular-nums text-primary-700">{format(session.startAt, "HH:mm")}</span><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-neutral-900">{session.className}</p><p className="truncate text-xs text-neutral-500">{session.location || "Chưa có địa điểm"} · {session.studentCount} học sinh</p></div><Link to={classroomSessionPath(session.id)} className="inline-flex min-h-10 items-center rounded-input bg-primary-600 px-3 text-xs font-bold text-white hover:bg-primary-700">Mở buổi học</Link></li>)}</ul>}</div></Panel>
             <Panel title="Hàng đợi xử lý" description="Mỗi mục dẫn tới module đã lọc."><div className="px-5">{overview.data.actions.length === 0 ? <EmptyState title="Không còn việc tồn" description="Các tác vụ hiện tại đã được xử lý." /> : overview.data.actions.map((action) => <Link key={action.id} to={`${ACTION_ROUTES[action.kind]}?dashboard=${action.kind}`} className="flex min-h-touch items-center gap-3 border-b border-neutral-100 py-3 last:border-0 hover:bg-neutral-50"><span className="grid size-8 shrink-0 place-items-center rounded-full bg-warning-50 text-sm font-black text-warning-800">{action.count}</span><span className="min-w-0 flex-1"><span className="block text-sm font-bold text-neutral-900">{action.label}</span><span className="block truncate text-xs text-neutral-500">{action.detail}</span></span><ChevronRight size={16} className="text-neutral-300" /></Link>)}</div></Panel>
           </div>
-        </>}
+        </div>}
       </QueryPanel>
       </CollapsibleSection>
 
@@ -208,7 +212,7 @@ export default function StaffDashboardPage() {
       {tab === "quality" && <QueryPanel loading={learning.isLoading} error={learning.isError || academic.isError} retry={() => { academic.refetch(); learning.refetch(); }}>
         {learning.data && <>
           <p className="text-xs leading-5 text-neutral-500">{`Tổng hợp theo phạm vi ${days} ngày và bộ lọc hiện tại.`}</p>
-          <section className="mt-3 grid overflow-hidden rounded-card border border-neutral-200/80 bg-neutral-0 shadow-[0_1px_2px_rgba(15,23,42,.04)] sm:grid-cols-3 [&>*:not(:last-child)]:border-b sm:[&>*:not(:last-child)]:border-b-0 sm:[&>*:not(:last-child)]:border-r [&>*]:border-neutral-100">
+          <section className="mt-3 grid overflow-hidden rounded-card border border-neutral-200/80 bg-neutral-0 shadow-xs sm:grid-cols-3 [&>*:not(:last-child)]:border-b sm:[&>*:not(:last-child)]:border-b-0 sm:[&>*:not(:last-child)]:border-r [&>*]:border-neutral-100">
             <MetricCell icon={CalendarDays} value={`${learning.data.attendanceRate}%`} label="Tỉ lệ chuyên cần" hint={`Trong ${days} ngày`} />
             <MetricCell icon={ClipboardCheck} value={`${learning.data.assignmentRate}%`} label="Hoàn thành bài tập" hint={`Trong ${days} ngày`} tone="accent" />
             <MetricCell icon={GraduationCap} value={`${learning.data.averageScore}%`} label="Điểm trung bình" hint="Theo điểm đã công bố" />

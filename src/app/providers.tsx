@@ -2,6 +2,7 @@ import { type ReactNode, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/features/auth/context/AuthContext";
 import { ToastProvider } from "@/components/feedback/ToastProvider";
+import { ConfirmProvider } from "@/components/feedback/ConfirmProvider";
 import { AppearanceProvider } from "@/features/preferences/AppearanceContext";
 import { QueryCacheUserBoundary } from "@/app/QueryCacheUserBoundary";
 
@@ -25,7 +26,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
     <AppearanceProvider>
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
-          <AuthProvider><QueryCacheUserBoundary />{children}</AuthProvider>
+          <ConfirmProvider>
+            <AuthProvider><QueryCacheUserBoundary />{children}</AuthProvider>
+          </ConfirmProvider>
         </ToastProvider>
       </QueryClientProvider>
     </AppearanceProvider>

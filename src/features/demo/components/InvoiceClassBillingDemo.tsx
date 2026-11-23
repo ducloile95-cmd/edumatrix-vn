@@ -140,8 +140,8 @@ export function InvoiceClassBillingDemo({ onClose }: { onClose: () => void }) {
         <div className="mx-auto mb-4 flex max-w-[1600px] flex-col gap-3 rounded-card border border-neutral-200 bg-neutral-0 p-3 sm:flex-row sm:items-center sm:justify-between">
           <div><p className="text-sm font-bold text-neutral-900">Loại hóa đơn</p><p className="mt-0.5 text-xs text-neutral-500">Chọn cách tính học phí trước khi chọn người học.</p></div>
           <div role="tablist" aria-label="Chọn loại hóa đơn" className="grid grid-cols-2 gap-1 rounded-input border border-neutral-200 bg-neutral-50 p-1">
-            <button type="button" role="tab" aria-selected={billingMode === "class"} onClick={() => changeBillingMode("class")} className={`min-h-10 rounded-lg px-4 text-xs font-bold transition ${billingMode === "class" ? "bg-neutral-0 text-primary-700 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}>Theo lớp học</button>
-            <button type="button" role="tab" aria-selected={billingMode === "item"} onClick={() => changeBillingMode("item")} className={`min-h-10 rounded-lg px-4 text-xs font-bold transition ${billingMode === "item" ? "bg-neutral-0 text-primary-700 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}>Đồ dùng học tập</button>
+            <button type="button" role="tab" aria-selected={billingMode === "class"} onClick={() => changeBillingMode("class")} className={`min-h-10 rounded-input px-4 text-xs font-bold transition ${billingMode === "class" ? "bg-neutral-0 text-primary-700 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}>Theo lớp học</button>
+            <button type="button" role="tab" aria-selected={billingMode === "item"} onClick={() => changeBillingMode("item")} className={`min-h-10 rounded-input px-4 text-xs font-bold transition ${billingMode === "item" ? "bg-neutral-0 text-primary-700 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}>Đồ dùng học tập</button>
           </div>
         </div>
         <div className="mx-auto grid max-w-[1600px] gap-4 xl:grid-cols-[minmax(300px,.82fr)_minmax(360px,1fr)_minmax(300px,.78fr)] xl:items-start">

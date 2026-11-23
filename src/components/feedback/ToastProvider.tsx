@@ -31,12 +31,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const showToast = useCallback((input: ToastInput) => {
     const id = nextId.current += 1;
-    const duration = input.duration ?? DEFAULT_TOAST_DURATION_MS;
-    setItems((current) => [...current, { ...input, id, duration, tone: input.tone ?? "info" }]);
-    const timer = window.setTimeout(() => {
-      dismiss(id);
-    }, duration);
-    timers.current.set(id, timer);
+    const tone = input.tone ?? "info";
+    // Lỗi phải được người dùng đọc và tự đóng; chỉ tự tắt khi caller truyền duration rõ ràng.
+    const duration = input.duration ?? (tone === "error" ? 0 : DEFAULT_TOAST_DURATION_MS);
+    setItems((current) => [...current, { ...input, id, duration, tone }]);
+    if (duration > 0) timers.current.set(id, window.setTimeout(() => dismiss(id), duration));
   }, [dismiss]);
 
   useEffect(() => () => {

@@ -100,7 +100,7 @@ export const EduMatrixLogo: React.FC<EduMatrixLogoProps> = ({
               style={{ backgroundColor: isLight ? "rgba(255,255,255,0.4)" : "#0F2942" }}
             />
             <span
-              className="font-bold tracking-widest text-[11px] font-sans"
+              className="font-bold tracking-widest text-3xs font-sans"
               style={{ color: secondaryColor }}
             >
               V N

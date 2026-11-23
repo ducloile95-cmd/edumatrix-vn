@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/Button";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -18,7 +19,7 @@ interface StudentFormProps {
 const inputClass =
   "min-h-touch w-full rounded-input border border-neutral-300 px-3 text-sm text-neutral-900 outline-none transition placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:bg-neutral-100 disabled:text-neutral-400";
 
-const sectionClass = "flex h-full min-w-0 flex-col overflow-hidden rounded-card border border-neutral-200 bg-neutral-0 shadow-[0_1px_2px_rgba(28,51,137,.04)]";
+const sectionClass = "flex h-full min-w-0 flex-col overflow-hidden rounded-card border border-neutral-200 bg-neutral-0 shadow-xs";
 
 export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
   const queryClient = useQueryClient();
@@ -223,20 +224,20 @@ export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
       )}
 
       <div className="flex justify-end gap-2 border-t border-neutral-200 pt-4 lg:col-span-full">
-        <button
+        <Button variant="secondary"
           type="button"
           onClick={() => onDone?.()}
-          className="min-h-touch rounded-input border border-neutral-300 px-5 text-sm font-medium text-neutral-600 transition hover:bg-neutral-50"
+         
         >
           Hủy
-        </button>
-        <button
+        </Button>
+        <Button variant="primary"
           type="submit"
           disabled={mutation.isPending}
-          className="min-h-touch rounded-input bg-primary-500 px-5 text-sm font-medium text-white transition hover:bg-primary-600 disabled:opacity-60"
+         
         >
           {mutation.isPending ? "Đang lưu..." : isEditing ? "Lưu thay đổi" : "Thêm học sinh"}
-        </button>
+        </Button>
       </div>
     </form>
   );

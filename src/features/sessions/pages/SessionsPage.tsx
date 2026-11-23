@@ -247,9 +247,9 @@ export default function SessionsPage() {
               </button>
             </div>
             <span className="min-w-[140px] text-sm font-bold text-neutral-900">{periodLabel}</span>
-            <button type="button" onClick={goToday} className="min-h-touch rounded-input border border-neutral-300 px-3 text-xs font-semibold text-neutral-700 hover:bg-neutral-50">
+            <Button variant="secondary" size="sm" type="button" onClick={goToday}>
               Hôm nay
-            </button>
+            </Button>
           </div>
           <div className="grid min-h-touch grid-cols-4 gap-1 rounded-input border border-neutral-300 bg-neutral-50 p-1">
             {([
@@ -262,8 +262,8 @@ export default function SessionsPage() {
                 key={value}
                 type="button"
                 onClick={() => setTimetableView(value)}
-                className={`rounded-[7px] px-3 text-xs font-semibold transition ${
-                  timetableView === value ? "bg-primary-500 text-white shadow-[0_4px_12px_rgba(51,102,240,.18)]" : "text-neutral-600 hover:bg-neutral-0 hover:text-primary-700"
+                className={`rounded-input px-3 text-xs font-semibold transition ${
+                  timetableView === value ? "bg-primary-500 text-white" : "text-neutral-600 hover:bg-neutral-0 hover:text-primary-700"
                 }`}
               >
                 {label}

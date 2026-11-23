@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { Children, useId, useState, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
 
 interface FilterToolbarProps {
@@ -8,14 +8,27 @@ interface FilterToolbarProps {
 }
 
 export function FilterToolbar({ children, className = "", label = "Công cụ tìm kiếm và lọc" }: FilterToolbarProps) {
+  const [expanded, setExpanded] = useState(false);
+  const contentId = useId();
   return (
     <section
       aria-label={label}
       className={`mb-4 rounded-card border border-neutral-200 bg-neutral-0 p-3 shadow-[var(--shadow-1)] sm:p-4 ${className}`}
     >
-      <div className="grid gap-3 md:grid-cols-[minmax(260px,1fr)_minmax(190px,auto)] md:items-end">
+      {/* Mobile: chỉ giữ ô lọc chính, các ô còn lại gập lại để danh sách lên sớm. */}
+      <div id={contentId} className={`grid gap-3 md:grid-cols-[minmax(260px,1fr)_minmax(190px,auto)] md:items-end ${expanded ? "" : "max-md:[&>*:not(:first-child)]:hidden"}`}>
         {children}
       </div>
+      {Children.count(children) > 1 && <button
+        type="button"
+        aria-expanded={expanded}
+        aria-controls={contentId}
+        onClick={() => setExpanded((value) => !value)}
+        className="mt-2 flex min-h-touch w-full items-center justify-center gap-1.5 rounded-input text-sm font-semibold text-primary-700 hover:bg-primary-50 md:hidden"
+      >
+        {expanded ? "Ẩn bớt bộ lọc" : "Thêm bộ lọc"}
+        <ChevronDown size={16} aria-hidden="true" className={`transition-transform ${expanded ? "rotate-180" : ""}`} />
+      </button>}
     </section>
   );
 }

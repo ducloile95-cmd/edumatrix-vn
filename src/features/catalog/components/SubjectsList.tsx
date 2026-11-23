@@ -86,14 +86,14 @@ export function SubjectsList({ canManage = true, canDelete = canManage, onEdit, 
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-neutral-200 px-4 py-4 sm:px-5">
         <h2 className="text-base font-semibold text-neutral-900">Môn học</h2>
         {canManage && (
-          <button
+          <Button variant="secondary" size="sm"
             type="button"
             onClick={onAdd}
-            className="inline-flex min-h-touch items-center gap-1.5 rounded-input border border-neutral-300 bg-white px-3 text-xs font-medium text-neutral-700 transition hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 active:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+           
           >
             <Plus size={14} aria-hidden="true" />
             Thêm môn học
-          </button>
+          </Button>
         )}
       </div>
 
@@ -172,7 +172,7 @@ export function SubjectsList({ canManage = true, canDelete = canManage, onEdit, 
                           onClick={() => onEdit(subject)}
                           aria-label={`Sửa môn ${subject.name}`}
                           title="Sửa môn học"
-                          className="grid size-11 shrink-0 place-items-center rounded-input border border-neutral-300 bg-white text-neutral-600 transition hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+                          className="grid size-11 shrink-0 place-items-center rounded-input border border-neutral-300 bg-neutral-0 text-neutral-600 transition hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
                         >
                           <Pencil size={17} aria-hidden="true" />
                         </button>}
@@ -187,14 +187,14 @@ export function SubjectsList({ canManage = true, canDelete = canManage, onEdit, 
                           disabled={statusMutation.isPending}
                           aria-label={subject.status === "active" ? `Lưu trữ môn ${subject.name}` : `Kích hoạt lại môn ${subject.name}`}
                           title={subject.status === "active" ? "Lưu trữ môn học" : "Kích hoạt lại môn học"}
-                          className="grid size-11 shrink-0 place-items-center rounded-input border border-neutral-300 bg-white text-neutral-600 transition hover:border-neutral-400 hover:bg-neutral-100 hover:text-neutral-900 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+                          className="grid size-11 shrink-0 place-items-center rounded-input border border-neutral-300 bg-neutral-0 text-neutral-600 transition hover:border-neutral-400 hover:bg-neutral-100 hover:text-neutral-900 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
                         >
                           {subject.status === "active" ? <Archive size={17} aria-hidden="true" /> : <RotateCcw size={17} aria-hidden="true" />}
                         </button>}
                         {canDelete && <button
                           type="button"
                           onClick={() => { deleteMutation.reset(); setDeletingSubject(subject); }}
-                          className="grid size-11 shrink-0 place-items-center rounded-input border border-danger-200 bg-white text-danger-700 transition hover:bg-danger-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-500 focus-visible:ring-offset-2"
+                          className="grid size-11 shrink-0 place-items-center rounded-input border border-danger-200 bg-neutral-0 text-danger-700 transition hover:bg-danger-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-500 focus-visible:ring-offset-2"
                           aria-label={`Xóa vĩnh viễn môn học ${subject.name}`}
                           title="Xóa vĩnh viễn môn học"
                         >

@@ -89,7 +89,7 @@ function Shell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-neutral-50 px-4 py-8">
       <div className="mx-auto grid w-full max-w-3xl gap-4">
         <div className="flex items-center gap-3">
-          <span className="grid size-10 place-items-center rounded-input bg-gradient-to-br from-primary-500 to-primary-700 text-base font-semibold text-white">
+          <span className="grid size-10 place-items-center rounded-input bg-primary-600 text-base font-semibold text-white">
             E
           </span>
           <h1 className="text-lg font-semibold text-neutral-900">EduMatrix</h1>

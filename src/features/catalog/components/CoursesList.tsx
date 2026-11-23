@@ -110,14 +110,14 @@ export function CoursesList({ canManage = true, canDelete = canManage, onEdit, o
               {courses ? `${filtered.length} khóa học phù hợp bộ lọc` : "Đang tải..."}
             </p>
           </div>
-          {canManage && <button
+          {canManage && <Button variant="primary" size="sm"
             type="button"
             onClick={onAdd}
-            className="inline-flex min-h-touch items-center gap-1.5 rounded-input border border-primary-600 bg-primary-600 px-3 text-xs font-bold text-white transition hover:border-primary-700 hover:bg-primary-700 active:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+           
           >
             <Plus size={14} aria-hidden="true" />
             Thêm khóa học
-          </button>}
+          </Button>}
         </div>
 
         <div className="mt-3 grid gap-3 md:grid-cols-[minmax(220px,1fr)_220px] md:items-end">
@@ -245,7 +245,7 @@ export function CoursesList({ canManage = true, canDelete = canManage, onEdit, o
                             onClick={() => onEdit(course)}
                             aria-label={`Sửa ${course.name}`}
                             title="Sửa khóa học"
-                            className="grid size-11 shrink-0 place-items-center rounded-input border border-neutral-300 bg-white text-neutral-600 transition hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
+                            className="grid size-11 shrink-0 place-items-center rounded-input border border-neutral-300 bg-neutral-0 text-neutral-600 transition hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
                           >
                             <Pencil size={17} aria-hidden="true" />
                           </button>}
@@ -253,11 +253,11 @@ export function CoursesList({ canManage = true, canDelete = canManage, onEdit, o
                             <summary
                               aria-label={`Cập nhật trạng thái ${course.name}`}
                               title="Cập nhật trạng thái"
-                              className="grid size-11 cursor-pointer list-none place-items-center rounded-input border border-neutral-300 bg-white text-neutral-600 transition marker:content-none hover:border-neutral-400 hover:bg-neutral-100 hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 [&::-webkit-details-marker]:hidden"
+                              className="grid size-11 cursor-pointer list-none place-items-center rounded-input border border-neutral-300 bg-neutral-0 text-neutral-600 transition marker:content-none hover:border-neutral-400 hover:bg-neutral-100 hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 [&::-webkit-details-marker]:hidden"
                             >
                               <MoreHorizontal size={18} aria-hidden="true" />
                             </summary>
-                            <div className="absolute right-0 top-[calc(100%+6px)] z-30 w-48 rounded-card border border-neutral-200 bg-white p-1.5 text-left shadow-lg">
+                            <div className="absolute right-0 top-[calc(100%+6px)] z-30 w-48 rounded-card border border-neutral-200 bg-neutral-0 p-1.5 text-left shadow-lg">
                               {course.status !== "active" && (
                                 <button
                                   type="button"
@@ -302,7 +302,7 @@ export function CoursesList({ canManage = true, canDelete = canManage, onEdit, o
                           {canDelete && <button
                             type="button"
                             onClick={() => { deleteMutation.reset(); setDeletingCourse(course); }}
-                            className="grid size-11 shrink-0 place-items-center rounded-input border border-danger-200 bg-white text-danger-700 transition hover:bg-danger-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-500 focus-visible:ring-offset-2"
+                            className="grid size-11 shrink-0 place-items-center rounded-input border border-danger-200 bg-neutral-0 text-danger-700 transition hover:bg-danger-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-danger-500 focus-visible:ring-offset-2"
                             aria-label={`Xóa vĩnh viễn khóa học ${course.name}`}
                             title="Xóa vĩnh viễn khóa học"
                           >
@@ -344,16 +344,16 @@ export function CoursesList({ canManage = true, canDelete = canManage, onEdit, o
                   </dl>
                   {(canManage || canDelete) && (
                     <div className="mt-4 flex justify-end gap-2">
-                      {canManage && <button
+                      {canManage && <Button variant="secondary" size="sm"
                         type="button"
                         onClick={() => onEdit(course)}
-                        className="inline-flex min-h-touch flex-1 items-center justify-center gap-2 rounded-input border border-neutral-300 bg-white px-3 text-xs font-medium text-neutral-700 transition hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700"
+                        className="flex-1"
                       >
                         <Pencil size={16} aria-hidden="true" /> Sửa
-                      </button>}
+                      </Button>}
                       {canManage && <details className="group relative">
-                        <summary aria-label={`Cập nhật trạng thái ${course.name}`} className="grid size-11 cursor-pointer list-none place-items-center rounded-input border border-neutral-300 bg-white text-neutral-600 marker:content-none hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 [&::-webkit-details-marker]:hidden"><MoreHorizontal size={18} aria-hidden="true" /></summary>
-                        <div className="absolute bottom-[calc(100%+6px)] right-0 z-30 w-48 rounded-card border border-neutral-200 bg-white p-1.5 shadow-lg">
+                        <summary aria-label={`Cập nhật trạng thái ${course.name}`} className="grid size-11 cursor-pointer list-none place-items-center rounded-input border border-neutral-300 bg-neutral-0 text-neutral-600 marker:content-none hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 [&::-webkit-details-marker]:hidden"><MoreHorizontal size={18} aria-hidden="true" /></summary>
+                        <div className="absolute bottom-[calc(100%+6px)] right-0 z-30 w-48 rounded-card border border-neutral-200 bg-neutral-0 p-1.5 shadow-lg">
                           {(["active", "draft", "completed"] as CourseStatus[]).filter((status) => status !== course.status).map((status) => (
                             <button
                               key={status}
@@ -373,7 +373,7 @@ export function CoursesList({ canManage = true, canDelete = canManage, onEdit, o
                       {canDelete && <button
                         type="button"
                         onClick={() => { deleteMutation.reset(); setDeletingCourse(course); }}
-                        className="grid size-11 shrink-0 place-items-center rounded-input border border-danger-200 bg-white text-danger-700 transition hover:bg-danger-50"
+                        className="grid size-11 shrink-0 place-items-center rounded-input border border-danger-200 bg-neutral-0 text-danger-700 transition hover:bg-danger-50"
                         aria-label={`Xóa vĩnh viễn khóa học ${course.name}`}
                         title="Xóa vĩnh viễn khóa học"
                       >

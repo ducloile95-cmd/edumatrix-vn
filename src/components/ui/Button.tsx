@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { LoaderCircle } from "lucide-react";
 
-type ButtonVariant = "primary" | "secondary" | "danger" | "ghost";
+type ButtonVariant = "primary" | "soft" | "secondary" | "danger" | "ghost";
 type ButtonSize = "sm" | "md";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -13,13 +13,15 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const base =
-  "motion-control relative inline-flex min-h-touch items-center justify-center gap-2 whitespace-nowrap rounded-input border text-sm font-bold shadow-none transition-[transform,filter] duration-150 hover:brightness-[1.04] active:scale-[.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:transform-none disabled:opacity-50";
+  "motion-control relative inline-flex min-h-touch items-center justify-center gap-2 whitespace-nowrap rounded-input border text-sm font-semibold shadow-none active:scale-[.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:transform-none disabled:opacity-50";
 
 const variants: Record<ButtonVariant, string> = {
-  primary: "border-primary-700 bg-gradient-to-br from-primary-500 to-primary-700 text-white",
-  secondary: "border-neutral-300 bg-gradient-to-b from-neutral-0 to-neutral-100 text-neutral-700 hover:border-neutral-400 hover:text-neutral-950",
-  danger: "border-danger-700 bg-gradient-to-br from-danger-500 to-danger-700 text-white",
-  ghost: "border-neutral-200 bg-gradient-to-b from-neutral-0/80 to-neutral-100/80 text-neutral-600 hover:border-neutral-300 hover:text-neutral-950",
+  primary: "border-primary-600 bg-primary-600 text-white hover:border-primary-700 hover:bg-primary-700",
+  // Hành động phụ nhưng cần nổi hơn secondary (vd. "Xem chi tiết", "Thêm buổi").
+  soft: "border-primary-200 bg-primary-50 text-primary-700 hover:border-primary-300 hover:bg-primary-100",
+  secondary: "border-neutral-300 bg-neutral-0 text-neutral-700 hover:bg-neutral-50 hover:border-neutral-400 hover:text-neutral-950",
+  danger: "border-danger-700 bg-danger-700 text-white hover:border-danger-900 hover:bg-danger-900",
+  ghost: "border-transparent bg-transparent text-neutral-600 hover:bg-neutral-100 hover:text-neutral-950",
 };
 
 const sizes: Record<ButtonSize, string> = {

@@ -1,7 +1,7 @@
 import LegalPageLayout from "../components/LegalPageLayout";
 
-const sectionTitleClass = "text-xl font-bold text-slate-950";
-const listClass = "mt-3 list-disc space-y-2 pl-6 text-slate-700";
+const sectionTitleClass = "text-xl font-bold text-neutral-900";
+const listClass = "mt-3 list-disc space-y-2 pl-6 text-neutral-700";
 
 export default function PrivacyPolicyPage() {
   return (
@@ -11,7 +11,7 @@ export default function PrivacyPolicyPage() {
     >
       <section>
         <h2 className={sectionTitleClass}>1. Phạm vi áp dụng</h2>
-        <p className="mt-3 text-slate-700">
+        <p className="mt-3 text-neutral-700">
           EduMatrix là hệ thống hỗ trợ quản lý hoạt động giáo dục và giao tiếp
           giữa đơn vị đào tạo với người học, phụ huynh. Đơn vị trường hoặc trung
           tâm cấp tài khoản và quản lý dữ liệu nghiệp vụ của mình trên hệ thống.
@@ -58,7 +58,7 @@ export default function PrivacyPolicyPage() {
 
       <section>
         <h2 className={sectionTitleClass}>4. Nền tảng và nhà cung cấp</h2>
-        <p className="mt-3 text-slate-700">
+        <p className="mt-3 text-neutral-700">
           EduMatrix có thể sử dụng Firebase để xác thực, lưu trữ và phân phối
           ứng dụng; Cloudflare Workers để xử lý tích hợp máy chủ; Meta Messenger
           Platform để trao đổi tin nhắn; Google Drive khi người dùng lựa chọn
@@ -69,7 +69,7 @@ export default function PrivacyPolicyPage() {
 
       <section>
         <h2 className={sectionTitleClass}>5. Chia sẻ và bán dữ liệu</h2>
-        <p className="mt-3 text-slate-700">
+        <p className="mt-3 text-neutral-700">
           EduMatrix không bán dữ liệu cá nhân. Dữ liệu chỉ được chia sẻ trong
           phạm vi cần thiết để cung cấp chức năng, thực hiện yêu cầu hợp pháp
           hoặc bảo vệ an toàn của người dùng và hệ thống.
@@ -78,7 +78,7 @@ export default function PrivacyPolicyPage() {
 
       <section>
         <h2 className={sectionTitleClass}>6. Bảo mật và lưu giữ</h2>
-        <p className="mt-3 text-slate-700">
+        <p className="mt-3 text-neutral-700">
           Hệ thống áp dụng kết nối HTTPS, kiểm soát truy cập theo vai trò và lưu
           bí mật tích hợp ở phía máy chủ. Dữ liệu được lưu trong thời gian cần
           thiết để cung cấp dịch vụ, đáp ứng nghĩa vụ quản lý của đơn vị đào tạo
@@ -90,7 +90,7 @@ export default function PrivacyPolicyPage() {
 
       <section>
         <h2 className={sectionTitleClass}>7. Dữ liệu học sinh</h2>
-        <p className="mt-3 text-slate-700">
+        <p className="mt-3 text-neutral-700">
           Dữ liệu học sinh được xử lý phục vụ hoạt động giáo dục dưới sự quản lý
           của đơn vị đào tạo và quyền giám hộ phù hợp. Người dùng chỉ được truy
           cập dữ liệu đúng vai trò và mục đích được giao.
@@ -99,7 +99,7 @@ export default function PrivacyPolicyPage() {
 
       <section>
         <h2 className={sectionTitleClass}>8. Quyền và yêu cầu của người dùng</h2>
-        <p className="mt-3 text-slate-700">
+        <p className="mt-3 text-neutral-700">
           Người dùng có thể yêu cầu xem, chỉnh sửa, ngừng liên kết Messenger
           hoặc xóa dữ liệu bằng cách liên hệ quản trị viên của trường hoặc trung
           tâm đã cấp tài khoản EduMatrix. Quản trị viên sẽ xác minh danh tính và
@@ -110,7 +110,7 @@ export default function PrivacyPolicyPage() {
 
       <section>
         <h2 className={sectionTitleClass}>9. Thay đổi chính sách</h2>
-        <p className="mt-3 text-slate-700">
+        <p className="mt-3 text-neutral-700">
           Chính sách có thể được cập nhật khi chức năng hoặc yêu cầu pháp lý
           thay đổi. Ngày cập nhật mới nhất luôn được hiển thị ở đầu trang.
         </p>
