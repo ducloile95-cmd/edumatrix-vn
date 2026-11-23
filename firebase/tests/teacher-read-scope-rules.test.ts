@@ -144,3 +144,23 @@ describe("users visible to a teacher", () => {
     await assertSucceeds(getDocs(query(collection(asAdmin(), "users"), orderBy("createdAt", "desc"))));
   });
 });
+
+describe("reading documents that do not exist yet (transactions create them)", () => {
+  // enrollStudent, saveClassScores, gradeSubmission, registerLeave, publishClassroomInteraction, createStudent
+  // deu transaction.get() mot doc moi truoc khi ghi.
+  test("an assigned teacher can probe a missing doc in every write-flow collection", async () => {
+    for (const path of ["enrollments/c1_new", "scores/new-score", "attendance/sess-1_new", "attendance_summaries/new-session",
+      "session_student_reviews/sess-1_new", "students/new-student", "submissions/new", "student_summaries/new",
+      "invoices/new", "lesson_plans/new", "assignments/new", "sessions/new", "announcements/new"]) {
+      await assertSucceeds(getDoc(doc(asA(), path)));
+    }
+  });
+
+  test("a parent can probe a missing payment before reporting one", async () => {
+    await assertSucceeds(getDoc(doc(env.authenticatedContext("parent-1").firestore(), "payments/new-payment")));
+  });
+
+  test("a parent still cannot read existing data of another family", async () => {
+    await assertFails(getDoc(doc(env.authenticatedContext("parent-1").firestore(), "payments/pay-2")));
+  });
+});

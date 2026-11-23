@@ -102,6 +102,12 @@ service cloud.firestore {
         data.rankThresholds.D == 0;
     }
 
+    // Transaction doc mot doc chua ton tai truoc khi tao (diem dau tien, don nghi, ghi danh, bao chuyen khoan...).
+    // resource == null: chi lo ra "chua co doc"; khong co du lieu de lo. Khong co nhanh nay, resource.data loi va bi tu choi.
+    function isMissingDocProbe() {
+      return isActive() && resource == null;
+    }
+
     function isAssignedTeacherForClass(classId) {
       return isTeacher() &&
         exists(/databases/$(database)/documents/classes/$(classId)) &&
@@ -1218,7 +1224,7 @@ service cloud.firestore {
     // tu sua duoc).
 
     match /students/{studentId} {
-      allow read: if isAdmin() || (
+      allow read: if isAdmin() || isMissingDocProbe() || (
         isTeacher() && request.auth.uid in resource.data.teacherIds
       ) || ownsStudent(studentId);
       allow create: if (
@@ -1261,7 +1267,7 @@ service cloud.firestore {
     match /classes/{classId} {
       // Use resource data here so Firestore can prove an array-contains list
       // query. isAssignedTeacherForClass() uses get() and is for child records.
-      allow read: if isAdmin() ||
+      allow read: if isAdmin() || isMissingDocProbe() ||
         (isTeacher() && request.auth.uid in resource.data.teacherIds) ||
         (isActive() && currentUser().role == 'viewer' &&
          resource.data.studentIds.hasAny(currentUser().studentIds));
@@ -1328,7 +1334,7 @@ service cloud.firestore {
     // Viewer chi doc ghi danh cua hoc sinh minh so huu.
 
     match /enrollments/{enrollmentId} {
-      allow read: if isAdmin() || isAssignedTeacherForClass(resource.data.classId) || ownsStudent(resource.data.studentId);
+      allow read: if isAdmin() || isMissingDocProbe() || isAssignedTeacherForClass(resource.data.classId) || ownsStudent(resource.data.studentId);
       allow create: if validEnrollmentData(enrollmentId, request.resource.data) &&
         request.resource.data.version == 1 && request.resource.data.updatedAt == request.time && ((
         isAdmin() &&
@@ -1355,7 +1361,7 @@ service cloud.firestore {
     }
 
     match /sessions/{sessionId} {
-      allow read: if isAdmin() || isAssignedTeacherForClass(resource.data.classId) || (
+      allow read: if isAdmin() || isMissingDocProbe() || isAssignedTeacherForClass(resource.data.classId) || (
         isActive() && currentUser().role == 'viewer' &&
         get(/databases/$(database)/documents/classes/$(resource.data.classId)).data.studentIds
           .hasAny(currentUser().studentIds)
@@ -1428,7 +1434,7 @@ service cloud.firestore {
     }
 
     match /session_student_reviews/{reviewId} {
-      allow read: if isAdmin() || isAssignedTeacherForClass(resource.data.classId);
+      allow read: if isAdmin() || isMissingDocProbe() || isAssignedTeacherForClass(resource.data.classId);
       allow create: if canManageClass(request.resource.data.classId) &&
         validSessionStudentReview(request.resource.data, reviewId);
       allow update: if canManageClass(resource.data.classId) &&
@@ -1438,7 +1444,7 @@ service cloud.firestore {
     }
 
     match /announcements/{announcementId} {
-      allow read: if isAdmin() || (
+      allow read: if isAdmin() || isMissingDocProbe() || (
         isTeacher() && (resource.data.get('studentId', null) != null ? isAssignedTeacherForStudent(resource.data.studentId) : isAssignedTeacherForClass(resource.data.classId))
       ) || (
         isActive() && resource.data.studentId != null && ownsStudent(resource.data.studentId)
@@ -1486,7 +1492,7 @@ service cloud.firestore {
 
     match /lesson_plans/{lessonPlanId} {
       // Nguoi tao luon doc lai duoc giao an cua chinh minh, ke ca khi chua gan lop (classId == null) - sua loi cu.
-      allow read: if isAdmin() ||
+      allow read: if isAdmin() || isMissingDocProbe() ||
         (resource.data.classId != null && isAssignedTeacherForClass(resource.data.classId)) ||
         (isActive() && resource.data.createdBy == request.auth.uid);
       allow create: if (isAdmin() || (request.resource.data.classId != null && isAssignedTeacherForClass(request.resource.data.classId))) &&
@@ -1501,7 +1507,7 @@ service cloud.firestore {
     }
 
     match /lesson_plan_public/{lessonPlanId} {
-      allow read: if isAdmin() || isAssignedTeacherForClass(resource.data.classId) || (
+      allow read: if isAdmin() || isMissingDocProbe() || isAssignedTeacherForClass(resource.data.classId) || (
         isActive() && currentUser().role == 'viewer' &&
         get(/databases/$(database)/documents/classes/$(resource.data.classId)).data.studentIds
           .hasAny(currentUser().studentIds)
@@ -1558,7 +1564,7 @@ service cloud.firestore {
     }
 
     match /attendance/{attendanceId} {
-      allow read: if isAdmin() || isAssignedTeacherForClass(resource.data.classId) || ownsStudent(resource.data.studentId);
+      allow read: if isAdmin() || isMissingDocProbe() || isAssignedTeacherForClass(resource.data.classId) || ownsStudent(resource.data.studentId);
       allow create: if canManageClass(request.resource.data.classId) &&
         validAttendanceData(request.resource.data, attendanceId) &&
         request.resource.data.studentId in
@@ -1570,7 +1576,7 @@ service cloud.firestore {
     }
 
     match /attendance_summaries/{sessionId} {
-      allow read: if isAdmin() || isAssignedTeacherForClass(resource.data.classId) || (
+      allow read: if isAdmin() || isMissingDocProbe() || isAssignedTeacherForClass(resource.data.classId) || (
         isActive() && currentUser().role == 'viewer' &&
         get(/databases/$(database)/documents/classes/$(resource.data.classId)).data.studentIds
           .hasAny(currentUser().studentIds)
@@ -1588,7 +1594,7 @@ service cloud.firestore {
     }
 
     match /assignments/{assignmentId} {
-      allow read: if isAdmin() || isAssignedTeacherForClass(resource.data.classId) || (
+      allow read: if isAdmin() || isMissingDocProbe() || isAssignedTeacherForClass(resource.data.classId) || (
         isActive() && currentUser().role == 'viewer' && resource.data.status == 'published' &&
         get(/databases/$(database)/documents/classes/$(resource.data.classId)).data.studentIds.hasAny(currentUser().studentIds)
       );
@@ -1603,7 +1609,7 @@ service cloud.firestore {
       allow delete: if false;
     }
     match /submissions/{submissionId} {
-      allow read: if isAdmin() || isAssignedTeacherForClass(resource.data.classId) || ownsStudent(resource.data.studentId);
+      allow read: if isAdmin() || isMissingDocProbe() || isAssignedTeacherForClass(resource.data.classId) || ownsStudent(resource.data.studentId);
       allow create: if ownsStudent(request.resource.data.studentId) &&
         submissionId == request.resource.data.assignmentId + '_' + request.resource.data.studentId &&
         request.resource.data.status == 'submitted' && request.resource.data.score == null && request.resource.data.teacherComment == '' &&
@@ -1652,7 +1658,7 @@ service cloud.firestore {
       allow delete: if false;
     }
     match /scores/{scoreId} {
-      allow read: if isAdmin() || isAssignedTeacherForClass(resource.data.classId) ||
+      allow read: if isAdmin() || isMissingDocProbe() || isAssignedTeacherForClass(resource.data.classId) ||
         (ownsStudent(resource.data.studentId) && resource.data.get('published', true));
       allow create: if canManageClass(request.resource.data.classId) &&
         request.resource.data.maxScore > 0 &&
@@ -1676,7 +1682,7 @@ service cloud.firestore {
       allow delete: if false;
     }
     match /student_summaries/{studentId} {
-      allow read: if isAdmin() || isAssignedTeacherForStudent(studentId) || ownsStudent(studentId);
+      allow read: if isAdmin() || isMissingDocProbe() || isAssignedTeacherForStudent(studentId) || ownsStudent(studentId);
       allow create: if (isAdmin() || isAssignedTeacherForStudent(studentId)) && request.resource.data.studentId == studentId &&
         validStudentSummary(request.resource.data);
       allow update: if (isAdmin() || isAssignedTeacherForStudent(studentId)) &&
@@ -1686,7 +1692,7 @@ service cloud.firestore {
       allow delete: if false;
     }
     match /invoices/{invoiceId} {
-      allow read: if isAdmin() || isAssignedTeacherForStudent(resource.data.studentId) || ownsStudent(resource.data.studentId);
+      allow read: if isAdmin() || isMissingDocProbe() || isAssignedTeacherForStudent(resource.data.studentId) || ownsStudent(resource.data.studentId);
       allow create: if (isAdmin() || (
           isTeacher() &&
           request.resource.data.get('sourceType', null) in ['class', 'billing_item'] &&
@@ -1711,7 +1717,7 @@ service cloud.firestore {
       allow delete: if false;
     }
     match /payments/{paymentId} {
-      allow read: if isAdmin() || isAssignedTeacherForStudent(resource.data.studentId) || ownsStudent(resource.data.studentId);
+      allow read: if isAdmin() || isMissingDocProbe() || isAssignedTeacherForStudent(resource.data.studentId) || ownsStudent(resource.data.studentId);
       allow create: if ownsStudent(request.resource.data.studentId) &&
         request.resource.data.status == 'reported' &&
         request.resource.data.reportedBy == request.auth.uid &&
@@ -1762,7 +1768,7 @@ service cloud.firestore {
     match /chat_threads/{threadId} {
       // Chi dung truong tren thread de truy van array-contains cua client chung minh duoc;
       // get(students/...) theo resource.data.studentId lam hong truy van danh sach chat cua giao vien.
-      allow read: if isAdmin() || (isTeacher() && request.auth.uid in resource.data.assignedTeacherIds);
+      allow read: if isAdmin() || isMissingDocProbe() || (isTeacher() && request.auth.uid in resource.data.assignedTeacherIds);
       allow update: if (isAdmin() || (
           isTeacher() && request.auth.uid in resource.data.assignedTeacherIds &&
           request.auth.uid in get(/databases/$(database)/documents/students/$(resource.data.studentId)).data.teacherIds
@@ -1815,7 +1821,7 @@ service cloud.firestore {
     // Event intent duoc ghi bat bien trong cung transaction nghiep vu. Worker
     // xac minh lan nua va fan-out thanh delivery jobs server-only.
     match /messenger_delivery_events/{eventId} {
-      allow read: if isAdmin() || isAssignedTeacherForStudent(resource.data.studentId);
+      allow read: if isAdmin() || isMissingDocProbe() || isAssignedTeacherForStudent(resource.data.studentId);
       allow update, delete: if false;
       allow create: if (isAdmin() || isAssignedTeacherForStudent(request.resource.data.studentId)) &&
         validMessengerDeliveryEvent(eventId, request.resource.data);

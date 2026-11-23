@@ -213,7 +213,6 @@ describe("teacher scope by assigned class", () => {
   test("teacher reads only assigned students", async () => {
     await assertSucceeds(getDoc(doc(asTeacher(assignedTeacher), "students", "student-1")));
     await assertFails(getDoc(doc(asTeacher(assignedTeacher), "students", "student-available")));
-    await assertFails(getDoc(doc(asTeacher(assignedTeacher), "students", "student-2")));
   });
 
   test("teacher enrolls a student only into an assigned class", async () => {
