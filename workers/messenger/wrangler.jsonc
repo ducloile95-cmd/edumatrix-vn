@@ -9,7 +9,6 @@
   "triggers": {
     "crons": ["*/5 * * * *"]
   },
-  // Moi truong mac dinh (wrangler dev) tro emulator demo; chi env.production tro project that.
   "vars": {
     "FIREBASE_PROJECT_ID": "demo-edumatrix",
     "META_APP_ID": "1028280243271801",
