@@ -21,6 +21,11 @@ describe("English translations", () => {
       expect(translateToEnglish("Thứ Hai, 10/08/2026")).toBe("Monday, 10/08/2026");
     });
 
+    it("ignores object prototype keys", () => {
+      expect(translateToEnglish("constructor")).toBe("constructor");
+      expect(translateToEnglish("toString")).toBe("toString");
+    });
+
     it("never replaces inside a longer word or number", () => {
       expect(translateToEnglish("Thứ Hailey")).toBe("Thứ Hailey");
       expect(translateToEnglish("tháng 12, tháng 1")).toBe("December, January");

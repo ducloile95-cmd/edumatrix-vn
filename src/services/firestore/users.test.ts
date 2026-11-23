@@ -22,7 +22,7 @@ vi.mock("@/services/firestore/authz", () => ({
   isTeacherUser: mocks.isTeacherUser,
 }));
 
-import { deleteUserAccount, listTeacherVisibleUsers, listUsers, listUsersByRole, updateUserAccount } from "./users";
+import { deleteUserAccount, listTeacherVisibleUsers, listUsers, listUsersByIds, listUsersByRole, updateUserAccount } from "./users";
 
 function snapshot(id: string, data: Record<string, unknown> | null) {
   return { id, ref: { id, path: `students/${id}` }, exists: () => data !== null, data: () => data };
@@ -150,14 +150,33 @@ describe("listTeacherVisibleUsers", () => {
   beforeEach(() => { mocks.getDocs.mockReset(); mocks.where.mockClear(); mocks.orderBy.mockClear(); });
 
   test("returns the staff directory plus the given parents, without a full users scan", async () => {
-    mocks.getDocs
-      .mockResolvedValueOnce({ docs: [user("admin-1", "admin"), user("teacher-1", "teacher")] })
-      .mockResolvedValueOnce({ docs: [user("parent-1", "viewer"), user("teacher-1", "teacher")] });
+    mocks.getDocs.mockResolvedValueOnce({ docs: [user("admin-1", "admin"), user("teacher-1", "teacher")] });
+    const firestoreModule = await import("firebase/firestore");
+    vi.mocked(firestoreModule.getDoc).mockReset().mockImplementation(async (ref) => {
+      const id = (ref as unknown as { id: string }).id;
+      return { ...user(id, id.startsWith("parent") ? "viewer" : "teacher"), exists: () => true } as never;
+    });
 
     const result = await listTeacherVisibleUsers(["parent-1", "teacher-1", "parent-1"]);
 
     expect(mocks.where).toHaveBeenCalledWith("role", "in", ["admin", "teacher"]);
     expect(mocks.orderBy).not.toHaveBeenCalled();
     expect(result.map((item) => item.uid).sort()).toEqual(["admin-1", "parent-1", "teacher-1"]);
+  });
+});
+
+describe("listUsersByIds", () => {
+  test("skips a profile the rules deny instead of failing the whole list", async () => {
+    const firestoreModule = await import("firebase/firestore");
+    const getDoc = vi.mocked(firestoreModule.getDoc);
+    const profile = (uid: string) => ({ id: uid, exists: () => true, data: () => ({ email: `${uid}@x.vn`, displayName: uid, role: "viewer", status: "active", studentIds: [] }) });
+    getDoc.mockReset()
+      .mockResolvedValueOnce(profile("parent-1") as never)
+      .mockRejectedValueOnce(Object.assign(new Error("denied"), { code: "permission-denied" }))
+      .mockResolvedValueOnce({ id: "parent-3", exists: () => false, data: () => undefined } as never);
+
+    const result = await listUsersByIds(["parent-1", "parent-2", "parent-3"]);
+
+    expect(result.map((user) => user.uid)).toEqual(["parent-1"]);
   });
 });

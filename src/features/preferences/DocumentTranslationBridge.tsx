@@ -3,8 +3,8 @@ import { loadEnglishDictionary, translateToEnglish } from "@/features/preference
 import type { Language } from "@/features/preferences/appearance";
 
 const TRANSLATED_ATTRIBUTES = ["aria-label", "aria-description", "placeholder", "title"] as const;
-const originalText = new WeakMap<Text, string>();
-const originalAttributes = new WeakMap<Element, Map<string, string>>();
+let originalText = new WeakMap<Text, string>();
+let originalAttributes = new WeakMap<Element, Map<string, string>>();
 
 function shouldSkip(element: Element | null): boolean {
   return Boolean(element?.closest('script, style, code, pre, [translate="no"], [data-no-translate]'));
@@ -107,8 +107,14 @@ export function DocumentTranslationBridge({ language }: { language: Language }) 
       });
     };
 
-    if (language === "en") void loadEnglishDictionary().then(start);
-    else start();
+    if (language === "en") {
+      void loadEnglishDictionary().then(start);
+    } else {
+      // Tieng Viet: tra lai chu goc mot lan roi quen di; khong quan sat nua, de chu dong (bo dem, tin moi) cap nhat binh thuong.
+      applyTree(root, "vi");
+      originalText = new WeakMap();
+      originalAttributes = new WeakMap();
+    }
 
     return () => {
       disposed = true;

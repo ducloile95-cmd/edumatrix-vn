@@ -1,7 +1,6 @@
 import {
   collection,
   doc,
-  documentId,
   getDoc,
   getDocs,
   onSnapshot,
@@ -111,19 +110,12 @@ export async function listUsers(): Promise<(UserDoc & { uid: string })[]> {
 
 export async function listUsersByIds(uids: string[]): Promise<(UserDoc & { uid: string })[]> {
   const uniqueIds = [...new Set(uids)].filter(Boolean);
-  const groups: (UserDoc & { uid: string })[][] = [];
-
-  for (let offset = 0; offset < uniqueIds.length; offset += 30) {
-    const chunk = uniqueIds.slice(offset, offset + 30);
-    if (chunk.length === 0) continue;
-    const snap = await getDocs(query(collection(db, COLLECTIONS.USERS), where(documentId(), "in", chunk)));
-    groups.push(snap.docs.map((d) => ({
-      uid: d.id,
-      ...decodeUserDoc(d.data(), `${COLLECTIONS.USERS}/${d.id}`),
-    })));
-  }
-
-  return groups.flat();
+  // Doc tung ho so (cung so luot doc voi "in"): mot ho so rules tu choi voi giao vien (vd con thu 4)
+  // chi bi bo qua, khong lam hong ca danh sach nhu truy van documentId() in [...].
+  const results = await Promise.allSettled(uniqueIds.map((uid) => getDoc(doc(db, COLLECTIONS.USERS, uid))));
+  return results.flatMap((result) => result.status === "fulfilled" && result.value.exists()
+    ? [{ uid: result.value.id, ...decodeUserDoc(result.value.data(), `${COLLECTIONS.USERS}/${result.value.id}`) }]
+    : []);
 }
 
 /** Giao vien khong duoc quet toan bo users (rules): danh ba nhan su + phu huynh cua hoc sinh minh phu trach. */

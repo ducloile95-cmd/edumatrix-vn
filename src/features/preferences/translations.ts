@@ -79,13 +79,20 @@ export function loadEnglishDictionary(): Promise<void> {
   loading ??= import("@/features/preferences/en.generated.json").then((module) => {
     dictionary = { ...(module.default as Record<string, string>), ...CURATED_ENGLISH };
     pattern = buildPattern(dictionary);
+  }).catch(() => {
+    // Mang loi: dung tu dien ngan, cho phep thu lai o lan chon tieng Anh sau.
+    loading = null;
   });
   return loading;
 }
 
+function hasEntry(key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(dictionary, key);
+}
+
 export function translateToEnglish(value: string): string {
   const trimmed = value.trim();
-  const exact = dictionary[trimmed];
-  if (exact) return value.replace(trimmed, exact);
-  return value.replace(pattern, (source) => dictionary[source] ?? source);
+  // Chi khoa rieng cua tu dien: chu "constructor"/"toString" khong duoc khop thuoc tinh ke thua cua object.
+  if (hasEntry(trimmed)) return value.replace(trimmed, dictionary[trimmed]);
+  return value.replace(pattern, (source) => (hasEntry(source) ? dictionary[source] : source));
 }

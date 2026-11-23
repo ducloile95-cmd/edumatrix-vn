@@ -27,4 +27,18 @@ describe("DocumentTranslationBridge", () => {
     await flush();
     expect(added.textContent).toBe("Học phí");
   });
+
+  it("lets live Vietnamese text update after switching back from English", async () => {
+    const { container, rerender } = render(<div id="root"><DocumentTranslationBridge language="en" /></div>);
+    await flush();
+    const counter = document.createElement("span");
+    counter.textContent = "Học phí";
+    container.querySelector("#root")!.appendChild(counter);
+    await flush();
+    rerender(<div id="root"><DocumentTranslationBridge language="vi" /></div>);
+    await flush();
+    (counter.firstChild as Text).data = "Học phí tháng sau"; // React cap nhat chu bang cach sua node cu
+    await flush();
+    expect(counter.textContent).toBe("Học phí tháng sau");
+  });
 });
