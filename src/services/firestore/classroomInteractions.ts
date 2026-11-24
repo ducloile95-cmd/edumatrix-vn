@@ -16,7 +16,7 @@ import { format } from "date-fns";
 import { COLLECTIONS } from "@/constants/collections";
 import { db } from "@/services/firebase/firestoreClient";
 import { attendanceCounts, queueAttendanceAlertWrite, queueAttendanceRecordWrite } from "@/services/firestore/attendance";
-import { sendMessenger } from "@/services/integrations/messenger";
+import { queueUtilityDeliveryEvent } from "@/services/firestore/messengerDelivery";
 import type {
   AttendanceStatus,
   AttendanceDoc,
@@ -161,6 +161,7 @@ export async function saveClassroomDraft(input: SaveClassroomDraftInput): Promis
       sessionId: input.sessionId,
       classId: input.classId,
       total: input.entries.length,
+      expectedTotal: input.entries.length,
       ...counts,
       updatedAt: serverTimestamp(),
     }, { merge: true });
@@ -200,6 +201,7 @@ export function formatSessionSummaryMessage(context: SessionSummaryContext): str
 }
 
 export interface PublishClassroomInput {
+  actorUid: string;
   sessionId: string;
   classId: string;
   className: string;
@@ -237,7 +239,7 @@ export interface PublishStudentResult {
   studentId: string;
   studentName: string;
   message: string;
-  messenger: "sent" | "failed" | "skipped";
+  messenger: "pending" | "sent" | "failed" | "skipped";
   detail: string;
 }
 
@@ -280,6 +282,7 @@ export async function publishClassroomInteraction(input: PublishClassroomInput):
       homeworkText: interaction.homeworkText,
     });
     if (blockers.length) throw new Error(`CLASSROOM_PUBLISH_INCOMPLETE: ${blockers.join(" ")}`);
+    if (input.sessionStartAt.getTime() > Date.now()) throw new Error("CLASSROOM_SESSION_NOT_STARTED");
     const isRepublish = interaction.workflowStatus === "amended";
     const entryByStudent = new Map(entries.map((entry) => [entry.studentId, entry]));
     const messages = students.map((student) => ({
@@ -296,6 +299,7 @@ export async function publishClassroomInteraction(input: PublishClassroomInput):
       }),
     }));
 
+    const nextVersion = interaction.version + 1;
     transaction.update(interactionRef, {
       workflowStatus: "published",
       version: increment(1),
@@ -311,6 +315,14 @@ export async function publishClassroomInteraction(input: PublishClassroomInput):
       message,
       createdAt: serverTimestamp(),
       });
+      queueUtilityDeliveryEvent(transaction, {
+        eventType: "lesson_feedback_published",
+        entityId: `${input.sessionId}_${student.id}`,
+        sourceId: input.sessionId,
+        studentId: student.id,
+        version: nextVersion,
+        actorUid: input.actorUid,
+      });
     });
     transaction.update(sessionRef, {
       status: "completed",
@@ -319,18 +331,13 @@ export async function publishClassroomInteraction(input: PublishClassroomInput):
     return messages;
   });
 
-  const results: PublishStudentResult[] = [];
-  for (const { student, message } of messages) {
-    const result = await sendMessenger({ studentId: student.id, text: message, type: "session_summary" });
-    results.push({
-      studentId: student.id,
-      studentName: student.fullName,
-      message,
-      messenger: result.sent ? (result.status === "sent" ? "sent" : "failed") : (result.reason === "not_configured" ? "skipped" : "failed"),
-      detail: result.sent ? "" : result.message,
-    });
-  }
-  return results;
+  return messages.map(({ student, message }) => ({
+    studentId: student.id,
+    studentName: student.fullName,
+    message,
+    messenger: "pending" as const,
+    detail: "Đang chờ Worker gửi mẫu Utility.",
+  }));
 }
 
 /** Mo lai buoi hoc da phat hanh de dinh chinh: chi doi workflowStatus published -> amended. */

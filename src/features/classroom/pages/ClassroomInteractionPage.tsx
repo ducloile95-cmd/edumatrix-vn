@@ -30,10 +30,10 @@ import {
   type ClassroomStudentEntry,
   type PublishStudentResult,
 } from "@/services/firestore/classroomInteractions";
-import { sendMessenger } from "@/services/integrations/messenger";
+import { getUtilityDeliveryStatus, retryUtilityDeliveryJob, summarizeUtilityDelivery, utilityDeliveryRefetchInterval } from "@/services/integrations/messenger";
 import { getSession, listSessionsByClass } from "@/services/firestore/sessions";
 import { getLessonPlanBySession } from "@/services/firestore/lessonPlans";
-import { listStudents } from "@/services/firestore/students";
+import { listStudentsByIds } from "@/services/firestore/students";
 import type { AttendanceStatus } from "@/types/academic";
 export default function ClassroomInteractionPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -63,7 +63,11 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
     queryFn: () => getClass(session.data?.classId ?? ""),
     enabled: !!session.data,
   });
-  const students = useQuery({ queryKey: ["students"], queryFn: listStudents });
+  const students = useQuery({
+    queryKey: ["students", "class-roster", klass.data?.studentIds ?? []],
+    queryFn: () => listStudentsByIds(klass.data?.studentIds ?? []),
+    enabled: !!klass.data,
+  });
   const course = useQuery({
     queryKey: ["course", klass.data?.courseId],
     queryFn: () => getCourse(klass.data!.courseId),
@@ -99,11 +103,18 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
       ]);
       return { reviews, attendance };
     },
-    enabled: !!klass.data && !students.isLoading,
+    enabled: !!klass.data && students.data !== undefined,
   });
 
   useEffect(() => {
-    if (initializedSessionId === sessionId || savedEntries.isLoading || interaction.isLoading || !klass.data) return;
+    if (
+      initializedSessionId === sessionId ||
+      students.data === undefined ||
+      // Chi khoi tao tu du lieu da tai thanh cong: tai loi ma van dien "present"/rong roi bam luu se ghi de du lieu that.
+      !savedEntries.isSuccess ||
+      !interaction.isSuccess ||
+      !klass.data
+    ) return;
     const reviewByStudent = new Map(savedEntries.data?.reviews.map((review) => [review.studentId, review]));
     const attendanceByStudent = new Map(savedEntries.data?.attendance.map((item) => [item.studentId, item]));
     setEntries(Object.fromEntries(classStudents.map((student) => {
@@ -121,13 +132,20 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
     setHomeworkText(interaction.data?.homeworkText ?? "");
     setDraftExists(Boolean(interaction.data));
     setInitializedSessionId(sessionId);
-  }, [classStudents, initializedSessionId, interaction.data, interaction.isLoading, klass.data, savedEntries.data, savedEntries.isLoading, sessionId]);
+  }, [classStudents, initializedSessionId, interaction.data, interaction.isSuccess, klass.data, savedEntries.data, savedEntries.isSuccess, sessionId, students.data]);
 
   const workflowStatus = interaction.data?.workflowStatus ?? "draft";
   const isPublished = workflowStatus === "published";
   const isAmended = workflowStatus === "amended";
   const entryList = classStudents.map((student) => entries[student.id]).filter(Boolean);
   const publishStudents = classStudents.map((student) => ({ id: student.id, fullName: student.fullName }));
+  const deliveryEntityIds = classStudents.map((student) => `${sessionId}_${student.id}`);
+  const deliveryStatus = useQuery({
+    queryKey: ["utility-delivery", "lesson-feedback", sessionId, deliveryEntityIds.join(",")],
+    queryFn: () => getUtilityDeliveryStatus(deliveryEntityIds),
+    enabled: isPublished && deliveryEntityIds.length > 0,
+    refetchInterval: (query) => utilityDeliveryRefetchInterval(query.state.data),
+  });
   const blockers = classroomPublishBlockers({
     students: publishStudents,
     entries: entryList,
@@ -135,6 +153,7 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
     quickSummary,
     homeworkText,
   });
+  if (session.data && session.data.startAt.toMillis() > Date.now()) blockers.unshift("Buổi học chưa bắt đầu, chỉ phát hành tổng kết sau giờ vào lớp.");
 
   const buildDraftInput = () => {
     if (!session.data || !klass.data || !firebaseUser) throw new Error("CLASSROOM_CONTEXT_MISSING");
@@ -169,6 +188,7 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
       // Luu ban nhap moi nhat truoc de noi dung interaction khop 100% voi noi dung gui di.
       await saveClassroomDraft(buildDraftInput());
       return publishClassroomInteraction({
+        actorUid: firebaseUser?.uid ?? "unknown",
         sessionId,
         classId: klass.data.id,
         className: klass.data.name,
@@ -199,20 +219,26 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
 
   const resend = useMutation({
     mutationFn: async () => {
-      const updated: PublishStudentResult[] = [];
-      for (const item of publishResults) {
-        if (item.messenger === "sent") { updated.push(item); continue; }
-        const result = await sendMessenger({ studentId: item.studentId, text: item.message, type: "session_summary" });
-        updated.push({
-          ...item,
-          messenger: result.sent ? (result.status === "sent" ? "sent" : "failed") : "failed",
-          detail: result.sent ? "" : result.message,
-        });
-      }
-      return updated;
+      const retryable = deliveryEntityIds.flatMap((entityId) => summarizeUtilityDelivery(deliveryStatus.data, entityId).retryableJobIds);
+      await Promise.all(retryable.map(retryUtilityDeliveryJob));
     },
-    onSuccess: (updated) => setPublishResults(updated),
+    onSuccess: () => deliveryStatus.refetch(),
   });
+
+  useEffect(() => {
+    if (!isPublished || !deliveryStatus.data) return;
+    setPublishResults((current) => classStudents.map((student) => {
+      const previous = current.find((item) => item.studentId === student.id);
+      const summary = summarizeUtilityDelivery(deliveryStatus.data, `${sessionId}_${student.id}`);
+      return {
+        studentId: student.id,
+        studentName: student.fullName,
+        message: previous?.message ?? "",
+        messenger: summary.status === "none" ? "pending" : summary.status,
+        detail: summary.detail,
+      };
+    }));
+  }, [classStudents, deliveryStatus.data, isPublished, sessionId]);
 
   const mutationRef = useRef(mutation);
   useEffect(() => { mutationRef.current = mutation; });
@@ -230,7 +256,8 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
   }, [entries, taughtContent, quickSummary, homeworkText, initializedSessionId, sessionId, isPublished, classStudents.length]);
 
   if (session.isLoading || klass.isLoading || students.isLoading || interaction.isLoading || savedEntries.isLoading) return <LoadingSkeleton rows={7} />;
-  if (session.isError || klass.isError || students.isError || interaction.isError) return <ErrorState message="Không tải được dữ liệu buổi học." onRetry={() => session.refetch()} />;
+  const loadQueries = [session, klass, students, interaction, savedEntries];
+  if (loadQueries.some((query) => query.isError)) return <ErrorState message="Không tải được dữ liệu buổi học." onRetry={() => loadQueries.forEach((query) => { if (query.isError) void query.refetch(); })} />;
   if (!session.data || !klass.data) return <EmptyState title="Không tìm thấy buổi học" description="Buổi học không tồn tại hoặc bạn không có quyền truy cập." />;
   if (session.data.status === "cancelled") return <EmptyState title="Buổi học đã bị hủy" description="Không thể nhập dữ liệu cho buổi học đã hủy." />;
 
@@ -242,6 +269,8 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
 
   const attendanceCount = (status: AttendanceStatus) => classStudents.filter((student) => entries[student.id]?.attendanceStatus === status).length;
   const homeworkDone = classStudents.filter((student) => entries[student.id]?.previousHomeworkStatus === "done").length;
+  const homeworkAssigned = classStudents.filter((student) => (entries[student.id]?.previousHomeworkStatus ?? "not_assigned") !== "not_assigned").length;
+  const homeworkMetric = homeworkAssigned ? `${homeworkDone}/${homeworkAssigned}` : "—";
   const attentionStudents = classStudents.filter((student) => {
     const entry = entries[student.id];
     return entry && (entry.attendanceStatus === "absent" || entry.attendanceStatus === "late" || entry.previousHomeworkStatus === "not_done" || entry.previousHomeworkStatus === "partial" || !!entry.individualComment);
@@ -256,14 +285,14 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
 
   return (
     <div className="space-y-4">
-      <section className="overflow-hidden rounded-card border border-primary-200 bg-white shadow-[var(--shadow-1)]">
+      <section className="overflow-hidden rounded-card border border-primary-200 bg-neutral-0 shadow-[var(--shadow-1)]">
         <div className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
           <div><p className={`text-xs font-bold ${isPublished ? "text-success-700" : isAmended ? "text-warning-700" : "text-primary-700"}`}>{isPublished ? "ĐÃ PHÁT HÀNH" : isAmended ? "ĐANG ĐÍNH CHÍNH" : "ĐANG NHẬP BẢN NHÁP"}</p><h2 className="mt-1 text-xl font-bold text-neutral-950">{klass.data.name} · {session.data.title}</h2><p className="mt-1 text-sm text-neutral-500">{format(session.data.startAt.toDate(), "EEEE, dd/MM/yyyy", { locale: vi })}</p></div>
           <div className="grid gap-2 text-xs text-neutral-600 sm:grid-cols-3"><span className="flex items-center gap-2"><Clock3 size={15} />{format(session.data.startAt.toDate(), "HH:mm")} - {format(session.data.endAt.toDate(), "HH:mm")}</span><span className="flex items-center gap-2"><MapPin size={15} />{session.data.location || "Chưa có địa điểm"}</span><span className="flex items-center gap-2"><Users size={15} />{classStudents.length} học sinh</span></div>
         </div>
       </section>
 
-      <Tabs label="Nội dung tương tác lớp học" className="rounded-t-card border border-neutral-200 bg-white px-2">
+      <Tabs label="Nội dung tương tác lớp học" className="sticky top-16 z-10 rounded-t-card border border-neutral-200 bg-neutral-0 px-2">
         <Tab active={activeView === "students"} onClick={() => setActiveView("students")}><Users size={15} /> Học sinh</Tab>
         <Tab active={activeView === "summary"} onClick={() => setActiveView("summary")}><BarChart3 size={15} /> Tổng kết buổi học</Tab>
         <Tab active={activeView === "parent"} onClick={() => setActiveView("parent")}><Send size={15} /> Gửi thông báo</Tab>
@@ -295,7 +324,7 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
         attentionStudents={attentionStudents}
         classStudents={classStudents}
         entries={entries}
-        homeworkDone={homeworkDone}
+        homeworkMetric={homeworkMetric}
         homeworkText={homeworkText}
         quickSummary={quickSummary}
         taughtContent={taughtContent}
@@ -323,13 +352,13 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
         taughtContent={taughtContent}
       />
 
-      {showCourseSummary && <section className="flex flex-col gap-4 rounded-card border border-primary-200 bg-primary-50 p-5 sm:flex-row sm:items-center sm:justify-between"><div className="flex gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-input bg-white text-primary-700"><GraduationCap size={20} /></span><div><h2 className="font-bold text-neutral-950">Khóa học sắp kết thúc · Còn {remainingSessions} buổi</h2><p className="mt-1 text-sm text-neutral-600">Đã hoàn thành {completedSessions}/{totalSessions} buổi ({courseProgress}%). Có thể chuẩn bị bản nháp tổng kết khóa.</p></div></div><Button onClick={() => setCourseSummaryOpen(true)}>Xem bản nháp tổng kết khóa</Button></section>}
+      {showCourseSummary && <section className="flex flex-col gap-4 rounded-card border border-primary-200 bg-primary-50 p-5 sm:flex-row sm:items-center sm:justify-between"><div className="flex gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-input bg-neutral-0 text-primary-700"><GraduationCap size={20} /></span><div><h2 className="font-bold text-neutral-950">Khóa học sắp kết thúc · Còn {remainingSessions} buổi</h2><p className="mt-1 text-sm text-neutral-600">Đã hoàn thành {completedSessions}/{totalSessions} buổi ({courseProgress}%). Có thể chuẩn bị bản nháp tổng kết khóa.</p></div></div><Button onClick={() => setCourseSummaryOpen(true)}>Xem bản nháp tổng kết khóa</Button></section>}
 
       <Modal open={publishConfirmOpen} onClose={() => setPublishConfirmOpen(false)} title={isAmended ? "Xác nhận phát hành bản cập nhật" : "Xác nhận phát hành"} description="Gửi tổng kết cho phụ huynh và khóa buổi học. Bạn vẫn có thể mở lại để đính chính.">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Metric value={`${attendanceCount("present")}/${classStudents.length}`} label="Có mặt" />
           <Metric value={attendanceCount("late")} label="Đi muộn" />
-          <Metric value={`${homeworkDone}/${classStudents.length}`} label="Hoàn thành bài" />
+          <Metric value={homeworkMetric} label="Hoàn thành bài" />
           <Metric value={attentionStudents.length} label="Cần lưu ý" />
         </div>
         <div className="mt-5 flex justify-end gap-2">

@@ -4,10 +4,7 @@ import { COLLECTIONS } from "@/constants/collections";
 import type { AuditAction } from "@/types/audit";
 import type { User } from "firebase/auth";
 
-/**
- * Ghi audit log cho thao tac nhay cam (A26). Khong throw ra ngoai - neu ghi
- * log loi thi khong duoc chan thao tac chinh, chi log ra console.
- */
+/** Ghi audit append-only. Lỗi được trả về để caller không báo thành công giả. */
 export async function writeAuditLog(
   actor: User,
   action: AuditAction,
@@ -15,17 +12,13 @@ export async function writeAuditLog(
   targetId: string,
   meta?: Record<string, string>,
 ): Promise<void> {
-  try {
-    await addDoc(collection(db, COLLECTIONS.AUDIT_LOGS), {
-      action,
-      actorUid: actor.uid,
-      actorEmail: actor.email ?? "",
-      targetType,
-      targetId,
-      meta: meta ?? {},
-      createdAt: serverTimestamp(),
-    });
-  } catch (err) {
-    console.error("writeAuditLog failed", err);
-  }
+  await addDoc(collection(db, COLLECTIONS.AUDIT_LOGS), {
+    action,
+    actorUid: actor.uid,
+    actorEmail: actor.email ?? "",
+    targetType,
+    targetId,
+    meta: meta ?? {},
+    createdAt: serverTimestamp(),
+  });
 }

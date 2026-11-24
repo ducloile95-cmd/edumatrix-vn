@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ getDoc: vi.fn(), getDocs: vi.fn(), runTransaction: vi.fn(), transactionGet: vi.fn(), transactionSet: vi.fn(), transactionUpdate: vi.fn() }));
+const mocks = vi.hoisted(() => ({ assertDeletionAllowed: vi.fn(), getDoc: vi.fn(), getDocs: vi.fn(), runTransaction: vi.fn(), transactionDelete: vi.fn(), transactionGet: vi.fn(), transactionSet: vi.fn(), transactionUpdate: vi.fn() }));
 
 vi.mock("firebase/firestore", () => ({
   Timestamp: { fromDate: vi.fn((date: Date) => ({ toMillis: () => date.getTime() })) },
@@ -10,8 +10,9 @@ vi.mock("firebase/firestore", () => ({
   runTransaction: mocks.runTransaction, serverTimestamp: vi.fn(() => "server-time"), where: vi.fn(),
 }));
 vi.mock("@/services/firebase/firestoreClient", () => ({ db: {} }));
+vi.mock("@/services/firestore/deletionDependencies", () => ({ assertDeletionAllowed: mocks.assertDeletionAllowed }));
 
-import { setCourseStatus, updateCourse } from "./courses";
+import { deleteCourse, setCourseStatus, updateCourse } from "./courses";
 
 const input = {
   name: "Course", subjectIds: ["math"], teacherIds: ["teacher-1"], pricePerSession: 100_000,
@@ -21,10 +22,11 @@ const input = {
 describe("course and active class invariants", () => {
   beforeEach(() => {
     mocks.getDoc.mockReset().mockResolvedValue({ exists: () => true, data: () => ({ classRevision: 0 }) });
+    mocks.assertDeletionAllowed.mockReset().mockResolvedValue(undefined);
     mocks.getDocs.mockReset().mockResolvedValue({ docs: [{ ref: "classes/class-1" }] });
-    mocks.transactionGet.mockReset(); mocks.transactionUpdate.mockReset();
+    mocks.transactionDelete.mockReset(); mocks.transactionGet.mockReset(); mocks.transactionUpdate.mockReset();
     mocks.runTransaction.mockReset().mockImplementation(async (_db, callback) => callback({
-      get: mocks.transactionGet, set: mocks.transactionSet, update: mocks.transactionUpdate,
+      delete: mocks.transactionDelete, get: mocks.transactionGet, set: mocks.transactionSet, update: mocks.transactionUpdate,
     }));
   });
 
@@ -42,6 +44,31 @@ describe("course and active class invariants", () => {
 
     await expect(updateCourse("course-1", input)).rejects.toThrow("COURSE_CLASS_TEACHER_MISMATCH");
     expect(mocks.transactionUpdate).not.toHaveBeenCalled();
+  });
+
+  test("allows an unrelated edit to retain archived legacy references", async () => {
+    mocks.getDocs.mockResolvedValue({ docs: [] });
+    mocks.transactionGet.mockImplementation(async (ref: string) => {
+      const records: Record<string, unknown> = {
+        "courses/course-1": { classRevision: 0, subjectIds: ["math"], teacherIds: ["teacher-1"] },
+        "subjects/math": { status: "archived" },
+        "users/teacher-1": { role: "teacher", status: "disabled" },
+      };
+      const data = records[ref];
+      const refParts = ref.split("/");
+      return {
+        id: refParts[refParts.length - 1],
+        exists: () => data !== undefined,
+        data: () => data,
+      };
+    });
+
+    await updateCourse("course-1", { ...input, name: "Course renamed" });
+
+    expect(mocks.transactionUpdate).toHaveBeenCalledWith(
+      "courses/course-1",
+      expect.objectContaining({ name: "Course renamed", subjectIds: ["math"], teacherIds: ["teacher-1"] }),
+    );
   });
 
   test("does not complete a course with an active class", async () => {
@@ -69,5 +96,21 @@ describe("course and active class invariants", () => {
 
     await expect(setCourseStatus("course-1", "completed")).rejects.toThrow("COURSE_HAS_ACTIVE_CLASSES");
     expect(mocks.getDocs).toHaveBeenCalledTimes(2);
+  });
+
+  test("hard deletes a course without class references", async () => {
+    mocks.getDocs.mockResolvedValue({ docs: [] });
+    mocks.transactionGet.mockResolvedValue({ exists: () => true, data: () => ({ classRevision: 0 }) });
+
+    await deleteCourse("course-1");
+
+    expect(mocks.transactionDelete).toHaveBeenCalledWith("courses/course-1");
+  });
+
+  test("refuses to hard delete a referenced course", async () => {
+    mocks.assertDeletionAllowed.mockRejectedValueOnce(new Error("DELETION_BLOCKED"));
+
+    await expect(deleteCourse("course-1")).rejects.toThrow("DELETION_BLOCKED");
+    expect(mocks.transactionDelete).not.toHaveBeenCalled();
   });
 });

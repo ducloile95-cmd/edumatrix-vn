@@ -18,7 +18,7 @@ export function isNavGroup(node: NavNode): node is NavGroup {
   return "children" in node;
 }
 
-// Nhánh dùng chung cho Admin/Teacher; Admin có thêm mục quản trị Người dùng.
+// Nhánh dùng chung cho Admin/Teacher; Teacher vào Người dùng để dùng luồng xóa có preflight.
 const groupLopHoc: NavGroup = {
   label: "Quản lý lớp học", icon: FolderKanban,
   children: [
@@ -57,7 +57,7 @@ export const NAVIGATION_BY_ROLE: Record<UserRole, NavNode[]> = {
     TONG_QUAN,
     groupLopHoc,
     groupChucNang,
-    { label: "Quản lý", icon: Settings, children: [TAI_CHINH, CAI_DAT] },
+    { label: "Quản lý", icon: Settings, children: [TAI_CHINH, { to: ROUTES.STAFF_USERS, label: "Người dùng", icon: UserCog }, CAI_DAT] },
   ],
   [USER_ROLES.VIEWER]: [
     { to: ROUTES.VIEWER_DASHBOARD, label: "Tổng quan", icon: Home },

@@ -142,7 +142,7 @@ function SessionRow({
     <button
       type="button"
       onClick={() => onOpen(session)}
-      className="motion-control group relative grid min-h-touch w-full grid-cols-[54px_4px_minmax(0,1fr)_auto] gap-3 rounded-card border border-transparent bg-white px-3 py-3 text-left hover:border-primary-200 hover:bg-primary-50/30 active:scale-[.995] sm:grid-cols-[62px_4px_minmax(0,1fr)_auto] sm:px-4"
+      className="motion-control group relative grid min-h-touch w-full grid-cols-[54px_4px_minmax(0,1fr)_auto] gap-3 rounded-card border border-transparent bg-neutral-0 px-3 py-3 text-left hover:border-primary-200 hover:bg-primary-50/30 active:scale-[.995] sm:grid-cols-[62px_4px_minmax(0,1fr)_auto] sm:px-4"
     >
       <span className="pt-0.5 text-sm font-bold tabular-nums text-neutral-900">
         {format(session.start, "HH:mm")}
@@ -183,7 +183,7 @@ function NextSessionCard({
 }) {
   if (!session) {
     return (
-      <section className="rounded-card border border-neutral-200 bg-white p-4 shadow-[var(--shadow-1)]">
+      <section className="rounded-card border border-neutral-200 bg-neutral-0 p-4 shadow-[var(--shadow-1)]">
         <CalendarDays className="text-neutral-300" size={28} aria-hidden="true" />
         <h2 className="mt-3 text-base font-bold text-neutral-900">Chưa có buổi học sắp tới</h2>
         <p className="mt-1 text-xs leading-5 text-neutral-500">Lịch mới sẽ xuất hiện tại đây khi trung tâm cập nhật.</p>
@@ -192,7 +192,7 @@ function NextSessionCard({
   }
 
   return (
-    <section className="overflow-hidden rounded-card border border-primary-200 bg-white shadow-[var(--shadow-2)]">
+    <section className="overflow-hidden rounded-card border border-primary-200 bg-neutral-0 shadow-[var(--shadow-2)]">
       <div className="border-b border-primary-100 bg-primary-50 px-4 py-3">
         <p className="text-xs font-bold text-primary-700">Buổi học tiếp theo</p>
       </div>
@@ -296,7 +296,7 @@ export default function ViewerScheduleDemoPage() {
                   setSelectedDay(DEMO_NOW);
                   setWeekStart(INITIAL_WEEK);
                 }}
-                className="min-h-touch w-full appearance-none rounded-input border border-neutral-300 bg-white px-3 pr-10 text-sm font-semibold text-neutral-800 shadow-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                className="min-h-touch w-full appearance-none rounded-input border border-neutral-300 bg-neutral-0 px-3 pr-10 text-sm font-semibold text-neutral-800 shadow-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
               >
                 {STUDENTS.map((item) => (
                   <option key={item.id} value={item.id}>{item.name} · {item.code}</option>
@@ -311,7 +311,7 @@ export default function ViewerScheduleDemoPage() {
           <NextSessionCard session={nextSession} onOpen={setSelectedSession} />
         </div>
 
-        <section className="overflow-hidden rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)]">
+        <section className="overflow-hidden rounded-card border border-neutral-200 bg-neutral-0 shadow-[var(--shadow-1)]">
           <header className="border-b border-neutral-200 px-3 py-3 sm:px-5 sm:py-4">
             <div className="grid grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-2">
               <button
@@ -362,7 +362,7 @@ export default function ViewerScheduleDemoPage() {
                     onClick={() => selectDay(day)}
                     className={`motion-control relative min-h-[58px] rounded-input border px-1 py-2 text-center ${
                       selected
-                        ? "border-primary-600 bg-primary-700 text-white shadow-[0_6px_16px_rgba(35,72,214,.2)]"
+                        ? "border-primary-600 bg-primary-700 text-white"
                         : today
                           ? "border-primary-200 bg-primary-50 text-primary-800"
                           : "border-transparent text-neutral-500 hover:border-neutral-200 hover:bg-neutral-50"
@@ -373,7 +373,7 @@ export default function ViewerScheduleDemoPage() {
                     {sessionCount > 0 && (
                       <span
                         className={`absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full ${
-                          selected ? "bg-white" : "bg-primary-500"
+                          selected ? "bg-neutral-0" : "bg-primary-500"
                         }`}
                         aria-hidden="true"
                       />
@@ -450,7 +450,7 @@ export default function ViewerScheduleDemoPage() {
             <aside className="hidden border-l border-neutral-200 bg-neutral-50/70 p-4 lg:block">
               <div className="sticky top-4 space-y-4">
                 <NextSessionCard session={nextSession} onOpen={setSelectedSession} />
-                <section className="rounded-card border border-neutral-200 bg-white p-4">
+                <section className="rounded-card border border-neutral-200 bg-neutral-0 p-4">
                   <h2 className="text-sm font-bold text-neutral-900">Tóm tắt tuần</h2>
                   <dl className="mt-3 grid grid-cols-2 gap-3">
                     <div className="rounded-input bg-neutral-50 p-3">
@@ -525,7 +525,7 @@ export default function ViewerScheduleDemoPage() {
             <button
               type="button"
               onClick={() => setSelectedSession(null)}
-              className="motion-control mt-5 min-h-touch w-full rounded-input border border-neutral-300 bg-white px-4 text-sm font-bold text-neutral-700 hover:bg-neutral-50"
+              className="motion-control mt-5 min-h-touch w-full rounded-input border border-neutral-300 bg-neutral-0 px-4 text-sm font-bold text-neutral-700 hover:bg-neutral-50"
             >
               Đóng
             </button>

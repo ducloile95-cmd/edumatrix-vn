@@ -120,6 +120,7 @@ export interface SessionDoc {
   curriculumVersion?: number | null;
   curriculumItemId?: string | null;
   lessonPlanId?: string | null;
+  scheduleVersion?: number;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -253,6 +254,8 @@ export interface AttendanceSummaryDoc {
   absent: number;
   late: number;
   excused: number;
+  /** Si so lop luc diem danh day du (C3); du lieu cu khong co. */
+  expectedTotal?: number;
   updatedAt: Timestamp;
 }
 
@@ -292,7 +295,7 @@ export interface AssignmentSummaryDoc { assignmentId: string; totalStudents: num
 export type AssessmentType = "quiz" | "midterm" | "final" | "assignment";
 export type ScoreSource = "manual" | "assignment";
 export interface ScoreDoc { studentId: string; classId: string; subjectId: string; assessmentName: string; assessmentType: AssessmentType; score: number; maxScore: number; teacherComment: string; source?: ScoreSource; assignmentId?: string | null; submissionId?: string | null; published?: boolean; createdBy: string; createdAt: Timestamp; updatedAt: Timestamp; }
-export type InvoiceStatus = "unpaid" | "pending" | "paid" | "overdue" | "rejected";
+export type InvoiceStatus = "unpaid" | "pending" | "paid" | "overdue" | "rejected" | "void";
 export type InvoiceSourceType = "class" | "billing_item";
 export interface InvoiceDoc { invoiceCode:string;studentId:string;courseId:string|null;title:string;amount:number;dueAt:Timestamp;paymentContent:string;bankBin:string;accountNumber:string;accountName:string;status:InvoiceStatus;createdBy:string;createdAt:Timestamp;updatedAt:Timestamp;sourceType?:InvoiceSourceType;sourceId?:string;classId?:string|null;subjectId?:string|null;billingItemId?:string|null;itemNameSnapshot?:string;unitPriceSnapshot?:number;quantity?:number; }
 export type PaymentStatus = "reported" | "verified" | "rejected";

@@ -16,7 +16,7 @@ export function ClassFormActions({
   onCancel,
 }: ClassFormActionsProps) {
   return (
-    <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-neutral-200 bg-white px-4 py-3 sm:px-5">
+    <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-neutral-200 bg-neutral-0 px-4 py-3 sm:px-5">
       <div aria-live="polite" className="min-h-5 text-xs">
         {isError && <p role="alert" className="font-semibold text-danger-700">Không thể lưu lớp học. Vui lòng thử lại.</p>}
         {isSuccess && !isEditing && <p className="font-semibold text-success-700">Đã tạo lớp học.</p>}

@@ -9,7 +9,7 @@ import type { LessonPlanDriveAttachment } from "@/types/academic";
 const INPUT = "min-h-touch w-full rounded-input border border-neutral-300 px-3 text-sm focus:border-primary-500";
 const LABEL = "mb-1 block text-sm font-medium text-neutral-700";
 const SECTION_TITLE = "mb-3 text-xs font-bold uppercase tracking-wide text-primary-700";
-const BLOCK = "rounded-card border border-neutral-200 bg-white p-4 shadow-[var(--shadow-1)]";
+const BLOCK = "rounded-card border border-neutral-200 bg-neutral-0 p-4 shadow-[var(--shadow-1)]";
 
 interface LessonPlanDriveSectionProps {
   driveAttachment: LessonPlanDriveAttachment | null;
@@ -39,7 +39,7 @@ export function LessonPlanDriveSection({
   return (
 <div className={BLOCK}>
             <h3 className={SECTION_TITLE}>Tài liệu Google Drive</h3>
-            <div className="rounded-card border border-primary-100 bg-white p-3 shadow-[var(--shadow-1)]">
+            <div className="rounded-card border border-primary-100 bg-neutral-0 p-3 shadow-[var(--shadow-1)]">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-sm font-bold text-neutral-900"><Cloud size={18} className="text-primary-600" />Google Drive</div>
                 <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-2xs font-bold ${isGoogleDriveConnected() ? "bg-success-50 text-success-700" : "bg-neutral-100 text-neutral-600"}`}>

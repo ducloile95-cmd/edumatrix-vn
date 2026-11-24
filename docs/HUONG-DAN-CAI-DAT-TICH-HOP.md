@@ -211,6 +211,10 @@ Không ghi token vào `settings/integrations` — trường `facebookPageId` tro
 | Messenger (Chat) | `pages_messaging` | Gửi trong cửa sổ 24h (`messaging_type: RESPONSE`); ngoài 24h phải dùng message tag |
 | Quản lý webhook Page | `pages_manage_metadata` | Đăng ký/quản lý Page webhook |
 | Chọn Page | `pages_show_list` | Liệt kê Page mà người dùng quản lý |
+| Utility Messaging | `pages_utility_messaging` | Gửi Utility Template đã được Meta duyệt |
+
+Không yêu cầu `pages_read_engagement`. Nếu cần tên và ảnh đại diện từ PSID, kiểm
+tra riêng tính năng Business Asset User Profile Access.
 
 Khi App còn *Development*, chỉ tài khoản có vai trò trong App (admin/dev/tester) mới dùng được tích hợp. Muốn dùng thật phải submit App Review và chuyển App sang *Live*. Kiểm tra lại quyền tại **App Review → Permissions and Features** trước khi go-live.
 

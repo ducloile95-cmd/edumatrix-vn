@@ -28,7 +28,7 @@ interface CreateSessionModalProps {
 }
 
 const INPUT =
-  "min-h-touch w-full rounded-input border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100";
+  "min-h-touch w-full rounded-input border border-neutral-300 bg-neutral-0 px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100";
 const DOW_LABELS = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
 
 function defaultValues(): SessionFormValues {
@@ -181,7 +181,7 @@ export function CreateSessionModal({
                 <label htmlFor="session-title" className="mb-1 block text-sm font-medium text-neutral-700">
                   Tên buổi học<span className="ml-0.5 text-danger-500">*</span>
                 </label>
-                <input id="session-title" {...register("title")} className={INPUT} />
+                <input id="session-title" {...register("title")} onFocus={(event) => event.currentTarget.select()} className={INPUT} />
                 <FieldError message={errors.title?.message} />
               </div>
             </div>
@@ -203,8 +203,8 @@ export function CreateSessionModal({
                     type="button"
                     aria-pressed={mode === value}
                     onClick={() => setValue("scheduleMode", value, { shouldValidate: true })}
-                    className={`min-h-9 rounded-[7px] px-3 text-xs font-semibold transition ${
-                      mode === value ? "bg-white text-primary-700 shadow-sm" : "text-neutral-600 hover:text-neutral-900"
+                    className={`min-h-9 rounded-input px-3 text-xs font-semibold transition ${
+                      mode === value ? "bg-neutral-0 text-primary-700 shadow-sm" : "text-neutral-600 hover:text-neutral-900"
                     }`}
                   >
                     {label}
@@ -265,7 +265,7 @@ export function CreateSessionModal({
                           className={`min-h-touch rounded-input border text-xs font-bold transition ${
                             selected
                               ? "border-primary-500 bg-primary-500 text-white"
-                              : "border-neutral-300 bg-white text-neutral-600 hover:border-primary-300 hover:text-primary-700"
+                              : "border-neutral-300 bg-neutral-0 text-neutral-600 hover:border-primary-300 hover:text-primary-700"
                           }`}
                         >
                           {label}
@@ -299,7 +299,7 @@ export function CreateSessionModal({
                       </div>
                       <div className="flex flex-wrap gap-1.5">
                         {previewDates.map((item) => (
-                          <span key={item.startAt.toISOString()} className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-neutral-700 ring-1 ring-primary-100">
+                          <span key={item.startAt.toISOString()} className="rounded-full bg-neutral-0 px-2.5 py-1 text-xs font-semibold text-neutral-700 ring-1 ring-primary-100">
                             {formatInTimeZone(item.startAt, SCHOOL_TIME_ZONE, "dd/MM HH:mm")}
                           </span>
                         ))}
@@ -333,7 +333,7 @@ export function CreateSessionModal({
           {isError && <p role="alert" className="rounded-input border border-danger-200 bg-danger-50 px-3 py-2 text-sm text-danger-700">Không thể tạo lịch học. Vui lòng kiểm tra quyền truy cập và thử lại.</p>}
         </div>
 
-        <div className="sticky bottom-0 flex items-center justify-between gap-3 border-t border-neutral-200 bg-white px-4 py-3 sm:px-6">
+        <div className="sticky bottom-0 flex items-center justify-between gap-3 border-t border-neutral-200 bg-neutral-0 px-4 py-3 sm:px-6">
           <p className="hidden text-xs text-neutral-500 sm:block">Giờ học được lưu theo múi giờ Việt Nam.</p>
           <div className="ml-auto flex gap-2">
             <Button variant="secondary" onClick={close} disabled={isPending}>Hủy</Button>

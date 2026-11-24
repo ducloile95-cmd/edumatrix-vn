@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/Button";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -116,21 +117,21 @@ export function SubjectForm({ editingSubject, onDone }: SubjectFormProps) {
       {mutation.isSuccess && !isEditing && <p className="mt-3 text-sm text-success-700">Đã tạo môn học.</p>}
 
       <div className="mt-4 flex gap-2">
-        <button
+        <Button variant="primary"
           type="submit"
           disabled={mutation.isPending}
-          className="min-h-touch rounded-input bg-primary-500 px-5 text-sm font-medium text-white hover:bg-primary-600 disabled:opacity-60"
+         
         >
           {mutation.isPending ? "Đang lưu..." : isEditing ? "Lưu thay đổi" : "Thêm môn học"}
-        </button>
+        </Button>
         {isEditing && (
-          <button
+          <Button variant="secondary"
             type="button"
             onClick={() => onDone?.()}
-            className="min-h-touch rounded-input border border-neutral-300 px-5 text-sm font-medium text-neutral-600 hover:bg-neutral-50"
+           
           >
             Hủy
-          </button>
+          </Button>
         )}
       </div>
     </form>

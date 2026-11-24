@@ -93,7 +93,7 @@ export default function ViewerDashboardPage() {
   const studentIds = userDoc?.studentIds ?? [];
   const dashboard = useQuery({
     queryKey: ["viewer-dashboard", firebaseUser?.uid, studentIds],
-    queryFn: () => buildViewerDashboard(studentIds),
+    queryFn: () => buildViewerDashboard(studentIds, firebaseUser?.uid),
     enabled: !!userDoc,
   });
   const academicSettings = useQuery({
@@ -143,7 +143,7 @@ export default function ViewerDashboardPage() {
       .filter((session) => classIdSet.has(session.classId) && session.status !== "cancelled")
       .sort((a, b) => a.startAt.toMillis() - b.startAt.toMillis());
     const unpaidInvoices = data.unpaidInvoices
-      .filter((invoice) => invoice.studentId === student.id && invoice.status !== "paid")
+      .filter((invoice) => invoice.studentId === student.id && invoice.status !== "paid" && invoice.status !== "void")
       .sort((a, b) => a.dueAt.toMillis() - b.dueAt.toMillis());
     const announcements = data.announcements.filter((item) => !item.studentId || item.studentId === student.id);
 
@@ -195,7 +195,7 @@ export default function ViewerDashboardPage() {
             onSelect={selectStudent}
           />
 
-          <section aria-label="Hồ sơ học tập" className="order-1 rounded-card border border-primary-100 bg-white shadow-[var(--shadow-1)]">
+          <section aria-label="Hồ sơ học tập" className="order-1 rounded-card border border-primary-100 bg-neutral-0 shadow-[var(--shadow-1)]">
             <div className="grid lg:grid-cols-[1fr_280px]">
               <div className="p-5 sm:p-6">
                 <div className="flex items-start gap-4">
@@ -222,9 +222,9 @@ export default function ViewerDashboardPage() {
 
               <div className="relative flex min-h-[190px] items-center justify-between gap-4 rounded-b-[11px] bg-primary-700 p-5 pr-16 text-white lg:min-h-0 lg:flex-col lg:items-start lg:justify-center lg:rounded-l-none lg:rounded-r-[11px] lg:p-6 lg:pr-14">
                 <div>
-                  <p className="flex items-center gap-2 text-xs font-bold text-primary-100"><Trophy size={16} />Xếp hạng từ Teacher</p>
+                  <p className="flex items-center gap-2 text-xs font-bold text-primary-100"><Trophy size={16} />Xếp hạng từ Giáo viên</p>
                   <div className="mt-3 flex items-end gap-3">
-                    <strong className="text-[68px] font-black leading-[0.76] tracking-[-0.07em] drop-shadow-[0_6px_20px_rgba(5,18,74,0.22)] sm:text-[76px] lg:text-[84px]">{overview.rank ?? "–"}</strong>
+                    <strong className="text-[68px] font-black leading-[0.76] tracking-[-0.07em] drop-shadow-[var(--shadow-2)] sm:text-[76px] lg:text-[84px]">{overview.rank ?? "–"}</strong>
                     <span className="pb-1 text-sm font-extrabold text-white">
                       {overview.rank ? RANK_META[overview.rank].label : "Chưa đủ dữ liệu"}
                     </span>
@@ -237,7 +237,7 @@ export default function ViewerDashboardPage() {
                   <summary className="motion-control grid size-[30px] cursor-pointer list-none place-items-center rounded-full border border-white/40 bg-white/10 text-white hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white active:scale-[.96] [&::-webkit-details-marker]:hidden" aria-label="Xem cách tính xếp loại">
                     <Info size={16} aria-hidden="true" />
                   </summary>
-                  <div className="absolute right-0 top-10 z-30 w-[316px] max-w-[calc(100vw-2rem)] rounded-modal border border-neutral-200 bg-white p-4 text-neutral-900 shadow-[var(--shadow-3)]">
+                  <div className="absolute right-0 top-10 z-30 w-[316px] max-w-[calc(100vw-2rem)] rounded-modal border border-neutral-200 bg-neutral-0 p-4 text-neutral-900 shadow-[var(--shadow-3)]">
                     <strong className="block text-sm leading-5">Cách tính xếp loại</strong>
                     <p className="mt-1.5 text-2xs leading-4 text-neutral-500">Dựa trên điểm trung bình của các bài đánh giá đã được giáo viên công bố.</p>
                     <div className="mt-3 space-y-0.5">
@@ -286,7 +286,7 @@ export default function ViewerDashboardPage() {
               </div>
             </ChartPanel>
 
-            <ChartPanel title="Tiến trình điểm số" description="7 đánh giá gần nhất đã được Teacher công bố" className="min-h-[300px]">
+            <ChartPanel title="Tiến trình điểm số" description="7 đánh giá gần nhất đã được Giáo viên công bố" className="min-h-[300px]">
               {overview.scoreTrend.length === 0 ? (
                 <div className="grid h-56 place-items-center text-sm text-neutral-500">Chưa có điểm được công bố.</div>
               ) : (
@@ -312,7 +312,7 @@ export default function ViewerDashboardPage() {
 
           <section
             aria-label="Việc cần quan tâm"
-            className="order-3 rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)]"
+            className="order-3 rounded-card border border-neutral-200 bg-neutral-0 shadow-[var(--shadow-1)]"
           >
             <div className="grid divide-y divide-neutral-100 lg:grid-cols-4 lg:divide-x lg:divide-y-0">
               <DashboardList

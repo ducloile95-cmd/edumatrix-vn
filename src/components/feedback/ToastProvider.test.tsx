@@ -53,4 +53,17 @@ describe("ToastProvider", () => {
     act(() => vi.advanceTimersByTime(1));
     expect(screen.queryByRole("status")).toBeNull();
   });
+
+  test("keeps error toasts until the user closes them", () => {
+    vi.useFakeTimers();
+    function ErrorHarness() {
+      const { showToast } = useToast();
+      return <button type="button" onClick={() => showToast({ title: "Lưu thất bại", tone: "error" })}>Lỗi</button>;
+    }
+    render(<ToastProvider><ErrorHarness /></ToastProvider>);
+
+    fireEvent.click(screen.getByRole("button", { name: "Lỗi" }));
+    act(() => vi.advanceTimersByTime(60_000));
+    expect(screen.getByRole("alert").className).toContain("toast-lifecycle");
+  });
 });

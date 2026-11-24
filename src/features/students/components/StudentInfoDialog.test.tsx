@@ -7,29 +7,30 @@ import { renderWithQueryClient } from "@/test/renderWithQueryClient";
 import type { StudentDoc } from "@/types/academic";
 
 const serviceMocks = vi.hoisted(() => ({
+  deleteStudent: vi.fn(),
   linkParentToStudent: vi.fn(),
   listClasses: vi.fn(),
   listCourses: vi.fn(),
   listUsersByIds: vi.fn(),
   listUsersByRole: vi.fn(),
   setStudentStatus: vi.fn(),
-  syncStudentEnrollments: vi.fn(),
-  updateParentProfile: vi.fn(),
-  updateStudent: vi.fn(),
+  inspectDeletionDependencies: vi.fn(),
+  updateStudentWithRelations: vi.fn(),
 }));
 
 vi.mock("@/services/firestore/classes", () => ({ listClasses: serviceMocks.listClasses }));
 vi.mock("@/services/firestore/courses", () => ({ listCourses: serviceMocks.listCourses }));
-vi.mock("@/services/firestore/enrollments", () => ({ syncStudentEnrollments: serviceMocks.syncStudentEnrollments }));
 vi.mock("@/services/firestore/students", () => ({
-  linkParentToStudent: serviceMocks.linkParentToStudent,
+  deleteStudent: serviceMocks.deleteStudent,
   setStudentStatus: serviceMocks.setStudentStatus,
-  updateStudent: serviceMocks.updateStudent,
+  updateStudentWithRelations: serviceMocks.updateStudentWithRelations,
 }));
 vi.mock("@/services/firestore/users", () => ({
   listUsersByIds: serviceMocks.listUsersByIds,
   listUsersByRole: serviceMocks.listUsersByRole,
-  updateParentProfile: serviceMocks.updateParentProfile,
+}));
+vi.mock("@/services/firestore/deletionDependencies", () => ({
+  inspectDeletionDependencies: serviceMocks.inspectDeletionDependencies,
 }));
 
 const timestamp = { toDate: () => new Date("2026-08-01T08:00:00+07:00") } as StudentDoc["createdAt"];
@@ -63,8 +64,9 @@ beforeEach(() => {
     { uid: "teacher-1", displayName: "Cô An" },
     { uid: "teacher-2", displayName: "Thầy Bình" },
   ]);
-  serviceMocks.syncStudentEnrollments.mockResolvedValue(undefined);
-  serviceMocks.updateStudent.mockResolvedValue(undefined);
+  serviceMocks.inspectDeletionDependencies.mockResolvedValue({ allowed: true, total: 0, blockers: [] });
+  serviceMocks.deleteStudent.mockResolvedValue(undefined);
+  serviceMocks.updateStudentWithRelations.mockResolvedValue(undefined);
 });
 
 afterEach(cleanup);
@@ -84,9 +86,12 @@ describe("StudentInfoDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "Cập nhật" }));
 
     await waitFor(() => {
-      expect(serviceMocks.syncStudentEnrollments).toHaveBeenCalledWith("student-1", ["class-1", "class-2"]);
+      expect(serviceMocks.updateStudentWithRelations).toHaveBeenCalledWith("student-1", expect.objectContaining({
+        actorUid: "unknown",
+        classIds: ["class-1", "class-2"],
+      }));
     });
-    expect(serviceMocks.updateStudent).toHaveBeenCalledWith("student-1", expect.objectContaining({
+    expect(serviceMocks.updateStudentWithRelations).toHaveBeenCalledWith("student-1", expect.objectContaining({
       nickname: "Bin",
     }));
   });
@@ -101,11 +106,11 @@ describe("StudentInfoDialog", () => {
     fireEvent.submit(fullNameInput.form!);
 
     await waitFor(() => {
-      expect(serviceMocks.updateStudent).toHaveBeenCalledWith("student-1", expect.objectContaining({
+      expect(serviceMocks.updateStudentWithRelations).toHaveBeenCalledWith("student-1", expect.objectContaining({
         fullName: "Updated Student",
       }));
     });
-    expect(serviceMocks.syncStudentEnrollments).not.toHaveBeenCalled();
+    expect(serviceMocks.updateStudentWithRelations).toHaveBeenCalledTimes(1);
   });
 
   test("adds a class from another course without removing current classes", async () => {
@@ -119,7 +124,9 @@ describe("StudentInfoDialog", () => {
     fireEvent.submit(fullNameInput.form!);
 
     await waitFor(() => {
-      expect(serviceMocks.syncStudentEnrollments).toHaveBeenCalledWith("student-1", ["class-1", "class-2"]);
+      expect(serviceMocks.updateStudentWithRelations).toHaveBeenCalledWith("student-1", expect.objectContaining({
+        classIds: ["class-1", "class-2"],
+      }));
     });
   });
 
@@ -130,5 +137,32 @@ describe("StudentInfoDialog", () => {
 
     expect(await screen.findByText("Lớp Toán A1")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Lớp học.*Chỉnh sửa/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Xóa học sinh" })).toBeNull();
+  });
+
+  test("lets Teacher hard-delete while relationship editing stays read-only", async () => {
+    renderWithQueryClient(
+      <StudentInfoDialog canManageLinks={false} canDelete open student={student} onClose={vi.fn()} />,
+    );
+
+    expect(await screen.findByRole("button", { name: "Xóa học sinh" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Lớp học.*Chỉnh sửa/i })).toBeNull();
+  });
+
+  test("requires the student code before hard deletion", async () => {
+    const onClose = vi.fn();
+    renderWithQueryClient(
+      <StudentInfoDialog canManageLinks open student={student} onClose={onClose} />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Xóa học sinh" }));
+    const confirmButton = screen.getByRole("button", { name: "Xóa vĩnh viễn" });
+    expect((confirmButton as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText(/Nhập HS001 để xác nhận/i), { target: { value: "HS001" } });
+    await waitFor(() => expect((confirmButton as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(confirmButton);
+
+    await waitFor(() => expect(serviceMocks.deleteStudent).toHaveBeenCalledWith("student-1"));
+    expect(onClose).toHaveBeenCalled();
   });
 });

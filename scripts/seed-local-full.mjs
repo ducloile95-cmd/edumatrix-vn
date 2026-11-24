@@ -14,6 +14,10 @@ const firestoreUrl = "http://127.0.0.1:8091";
 const password = "Test@123456";
 const reset = process.argv.includes("--reset");
 
+// Hoc phi seed theo thang hien tai de han nop khop voi tieu de.
+const BILL_KEY = `${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, "0")}`;
+const BILL_LABEL = `${BILL_KEY.slice(4)}/${BILL_KEY.slice(0, 4)}`;
+
 function day(offset, hour = 8, minute = 0) {
   const date = new Date();
   date.setHours(hour, minute, 0, 0);
@@ -263,9 +267,9 @@ await env.withSecurityRulesDisabled(async (context) => {
     return { studentId: s.id, classId: cls.id, courseId: cls.courseId, amount: course.tuitionFee, status: INVOICE_CYCLE[i % INVOICE_CYCLE.length], teacherKey: cls.teacherKey, viewerKey: s.viewerKey };
   });
   for (const inv of INVOICES) {
-    const invoiceId = `invoice-${inv.studentId}-202607`;
+    const invoiceId = `invoice-${inv.studentId}-${BILL_KEY}`;
     put("invoices", invoiceId, {
-      invoiceCode: `HP-${inv.studentId}-202607`,
+      invoiceCode: `HP-${inv.studentId}-${BILL_KEY}`,
       studentId: inv.studentId,
       courseId: inv.courseId,
       sourceType: "class",
@@ -276,10 +280,10 @@ await env.withSecurityRulesDisabled(async (context) => {
       itemNameSnapshot: classById(inv.classId).name,
       unitPriceSnapshot: Math.round(COURSES[inv.courseId].tuitionFee / COURSES[inv.courseId].totalSessions),
       quantity: COURSES[inv.courseId].totalSessions,
-      title: "Học phí tháng 07/2026",
+      title: `Học phí tháng ${BILL_LABEL}`,
       amount: inv.amount,
       dueAt: day(inv.status === "overdue" ? -3 : 10),
-      paymentContent: `HP ${inv.studentId} 202607`,
+      paymentContent: `HP ${inv.studentId} ${BILL_KEY}`,
       bankBin: "970436",
       accountNumber: "123456789",
       accountName: "TRUNG TAM EDUMATRIX",
@@ -289,7 +293,7 @@ await env.withSecurityRulesDisabled(async (context) => {
       updatedAt: now,
     });
     if (inv.status === "pending" || inv.status === "paid") {
-      put("payments", `payment-${inv.studentId}-202607`, {
+      put("payments", `payment-${inv.studentId}-${BILL_KEY}`, {
         invoiceId,
         studentId: inv.studentId,
         amount: inv.amount,
@@ -351,7 +355,7 @@ await env.withSecurityRulesDisabled(async (context) => {
     });
     const unpaidInvoices = INVOICES
       .filter((inv) => kidIds.includes(inv.studentId) && inv.status !== "paid")
-      .map((inv) => ({ id: `invoice-${inv.studentId}-202607`, studentId: inv.studentId, title: "Học phí tháng 07/2026", amount: inv.amount, status: inv.status, dueAt: day(inv.status === "overdue" ? -3 : 10) }));
+      .map((inv) => ({ id: `invoice-${inv.studentId}-${BILL_KEY}`, studentId: inv.studentId, title: `Học phí tháng ${BILL_LABEL}`, amount: inv.amount, status: inv.status, dueAt: day(inv.status === "overdue" ? -3 : 10) }));
     const announcements = ANNOUNCEMENTS.filter((a) => kidIds.includes(a.studentId)).map((a) => ({ id: a.id, studentId: a.studentId, title: a.title, message: a.message }));
 
     put("viewer_dashboards", uid[v.key], { studentIds: kidIds, nextSessions, lessonPlans, pendingAssignments, latestScores, attendance, unpaidInvoices, announcements, updatedAt: now });

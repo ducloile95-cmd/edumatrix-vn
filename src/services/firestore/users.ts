@@ -1,7 +1,6 @@
 import {
   collection,
   doc,
-  documentId,
   getDoc,
   getDocs,
   onSnapshot,
@@ -22,6 +21,7 @@ import { getCurrentUserDoc, isAdminUser, isTeacherUser } from "@/services/firest
 import type { InviteDoc, UserDoc, UserRole, UserStatus } from "@/types/user";
 import type { StudentDoc } from "@/types/academic";
 import { decodeUserDoc } from "@/services/firestore/decoders";
+import { assertDeletionAllowed } from "@/services/firestore/deletionDependencies";
 import { listAllQueryDocuments } from "@/services/firestore/pagination";
 
 export type ClaimFailureReason = "email_not_verified" | "no_invite" | "error";
@@ -110,19 +110,22 @@ export async function listUsers(): Promise<(UserDoc & { uid: string })[]> {
 
 export async function listUsersByIds(uids: string[]): Promise<(UserDoc & { uid: string })[]> {
   const uniqueIds = [...new Set(uids)].filter(Boolean);
-  const groups: (UserDoc & { uid: string })[][] = [];
+  // Doc tung ho so (cung so luot doc voi "in"): mot ho so rules tu choi voi giao vien (vd con thu 4)
+  // chi bi bo qua, khong lam hong ca danh sach nhu truy van documentId() in [...].
+  const results = await Promise.allSettled(uniqueIds.map((uid) => getDoc(doc(db, COLLECTIONS.USERS, uid))));
+  return results.flatMap((result) => result.status === "fulfilled" && result.value.exists()
+    ? [{ uid: result.value.id, ...decodeUserDoc(result.value.data(), `${COLLECTIONS.USERS}/${result.value.id}`) }]
+    : []);
+}
 
-  for (let offset = 0; offset < uniqueIds.length; offset += 30) {
-    const chunk = uniqueIds.slice(offset, offset + 30);
-    if (chunk.length === 0) continue;
-    const snap = await getDocs(query(collection(db, COLLECTIONS.USERS), where(documentId(), "in", chunk)));
-    groups.push(snap.docs.map((d) => ({
-      uid: d.id,
-      ...decodeUserDoc(d.data(), `${COLLECTIONS.USERS}/${d.id}`),
-    })));
-  }
-
-  return groups.flat();
+/** Giao vien khong duoc quet toan bo users (rules): danh ba nhan su + phu huynh cua hoc sinh minh phu trach. */
+export async function listTeacherVisibleUsers(parentUids: string[]): Promise<(UserDoc & { uid: string })[]> {
+  const [staffSnap, parents] = await Promise.all([
+    getDocs(query(collection(db, COLLECTIONS.USERS), where("role", "in", ["admin", "teacher"]))),
+    listUsersByIds(parentUids),
+  ]);
+  const staff = staffSnap.docs.map((d) => ({ uid: d.id, ...decodeUserDoc(d.data(), `${COLLECTIONS.USERS}/${d.id}`) }));
+  return [...new Map([...staff, ...parents].map((user) => [user.uid, user])).values()];
 }
 
 export async function updateParentProfile(uid: string, input: ParentProfileInput): Promise<void> {
@@ -189,6 +192,26 @@ export async function updateUserAccount(actor: User, uid: string, input: UpdateU
   });
 }
 
+export async function deleteUserAccount(actor: User, uid: string): Promise<void> {
+  if (actor.uid === uid) throw new Error("USER_SELF_DELETE_NOT_ALLOWED");
+  // shortcut: kiem tra phu thuoc chay ngoai transaction (dem khong lam trong transaction duoc), con mot khe nho neu ban ghi lien quan duoc tao giua chung; chi Admin xoa. Nang len neu xuat hien tham chieu treo.
+  await assertDeletionAllowed("user", uid);
+
+  const deletedUser = await runTransaction(db, async (transaction) => {
+    const userRef = doc(db, COLLECTIONS.USERS, uid);
+    const userSnap = await transaction.get(userRef);
+    if (!userSnap.exists()) throw new Error("USER_NOT_FOUND");
+    const currentUser = userSnap.data() as UserDoc;
+
+    transaction.delete(userRef);
+    return currentUser;
+  });
+  await writeAuditLog(actor, "user_account_deleted", "user", uid, {
+    role: deletedUser.role,
+    email: deletedUser.email,
+  });
+}
+
 /**
  * Ghi lai lan dang nhap gan nhat cua chinh minh - goi tu AuthContext moi phien
  * dang nhap (A16: chi duoc tu sua field cua rieng minh, xem firestore.rules
@@ -220,6 +243,7 @@ export async function listUsersByRole(role: UserRole): Promise<(UserDoc & { uid:
   if (!currentUser) return [];
 
   if (!isAdminUser(currentUser) && (!isTeacherUser(currentUser) || role === "admin")) return [];
+  if (isTeacherUser(currentUser)) return role === "teacher" ? [currentUser] : [];
 
   const documents = await listAllQueryDocuments(
     COLLECTIONS.USERS,

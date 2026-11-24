@@ -1,29 +1,32 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, ChevronDown, Pencil, X } from "lucide-react";
+import { Check, ChevronDown, Pencil, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { linkParentToStudent, setStudentStatus, updateStudent } from "@/services/firestore/students";
-import { listUsersByIds, listUsersByRole, updateParentProfile, type ParentProfileInput } from "@/services/firestore/users";
+import { DeletionPreflightPanel } from "@/components/feedback/DeletionPreflightPanel";
+import { useDeletionPreflight } from "@/hooks/useDeletionPreflight";
+import { deleteStudent, setStudentStatus, updateStudentWithRelations } from "@/services/firestore/students";
+import { listUsersByIds, listUsersByRole, type ParentProfileInput } from "@/services/firestore/users";
 import { listClasses } from "@/services/firestore/classes";
 import { listCourses } from "@/services/firestore/courses";
-import { syncStudentEnrollments } from "@/services/firestore/enrollments";
 import type { StudentDoc, StudentStatus } from "@/types/academic";
 
 type StudentWithId = StudentDoc & { id: string };
 type Feedback = { tone: "success" | "danger"; message: string } | null;
 type RelationKey = "classes" | "courses" | "teachers";
 type ClassFilter = { type: "course" | "teacher"; id: string } | null;
-const INPUT_CLASS = "min-h-touch w-full rounded-input border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none transition placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-100";
+const INPUT_CLASS = "min-h-touch w-full rounded-input border border-neutral-300 bg-neutral-0 px-3 text-sm text-neutral-900 outline-none transition placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-100";
 
 interface StudentInfoDialogProps {
+  actorUid?: string;
   canManageLinks: boolean;
+  canDelete?: boolean;
   open: boolean;
   student: StudentWithId | null;
   onClose: () => void;
 }
 
-export function StudentInfoDialog({ canManageLinks, onClose, open, student }: StudentInfoDialogProps) {
+export function StudentInfoDialog({ actorUid = "unknown", canManageLinks, canDelete = canManageLinks, onClose, open, student }: StudentInfoDialogProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
   const queryClient = useQueryClient();
@@ -41,6 +44,9 @@ export function StudentInfoDialog({ canManageLinks, onClose, open, student }: St
   const [activeRelation, setActiveRelation] = useState<RelationKey | null>(null);
   const [classFilter, setClassFilter] = useState<ClassFilter>(null);
   const [selectedClassIds, setSelectedClassIds] = useState<string[]>([]);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const deletePreflight = useDeletionPreflight("student", deleteOpen ? student?.id ?? null : null);
 
   useEffect(() => {
     if (!student || !open) return;
@@ -58,13 +64,14 @@ export function StudentInfoDialog({ canManageLinks, onClose, open, student }: St
     setActiveRelation(null);
     setClassFilter(null);
     setSelectedClassIds(student.currentClassIds);
+    setDeleteOpen(false);
+    setDeleteConfirmation("");
   }, [open, student]);
 
   const parentProfilesQuery = useQuery({
     queryKey: ["student-parent-profiles", student?.id, student?.parentUids ?? []],
     queryFn: () => listUsersByIds(student?.parentUids ?? []),
     enabled: open && !!student && student.parentUids.length > 0,
-    staleTime: 60_000,
   });
 
   const primaryParent = parentProfilesQuery.data?.[0] ?? null;
@@ -73,25 +80,21 @@ export function StudentInfoDialog({ canManageLinks, onClose, open, student }: St
     queryKey: ["classes"],
     queryFn: listClasses,
     enabled: open && !!student,
-    staleTime: 60_000,
   });
   const coursesQuery = useQuery({
     queryKey: ["courses"],
     queryFn: listCourses,
     enabled: open && !!student,
-    staleTime: 60_000,
   });
   const teacherProfilesQuery = useQuery({
     queryKey: ["student-teacher-profiles", student?.teacherIds ?? []],
     queryFn: () => listUsersByIds(student?.teacherIds ?? []),
     enabled: open && !!student && student.teacherIds.length > 0,
-    staleTime: 60_000,
   });
   const allTeachersQuery = useQuery({
     queryKey: ["users", "teacher", "active"],
     queryFn: () => listUsersByRole("teacher"),
     enabled: open && !!student && canManageLinks,
-    staleTime: 60_000,
   });
 
   useEffect(() => {
@@ -144,30 +147,25 @@ export function StudentInfoDialog({ canManageLinks, onClose, open, student }: St
   const updateMutation = useMutation({
     mutationFn: async () => {
       if (!student) return;
-      const classesChanged = selectedClassIds.length !== student.currentClassIds.length ||
-        selectedClassIds.some((classId) => !student.currentClassIds.includes(classId));
-      if (canManageLinks && classesChanged) await syncStudentEnrollments(student.id, selectedClassIds);
-      await updateStudent(student.id, {
+      const email = parentEmail.trim();
+      await updateStudentWithRelations(student.id, {
+        actorUid,
         fullName: fullName.trim(),
         nickname: nickname.trim(),
         dateOfBirth,
         staffNote: staffNote.trim(),
+        ...(canManageLinks ? { classIds: selectedClassIds } : {}),
+        ...(canManageLinks && email ? {
+          parentEmail: email,
+          primaryParentUid: primaryParent?.uid,
+          parentProfile: getParentProfilePayload({
+            address: parentAddress,
+            displayName: parentName,
+            facebookUrl: parentFacebookUrl,
+            phone: parentPhone,
+          }),
+        } : {}),
       });
-
-      const email = parentEmail.trim();
-      const parentProfile = getParentProfilePayload({
-        address: parentAddress,
-        displayName: parentName,
-        facebookUrl: parentFacebookUrl,
-        phone: parentPhone,
-      });
-
-      if (canManageLinks && primaryParent && primaryParent.email === email) {
-        await updateParentProfile(primaryParent.uid, parentProfile);
-      } else if (canManageLinks && email) {
-        const result = await linkParentToStudent(student.id, email, parentProfile);
-        if (!result.linked) throw new Error(result.reason);
-      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["students"] });
@@ -190,9 +188,23 @@ export function StudentInfoDialog({ canManageLinks, onClose, open, student }: St
       queryClient.invalidateQueries({ queryKey: ["students"] });
       setFeedback({ tone: "success", message: "Đã cập nhật trạng thái học sinh." });
     },
-    onError: () => {
+    onError: (error) => {
       if (student) setStatusDraft(student.status);
-      setFeedback({ tone: "danger", message: "Không cập nhật được trạng thái. Kiểm tra kết nối và thử lại." });
+      setFeedback({ tone: "danger", message: getStatusErrorMessage(error) });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!student) return;
+      await deleteStudent(student.id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["students"] });
+      queryClient.invalidateQueries({ queryKey: ["classes"] });
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["enrollments"] });
+      onClose();
     },
   });
 
@@ -200,6 +212,7 @@ export function StudentInfoDialog({ canManageLinks, onClose, open, student }: St
 
   const isActive = statusDraft === "active";
   const canSubmit = fullName.trim().length > 0 && !updateMutation.isPending;
+  const deleteConfirmed = deleteConfirmation.trim().toUpperCase() === student.studentCode.toUpperCase();
   const allClasses = classesQuery.data ?? [];
   const linkedClasses = allClasses.filter((klass) => selectedClassIds.includes(klass.id));
   const courseById = new Map((coursesQuery.data ?? []).map((course) => [course.id, course.name]));
@@ -241,7 +254,7 @@ export function StudentInfoDialog({ canManageLinks, onClose, open, student }: St
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-neutral-900/50 p-4"
+      className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-ink/50 p-4"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -251,7 +264,7 @@ export function StudentInfoDialog({ canManageLinks, onClose, open, student }: St
         role="dialog"
         aria-modal="true"
         aria-labelledby="student-info-title"
-        className="page-enter grid max-h-[calc(100dvh-2rem)] w-full max-w-[1120px] grid-rows-[auto_1fr_auto] overflow-hidden rounded-modal border border-neutral-200 bg-white shadow-[var(--shadow-4)] lg:max-w-[1760px]"
+        className="page-enter relative grid max-h-[calc(100dvh-2rem)] w-full max-w-[1120px] grid-rows-[auto_1fr_auto] overflow-hidden rounded-modal border border-neutral-200 bg-neutral-0 shadow-[var(--shadow-4)] lg:max-w-[1760px]"
       >
         <header className="flex items-start justify-between gap-4 border-b border-neutral-200 bg-neutral-50 px-5 py-4">
           <div className="min-w-0">
@@ -266,7 +279,7 @@ export function StudentInfoDialog({ canManageLinks, onClose, open, student }: St
             type="button"
             onClick={onClose}
             aria-label="Đóng thông tin học sinh"
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-800"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-neutral-0 text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-800"
           >
             <X size={19} />
           </button>
@@ -323,7 +336,7 @@ export function StudentInfoDialog({ canManageLinks, onClose, open, student }: St
               <Panel title="Ghi danh và phân công" meta="Đồng bộ theo lớp">
                 <p className="border-b border-neutral-200 px-4 py-3 text-xs leading-5 text-neutral-600">Khóa học và giáo viên được suy ra từ lớp. Chọn một mục để lọc danh sách lớp phù hợp.</p>
                 <RelationEditorRow label="Lớp học" value={classNames.join(", ") || "Chưa có lớp"} expanded={activeRelation === "classes"} editable={canManageLinks} onToggle={() => { setActiveRelation((current) => current === "classes" ? null : "classes"); if (activeRelation === "classes") setClassFilter(null); }}>
-                  {classFilter && <button type="button" onClick={() => setClassFilter(null)} className="mb-2 min-h-9 rounded-input border border-primary-200 bg-primary-50 px-3 text-xs font-bold text-primary-700">Bỏ bộ lọc</button>}
+                  {classFilter && <Button variant="soft" size="sm" type="button" onClick={() => setClassFilter(null)} className="mb-2">Bỏ bộ lọc</Button>}
                   <div role="listbox" aria-label="Danh sách Lớp học" aria-multiselectable="true" className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
                     {filteredClasses.map((klass) => <RelationOption key={klass.id} selected={selectedClassIds.includes(klass.id)} label={klass.name} onClick={() => toggleClass(klass.id)} />)}
                     {!classesQuery.isLoading && filteredClasses.length === 0 && <p className="p-3 text-sm text-neutral-500">Không có lớp phù hợp.</p>}
@@ -358,8 +371,8 @@ export function StudentInfoDialog({ canManageLinks, onClose, open, student }: St
           </div>
         </form>
 
-        <footer className="flex flex-col gap-3 border-t border-neutral-200 bg-white px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
+        <footer className="flex flex-col gap-3 border-t border-neutral-200 bg-neutral-0 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
               role="switch"
@@ -371,7 +384,7 @@ export function StudentInfoDialog({ canManageLinks, onClose, open, student }: St
               }`}
             >
               <span
-                className={`absolute left-1 top-1 grid size-7 place-items-center rounded-full bg-white text-3xs font-bold shadow-[0_3px_10px_rgba(28,51,137,.22)] transition-[color,box-shadow,transform] duration-fast ${
+                className={`absolute left-1 top-1 grid size-7 place-items-center rounded-full bg-neutral-0 text-3xs font-bold shadow-[var(--shadow-2)] transition-[color,box-shadow,transform] duration-fast ${
                   isActive ? "translate-x-8 text-success-700" : "text-neutral-500"
                 }`}
               >
@@ -381,6 +394,7 @@ export function StudentInfoDialog({ canManageLinks, onClose, open, student }: St
             <div>
               <p className="text-sm font-semibold text-neutral-900">{isActive ? "Đang học" : "Đã nghỉ"}</p>
             </div>
+            {canDelete && <Button variant="danger" className="ml-1 rounded-full px-4" icon={<Trash2 size={15} strokeWidth={1.7} />} onClick={() => { deleteMutation.reset(); setDeleteConfirmation(""); setDeleteOpen(true); }}>Xóa học sinh</Button>}
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={onClose}>
@@ -391,6 +405,8 @@ export function StudentInfoDialog({ canManageLinks, onClose, open, student }: St
             </Button>
           </div>
         </footer>
+
+        {deleteOpen && <div className="absolute inset-0 z-20 grid place-items-center bg-ink/45 p-4" onMouseDown={(event) => event.stopPropagation()}><div role="alertdialog" aria-modal="true" aria-labelledby="delete-student-title" className="w-full max-w-lg rounded-[22px] bg-danger-100/80 p-1.5 ring-1 ring-danger-100"><div className="rounded-[17px] bg-neutral-0 p-5 shadow-[var(--shadow-4)]"><div className="flex items-start gap-3"><span className="grid size-11 shrink-0 place-items-center rounded-full bg-danger-50 text-danger-700 ring-1 ring-danger-100"><Trash2 size={19} strokeWidth={1.6} /></span><div><h3 id="delete-student-title" className="text-lg font-bold tracking-[-0.01em] text-neutral-900">Xóa vĩnh viễn học sinh?</h3><p className="mt-1 text-sm leading-6 text-neutral-600">Hồ sơ <strong className="text-neutral-900">{student.fullName}</strong> chỉ được xóa khi không còn dữ liệu nghiệp vụ liên quan.</p></div></div><div className="mt-4"><DeletionPreflightPanel loading={deletePreflight.isFetching} error={deletePreflight.isError} report={deletePreflight.data} /></div><label className="mt-5 grid gap-1.5"><span className="text-xs font-bold text-neutral-700">Nhập <span className="font-mono text-danger-700">{student.studentCode}</span> để xác nhận</span><input autoFocus autoComplete="off" value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} className={`${INPUT_CLASS} font-mono uppercase tracking-[0.08em] focus:border-danger-500 focus:ring-danger-100`} /></label>{deleteMutation.isError && <p role="alert" className="mt-3 rounded-input bg-danger-50 px-3 py-2 text-sm font-semibold text-danger-700">{deleteMutation.error instanceof Error && deleteMutation.error.message === "STUDENT_NOT_FOUND" ? "Học sinh không còn tồn tại. Hãy tải lại danh sách." : deleteMutation.error instanceof Error && deleteMutation.error.message === "DELETION_BLOCKED" ? "Dữ liệu liên quan vừa thay đổi. Hệ thống đã dừng thao tác xóa." : "Không thể xóa học sinh. Kiểm tra quyền truy cập và thử lại."}</p>}<div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><Button variant="secondary" disabled={deleteMutation.isPending} onClick={() => setDeleteOpen(false)}>Giữ học sinh</Button><Button variant="danger" className="rounded-full px-5" icon={<Trash2 size={15} strokeWidth={1.7} />} loading={deleteMutation.isPending} loadingLabel="Đang xóa học sinh" disabled={!deleteConfirmed || deletePreflight.isFetching || !deletePreflight.data?.allowed} onClick={() => deleteMutation.mutate()}>Xóa vĩnh viễn</Button></div></div></div></div>}
       </div>
     </div>,
     document.body,
@@ -399,7 +415,7 @@ export function StudentInfoDialog({ canManageLinks, onClose, open, student }: St
 
 function Panel({ children, meta, title }: { children: ReactNode; meta?: string; title: string }) {
   return (
-    <div className="overflow-hidden rounded-card border border-neutral-200 bg-white">
+    <div className="overflow-hidden rounded-card border border-neutral-200 bg-neutral-0">
       <div className="flex min-h-[42px] items-center justify-between gap-3 border-b border-neutral-200 bg-neutral-50 px-3">
         <h3 className="text-sm font-semibold text-neutral-900">{title}</h3>
         {meta && <span className="truncate text-xs font-semibold text-neutral-500">{meta}</span>}
@@ -487,14 +503,14 @@ function RelationOption({
       className={`flex min-h-touch items-center justify-between gap-3 rounded-input border px-3 py-2 text-left text-sm font-semibold outline-none transition focus-visible:ring-2 focus-visible:ring-primary-500 ${
         selected
           ? "border-primary-200 bg-primary-50 text-primary-800"
-          : "border-neutral-200 bg-white text-neutral-800 hover:border-primary-200 hover:bg-primary-50/50"
+          : "border-neutral-200 bg-neutral-0 text-neutral-800 hover:border-primary-200 hover:bg-primary-50/50"
       }`}
     >
       <span className="min-w-0 truncate">{label}</span>
       {actionLabel ? (
         <span className="shrink-0 text-xs font-bold text-primary-700">{actionLabel}</span>
       ) : (
-        <span className={`grid size-5 shrink-0 place-items-center rounded border ${selected ? "border-primary-600 bg-primary-600 text-white" : "border-neutral-300 bg-white"}`}>
+        <span className={`grid size-5 shrink-0 place-items-center rounded border ${selected ? "border-primary-600 bg-primary-600 text-white" : "border-neutral-300 bg-neutral-0"}`}>
           {selected && <Check className="size-3.5" aria-hidden="true" />}
         </span>
       )}
@@ -504,10 +520,25 @@ function RelationOption({
 
 function getUpdateErrorMessage(error: unknown): string {
   const message = error instanceof Error ? error.message : "";
-  if (message === "not_found") return "Không tìm thấy tài khoản phụ huynh theo email đã nhập.";
-  if (message === "not_viewer") return "Email này không thuộc tài khoản phụ huynh/học sinh.";
-  if (message === "error") return "Không liên kết được phụ huynh. Kiểm tra kết nối và thử lại.";
+  if (message === "STUDENT_NOT_FOUND") return "Học sinh không còn tồn tại. Hãy tải lại danh sách.";
+  if (message === "CLASS_NOT_FOUND") return "Có lớp học đã bị xóa. Hãy tải lại danh sách lớp.";
+  if (message === "CLASS_NOT_ACTIVE") return "Chỉ có thể ghi danh học sinh vào lớp đang hoạt động.";
+  if (message === "STUDENT_NOT_ACTIVE") return "Học sinh đang ngừng hoạt động nên không thể ghi danh vào lớp.";
+  if (message === "PARENT_NOT_FOUND") return "Không tìm thấy tài khoản phụ huynh theo email đã nhập.";
+  if (message === "PARENT_NOT_VIEWER") return "Email này không thuộc tài khoản phụ huynh/học sinh.";
+  if (message === "PARENT_NOT_ACTIVE") return "Tài khoản phụ huynh đang bị khóa.";
+  if (message === "PARENT_EMAIL_CHANGED") return "Email tài khoản phụ huynh vừa thay đổi. Hãy tải lại dữ liệu.";
+  if (message.includes("permission-denied")) return "Bạn không có quyền cập nhật các liên kết này.";
+  if (message.includes("aborted")) return "Dữ liệu vừa được người khác cập nhật. Hãy thử lưu lại.";
   return "Không cập nhật được thông tin. Kiểm tra dữ liệu và thử lại.";
+}
+
+function getStatusErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : "";
+  if (message === "STUDENT_HAS_ACTIVE_CLASSES") return "Học sinh vẫn còn ghi danh hoạt động. Hãy kết thúc ghi danh trước.";
+  if (message === "STUDENT_NOT_FOUND") return "Học sinh không còn tồn tại. Hãy tải lại danh sách.";
+  if (message.includes("permission-denied")) return "Bạn không có quyền cập nhật trạng thái học sinh.";
+  return "Không cập nhật được trạng thái. Kiểm tra kết nối và thử lại.";
 }
 
 function getParentProfilePayload(input: ParentProfileInput): ParentProfileInput {

@@ -18,6 +18,8 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
 import { ROLE_LABELS } from "@/constants/roles";
 import { Logo } from "@/components/ui/Logo";
 import { SidebarClockWeather } from "@/components/layouts/SidebarClockWeather";
+import { useAppearance } from "@/features/preferences/useAppearance";
+import { LanguageSegmentedControl, ThemeSegmentedControl } from "@/features/preferences/components/AppearanceControls";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -163,7 +165,7 @@ function Group({
       </div>
 
       <div className={`${collapsed ? "hidden lg:block" : "hidden"} pointer-events-none invisible absolute left-full top-0 z-50 ml-2 w-56 opacity-0 transition group-hover/g:visible group-hover/g:pointer-events-auto group-hover/g:opacity-100`}>
-        <div className="rounded-card border border-neutral-200 bg-white p-2 shadow-[var(--shadow-3)]">
+        <div className="rounded-card border border-neutral-200 bg-neutral-0 p-2 shadow-[var(--shadow-3)]">
           <p className="px-2 py-1 text-xs font-semibold text-primary-700">{group.label}</p>
           <ul className="space-y-0.5">
             {group.children.map((child) => (
@@ -199,6 +201,7 @@ function Group({
 
 export function Sidebar({ collapsed, mobileOpen, onClose, onToggle }: SidebarProps) {
   const { role, userDoc } = useAuth();
+  const { language } = useAppearance();
   const nodes = useMemo(() => (role ? NAVIGATION_BY_ROLE[role] : []), [role]);
   const [query, setQuery] = useState("");
   const visibleNodes = useMemo(() => filterNavigation(nodes, query), [nodes, query]);
@@ -242,14 +245,14 @@ export function Sidebar({ collapsed, mobileOpen, onClose, onToggle }: SidebarPro
   return (
     <>
       <button
-        className={`fixed inset-0 z-30 bg-neutral-900/40 transition-opacity duration-standard lg:hidden ${mobileOpen ? "opacity-100 backdrop-blur-[2px]" : "pointer-events-none opacity-0"}`}
+        className={`fixed inset-0 z-30 bg-ink/40 transition-opacity duration-standard lg:hidden ${mobileOpen ? "opacity-100 backdrop-blur-[2px]" : "pointer-events-none opacity-0"}`}
         aria-label="Đóng menu điều hướng"
         aria-hidden={!mobileOpen}
         tabIndex={mobileOpen ? 0 : -1}
         onClick={onClose}
       />
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-[244px] -translate-x-full flex-col border-r border-neutral-200 bg-white transition-transform duration-overlay lg:sticky lg:top-0 lg:h-dvh lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-[244px] -translate-x-full flex-col border-r border-neutral-200 bg-neutral-0 transition-transform duration-overlay lg:sticky lg:top-0 lg:h-dvh lg:translate-x-0 ${
           mobileOpen ? "translate-x-0" : ""
         } ${collapsed ? "lg:w-[76px]" : "lg:w-[244px]"}`}
       >
@@ -269,7 +272,7 @@ export function Sidebar({ collapsed, mobileOpen, onClose, onToggle }: SidebarPro
         </div>
 
         <div className={`px-4 pb-3 transition-opacity duration-fast ${collapsed ? "lg:pointer-events-none lg:h-0 lg:overflow-hidden lg:px-2 lg:pb-0 lg:opacity-0" : "opacity-100"}`}>
-          <label className="flex h-9 items-center gap-2 rounded-input border border-neutral-200 bg-neutral-50 px-2.5 text-neutral-500 shadow-[0_1px_2px_rgba(15,23,42,.04)] focus-within:border-primary-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-primary-100">
+          <label className="flex h-9 items-center gap-2 rounded-input border border-neutral-200 bg-neutral-50 px-2.5 text-neutral-500 shadow-xs focus-within:border-primary-400 focus-within:bg-neutral-0 focus-within:ring-2 focus-within:ring-primary-100">
             <Search size={16} className="shrink-0" />
             <input
               value={query}
@@ -298,11 +301,21 @@ export function Sidebar({ collapsed, mobileOpen, onClose, onToggle }: SidebarPro
 
         <div ref={accountRef} className="relative p-3">
           {accountOpen && (
-            <div className="motion-dropdown absolute inset-x-3 bottom-full mb-2 rounded-card border border-neutral-200 bg-white p-2 shadow-[var(--shadow-3)]">
+            <div className={`motion-dropdown absolute bottom-full mb-2 rounded-card border border-neutral-200 bg-neutral-0 p-2.5 shadow-[var(--shadow-3)] ${collapsed ? "inset-x-3 lg:bottom-0 lg:left-full lg:right-auto lg:mb-0 lg:ml-2 lg:w-64" : "inset-x-3"}`}>
+              <div className="px-1 pb-2.5">
+                <p className="text-xs font-bold text-neutral-900">{language === "vi" ? "Thông tin tài khoản" : "Account preferences"}</p>
+                <p className="mt-0.5 text-3xs text-neutral-400">{language === "vi" ? "Tùy chỉnh trải nghiệm trên toàn hệ thống" : "Customize your experience across the system"}</p>
+              </div>
+              <div className="space-y-2.5 border-t border-neutral-100 py-2.5">
+                <LanguageSegmentedControl compact />
+                <ThemeSegmentedControl compact />
+              </div>
+              <div className="border-t border-neutral-100 pt-1.5">
               <button type="button" onClick={() => signOut(auth)} className="flex h-9 w-full items-center gap-2 rounded-input px-2.5 text-sm font-medium text-danger-700 transition hover:bg-danger-50">
                 <LogOut size={16} />
-                Đăng xuất
+                {language === "vi" ? "Đăng xuất" : "Sign out"}
               </button>
+              </div>
             </div>
           )}
           <button
@@ -312,7 +325,7 @@ export function Sidebar({ collapsed, mobileOpen, onClose, onToggle }: SidebarPro
             title={collapsed ? userDoc?.displayName ?? "Tài khoản" : undefined}
             className="flex w-full items-center gap-2.5 rounded-input bg-neutral-100 p-2 text-left transition hover:bg-neutral-200/70"
           >
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-gradient-to-br from-primary-500 to-primary-700 text-xs font-semibold text-white shadow-[0_6px_16px_rgba(35,72,214,.18)]">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-input bg-primary-600 text-xs font-semibold text-white">
               {userDoc?.displayName?.trim().charAt(0).toUpperCase() || "E"}
             </span>
             <span className={`min-w-0 flex-1 transition-opacity duration-fast ${collapsed ? "lg:pointer-events-none lg:opacity-0" : "opacity-100"}`}>

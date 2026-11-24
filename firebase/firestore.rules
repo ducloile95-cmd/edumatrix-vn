@@ -55,6 +55,7 @@ service cloud.firestore {
           'facebookConnectionStatus', 'facebookUtilityMessagingPermission',
           'facebookWebhookSubscriptionStatus', 'facebookWebhookSubscribedFields',
           'facebookWebhookVerifiedAt', 'facebookConnectedAt',
+          'messengerUtilityEnabledTemplates', 'messengerUtilityUpdatedAt',
           'driveFolderId', 'webhookUrl', 'updatedAt'
         ]) &&
         data.keys().hasAll(['facebookPageId', 'driveFolderId', 'webhookUrl', 'updatedAt']) &&
@@ -71,6 +72,8 @@ service cloud.firestore {
         (!('facebookWebhookSubscribedFields' in data) || (data.facebookWebhookSubscribedFields is list && data.facebookWebhookSubscribedFields.size() <= 10)) &&
         (!('facebookWebhookVerifiedAt' in data) || data.facebookWebhookVerifiedAt == null || data.facebookWebhookVerifiedAt is timestamp) &&
         (!('facebookConnectedAt' in data) || data.facebookConnectedAt == null || data.facebookConnectedAt is timestamp) &&
+        (!('messengerUtilityEnabledTemplates' in data) || (data.messengerUtilityEnabledTemplates is list && data.messengerUtilityEnabledTemplates.size() <= 6)) &&
+        (!('messengerUtilityUpdatedAt' in data) || data.messengerUtilityUpdatedAt == null || data.messengerUtilityUpdatedAt is timestamp) &&
         data.driveFolderId is string && data.driveFolderId.size() <= 200 &&
         data.webhookUrl is string && data.webhookUrl.size() <= 500;
     }
@@ -97,6 +100,12 @@ service cloud.firestore {
         data.rankThresholds.A > data.rankThresholds.B &&
         data.rankThresholds.B > data.rankThresholds.D &&
         data.rankThresholds.D == 0;
+    }
+
+    // Transaction doc mot doc chua ton tai truoc khi tao (diem dau tien, don nghi, ghi danh, bao chuyen khoan...).
+    // resource == null: chi lo ra "chua co doc"; khong co du lieu de lo. Khong co nhanh nay, resource.data loi va bi tu choi.
+    function isMissingDocProbe() {
+      return isActive() && resource == null;
     }
 
     function isAssignedTeacherForClass(classId) {
@@ -187,10 +196,25 @@ service cloud.firestore {
       );
     }
 
+    function isTeacherCurriculumPointerUpdate(courseId) {
+      return isAssignedTeacherForCourse(courseId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'activeCurriculumId', 'activeCurriculumVersion',
+          'curriculumVersionCounter', 'updatedAt'
+        ]);
+    }
+
     function ownsStudent(studentId) {
       return isActive() &&
         currentUser().role == 'viewer' &&
         studentId in currentUser().studentIds;
+    }
+
+    // shortcut: chi xet 3 con dau cua phu huynh; phu huynh co hon 3 con chi hien voi giao vien cua 3 con dau. Them nhanh neu co.
+    function isTeacherOfAnyChild(studentIds) {
+      return studentIds.size() > 0 && (isAssignedTeacherForStudent(studentIds[0]) ||
+        (studentIds.size() > 1 && isAssignedTeacherForStudent(studentIds[1])) ||
+        (studentIds.size() > 2 && isAssignedTeacherForStudent(studentIds[2])));
     }
 
     function isAssignedTeacherForStudent(studentId) {
@@ -441,7 +465,7 @@ service cloud.firestore {
 
     function validSessionData(data) {
       return data.keys().hasAll(['classId', 'title', 'startAt', 'endAt', 'location', 'status', 'note', 'makeUpForSessionId', 'createdAt', 'updatedAt']) &&
-        data.keys().hasOnly(['classId', 'title', 'startAt', 'endAt', 'location', 'status', 'note', 'makeUpForSessionId', 'sequenceNumber', 'curriculumVersion', 'curriculumItemId', 'lessonPlanId', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['classId', 'title', 'startAt', 'endAt', 'location', 'status', 'note', 'makeUpForSessionId', 'sequenceNumber', 'curriculumVersion', 'curriculumItemId', 'lessonPlanId', 'scheduleVersion', 'createdAt', 'updatedAt']) &&
         data.classId is string &&
         data.title is string &&
         data.startAt is timestamp &&
@@ -452,6 +476,7 @@ service cloud.firestore {
         data.note is string &&
         (data.makeUpForSessionId == null || data.makeUpForSessionId is string) &&
         (!data.keys().hasAny(['sequenceNumber']) || data.sequenceNumber == null || data.sequenceNumber is int) &&
+        (!data.keys().hasAny(['scheduleVersion']) || (data.scheduleVersion is int && data.scheduleVersion >= 0)) &&
         (!data.keys().hasAny(['curriculumVersion']) || data.curriculumVersion == null || data.curriculumVersion is int) &&
         (!data.keys().hasAny(['curriculumItemId']) || data.curriculumItemId == null || data.curriculumItemId is string) &&
         (!data.keys().hasAny(['lessonPlanId']) || data.lessonPlanId == null || data.lessonPlanId is string) &&
@@ -502,7 +527,11 @@ service cloud.firestore {
         data.activities is list &&
         data.homework is string &&
         data.notesAfterTeaching is string &&
-        (data.attachmentUrl == null || data.attachmentUrl is string) &&
+        (data.attachmentUrl == null || (
+          data.attachmentUrl is string &&
+          data.attachmentUrl.size() <= 2048 &&
+          data.attachmentUrl.matches('https://.+')
+        )) &&
         data.attachmentLabel is string &&
         validLessonPlanDriveAttachment(data) &&
         data.publicSummary is string &&
@@ -526,6 +555,8 @@ service cloud.firestore {
         (!data.keys().hasAny(['subjectId']) || data.subjectId == null || data.subjectId is string) &&
         (!data.keys().hasAny(['durationMinutes']) || data.durationMinutes == null || data.durationMinutes is number) &&
         (!data.keys().hasAny(['status']) || data.status in ['active', 'archived']) &&
+        (!data.keys().hasAny(['subjectId']) || data.subjectId == null ||
+          existsAfter(/databases/$(database)/documents/subjects/$(data.subjectId))) &&
         hasTimestamps(data);
     }
 
@@ -542,6 +573,7 @@ service cloud.firestore {
         data.approvalStatus in ['draft', 'pending', 'approved', 'archived'] &&
         data.revision is number &&
         data.createdBy is string &&
+        existsAfter(/databases/$(database)/documents/subjects/$(data.subjectId)) &&
         hasTimestamps(data);
     }
 
@@ -559,6 +591,7 @@ service cloud.firestore {
         (data.publishedBy == null || data.publishedBy is string) &&
         (data.publishedAt == null || data.publishedAt is timestamp) &&
         data.revision is int && data.revision >= 1 &&
+        existsAfter(/databases/$(database)/documents/courses/$(data.courseId)) &&
         hasTimestamps(data);
     }
 
@@ -574,17 +607,21 @@ service cloud.firestore {
         (data.standardLessonId == null || data.standardLessonId is string) &&
         data.durationMinutes is int && data.durationMinutes >= 1 && data.durationMinutes <= 600 &&
         data.status in ['draft', 'ready'] &&
+        existsAfter(/databases/$(database)/documents/courses/$(data.courseId)) &&
+        existsAfter(/databases/$(database)/documents/subjects/$(data.subjectId)) &&
+        data.subjectId in getAfter(/databases/$(database)/documents/courses/$(data.courseId)).data.subjectIds &&
         hasTimestamps(data);
     }
 
     function validEnrollmentData(enrollmentId, data) {
-      return data.keys().hasAll(['classId', 'courseId', 'studentId', 'status', 'joinedAt', 'endedAt']) &&
-        data.keys().hasOnly(['classId', 'courseId', 'studentId', 'status', 'joinedAt', 'endedAt']) &&
+      return data.keys().hasAll(['classId', 'courseId', 'studentId', 'status', 'joinedAt', 'endedAt', 'version', 'updatedAt']) &&
+        data.keys().hasOnly(['classId', 'courseId', 'studentId', 'status', 'joinedAt', 'endedAt', 'version', 'updatedAt']) &&
         data.classId is string && data.courseId is string && data.studentId is string &&
         enrollmentId == data.classId + '_' + data.studentId &&
         data.status in ['active', 'ended'] &&
         data.joinedAt is timestamp &&
         (data.endedAt == null || data.endedAt is timestamp) &&
+        data.version is int && data.version >= 1 && data.updatedAt is timestamp &&
         existsAfter(/databases/$(database)/documents/classes/$(data.classId)) &&
         existsAfter(/databases/$(database)/documents/students/$(data.studentId)) &&
         data.courseId == getAfter(/databases/$(database)/documents/classes/$(data.classId)).data.courseId &&
@@ -592,6 +629,66 @@ service cloud.firestore {
           getAfter(/databases/$(database)/documents/classes/$(data.classId)).data.status == 'active' &&
           getAfter(/databases/$(database)/documents/students/$(data.studentId)).data.status == 'active'
         ));
+    }
+
+    function validMessengerDeliveryEvent(eventId, data) {
+      return data.keys().hasAll([
+          'eventType', 'entityId', 'sourceId', 'studentId', 'version', 'actorUid',
+          'idempotencyKey', 'status', 'attempts', 'lastErrorCode', 'leaseUntil',
+          'nextAttemptAt', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'eventType', 'entityId', 'sourceId', 'studentId', 'version', 'actorUid',
+          'idempotencyKey', 'status', 'attempts', 'lastErrorCode', 'leaseUntil',
+          'nextAttemptAt', 'createdAt', 'updatedAt'
+        ]) &&
+        data.eventType in ['lesson_feedback_published', 'invoice_committed', 'payment_verified', 'enrollment_completed', 'session_schedule_changed'] &&
+        data.entityId is string && data.sourceId is string && data.studentId is string &&
+        data.version is int && data.version >= 1 &&
+        data.actorUid == request.auth.uid && data.idempotencyKey == eventId &&
+        data.status == 'pending' && data.attempts == 0 &&
+        data.lastErrorCode == null && data.leaseUntil == null &&
+        data.nextAttemptAt == request.time && data.createdAt == request.time && data.updatedAt == request.time &&
+        (
+          (
+            data.eventType == 'session_schedule_changed' &&
+            data.entityId == 'schedule_' + data.sourceId + '_' + data.studentId &&
+            existsAfter(/databases/$(database)/documents/sessions/$(data.sourceId)) &&
+            getAfter(/databases/$(database)/documents/sessions/$(data.sourceId)).data.status in ['rescheduled', 'cancelled'] &&
+            getAfter(/databases/$(database)/documents/sessions/$(data.sourceId)).data.get('scheduleVersion', 0) == data.version &&
+            existsAfter(/databases/$(database)/documents/classes/$(getAfter(/databases/$(database)/documents/sessions/$(data.sourceId)).data.classId)) &&
+            getAfter(/databases/$(database)/documents/classes/$(getAfter(/databases/$(database)/documents/sessions/$(data.sourceId)).data.classId)).data.studentIds.hasAny([data.studentId])
+          ) ||
+          (
+            data.eventType == 'lesson_feedback_published' &&
+            data.entityId == data.sourceId + '_' + data.studentId &&
+            existsAfter(/databases/$(database)/documents/announcements/$(data.entityId)) &&
+            getAfter(/databases/$(database)/documents/announcements/$(data.entityId)).data.type == 'session_summary' &&
+            getAfter(/databases/$(database)/documents/announcements/$(data.entityId)).data.studentId == data.studentId &&
+            existsAfter(/databases/$(database)/documents/session_interactions/$(data.sourceId)) &&
+            getAfter(/databases/$(database)/documents/session_interactions/$(data.sourceId)).data.workflowStatus == 'published' &&
+            getAfter(/databases/$(database)/documents/session_interactions/$(data.sourceId)).data.version == data.version
+          ) ||
+          (
+            data.eventType == 'invoice_committed' && data.entityId == data.sourceId && data.version == 1 &&
+            existsAfter(/databases/$(database)/documents/invoices/$(data.entityId)) &&
+            getAfter(/databases/$(database)/documents/invoices/$(data.entityId)).data.studentId == data.studentId &&
+            getAfter(/databases/$(database)/documents/invoices/$(data.entityId)).data.status == 'unpaid'
+          ) ||
+          (
+            data.eventType == 'payment_verified' && data.entityId == data.sourceId && data.version == 1 &&
+            existsAfter(/databases/$(database)/documents/payments/$(data.entityId)) &&
+            getAfter(/databases/$(database)/documents/payments/$(data.entityId)).data.studentId == data.studentId &&
+            getAfter(/databases/$(database)/documents/payments/$(data.entityId)).data.status == 'verified'
+          ) ||
+          (
+            data.eventType == 'enrollment_completed' && data.entityId == data.sourceId &&
+            existsAfter(/databases/$(database)/documents/enrollments/$(data.entityId)) &&
+            getAfter(/databases/$(database)/documents/enrollments/$(data.entityId)).data.studentId == data.studentId &&
+            getAfter(/databases/$(database)/documents/enrollments/$(data.entityId)).data.status == 'active' &&
+            getAfter(/databases/$(database)/documents/enrollments/$(data.entityId)).data.version == data.version
+          )
+        );
     }
 
     function validCurriculumTransition() {
@@ -784,7 +881,8 @@ service cloud.firestore {
 
     function validAttendanceSummary(data) {
       return data.keys().hasAll(['sessionId', 'classId', 'total', 'present', 'absent', 'late', 'excused', 'updatedAt']) &&
-        data.keys().hasOnly(['sessionId', 'classId', 'total', 'present', 'absent', 'late', 'excused', 'updatedAt']) &&
+        data.keys().hasOnly(['sessionId', 'classId', 'total', 'present', 'absent', 'late', 'excused', 'expectedTotal', 'updatedAt']) &&
+        (!data.keys().hasAny(['expectedTotal']) || (data.expectedTotal is int && data.expectedTotal >= 0)) &&
         data.sessionId is string && data.classId is string && data.updatedAt is timestamp &&
         data.total is int && data.total >= 0 &&
         data.present is int && data.present >= 0 &&
@@ -812,7 +910,8 @@ service cloud.firestore {
         data.averagePercent is number && data.averagePercent >= 0 && data.averagePercent <= 100 &&
         (!data.keys().hasAny(['totalPercent']) || (data.totalPercent is number && data.totalPercent >= 0)) &&
         data.latestMaxScore is number && data.latestMaxScore > 0 &&
-        data.latestScore is number && data.latestScore >= 0 && data.latestScore <= data.latestMaxScore;
+        data.latestScore is number && data.latestScore >= 0 && data.latestScore <= data.latestMaxScore &&
+        existsAfter(/databases/$(database)/documents/students/$(data.studentId));
     }
 
     function validPaymentData(data) {
@@ -828,7 +927,24 @@ service cloud.firestore {
         (data.verifiedBy == null || data.verifiedBy is string) &&
         data.reportedAt is timestamp &&
         (data.verifiedAt == null || data.verifiedAt is timestamp) &&
-        data.updatedAt is timestamp;
+        data.updatedAt is timestamp &&
+        existsAfter(/databases/$(database)/documents/students/$(data.studentId)) &&
+        existsAfter(/databases/$(database)/documents/invoices/$(data.invoiceId)) &&
+        getAfter(/databases/$(database)/documents/invoices/$(data.invoiceId)).data.studentId == data.studentId;
+    }
+
+    // Tien hoc phi chi duoc chuyen ve tai khoan trung tam dang cau hinh.
+    function matchesPaymentSettings(data) {
+      let payment = get(/databases/$(database)/documents/settings/payment).data;
+      return data.bankBin == payment.bankBin &&
+        data.accountNumber == payment.accountNumber &&
+        data.accountName == payment.accountName;
+    }
+
+    // Khop InvoiceCreationForm: pricePerSession, neu khoa cu thi round(tuitionFee / totalSessions).
+    function coursePricePerSession(courseId) {
+      let course = get(/databases/$(database)/documents/courses/$(courseId)).data;
+      return 'pricePerSession' in course ? course.pricePerSession : math.round(float(course.tuitionFee) / course.totalSessions);
     }
 
     function validInvoiceData(data) {
@@ -849,8 +965,9 @@ service cloud.firestore {
         data.amount is int && data.amount > 0 && data.dueAt is timestamp &&
         data.paymentContent is string && data.bankBin is string &&
         data.accountNumber is string && data.accountName is string &&
-        data.status in ['unpaid', 'pending', 'paid', 'overdue', 'rejected'] &&
+        data.status in ['unpaid', 'pending', 'paid', 'overdue', 'rejected', 'void'] &&
         data.createdBy is string && hasTimestamps(data) &&
+        existsAfter(/databases/$(database)/documents/students/$(data.studentId)) &&
         (data.courseId == null || exists(/databases/$(database)/documents/courses/$(data.courseId))) &&
         (
           !data.keys().hasAny(['sourceType']) ||
@@ -889,11 +1006,9 @@ service cloud.firestore {
     // phai khop dung role/studentIds lay tu invite - nguoi dung khong tu chon (A16.4).
 
     match /users/{uid} {
-      // Teacher can read the operational directory needed by class and parent
-      // views, but Admin profiles remain private from Teacher accounts.
-      allow read: if isAdmin() || request.auth.uid == uid || (
-        isTeacher() && resource.data.role in ['teacher', 'viewer']
-      );
+      allow read: if isAdmin() || request.auth.uid == uid ||
+        (isTeacher() && resource.data.role in ['admin', 'teacher']) ||
+        (isTeacher() && resource.data.role == 'viewer' && isTeacherOfAnyChild(resource.data.get('studentIds', [])));
 
       allow create: if validUserData(request.resource.data) && (isAdmin() || (
         request.auth.uid == uid &&
@@ -918,7 +1033,7 @@ service cloud.firestore {
         request.resource.data.status == resource.data.status
       ));
 
-      allow delete: if false;
+      allow delete: if isAdmin() && request.auth.uid != uid && resource.data.role != 'admin';
     }
 
     // ---------- invites/{normalizedEmail} ----------
@@ -953,7 +1068,7 @@ service cloud.firestore {
     // Khong tu dong duyet bang Rules: du lieu tre em, giu mot buoc nguoi that kiem tra.
 
     match /link_requests/{uid} {
-      allow read: if isStaff() || (signedIn() && request.auth.uid == uid);
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
 
       allow create: if hasVerifiedEmail() &&
         request.auth.uid == uid &&
@@ -971,11 +1086,20 @@ service cloud.firestore {
         // ponytail: khong validate sau tung phan tu children - Rules khong lam gon duoc,
         // va Admin doc bang mat truoc khi duyet. Nang len neu sau nay tu dong duyet.
 
+      // A5: chu yeu cau chi sua noi dung trong khuon cua lenh tao; email/createdAt bat bien.
       allow update: if isAdmin() || (
         signedIn() &&
         request.auth.uid == uid &&
         resource.data.status != 'approved' &&
-        request.resource.data.status == 'pending'
+        request.resource.data.status == 'pending' &&
+        keepsImmutable(['email', 'createdAt']) &&
+        request.resource.data.children is list &&
+        request.resource.data.children.size() >= 1 &&
+        request.resource.data.children.size() <= 5 &&
+        request.resource.data.keys().hasOnly([
+          'email', 'parentName', 'phone', 'address', 'facebookUrl', 'relationship',
+          'children', 'status', 'createdAt', 'updatedAt'
+        ])
       );
 
       allow delete: if false;
@@ -993,12 +1117,21 @@ service cloud.firestore {
     // Integration identifiers are public config for active staff. Other settings remain Admin-only.
     match /settings/{docId} {
       allow read: if isAdmin() ||
-        (docId == 'integrations' && isStaff()) ||
+        (docId in ['integrations', 'payment'] && isStaff()) ||
         (docId == 'academic' && isActive());
-      allow create, update: if isAdmin() && (
+      allow create: if isAdmin() && (
         (docId == 'general' && validGeneralSettings(request.resource.data)) ||
         (docId == 'academic' && validAcademicSettings(request.resource.data)) ||
-        (docId == 'integrations' && validIntegrationSettings(request.resource.data)) ||
+        (docId == 'integrations' && validIntegrationSettings(request.resource.data) &&
+          !request.resource.data.keys().hasAny(['messengerUtilityEnabledTemplates', 'messengerUtilityUpdatedAt'])) ||
+        (docId == 'payment' && validPaymentSettings(request.resource.data)) ||
+        (docId == 'messenger')
+      );
+      allow update: if isAdmin() && (
+        (docId == 'general' && validGeneralSettings(request.resource.data)) ||
+        (docId == 'academic' && validAcademicSettings(request.resource.data)) ||
+        (docId == 'integrations' && validIntegrationSettings(request.resource.data) &&
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['messengerUtilityEnabledTemplates', 'messengerUtilityUpdatedAt'])) ||
         (docId == 'payment' && validPaymentSettings(request.resource.data)) ||
         (docId == 'messenger')
       );
@@ -1016,51 +1149,58 @@ service cloud.firestore {
     match /audit_logs/{logId} {
       allow read: if isAdmin();
 
+      // A6: chi cac AuditAction cua client (src/types/audit.ts), targetType theo writeAuditLog.
       allow create: if isStaff() &&
         request.resource.data.actorUid == request.auth.uid &&
         request.resource.data.keys().hasOnly(
           ['action', 'actorUid', 'actorEmail', 'targetType', 'targetId', 'meta', 'createdAt']
-        );
+        ) &&
+        request.resource.data.action in [
+          'invite_created', 'invite_revoked', 'user_status_changed', 'user_account_updated', 'user_account_deleted',
+          'link_request_approved', 'link_request_rejected', 'attendance_adjusted', 'scores_adjusted', 'settings_updated',
+          'messenger_linked', 'messenger_unlinked', 'messenger_conversation_delete_started', 'messenger_conversation_deleted',
+          'meta_integration_connected', 'meta_integration_disconnected', 'invoice_committed', 'payment_verified',
+          'payment_rejected', 'utility_template_synced', 'utility_template_enabled', 'utility_template_disabled',
+          'utility_delivery_retried'
+        ] &&
+        request.resource.data.targetType in ['invite', 'user', 'settings', 'attendance_session', 'gradebook'] &&
+        request.resource.data.get('meta', {}) is map && request.resource.data.get('meta', {}).size() <= 20;
 
       allow update, delete: if false;
     }
 
     // ---------- subjects/{subjectId} ----------
-    // Staff CRUD (khong xoa cung - dung status=archived, A27). Danh muc mon
-    // hoc khong nhay cam theo tung hoc sinh nen moi nguoi dung active deu
+    // Admin CRUD. Danh muc mon hoc khong nhay cam theo tung hoc sinh nen moi nguoi dung active deu
     // doc duoc (Phase 3, phuc vu Portal Phase 10 ve sau).
 
     match /subjects/{subjectId} {
       allow read: if isActive();
-      allow create: if isStaff() &&
+      allow create: if isAdmin() &&
         request.resource.data.status == 'active' &&
         validSubjectData(subjectId, request.resource.data);
-      allow update: if isStaff() &&
+      allow update: if isAdmin() &&
         validSubjectData(subjectId, request.resource.data) &&
         keepsImmutable(['code', 'createdAt']);
-      allow delete: if false;
+      allow delete: if isAdmin();
     }
 
     // ---------- courses/{courseId} ----------
-    // Staff CRUD. Danh muc khoa hoc khong nhay cam theo tung hoc sinh nen
-    // moi nguoi dung active deu doc duoc (Phase 3).
+    // Admin quan ly danh muc khoa hoc. Teacher duoc gan chi co the cap nhat
+    // con tro giao trinh trong giao dich publish; moi tai khoan active duoc doc.
 
     match /courses/{courseId} {
       allow read: if isActive();
-      allow create: if (isAdmin() || (isTeacher() && request.auth.uid in request.resource.data.teacherIds)) &&
+      allow create: if isAdmin() &&
         request.resource.data.keys().hasAny(['teacherIds']) &&
         request.resource.data.teacherIds.size() > 0 &&
         request.resource.data.totalSessions <= 200 &&
         validCourseData(courseId, request.resource.data);
-      allow update: if (isAdmin() || (
-          isTeacher() && request.auth.uid in resource.data.teacherIds &&
-          request.auth.uid in request.resource.data.teacherIds
-        )) &&
+      allow update: if (isAdmin() || isTeacherCurriculumPointerUpdate(courseId)) &&
         validCourseData(courseId, request.resource.data) &&
         validCourseClassRevisionUpdate() &&
         (request.resource.data.totalSessions <= 200 || request.resource.data.totalSessions == resource.data.totalSessions) &&
         keepsImmutable(['createdAt']);
-      allow delete: if false;
+      allow delete: if isAdmin();
     }
 
     // ---------- billing_items/{billingItemId} ----------
@@ -1084,7 +1224,9 @@ service cloud.firestore {
     // tu sua duoc).
 
     match /students/{studentId} {
-      allow read: if isStaff() || ownsStudent(studentId);
+      allow read: if isAdmin() || isMissingDocProbe() || (
+        isTeacher() && request.auth.uid in resource.data.teacherIds
+      ) || ownsStudent(studentId);
       allow create: if (
         isAdmin() ||
         (
@@ -1113,7 +1255,7 @@ service cloud.firestore {
             request.resource.data.parentUids == resource.data.parentUids
           )
         );
-      allow delete: if false;
+      allow delete: if isAdmin();
     }
 
     // ---------- classes/{classId} ----------
@@ -1125,7 +1267,7 @@ service cloud.firestore {
     match /classes/{classId} {
       // Use resource data here so Firestore can prove an array-contains list
       // query. isAssignedTeacherForClass() uses get() and is for child records.
-      allow read: if isAdmin() ||
+      allow read: if isAdmin() || isMissingDocProbe() ||
         (isTeacher() && request.auth.uid in resource.data.teacherIds) ||
         (isActive() && currentUser().role == 'viewer' &&
          resource.data.studentIds.hasAny(currentUser().studentIds));
@@ -1184,7 +1326,7 @@ service cloud.firestore {
             request.resource.data.status != 'cancelled'
           )
         );
-      allow delete: if false;
+      allow delete: if isAdmin();
     }
 
     // ---------- enrollments/{classId_studentId} ----------
@@ -1192,8 +1334,9 @@ service cloud.firestore {
     // Viewer chi doc ghi danh cua hoc sinh minh so huu.
 
     match /enrollments/{enrollmentId} {
-      allow read: if canManageClass(resource.data.classId) || ownsStudent(resource.data.studentId);
-      allow create: if validEnrollmentData(enrollmentId, request.resource.data) && ((
+      allow read: if isAdmin() || isMissingDocProbe() || isAssignedTeacherForClass(resource.data.classId) || ownsStudent(resource.data.studentId);
+      allow create: if validEnrollmentData(enrollmentId, request.resource.data) &&
+        request.resource.data.version == 1 && request.resource.data.updatedAt == request.time && ((
         isAdmin() &&
         request.resource.data.status in ['active', 'ended']
       ) || isTeacherEnrollmentCreate(enrollmentId));
@@ -1206,12 +1349,19 @@ service cloud.firestore {
         )
       ) &&
         validEnrollmentData(enrollmentId, request.resource.data) &&
-        keepsImmutable(['classId', 'courseId', 'studentId', 'joinedAt']);
-      allow delete: if false;
+        keepsImmutable(['classId', 'courseId', 'studentId', 'joinedAt']) &&
+        request.resource.data.updatedAt == request.time &&
+        (
+          (resource.data.status == 'ended' && request.resource.data.status == 'active' &&
+            request.resource.data.version == resource.data.get('version', 0) + 1) ||
+          (resource.data.status == 'active' && request.resource.data.status == 'ended' &&
+            request.resource.data.version == resource.data.get('version', 1))
+        );
+      allow delete: if isAdmin();
     }
 
     match /sessions/{sessionId} {
-      allow read: if canManageClass(resource.data.classId) || (
+      allow read: if isAdmin() || isMissingDocProbe() || isAssignedTeacherForClass(resource.data.classId) || (
         isActive() && currentUser().role == 'viewer' &&
         get(/databases/$(database)/documents/classes/$(resource.data.classId)).data.studentIds
           .hasAny(currentUser().studentIds)
@@ -1223,21 +1373,33 @@ service cloud.firestore {
         validSessionData(request.resource.data) &&
         keepsImmutable(['classId', 'sequenceNumber', 'curriculumVersion', 'curriculumItemId', 'createdAt']) &&
         (
+          request.resource.data.get('scheduleVersion', 0) == resource.data.get('scheduleVersion', 0) ||
+          (
+            request.resource.data.get('scheduleVersion', 0) == resource.data.get('scheduleVersion', 0) + 1 &&
+            (
+              (request.resource.data.status == 'cancelled' && resource.data.status != 'cancelled') ||
+              (request.resource.data.status == 'rescheduled' && (
+                request.resource.data.startAt != resource.data.startAt || request.resource.data.endAt != resource.data.endAt
+              ))
+            )
+          )
+        ) &&
+        (
           classIsSchedulable(resource.data.classId) ||
           (
             request.resource.data.status == 'cancelled' &&
-            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'note', 'updatedAt'])
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'note', 'scheduleVersion', 'updatedAt'])
           )
         );
       allow delete: if false;
     }
 
     match /session_interactions/{sessionId} {
-      allow get: if sessionBelongsToClass(
+      allow get: if isAdmin() || (sessionBelongsToClass(
           sessionId,
           get(/databases/$(database)/documents/sessions/$(sessionId)).data.classId
-        ) && canManageClass(get(/databases/$(database)/documents/sessions/$(sessionId)).data.classId);
-      allow list: if canManageClass(resource.data.classId);
+        ) && canManageClass(get(/databases/$(database)/documents/sessions/$(sessionId)).data.classId));
+      allow list: if isStaff();
       allow create: if canManageClass(request.resource.data.classId) &&
         validSessionInteraction(request.resource.data, sessionId);
       allow update: if canManageClass(resource.data.classId) && (
@@ -1272,7 +1434,7 @@ service cloud.firestore {
     }
 
     match /session_student_reviews/{reviewId} {
-      allow read: if canManageClass(resource.data.classId);
+      allow read: if isAdmin() || isMissingDocProbe() || isAssignedTeacherForClass(resource.data.classId);
       allow create: if canManageClass(request.resource.data.classId) &&
         validSessionStudentReview(request.resource.data, reviewId);
       allow update: if canManageClass(resource.data.classId) &&
@@ -1282,7 +1444,9 @@ service cloud.firestore {
     }
 
     match /announcements/{announcementId} {
-      allow read: if isStaff() || (
+      allow read: if isAdmin() || isMissingDocProbe() || (
+        isTeacher() && (resource.data.get('studentId', null) != null ? isAssignedTeacherForStudent(resource.data.studentId) : isAssignedTeacherForClass(resource.data.classId))
+      ) || (
         isActive() && resource.data.studentId != null && ownsStudent(resource.data.studentId)
       );
       allow create: if isStaff() && validAnnouncementData(request.resource.data) &&
@@ -1294,6 +1458,10 @@ service cloud.firestore {
           (
             resource.data.type == 'attendance_alert' &&
             announcementId == 'attendance_' + resource.data.sessionId + '_' + resource.data.studentId
+          ) || (
+            // schedule_change: moi lan doi lich cap nhat lai cung doc ID de phu huynh thay noi dung moi nhat.
+            resource.data.type == 'schedule_change' &&
+            announcementId == 'schedule_' + resource.data.sessionId + '_' + resource.data.studentId
           ) || (
             // session_summary: phat hanh lai (dinh chinh) ghi de cung doc ID {sessionId}_{studentId}.
             resource.data.type == 'session_summary' &&
@@ -1310,10 +1478,11 @@ service cloud.firestore {
         isActive() && resource.data.uid == request.auth.uid
       );
       allow create, update: if isActive() &&
-        request.resource.data.keys().hasOnly(['uid', 'announcementId', 'readAt']) &&
+        request.resource.data.keys().hasOnly(['uid', 'announcementId', 'readAt', 'dismissedAt']) &&
         request.resource.data.uid == request.auth.uid &&
         request.resource.data.announcementId is string &&
         request.resource.data.readAt is timestamp &&
+        (!request.resource.data.keys().hasAny(['dismissedAt']) || request.resource.data.dismissedAt is timestamp) &&
         readId == request.auth.uid + '_' + request.resource.data.announcementId &&
         ownsStudent(
           get(/databases/$(database)/documents/announcements/$(request.resource.data.announcementId)).data.studentId
@@ -1323,9 +1492,9 @@ service cloud.firestore {
 
     match /lesson_plans/{lessonPlanId} {
       // Nguoi tao luon doc lai duoc giao an cua chinh minh, ke ca khi chua gan lop (classId == null) - sua loi cu.
-      allow read: if isAdmin() ||
+      allow read: if isAdmin() || isMissingDocProbe() ||
         (resource.data.classId != null && isAssignedTeacherForClass(resource.data.classId)) ||
-        resource.data.createdBy == request.auth.uid;
+        (isActive() && resource.data.createdBy == request.auth.uid);
       allow create: if (isAdmin() || (request.resource.data.classId != null && isAssignedTeacherForClass(request.resource.data.classId))) &&
         request.resource.data.createdBy == request.auth.uid &&
         validLessonPlanData(request.resource.data) &&
@@ -1338,7 +1507,7 @@ service cloud.firestore {
     }
 
     match /lesson_plan_public/{lessonPlanId} {
-      allow read: if canManageClass(resource.data.classId) || (
+      allow read: if isAdmin() || isMissingDocProbe() || isAssignedTeacherForClass(resource.data.classId) || (
         isActive() && currentUser().role == 'viewer' &&
         get(/databases/$(database)/documents/classes/$(resource.data.classId)).data.studentIds
           .hasAny(currentUser().studentIds)
@@ -1352,8 +1521,11 @@ service cloud.firestore {
 
     match /lesson_plan_templates/{templateId} {
       allow read: if isStaff();
-      allow create: if isStaff() && validLessonPlanTemplateData(request.resource.data);
-      allow update: if isStaff() && validLessonPlanTemplateData(request.resource.data) && keepsImmutable(['createdAt']);
+      // A4: mau moi luon co chu; chi chu hoac Admin sua; mau cu khong co chu chi Admin sua.
+      allow create: if isStaff() && validLessonPlanTemplateData(request.resource.data) &&
+        request.resource.data.get('ownerUid', null) == request.auth.uid;
+      allow update: if validLessonPlanTemplateData(request.resource.data) && keepsImmutable(['createdAt', 'ownerUid']) &&
+        (isAdmin() || (isTeacher() && resource.data.get('ownerUid', null) == request.auth.uid));
       allow delete: if false;
     }
 
@@ -1369,11 +1541,11 @@ service cloud.firestore {
 
     match /course_curricula/{curriculumId} {
       allow read: if isStaff();
-      allow create: if isStaff() && request.resource.data.status == 'draft' &&
+      allow create: if (isAdmin() || isAssignedTeacherForCourse(request.resource.data.courseId)) && request.resource.data.status == 'draft' &&
         request.resource.data.publishedBy == null && request.resource.data.publishedAt == null &&
         validCourseCurriculumData(curriculumId, request.resource.data) &&
         validCurriculumCourseState(curriculumId, request.resource.data);
-      allow update: if isStaff() && validCourseCurriculumData(curriculumId, request.resource.data) &&
+      allow update: if (isAdmin() || isAssignedTeacherForCourse(resource.data.courseId)) && validCourseCurriculumData(curriculumId, request.resource.data) &&
         validCurriculumTransition() && validCurriculumCourseState(curriculumId, request.resource.data) &&
         keepsImmutable(['courseId', 'version', 'createdAt']);
       allow delete: if false;
@@ -1381,10 +1553,10 @@ service cloud.firestore {
 
     match /course_curriculum_items/{itemId} {
       allow read: if isStaff();
-      allow create: if isStaff() && request.resource.data.status == 'draft' &&
+      allow create: if (isAdmin() || isAssignedTeacherForCourse(request.resource.data.courseId)) && request.resource.data.status == 'draft' &&
         validCourseCurriculumItemData(itemId, request.resource.data) && validCurriculumStandardLesson(request.resource.data) &&
         curriculumItemVersionIsEditable(request.resource.data);
-      allow update: if isStaff() && validCourseCurriculumItemData(itemId, request.resource.data) &&
+      allow update: if (isAdmin() || isAssignedTeacherForCourse(resource.data.courseId)) && validCourseCurriculumItemData(itemId, request.resource.data) &&
         validCurriculumStandardLesson(request.resource.data) &&
         curriculumItemVersionIsEditable(request.resource.data) &&
         keepsImmutable(['courseId', 'curriculumVersion', 'sequenceNumber', 'createdAt']);
@@ -1392,7 +1564,7 @@ service cloud.firestore {
     }
 
     match /attendance/{attendanceId} {
-      allow read: if canManageClass(resource.data.classId) || ownsStudent(resource.data.studentId);
+      allow read: if isAdmin() || isMissingDocProbe() || isAssignedTeacherForClass(resource.data.classId) || ownsStudent(resource.data.studentId);
       allow create: if canManageClass(request.resource.data.classId) &&
         validAttendanceData(request.resource.data, attendanceId) &&
         request.resource.data.studentId in
@@ -1404,7 +1576,7 @@ service cloud.firestore {
     }
 
     match /attendance_summaries/{sessionId} {
-      allow read: if canManageClass(resource.data.classId) || (
+      allow read: if isAdmin() || isMissingDocProbe() || isAssignedTeacherForClass(resource.data.classId) || (
         isActive() && currentUser().role == 'viewer' &&
         get(/databases/$(database)/documents/classes/$(resource.data.classId)).data.studentIds
           .hasAny(currentUser().studentIds)
@@ -1422,7 +1594,7 @@ service cloud.firestore {
     }
 
     match /assignments/{assignmentId} {
-      allow read: if canManageClass(resource.data.classId) || (
+      allow read: if isAdmin() || isMissingDocProbe() || isAssignedTeacherForClass(resource.data.classId) || (
         isActive() && currentUser().role == 'viewer' && resource.data.status == 'published' &&
         get(/databases/$(database)/documents/classes/$(resource.data.classId)).data.studentIds.hasAny(currentUser().studentIds)
       );
@@ -1437,7 +1609,7 @@ service cloud.firestore {
       allow delete: if false;
     }
     match /submissions/{submissionId} {
-      allow read: if canManageClass(resource.data.classId) || ownsStudent(resource.data.studentId);
+      allow read: if isAdmin() || isMissingDocProbe() || isAssignedTeacherForClass(resource.data.classId) || ownsStudent(resource.data.studentId);
       allow create: if ownsStudent(request.resource.data.studentId) &&
         submissionId == request.resource.data.assignmentId + '_' + request.resource.data.studentId &&
         request.resource.data.status == 'submitted' && request.resource.data.score == null && request.resource.data.teacherComment == '' &&
@@ -1486,7 +1658,7 @@ service cloud.firestore {
       allow delete: if false;
     }
     match /scores/{scoreId} {
-      allow read: if canManageClass(resource.data.classId) ||
+      allow read: if isAdmin() || isMissingDocProbe() || isAssignedTeacherForClass(resource.data.classId) ||
         (ownsStudent(resource.data.studentId) && resource.data.get('published', true));
       allow create: if canManageClass(request.resource.data.classId) &&
         request.resource.data.maxScore > 0 &&
@@ -1510,7 +1682,7 @@ service cloud.firestore {
       allow delete: if false;
     }
     match /student_summaries/{studentId} {
-      allow read: if isAdmin() || isAssignedTeacherForStudent(studentId) || ownsStudent(studentId);
+      allow read: if isAdmin() || isMissingDocProbe() || isAssignedTeacherForStudent(studentId) || ownsStudent(studentId);
       allow create: if (isAdmin() || isAssignedTeacherForStudent(studentId)) && request.resource.data.studentId == studentId &&
         validStudentSummary(request.resource.data);
       allow update: if (isAdmin() || isAssignedTeacherForStudent(studentId)) &&
@@ -1520,12 +1692,19 @@ service cloud.firestore {
       allow delete: if false;
     }
     match /invoices/{invoiceId} {
-      allow read: if isAdmin() || ownsStudent(resource.data.studentId) ||
-        isAssignedTeacherForStudent(resource.data.studentId);
-      allow create: if isAdmin() &&
+      allow read: if isAdmin() || isMissingDocProbe() || isAssignedTeacherForStudent(resource.data.studentId) || ownsStudent(resource.data.studentId);
+      allow create: if (isAdmin() || (
+          isTeacher() &&
+          request.resource.data.get('sourceType', null) in ['class', 'billing_item'] &&
+          request.resource.data.classId is string &&
+          isAssignedTeacherForClass(request.resource.data.classId)
+        )) &&
         request.resource.data.createdBy == request.auth.uid &&
         request.resource.data.status == 'unpaid' &&
-        validInvoiceData(request.resource.data);
+        validInvoiceData(request.resource.data) &&
+        matchesPaymentSettings(request.resource.data) &&
+        (request.resource.data.get('sourceType', null) != 'class' ||
+          request.resource.data.unitPriceSnapshot == coursePricePerSession(request.resource.data.courseId));
       allow update: if keepsImmutable(
         ['invoiceCode', 'studentId', 'courseId', 'amount', 'paymentContent', 'bankBin', 'accountNumber', 'accountName', 'createdBy', 'createdAt', 'sourceType', 'sourceId', 'classId', 'subjectId', 'billingItemId', 'itemNameSnapshot', 'unitPriceSnapshot', 'quantity']
       ) && validInvoiceData(request.resource.data) && (
@@ -1538,8 +1717,7 @@ service cloud.firestore {
       allow delete: if false;
     }
     match /payments/{paymentId} {
-      allow read: if isAdmin() || ownsStudent(resource.data.studentId) ||
-        isAssignedTeacherForStudent(resource.data.studentId);
+      allow read: if isAdmin() || isMissingDocProbe() || isAssignedTeacherForStudent(resource.data.studentId) || ownsStudent(resource.data.studentId);
       allow create: if ownsStudent(request.resource.data.studentId) &&
         request.resource.data.status == 'reported' &&
         request.resource.data.reportedBy == request.auth.uid &&
@@ -1551,6 +1729,7 @@ service cloud.firestore {
       allow update: if validPaymentData(request.resource.data) && ((isAdmin() &&
         resource.data.status == 'reported' &&
         request.resource.data.status in ['verified', 'rejected'] &&
+        request.resource.data.verifiedBy == request.auth.uid &&
         getAfter(/databases/$(database)/documents/invoices/$(resource.data.invoiceId)).data.status ==
           (request.resource.data.status == 'verified' ? 'paid' : 'rejected') &&
         keepsImmutable(['invoiceId', 'studentId', 'amount', 'reportedBy', 'reportedAt'])
@@ -1587,10 +1766,9 @@ service cloud.firestore {
     }
 
     match /chat_threads/{threadId} {
-      allow read: if isAdmin() || (
-        isTeacher() && request.auth.uid in resource.data.assignedTeacherIds &&
-        request.auth.uid in get(/databases/$(database)/documents/students/$(resource.data.studentId)).data.teacherIds
-      );
+      // Chi dung truong tren thread de truy van array-contains cua client chung minh duoc;
+      // get(students/...) theo resource.data.studentId lam hong truy van danh sach chat cua giao vien.
+      allow read: if isAdmin() || isMissingDocProbe() || (isTeacher() && request.auth.uid in resource.data.assignedTeacherIds);
       allow update: if (isAdmin() || (
           isTeacher() && request.auth.uid in resource.data.assignedTeacherIds &&
           request.auth.uid in get(/databases/$(database)/documents/students/$(resource.data.studentId)).data.teacherIds
@@ -1617,12 +1795,6 @@ service cloud.firestore {
       }
     }
 
-    match /message_outbox/{messageId} {
-      allow read: if isAdmin() || (
-        isTeacher() && resource.data.actorUid == request.auth.uid
-      );
-      allow create, update, delete: if false;
-    }
     match /messenger_connections/{uid} {
       allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
       allow write: if false;
@@ -1635,6 +1807,29 @@ service cloud.firestore {
 
     match /messenger_psid_links/{psid} {
       allow read, write: if false;
+    }
+
+    match /messenger_conversation_tombstones/{threadId} {
+      allow read, write: if false;
+    }
+
+    match /messenger_delivery_jobs/{jobId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // Event intent duoc ghi bat bien trong cung transaction nghiep vu. Worker
+    // xac minh lan nua va fan-out thanh delivery jobs server-only.
+    match /messenger_delivery_events/{eventId} {
+      allow read: if isAdmin() || isMissingDocProbe() || isAssignedTeacherForStudent(resource.data.studentId);
+      allow update, delete: if false;
+      allow create: if (isAdmin() || isAssignedTeacherForStudent(request.resource.data.studentId)) &&
+        validMessengerDeliveryEvent(eventId, request.resource.data);
+    }
+
+    match /viewer_dashboard/{parentUid} {
+      allow read: if isActive() && request.auth.uid == parentUid && currentUser().role == 'viewer';
+      allow write: if false;
     }
 
     // OAuth state và Page token đã mã hóa chỉ Worker service account được truy cập.

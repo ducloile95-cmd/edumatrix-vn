@@ -15,12 +15,13 @@ const serviceMocks = vi.hoisted(() => ({
   getSessionAttendanceEntries: vi.fn(),
   getSessionInteraction: vi.fn(),
   getSessionStudentReviews: vi.fn(),
+  getUtilityDeliveryStatus: vi.fn(),
   listSessionsByClass: vi.fn(),
-  listStudents: vi.fn(),
+  listStudentsByIds: vi.fn(),
   publishClassroomInteraction: vi.fn(),
   reopenClassroomInteraction: vi.fn(),
   saveClassroomDraft: vi.fn(),
-  sendMessenger: vi.fn(),
+  retryUtilityDeliveryJob: vi.fn(),
 }));
 
 vi.mock("@/features/auth/hooks/useAuth", () => ({
@@ -53,7 +54,7 @@ vi.mock("@/services/firestore/lessonPlans", () => ({
 }));
 
 vi.mock("@/services/firestore/students", () => ({
-  listStudents: serviceMocks.listStudents,
+  listStudentsByIds: serviceMocks.listStudentsByIds,
 }));
 
 vi.mock("@/services/firestore/users", () => ({
@@ -61,7 +62,10 @@ vi.mock("@/services/firestore/users", () => ({
 }));
 
 vi.mock("@/services/integrations/messenger", () => ({
-  sendMessenger: serviceMocks.sendMessenger,
+  getUtilityDeliveryStatus: serviceMocks.getUtilityDeliveryStatus,
+  retryUtilityDeliveryJob: serviceMocks.retryUtilityDeliveryJob,
+  summarizeUtilityDelivery: () => ({ status: "pending", detail: "Đã xếp hàng", retryableJobIds: [] }),
+  utilityDeliveryRefetchInterval: () => false,
 }));
 
 vi.mock("@/services/firestore/classroomInteractions", async (importOriginal) => {
@@ -135,7 +139,7 @@ describe("ClassroomInteractionPage publishing", () => {
       teacherIds: ["teacher-1"],
       status: "active",
     });
-    serviceMocks.listStudents.mockResolvedValue([
+    serviceMocks.listStudentsByIds.mockResolvedValue([
       {
         id: "student-1",
         fullName: "Nguyễn An",
@@ -165,6 +169,7 @@ describe("ClassroomInteractionPage publishing", () => {
       },
     ]);
     serviceMocks.getSessionAttendanceEntries.mockResolvedValue([]);
+    serviceMocks.getUtilityDeliveryStatus.mockResolvedValue({ jobs: [], events: [] });
     serviceMocks.saveClassroomDraft.mockResolvedValue(undefined);
     serviceMocks.publishClassroomInteraction.mockResolvedValue([
       {
@@ -219,6 +224,19 @@ describe("ClassroomInteractionPage publishing", () => {
     expect(
       screen.getByRole("button", { name: "Hoàn tất và phát hành" }),
     ).toBeTruthy();
+  });
+
+  test("never shows an editable form built from a failed load of saved reviews", async () => {
+    serviceMocks.getSessionStudentReviews.mockRejectedValue(new Error("permission-denied"));
+    renderPage();
+
+    expect(await screen.findByText("Không tải được dữ liệu buổi học.")).toBeTruthy();
+    expect(screen.queryByRole("tab", { name: "Gửi thông báo" })).toBeNull();
+    expect(serviceMocks.saveClassroomDraft).not.toHaveBeenCalled();
+
+    const calls = serviceMocks.getSessionStudentReviews.mock.calls.length;
+    fireEvent.click(screen.getByRole("button", { name: /Thử lại/ }));
+    await waitFor(() => expect(serviceMocks.getSessionStudentReviews.mock.calls.length).toBeGreaterThan(calls));
   });
 
   test("does not expose publishing when the session is inaccessible", async () => {

@@ -1,9 +1,11 @@
+import { Button } from "@/components/ui/Button";
 import { useState, type FormEvent } from "react";
 import { Link, Navigate } from "react-router";
 import { Eye, EyeOff, GraduationCap, Users } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
-import { ROUTES } from "@/constants/routes";
+import { ROUTES, systemGuidePath } from "@/constants/routes";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { LanguageSegmentedControl } from "@/features/preferences/components/AppearanceControls";
 import { activateAccount, authErrorMessage, resetPassword, signInEmail, signInGoogle } from "@/services/firebase/auth";
 import bgUrl from "@/assets/login-bg.svg";
 
@@ -100,8 +102,8 @@ export default function LoginPage() {
     mode === "login" ? "Đăng nhập" : mode === "forgot" ? "Gửi liên kết" : "Kích hoạt tài khoản";
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-neutral-100 p-4 sm:p-6">
-      <div className="login-card-enter grid w-full max-w-5xl overflow-hidden rounded-modal border border-neutral-200 bg-neutral-0 shadow-[0_18px_50px_rgba(27,46,110,0.14)] lg:grid-cols-2">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-neutral-100 p-4 sm:p-6">
+      <div className="login-card-enter grid w-full max-w-5xl overflow-hidden rounded-modal border border-neutral-200 bg-neutral-0 shadow-[var(--shadow-4)] lg:grid-cols-2">
         {/* ===== FORM ===== */}
         <div className="flex flex-col p-7 sm:p-9">
           <Logo className="mx-auto h-20 w-auto" />
@@ -166,9 +168,9 @@ export default function LoginPage() {
             {error && <p role="alert" className="mt-4 rounded-input bg-danger-50 px-3 py-2 text-sm text-danger-700">{error}</p>}
             {notice && <p className="mt-4 rounded-input bg-success-50 px-3 py-2 text-sm text-success-700">{notice}</p>}
 
-            <button type="submit" disabled={busy} className="mt-5 flex h-12 w-full items-center justify-center rounded-input bg-primary-500 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(51,102,240,0.3)] transition duration-fast hover:bg-primary-600 disabled:opacity-60">
+            <Button variant="primary" type="submit" disabled={busy} className="mt-5 h-12 w-full">
               {busy ? "Đang xử lý..." : submitLabel}
-            </button>
+            </Button>
 
             {mode === "login" ? (
               <>
@@ -188,6 +190,11 @@ export default function LoginPage() {
                   <button type="button" onClick={() => switchMode("activate")} className="font-semibold text-primary-600 hover:underline">Kích hoạt tài khoản</button>
                   <br />Chỉ tài khoản đã được mời mới truy cập được hệ thống.
                 </p>
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 border-t border-neutral-100 pt-4 text-xs">
+                  <span className="text-neutral-500">Cần trợ giúp?</span>
+                  <Link to={systemGuidePath("teacher")} className="font-semibold text-primary-700 hover:underline">Hướng dẫn Giáo viên</Link>
+                  <Link to={systemGuidePath("parent")} className="font-semibold text-primary-700 hover:underline">Hướng dẫn Phụ huynh</Link>
+                </div>
               </>
             ) : (
               <button type="button" onClick={() => switchMode("login")} className="mt-5 text-center text-sm font-semibold text-neutral-500 hover:text-primary-900">
@@ -196,21 +203,24 @@ export default function LoginPage() {
             )}
           </form>
 
-          <div className="mt-6 flex items-center justify-between border-t border-neutral-100 pt-4 text-2xs text-neutral-500">
+          <div className="mt-6 flex flex-col items-center gap-3 border-t border-neutral-100 pt-4 text-2xs text-neutral-500 sm:flex-row sm:justify-between">
             <span>© 2026 EduMatrix VN</span>
-            <span className="flex gap-3">
-              <Link to={ROUTES.PRIVACY_POLICY} className="hover:text-neutral-700">
-                Chính sách bảo mật
-              </Link>
-              <Link to={ROUTES.DATA_DELETION} className="hover:text-neutral-700">
-                Xóa dữ liệu
-              </Link>
-            </span>
+            <div className="grid w-full max-w-[320px] grid-cols-[minmax(0,1fr)_122px] items-center gap-3">
+              <span className="flex items-center justify-end gap-3">
+                <Link to={ROUTES.PRIVACY_POLICY} className="hover:text-neutral-700">
+                  Chính sách bảo mật
+                </Link>
+                <Link to={ROUTES.DATA_DELETION} className="hover:text-neutral-700">
+                  Xóa dữ liệu
+                </Link>
+              </span>
+              <LanguageSegmentedControl compact showLabel={false} />
+            </div>
           </div>
         </div>
 
         {/* ===== BRAND PANEL ===== */}
-        <div className="relative hidden overflow-hidden bg-gradient-to-br from-primary-900 via-[#243a86] to-primary-600 p-10 lg:flex lg:flex-col lg:justify-center lg:gap-6">
+        <div className="relative hidden overflow-hidden bg-primary-900 p-10 lg:flex lg:flex-col lg:justify-center lg:gap-6">
           <img src={bgUrl} alt="" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-30 mix-blend-screen" />
           <span className="relative z-10 inline-flex w-fit items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur">
             <span className="h-2 w-2 rounded-full bg-accent-500" />EduMatrix VN
@@ -225,20 +235,24 @@ export default function LoginPage() {
       {/* ===== WELCOME POPUP (lần đầu truy cập) ===== */}
       {!welcomed && (
         <div className="modal-backdrop fixed inset-0 z-50 flex items-center justify-center bg-primary-900/50 p-4 backdrop-blur-sm">
-          <div className="modal-panel w-full max-w-sm rounded-modal bg-neutral-0 p-6 text-center shadow-[0_24px_60px_rgba(10,20,60,0.35)]">
+          <div role="dialog" aria-modal="true" aria-labelledby="welcome-dialog-title" className="modal-panel w-full max-w-sm rounded-modal bg-neutral-0 p-6 text-center shadow-[var(--shadow-4)]">
             <Logo className="mx-auto h-16 w-auto" />
-            <h2 className="mt-3 text-lg font-bold text-primary-900">Chào mừng bạn đã truy cập EduMatrix</h2>
+            <h2 id="welcome-dialog-title" className="mt-3 text-lg font-bold text-primary-900">Chào mừng bạn đã truy cập EduMatrix</h2>
             <p className="mb-4 mt-1 text-sm text-neutral-500">Chọn vai trò để tiếp tục đăng nhập</p>
 
-            <button onClick={dismissWelcome} className="mb-2.5 flex w-full items-center gap-3 rounded-card border border-neutral-200 p-3 text-left transition hover:border-primary-500 hover:bg-primary-50">
+            <button type="button" onClick={dismissWelcome} className="mb-2.5 flex w-full items-center gap-3 rounded-card border border-neutral-200 p-3 text-left transition hover:border-primary-500 hover:bg-primary-50">
               <span className="flex h-10 w-10 items-center justify-center rounded-input bg-primary-50 text-primary-500"><GraduationCap size={20} /></span>
-              <span><span className="block text-sm font-semibold text-neutral-900">Giáo viên</span><span className="block text-xs text-neutral-500">Quản lý lớp, điểm danh, chấm bài</span></span>
+              <span><span className="block text-sm font-semibold text-neutral-900">Giáo viên / Admin</span><span className="block text-xs text-neutral-500">Quản lý lớp, điểm danh, chấm bài, học phí</span></span>
             </button>
-            <button onClick={dismissWelcome} className="flex w-full items-center gap-3 rounded-card border border-neutral-200 p-3 text-left transition hover:border-primary-500 hover:bg-primary-50">
+            <button type="button" onClick={dismissWelcome} className="flex w-full items-center gap-3 rounded-card border border-neutral-200 p-3 text-left transition hover:border-primary-500 hover:bg-primary-50">
               <span className="flex h-10 w-10 items-center justify-center rounded-input bg-accent-50 text-accent-700"><Users size={20} /></span>
               <span><span className="block text-sm font-semibold text-neutral-900">Phụ huynh / Học sinh</span><span className="block text-xs text-neutral-500">Xem lịch, bài tập, điểm, học phí</span></span>
             </button>
-            <p className="mt-4 text-2xs text-neutral-500">EduMatrix VN — 2026</p>
+            <div className="mt-4 flex items-center justify-center gap-3 text-xs font-semibold">
+              <Link to={systemGuidePath("teacher")} className="text-primary-700 hover:underline">Hướng dẫn Giáo viên</Link>
+              <span aria-hidden="true" className="text-neutral-300">|</span>
+              <Link to={systemGuidePath("parent")} className="text-primary-700 hover:underline">Hướng dẫn Phụ huynh</Link>
+            </div>
           </div>
         </div>
       )}

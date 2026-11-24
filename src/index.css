@@ -3,6 +3,77 @@
 @tailwind utilities;
 
 :root {
+  color-scheme: light;
+  /* Token mau cho Tailwind (rgb khong dau phay de dung duoc /<alpha>). */
+  --n-0: 255 255 255;
+  --n-50: 250 250 249;
+  --n-100: 244 243 241;
+  --n-200: 231 229 226;
+  --n-300: 211 208 203;
+  --n-400: 166 162 156;
+  --n-500: 120 116 109;
+  --n-600: 87 83 77;
+  --n-700: 64 61 57;
+  --n-800: 43 41 38;
+  --n-900: 28 26 21;
+  --n-950: 12 11 9;
+  --primary-50: 239 244 255;
+  --primary-100: 219 230 254;
+  --primary-200: 191 211 254;
+  --primary-300: 147 180 253;
+  --primary-text-600: 35 72 214;
+  --primary-text-700: 29 57 172;
+  --primary-text-800: 28 51 137;
+  --primary-text-900: 27 46 110;
+  --success-50: 236 253 243;
+  --success-100: 209 250 223;
+  --success-200: 166 244 197;
+  --success-300: 108 233 166;
+  --success-text-600: 21 128 61;
+  --success-text-700: 15 122 55;
+  --success-text-800: 13 102 48;
+  --success-text-900: 10 82 39;
+  --warning-50: 255 251 235;
+  --warning-100: 254 243 199;
+  --warning-200: 253 230 138;
+  --warning-300: 252 211 77;
+  --warning-text-600: 217 119 6;
+  --warning-text-700: 180 83 9;
+  --warning-text-800: 146 64 14;
+  --warning-text-900: 120 53 15;
+  --danger-50: 254 242 242;
+  --danger-100: 254 226 226;
+  --danger-200: 254 202 202;
+  --danger-300: 252 165 165;
+  --danger-text-600: 220 38 38;
+  --danger-text-700: 185 28 28;
+  --danger-text-800: 153 27 27;
+  --danger-text-900: 127 29 29;
+  --info-50: 240 249 255;
+  --info-100: 224 242 254;
+  --info-200: 186 230 253;
+  --info-300: 125 211 252;
+  --info-text-600: 2 132 199;
+  --info-text-700: 3 105 161;
+  --info-text-800: 7 89 133;
+  --info-text-900: 12 74 110;
+  --accent-50: 255 244 234;
+  --accent-100: 255 227 199;
+  --accent-200: 255 208 163;
+  --accent-300: 255 187 120;
+  --accent-text-600: 229 114 42;
+  --accent-text-700: 200 94 29;
+  --accent-text-800: 164 76 23;
+  --accent-text-900: 127 59 18;
+  --surface-canvas: 250 250 249;
+  --surface-panel: 255 255 255;
+  --surface-subtle: 244 243 241;
+  --surface-hover: 231 229 226;
+  --border-subtle: 231 229 226;
+  --border-strong: 211 208 203;
+  --text-primary: 28 26 21;
+  --text-secondary: 87 83 77;
+  --text-muted: 120 116 109;
   --motion-instant: 150ms;
   --motion-fast: 200ms;
   --motion-standard: 250ms;
@@ -26,6 +97,84 @@
   --shadow-4: 0 28px 70px rgba(28, 51, 137, .22);
 }
 
+html.dark {
+  color-scheme: dark;
+  --n-0: 24 26 31;
+  --n-50: 17 19 24;
+  --n-100: 36 39 46;
+  --n-200: 52 56 65;
+  --n-300: 71 76 88;
+  --n-400: 138 141 150;
+  --n-500: 157 153 145;
+  --n-600: 203 200 194;
+  --n-700: 215 212 206;
+  --n-800: 235 234 230;
+  --n-900: 245 245 242;
+  --n-950: 250 250 248;
+  --primary-50: 28 37 60;
+  --primary-100: 30 43 77;
+  --primary-200: 32 49 94;
+  --primary-300: 36 60 125;
+  --primary-text-600: 174 196 255;
+  --primary-text-700: 174 196 255;
+  --primary-text-800: 174 196 255;
+  --primary-text-900: 174 196 255;
+  --success-50: 24 45 37;
+  --success-100: 24 56 40;
+  --success-200: 23 67 44;
+  --success-300: 23 88 50;
+  --success-text-600: 134 239 172;
+  --success-text-700: 134 239 172;
+  --success-text-800: 134 239 172;
+  --success-text-900: 134 239 172;
+  --warning-50: 55 44 28;
+  --warning-100: 73 55 27;
+  --warning-200: 90 66 25;
+  --warning-300: 123 85 22;
+  --warning-text-600: 252 211 77;
+  --warning-text-700: 252 211 77;
+  --warning-text-800: 252 211 77;
+  --warning-text-900: 252 211 77;
+  --danger-50: 53 32 35;
+  --danger-100: 69 35 37;
+  --danger-200: 85 39 39;
+  --danger-300: 116 45 43;
+  --danger-text-600: 252 165 165;
+  --danger-text-700: 252 165 165;
+  --danger-text-800: 252 165 165;
+  --danger-text-900: 252 165 165;
+  --info-50: 23 45 59;
+  --info-100: 22 57 75;
+  --info-200: 21 68 92;
+  --info-300: 20 89 122;
+  --info-text-600: 125 211 252;
+  --info-text-700: 125 211 252;
+  --info-text-800: 125 211 252;
+  --info-text-900: 125 211 252;
+  --accent-50: 56 42 35;
+  --accent-100: 75 51 38;
+  --accent-200: 93 60 40;
+  --accent-300: 128 76 45;
+  --accent-text-600: 253 186 116;
+  --accent-text-700: 253 186 116;
+  --accent-text-800: 253 186 116;
+  --accent-text-900: 253 186 116;
+  --surface-canvas: 17 19 24;
+  --surface-panel: 24 26 31;
+  --surface-subtle: 36 39 46;
+  --surface-hover: 48 52 61;
+  --border-subtle: 52 56 65;
+  --border-strong: 71 76 88;
+  --text-primary: 245 245 242;
+  --text-secondary: 203 200 194;
+  --text-muted: 157 153 145;
+  --grad-page: radial-gradient(circle at 12% 5%, rgba(51, 102, 240, .12), transparent 30rem), radial-gradient(circle at 92% 18%, rgba(22, 163, 74, .08), transparent 28rem), rgb(var(--surface-canvas));
+  --shadow-1: 0 4px 18px rgba(0, 0, 0, .2);
+  --shadow-2: 0 12px 32px rgba(0, 0, 0, .28);
+  --shadow-3: 0 18px 48px rgba(0, 0, 0, .38);
+  --shadow-4: 0 28px 70px rgba(0, 0, 0, .46);
+}
+
 @layer base {
   html {
     @apply text-neutral-800;
@@ -34,7 +183,7 @@
     @apply bg-neutral-50 font-sans text-sm antialiased;
     min-width: 320px;
     isolation: isolate;
-    background: #fafaf9;
+    background: rgb(var(--surface-canvas));
     letter-spacing: -0.005em;
     line-height: 1.55;
   }
@@ -62,9 +211,91 @@
   }
 }
 
+/* Trang marketing (landing) luon sang: khoi nay khoi phuc token sang ben trong .theme-light. */
+html.dark .theme-light {
+  color-scheme: light;
+  --n-0: 255 255 255;
+  --n-50: 250 250 249;
+  --n-100: 244 243 241;
+  --n-200: 231 229 226;
+  --n-300: 211 208 203;
+  --n-400: 166 162 156;
+  --n-500: 120 116 109;
+  --n-600: 87 83 77;
+  --n-700: 64 61 57;
+  --n-800: 43 41 38;
+  --n-900: 28 26 21;
+  --n-950: 12 11 9;
+  --primary-50: 239 244 255;
+  --primary-100: 219 230 254;
+  --primary-200: 191 211 254;
+  --primary-300: 147 180 253;
+  --primary-text-600: 35 72 214;
+  --primary-text-700: 29 57 172;
+  --primary-text-800: 28 51 137;
+  --primary-text-900: 27 46 110;
+  --success-50: 236 253 243;
+  --success-100: 209 250 223;
+  --success-200: 166 244 197;
+  --success-300: 108 233 166;
+  --success-text-600: 21 128 61;
+  --success-text-700: 15 122 55;
+  --success-text-800: 13 102 48;
+  --success-text-900: 10 82 39;
+  --warning-50: 255 251 235;
+  --warning-100: 254 243 199;
+  --warning-200: 253 230 138;
+  --warning-300: 252 211 77;
+  --warning-text-600: 217 119 6;
+  --warning-text-700: 180 83 9;
+  --warning-text-800: 146 64 14;
+  --warning-text-900: 120 53 15;
+  --danger-50: 254 242 242;
+  --danger-100: 254 226 226;
+  --danger-200: 254 202 202;
+  --danger-300: 252 165 165;
+  --danger-text-600: 220 38 38;
+  --danger-text-700: 185 28 28;
+  --danger-text-800: 153 27 27;
+  --danger-text-900: 127 29 29;
+  --info-50: 240 249 255;
+  --info-100: 224 242 254;
+  --info-200: 186 230 253;
+  --info-300: 125 211 252;
+  --info-text-600: 2 132 199;
+  --info-text-700: 3 105 161;
+  --info-text-800: 7 89 133;
+  --info-text-900: 12 74 110;
+  --accent-50: 255 244 234;
+  --accent-100: 255 227 199;
+  --accent-200: 255 208 163;
+  --accent-300: 255 187 120;
+  --accent-text-600: 229 114 42;
+  --accent-text-700: 200 94 29;
+  --accent-text-800: 164 76 23;
+  --accent-text-900: 127 59 18;
+}
+
+/* Logo raster mau toi: chuyen sang trang tren nen toi. */
+html.dark .brand-logo { filter: brightness(0) invert(.94); }
+
+html.dark .glass-panel {
+  background: rgba(24, 26, 31, .82);
+  box-shadow: inset 0 1px rgba(255, 255, 255, .06);
+}
+
+html.dark :where(input, select, textarea) { background-color: rgb(var(--surface-canvas)); color: rgb(var(--text-primary)); }
+html.dark :where(input, textarea)::placeholder { color: rgb(var(--text-muted)); }
+
+.flag-icon { position: relative; display: inline-grid; width: 20px; height: 14px; flex: 0 0 auto; place-items: center; overflow: hidden; border: 1px solid rgba(28, 26, 21, .14); border-radius: 3px; box-shadow: 0 1px 2px rgba(28, 26, 21, .12); }
+.flag-icon-vi { background: #da251d; color: #ffdf00; font-size: 9px; line-height: 1; }
+.flag-icon-vi::after { content: "★"; transform: translateY(-.2px); }
+.flag-icon-en { background: linear-gradient(33deg, transparent 43%, #fff 43% 57%, transparent 57%), linear-gradient(-33deg, transparent 43%, #fff 43% 57%, transparent 57%), #183a78; }
+.flag-icon-en::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent 42%, #c8102e 42% 58%, transparent 58%), linear-gradient(transparent 36%, #fff 36% 64%, transparent 64%), linear-gradient(transparent 43%, #c8102e 43% 57%, transparent 57%); }
+
 @layer components {
   .glass-panel { background: rgba(255, 255, 255, .74); backdrop-filter: blur(14px) saturate(150%); box-shadow: inset 0 1px rgba(255,255,255,.85); }
-  .icon-button { @apply min-h-touch min-w-touch items-center justify-center rounded-card text-neutral-600 hover:bg-white/80 hover:text-primary-700 active:scale-95; transition: color var(--motion-standard) var(--ease-standard), background-color var(--motion-standard) var(--ease-standard), transform var(--motion-instant) var(--ease-standard); }
+  .icon-button { @apply min-h-touch min-w-touch items-center justify-center rounded-card text-neutral-600 hover:bg-neutral-0/80 hover:text-primary-700 active:scale-95; transition: color var(--motion-standard) var(--ease-standard), background-color var(--motion-standard) var(--ease-standard), transform var(--motion-instant) var(--ease-standard); }
   .icon-button:hover { transform: scale(1.05); }
   .motion-control { transition: color var(--motion-standard) var(--ease-standard), background-color var(--motion-standard) var(--ease-standard), border-color var(--motion-standard) var(--ease-standard), box-shadow var(--motion-standard) var(--ease-standard), transform var(--motion-instant) var(--ease-standard), opacity var(--motion-standard) var(--ease-standard); }
   button.motion-control:not(:disabled):hover { transform: translateY(-1px); }
@@ -82,9 +313,9 @@
   .modal-panel[data-state="closed"] { animation: modal-out var(--motion-fast) var(--ease-exit) both; }
   .toast-lifecycle { animation: toast-in var(--motion-toast) var(--ease-toast) both; }
   .toast-exit { animation: toast-out var(--motion-standard) var(--ease-exit) both; pointer-events: none; }
-  .skeleton-shimmer { position: relative; overflow: hidden; background: linear-gradient(90deg, theme(colors.neutral.200) 25%, theme(colors.neutral.100) 50%, theme(colors.neutral.200) 75%); background-size: 220% 100%; animation: skeleton-shimmer 1.25s linear infinite; }
+  .skeleton-shimmer { position: relative; overflow: hidden; background: linear-gradient(90deg, rgb(var(--n-200)) 25%, rgb(var(--n-100)) 50%, rgb(var(--n-200)) 75%); background-size: 220% 100%; animation: skeleton-shimmer 1.25s linear infinite; }
   .route-loading { position: relative; min-height: 18rem; overflow: hidden; }
-  .route-loading-bar { height: 3px; margin-bottom: 1rem; border-radius: 999px; background: theme(colors.primary.500); transform-origin: left; animation: route-loading-progress 1.2s var(--ease-enter) infinite; }
+  .route-loading-bar { height: 3px; margin-bottom: 1rem; border-radius: 999px; background: #3366F0; transform-origin: left; animation: route-loading-progress 1.2s var(--ease-enter) infinite; }
   .motion-tab-indicator { will-change: transform; transition: transform var(--motion-standard) var(--ease-enter), opacity var(--motion-instant) ease; }
   .motion-demo .motion-tab-indicator { animation: tab-indicator-in var(--motion-fast) var(--ease-enter) both; }
   .motion-demo-hero-copy > * { animation: motion-demo-rise var(--motion-emphasis) var(--ease-enter) both; }
@@ -99,6 +330,10 @@
   .motion-demo-success { animation: motion-demo-success var(--motion-emphasis) var(--ease-modal) both; }
   .motion-demo-tour-progress { animation: motion-demo-tour-progress 6.5s linear both; }
   .motion-demo-paused * { animation-play-state: paused !important; }
+  /* Luoi/truc bieu do theo theme (CSS thang attribute SVG). */
+  .recharts-cartesian-grid line { stroke: rgb(var(--n-200)); }
+  .recharts-cartesian-axis-tick-value { fill: rgb(var(--n-500)); }
+  .recharts-default-tooltip .recharts-tooltip-item { color: inherit; }
   .edumatrix-chart .recharts-cartesian-axis-tick-value { @apply fill-neutral-500 text-3xs; }
   .edumatrix-chart .recharts-legend-item-text { @apply text-xs text-neutral-600; }
   .edumatrix-chart .recharts-surface { overflow: visible; }
@@ -110,7 +345,7 @@
 
   /* Đồng bộ toàn bộ form popup (Modal) với màu hệ thống — redesign-preserve (design-taste-frontend). */
   [role="dialog"] :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
-    @apply rounded-input border border-neutral-300 bg-white/85 text-neutral-800;
+    @apply rounded-input border border-neutral-300 bg-neutral-0/85 text-neutral-800;
     transition: border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-standard) var(--ease-standard), background-color var(--motion-fast) var(--ease-standard);
   }
   [role="dialog"] :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea):focus {
@@ -167,9 +402,8 @@ html[data-demo-motion="reduced"] :is(.motion-card:hover, .icon-button:hover, but
   .modal-panel[data-state="closed"] { animation-name: modal-sheet-out; }
 }
 
-/* Web View: compact typography by exactly 1px and let content shrink with its viewport. */
+/* Web View: let content shrink with its viewport. */
 @media (min-width: 768px) {
-  :root { --web-font-size-adjustment: -1px; }
   #main-content, #main-content > div { min-width: 0; max-width: 100%; }
   #main-content :where(.flex, .grid) > * { min-width: 0; }
   #main-content :where(img, video, canvas) { max-width: 100%; }

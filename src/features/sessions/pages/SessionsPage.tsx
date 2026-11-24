@@ -23,6 +23,7 @@ import { listClasses } from "@/services/firestore/classes";
 import { listCourses } from "@/services/firestore/courses";
 import { createSessions, listSessions, updateSession, type CreateSessionsInput } from "@/services/firestore/sessions";
 import { listSubjects } from "@/services/firestore/subjects";
+import { listStudents } from "@/services/firestore/students";
 import { listUsersByRole } from "@/services/firestore/users";
 import { USER_ROLES } from "@/constants/roles";
 import { CreateSessionModal } from "@/features/sessions/components/CreateSessionModal";
@@ -30,7 +31,10 @@ import { FitWeekTimetable } from "@/features/sessions/components/FitWeekTimetabl
 import { TimetableGrid, type TimetableSession } from "@/features/sessions/components/TimetableGrid";
 import { MonthGrid } from "@/features/sessions/components/MonthGrid";
 import { SessionDetailModal } from "@/features/sessions/components/SessionDetailModal";
+import { RescheduleReasonDialog, type RescheduleRequest } from "@/features/sessions/components/RescheduleReasonDialog";
 import type { SessionStatus } from "@/types/academic";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import { invalidateSessionQueries } from "@/hooks/queryInvalidation";
 
 type TimetableView = "fit-week" | "day" | "week" | "month";
 
@@ -46,8 +50,10 @@ export default function SessionsPage() {
   const [classFilter, setClassFilter] = useState<{ id: string; name: string } | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedSession, setSelectedSession] = useState<TimetableSession | null>(null);
+  const [rescheduleRequest, setRescheduleRequest] = useState<RescheduleRequest | null>(null);
   const queryClient = useQueryClient();
   const { showToast } = useToast();
+  const { firebaseUser } = useAuth();
   const today = useMemo(() => new Date(), []);
 
   const range = useMemo(() => {
@@ -76,12 +82,16 @@ export default function SessionsPage() {
   const classesQuery = useQuery({ queryKey: ["classes"], queryFn: listClasses });
   // courses/subjects/teachers: chi de lam giau the buoi hoc trong FitWeekTimetable (course/mon
   // hoc/giao vien/si so) - tai dung dung queryKey voi ClassesList/ClassForm nen chia se cache.
-  const coursesQuery = useQuery({ queryKey: ["courses"], queryFn: listCourses, staleTime: 60_000 });
-  const subjectsQuery = useQuery({ queryKey: ["subjects"], queryFn: listSubjects, staleTime: 60_000 });
+  const coursesQuery = useQuery({ queryKey: ["courses"], queryFn: listCourses });
+  const subjectsQuery = useQuery({ queryKey: ["subjects"], queryFn: listSubjects });
+  const studentsQuery = useQuery({
+    queryKey: ["students"],
+    queryFn: listStudents,
+    enabled: !!selectedSession,
+  });
   const teachersQuery = useQuery({
     queryKey: ["users", "teacher"],
     queryFn: () => listUsersByRole(USER_ROLES.TEACHER),
-    staleTime: 60_000,
   });
   const sessionsQuery = useQuery({
     queryKey: ["sessions", range.from.toISOString(), range.to.toISOString()],
@@ -136,6 +146,12 @@ export default function SessionsPage() {
     return classFilter ? list.filter((s) => s.classId === classFilter.id) : list;
   }, [visibleSessions, classById, courseById, subjectById, teacherById, classFilter]);
 
+  const selectedSessionStudents = useMemo(() => {
+    if (!selectedSession) return [];
+    const studentIds = new Set(classById.get(selectedSession.classId)?.studentIds ?? []);
+    return (studentsQuery.data ?? []).filter((student) => studentIds.has(student.id));
+  }, [classById, selectedSession, studentsQuery.data]);
+
   const monthSessionCounts = useMemo(() => {
     const map = new Map<string, number>();
     visibleSessions.forEach((session) => {
@@ -149,7 +165,7 @@ export default function SessionsPage() {
   const createMutation = useMutation({
     mutationFn: (input: CreateSessionsInput) => createSessions(input),
     onSuccess: (_, input) => {
-      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      invalidateSessionQueries(queryClient);
       setCreateOpen(false);
       showToast({
         tone: "success",
@@ -164,9 +180,12 @@ export default function SessionsPage() {
     }),
   });
   const updateMutation = useMutation({
-    mutationFn: ({ id, changes }: { id: string; changes: Parameters<typeof updateSession>[1] }) => updateSession(id, changes),
+    mutationFn: ({ id, changes }: { id: string; changes: Parameters<typeof updateSession>[1] }) => {
+      if (!firebaseUser) throw new Error("AUTH_REQUIRED");
+      return updateSession(id, changes, firebaseUser.uid);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      invalidateSessionQueries(queryClient);
       showToast({ tone: "success", title: "Đã cập nhật buổi học" });
     },
     onError: () => showToast({ tone: "error", title: "Không thể cập nhật buổi học" }),
@@ -187,6 +206,18 @@ export default function SessionsPage() {
     setTimetableView("day");
   }
 
+  function requestReschedule(session: TimetableSession, startAt: Date, endAt: Date) {
+    updateMutation.reset();
+    setRescheduleRequest({
+      sessionId: session.id,
+      className: session.className,
+      previousStartAt: session.startAt.toDate(),
+      previousEndAt: session.endAt.toDate(),
+      startAt,
+      endAt,
+    });
+  }
+
   const periodLabel =
     timetableView === "day"
       ? format(anchor, "dd/MM/yyyy")
@@ -204,7 +235,7 @@ export default function SessionsPage() {
         }
       />
 
-      <section className="overflow-hidden rounded-card border border-neutral-200 bg-white">
+      <section className="overflow-hidden rounded-card border border-neutral-200 bg-neutral-0">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-200 px-4 py-3.5 sm:px-5">
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex gap-1">
@@ -216,23 +247,23 @@ export default function SessionsPage() {
               </button>
             </div>
             <span className="min-w-[140px] text-sm font-bold text-neutral-900">{periodLabel}</span>
-            <button type="button" onClick={goToday} className="min-h-touch rounded-input border border-neutral-300 px-3 text-xs font-semibold text-neutral-700 hover:bg-neutral-50">
+            <Button variant="secondary" size="sm" type="button" onClick={goToday}>
               Hôm nay
-            </button>
+            </Button>
           </div>
           <div className="grid min-h-touch grid-cols-4 gap-1 rounded-input border border-neutral-300 bg-neutral-50 p-1">
             {([
-              { value: "fit-week", label: "Fit week" },
+              { value: "fit-week", label: "Tuần gọn" },
               { value: "day", label: "Ngày" },
-              { value: "week", label: "Time-grid" },
+              { value: "week", label: "Lưới giờ" },
               { value: "month", label: "Tháng" },
             ] as { value: TimetableView; label: string }[]).map(({ value, label }) => (
               <button
                 key={value}
                 type="button"
                 onClick={() => setTimetableView(value)}
-                className={`rounded-[7px] px-3 text-xs font-semibold transition ${
-                  timetableView === value ? "bg-primary-500 text-white shadow-[0_4px_12px_rgba(51,102,240,.18)]" : "text-neutral-600 hover:bg-white hover:text-primary-700"
+                className={`rounded-input px-3 text-xs font-semibold transition ${
+                  timetableView === value ? "bg-primary-500 text-white" : "text-neutral-600 hover:bg-neutral-0 hover:text-primary-700"
                 }`}
               >
                 {label}
@@ -280,15 +311,7 @@ export default function SessionsPage() {
             today={today}
             onSessionClick={setSelectedSession}
             onSessionDrop={(session, startAt, endAt) => {
-              updateMutation.mutate({
-                id: session.id,
-                changes: {
-                  startAt,
-                  endAt,
-                  status: "rescheduled",
-                  note: "Lich hoc da duoc cap nhat bang thao tac keo tha.",
-                },
-              });
+              requestReschedule(session, startAt, endAt);
             }}
           />
         )}
@@ -304,18 +327,40 @@ export default function SessionsPage() {
 
       <SessionDetailModal
         session={selectedSession}
+        students={selectedSessionStudents}
+        studentsLoading={studentsQuery.isLoading}
         onClose={() => setSelectedSession(null)}
         isPending={updateMutation.isPending}
         onReschedule={(id, startAt, endAt) => {
-          updateMutation.mutate({
-            id,
-            changes: { startAt, endAt, status: "rescheduled", note: "Lịch học đã được cập nhật." },
-          });
-          setSelectedSession(null);
+          if (selectedSession?.id === id) requestReschedule(selectedSession, startAt, endAt);
         }}
         onStatusChange={(id, status: SessionStatus) => {
           updateMutation.mutate({ id, changes: { status } });
           setSelectedSession((prev) => (prev && prev.id === id ? { ...prev, status } : prev));
+        }}
+      />
+
+      <RescheduleReasonDialog
+        request={rescheduleRequest}
+        isPending={updateMutation.isPending}
+        isError={updateMutation.isError}
+        onCancel={() => { if (!updateMutation.isPending) setRescheduleRequest(null); }}
+        onConfirm={(reason) => {
+          if (!rescheduleRequest) return;
+          updateMutation.mutate({
+            id: rescheduleRequest.sessionId,
+            changes: {
+              startAt: rescheduleRequest.startAt,
+              endAt: rescheduleRequest.endAt,
+              status: "rescheduled",
+              note: reason,
+            },
+          }, {
+            onSuccess: () => {
+              setRescheduleRequest(null);
+              setSelectedSession(null);
+            },
+          });
         }}
       />
 

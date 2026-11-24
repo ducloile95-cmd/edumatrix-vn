@@ -1,13 +1,17 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const envPath = path.resolve(process.cwd(), ".env.real");
 const values = {};
 
-for (const line of fs.readFileSync(envPath, "utf8").split(/\r?\n/)) {
-  const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
-  if (!match) continue;
-  values[match[1]] = match[2].trim().replace(/^(['"])(.*)\1$/, "$2");
+// Vite (mode "real") nap .env.real roi .env.real.local de len tren: kiem ca hai, dung thu tu do.
+for (const name of [".env.real", ".env.real.local"]) {
+  const envPath = path.resolve(process.cwd(), name);
+  if (name.endsWith(".local") && !fs.existsSync(envPath)) continue;
+  for (const line of fs.readFileSync(envPath, "utf8").split(/\r?\n/)) {
+    const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
+    if (!match) continue;
+    values[match[1]] = match[2].trim().replace(/^(['"])(.*)\1$/, "$2");
+  }
 }
 
 const requiredKeys = [

@@ -48,8 +48,8 @@ function teacherDb() {
   return env.authenticatedContext(TEACHER_UID).firestore();
 }
 
-describe("teacher list query scope", () => {
-  test("classes require a teacherIds array-contains constraint", async () => {
+describe("teacher list queries require assignment scope", () => {
+  test("classes: assigned-only queries, no global scan", async () => {
     await assertFails(getDocs(query(collection(teacherDb(), "classes"))));
     await assertSucceeds(getDocs(query(
       collection(teacherDb(), "classes"),
@@ -57,7 +57,15 @@ describe("teacher list query scope", () => {
     )));
   });
 
-  test("assignments require an assigned class constraint", async () => {
+  test("students: assigned-only queries, no global scan", async () => {
+    await assertFails(getDocs(query(collection(teacherDb(), "students"))));
+    await assertSucceeds(getDocs(query(
+      collection(teacherDb(), "students"),
+      where("teacherIds", "array-contains", TEACHER_UID),
+    )));
+  });
+
+  test("assignments: class filter, no global scan", async () => {
     await assertFails(getDocs(query(collection(teacherDb(), "assignments"))));
     await assertSucceeds(getDocs(query(
       collection(teacherDb(), "assignments"),
@@ -65,7 +73,7 @@ describe("teacher list query scope", () => {
     )));
   });
 
-  test("lesson plans support assigned class and creator constraints", async () => {
+  test("lesson plans: class or owner filter, no global scan", async () => {
     await assertFails(getDocs(query(collection(teacherDb(), "lesson_plans"))));
     await assertSucceeds(getDocs(query(
       collection(teacherDb(), "lesson_plans"),
@@ -77,7 +85,7 @@ describe("teacher list query scope", () => {
     )));
   });
 
-  test("submissions require both assignment and class constraints", async () => {
+  test("submissions: need the class filter", async () => {
     await assertFails(getDocs(query(
       collection(teacherDb(), "submissions"),
       where("assignmentId", "==", "assigned-task"),
@@ -89,7 +97,7 @@ describe("teacher list query scope", () => {
     )));
   });
 
-  test("dashboard attendance must query by assigned class, not session only", async () => {
+  test("attendance: need the class filter", async () => {
     await assertFails(getDocs(query(
       collection(teacherDb(), "attendance"),
       where("sessionId", "==", "session-1"),
@@ -104,7 +112,7 @@ describe("teacher list query scope", () => {
     )));
   });
 
-  test("dashboard scores must query by assigned class, not student only", async () => {
+  test("scores: need the class filter", async () => {
     await assertFails(getDocs(query(
       collection(teacherDb(), "scores"),
       where("studentId", "==", "student-1"),

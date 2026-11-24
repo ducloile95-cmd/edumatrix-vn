@@ -141,7 +141,7 @@ export default function AssignmentsPage({ embedded = false }: { embedded?: boole
       </Modal>
 
       <div className="grid items-start gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
-        <section className="overflow-hidden rounded-card border border-neutral-200 bg-white">
+        <section className="overflow-hidden rounded-card border border-neutral-200 bg-neutral-0">
           <div className="flex items-center justify-between border-b border-neutral-200 px-4 py-3">
             <h2 className="text-sm font-semibold">Danh sách bài</h2>
             <span className="text-xs text-neutral-500">{assignments.data?.length ?? 0} bài</span>
@@ -170,7 +170,7 @@ export default function AssignmentsPage({ embedded = false }: { embedded?: boole
             );})}
           </ul>
         </section>
-        <section className="overflow-hidden rounded-card border border-neutral-200 bg-white">
+        <section className="overflow-hidden rounded-card border border-neutral-200 bg-neutral-0">
           <div className="flex items-start justify-between gap-3 border-b border-neutral-200 px-4 py-4">
             <div><h2 className="text-base font-semibold">{selected ? selected.title : "Chọn bài tập để chấm"}</h2>{selected && <p className="mt-1 text-xs text-neutral-500">Thang điểm {selected.maxScore} · Hạn {format(selected.dueAt.toDate(), "dd/MM HH:mm")}</p>}</div>
             {selected && (

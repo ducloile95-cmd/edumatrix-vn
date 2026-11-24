@@ -22,6 +22,7 @@ Ngày lập: 19/07/2026. Chỉ đánh dấu hoàn tất khi có bằng chứng t
 - [ ] Đặt ngưỡng Hosting transfer bằng 70% quota hiện được hiển thị trong Firebase Console.
 - [ ] Ghi người nhận, kênh cảnh báo và phương án giảm tải: tắt phần không thiết yếu, giảm refresh/realtime, kiểm tra query bất thường.
 - [ ] Lưu ảnh quota sau 24 giờ và 7 ngày đầu production.
+- [ ] Xác nhận Worker cron ghi `conversation_tombstone_cleanup_completed`; không cấu hình managed TTL khi project còn ở Spark.
 
 ## 3. Google Drive cho giáo án
 
@@ -41,7 +42,12 @@ Ngày lập: 19/07/2026. Chỉ đánh dấu hoàn tất khi có bằng chứng t
 - [x] Webhook production verified; subscription gồm messages, messaging_postbacks, messaging_referrals. *(nguồn: nhật ký 27/07 — verified với 6 field, bao trùm 3 field yêu cầu ở đây)*
 - [ ] Tạo link từ UI; URL chỉ chứa nonce, không chứa Firebase UID; giáo viên chỉ tạo được cho phụ huynh của học sinh được phân công.
 - [ ] Xác nhận nonce dùng lại/hết hạn bị từ chối và PSID không thể chiếm tài khoản khác.
-- [ ] Gửi/nhận một tin thật và đối chiếu `message_outbox`, `chat_threads`, `messenger_connections`.
+- [ ] Gửi/nhận một tin thật và đối chiếu `chat_threads/{threadId}/messages`, `messenger_connections` và structured log Worker.
+- [ ] `GET /health.release` khớp SHA commit phát hành; Utility vẫn khóa ở R1.
+- [ ] R3: migration enrollment dry-run/apply có backup; deploy indexes/Rules trước frontend.
+- [ ] R3: `/health.release` khớp SHA khi `UTILITY_AUTOMATION_ENABLED=false`; xác minh năm template trigger đã được Admin bật.
+- [ ] R3: bật automation bằng release Worker riêng; tạo đúng một sự kiện thử và xác nhận đúng một job/tin, không gửi trùng.
+- [ ] R3: xác nhận job `no_connection` hiển thị `skipped` và job `meta_delivery_outcome_unknown` không cho retry mù.
 
 ## 5. QA giao diện Admin
 

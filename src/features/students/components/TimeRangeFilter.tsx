@@ -65,7 +65,7 @@ export function TimeRangeFilter({ value, onApply }: TimeRangeFilterProps) {
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => setOpen(true)}
-        className="inline-flex min-h-touch min-w-[248px] items-center gap-2 rounded-input border border-neutral-300 bg-white px-3 text-sm font-semibold text-neutral-900 shadow-[var(--shadow-1)] transition hover:border-primary-500 hover:text-primary-700 active:scale-[.98]"
+        className="inline-flex min-h-touch min-w-[248px] items-center gap-2 rounded-input border border-neutral-300 bg-neutral-0 px-3 text-sm font-semibold text-neutral-900 shadow-[var(--shadow-1)] transition hover:border-primary-500 hover:text-primary-700 active:scale-[.98]"
       >
         <CalendarDays size={17} className="text-neutral-700" />
         <span className="tabular-nums">{label}</span>
@@ -74,7 +74,7 @@ export function TimeRangeFilter({ value, onApply }: TimeRangeFilterProps) {
 
       {open && (
         <div
-          className="fixed inset-0 z-50 grid place-items-center bg-neutral-900/45 p-4"
+          className="fixed inset-0 z-50 grid place-items-center bg-ink/45 p-4"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) setOpen(false);
           }}
@@ -84,7 +84,7 @@ export function TimeRangeFilter({ value, onApply }: TimeRangeFilterProps) {
             role="dialog"
             aria-modal="true"
             aria-labelledby="time-filter-title"
-            className="page-enter grid w-full max-w-[480px] grid-rows-[auto_1fr_auto] overflow-hidden rounded-modal border border-neutral-200 bg-white shadow-[var(--shadow-4)] lg:max-w-[720px]"
+            className="page-enter grid w-full max-w-[480px] grid-rows-[auto_1fr_auto] overflow-hidden rounded-modal border border-neutral-200 bg-neutral-0 shadow-[var(--shadow-4)] lg:max-w-[720px]"
           >
             <header className="flex min-h-[64px] items-center justify-between border-b border-neutral-200 px-5">
               <h2 id="time-filter-title" className="text-lg font-semibold text-neutral-900">
@@ -106,7 +106,7 @@ export function TimeRangeFilter({ value, onApply }: TimeRangeFilterProps) {
                   type="button"
                   onClick={() => setDraft(null)}
                   className={`min-h-touch rounded-full border px-3.5 text-xs font-bold transition ${
-                    draft === null ? "border-primary-500 bg-primary-500 text-white" : "border-neutral-300 bg-white text-neutral-600"
+                    draft === null ? "border-primary-500 bg-primary-500 text-white" : "border-neutral-300 bg-neutral-0 text-neutral-600"
                   }`}
                 >
                   Tất cả thời gian
@@ -117,7 +117,7 @@ export function TimeRangeFilter({ value, onApply }: TimeRangeFilterProps) {
                     type="button"
                     onClick={() => setDraft(item.range)}
                     className={`min-h-touch rounded-full border px-3.5 text-xs font-bold transition ${
-                      sameRange(draft, item.range) ? "border-primary-500 bg-primary-500 text-white" : "border-neutral-300 bg-white text-neutral-600"
+                      sameRange(draft, item.range) ? "border-primary-500 bg-primary-500 text-white" : "border-neutral-300 bg-neutral-0 text-neutral-600"
                     }`}
                   >
                     {item.label}
@@ -136,7 +136,7 @@ export function TimeRangeFilter({ value, onApply }: TimeRangeFilterProps) {
                       const from = startOfDay(new Date(event.target.value));
                       setDraft((prev) => ({ from, to: prev && prev.to >= from ? prev.to : endOfDay(from) }));
                     }}
-                    className="mt-1 h-11 w-full rounded-input border border-neutral-300 bg-white px-3 text-center text-sm font-semibold text-neutral-900"
+                    className="mt-1 h-11 w-full rounded-input border border-neutral-300 bg-neutral-0 px-3 text-center text-sm font-semibold text-neutral-900"
                   />
                 </label>
                 <span className="pb-3 text-sm font-semibold text-neutral-500">đến</span>
@@ -150,13 +150,13 @@ export function TimeRangeFilter({ value, onApply }: TimeRangeFilterProps) {
                       const to = endOfDay(new Date(event.target.value));
                       setDraft((prev) => ({ from: prev && prev.from <= to ? prev.from : startOfDay(to), to }));
                     }}
-                    className="mt-1 h-11 w-full rounded-input border border-neutral-300 bg-white px-3 text-center text-sm font-semibold text-neutral-900"
+                    className="mt-1 h-11 w-full rounded-input border border-neutral-300 bg-neutral-0 px-3 text-center text-sm font-semibold text-neutral-900"
                   />
                 </label>
               </div>
             </div>
 
-            <footer className="flex justify-end gap-3 border-t border-neutral-200 bg-white px-5 py-4">
+            <footer className="flex justify-end gap-3 border-t border-neutral-200 bg-neutral-0 px-5 py-4">
               <Button
                 variant="secondary"
                 onClick={() => {

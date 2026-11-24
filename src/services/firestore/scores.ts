@@ -6,9 +6,10 @@ export interface ScoreEntry { studentId: string; score: number; comment: string;
 function scoreId(input: { classId: string; subjectId: string; assessmentName: string; studentId: string }): string { return stableDocumentId([input.classId, input.subjectId, input.assessmentName, input.studentId]); }
 export async function saveClassScores(input: { classId: string; subjectId: string; assessmentName: string; assessmentType: AssessmentType; maxScore: number; entries: ScoreEntry[]; actorUid: string }): Promise<void> {
   if (!input.classId.trim() || !input.subjectId.trim() || !input.assessmentName.trim()) throw new Error("SCORE_METADATA_INVALID");
-  if (input.maxScore <= 0) throw new Error("MAX_SCORE_INVALID");
+  if (!Number.isFinite(input.maxScore) || input.maxScore <= 0) throw new Error("MAX_SCORE_INVALID");
   if (input.entries.length === 0) throw new Error("SCORES_EMPTY");
-  if (input.entries.some((entry) => entry.score < 0 || entry.score > input.maxScore)) throw new Error("SCORE_INVALID");
+  // NaN lot qua ca hai so sanh va lam totalPercent cua student_summaries thanh NaN vinh vien.
+  if (input.entries.some((entry) => !Number.isFinite(entry.score) || entry.score < 0 || entry.score > input.maxScore)) throw new Error("SCORE_INVALID");
   if (new Set(input.entries.map((entry) => entry.studentId)).size !== input.entries.length) throw new Error("STUDENT_DUPLICATED");
   if (input.entries.length > 200) throw new Error("SCORE_BATCH_TOO_LARGE");
 

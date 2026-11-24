@@ -13,6 +13,7 @@ import { updateDoc, doc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/services/firebase/firestoreClient";
 import { COLLECTIONS } from "@/constants/collections";
 import type { LessonPlanDoc, SessionDoc } from "@/types/academic";
+import { invalidateLessonPlanQueries } from "@/hooks/queryInvalidation";
 
 type TeachingSession = SessionDoc & { id: string; courseId?: string };
 type SessionWithPlan = TeachingSession & { linkedPlan?: (LessonPlanDoc & { id: string }) };
@@ -103,7 +104,7 @@ export function TeachingSessionWorkspace({ onEditLessonPlan, onCreateLessonPlan 
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["lesson-plans"] });
+      invalidateLessonPlanQueries(queryClient);
       setEditingSessionId(null);
       setDiaryNote("");
       showToast({
@@ -133,7 +134,7 @@ export function TeachingSessionWorkspace({ onEditLessonPlan, onCreateLessonPlan 
             />
           </FilterToolbar>
 
-          <DataListPanel className="rounded-card border border-neutral-200 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.02)] min-h-0">
+          <DataListPanel className="rounded-card border border-neutral-200 bg-neutral-0 shadow-xs min-h-0">
             {/* Header of the panel containing list status */}
             <div className="shrink-0 border-b border-neutral-200 px-4 py-4 sm:px-5">
               <h2 className="text-base font-semibold text-neutral-900">Tiến độ giảng dạy</h2>
@@ -145,12 +146,12 @@ export function TeachingSessionWorkspace({ onEditLessonPlan, onCreateLessonPlan 
           {/* Panel Body: The 3 pipeline columns side by side */}
           <div className="flex-1 min-h-0 p-4 sm:p-5 grid grid-cols-1 md:grid-cols-3 gap-6 bg-neutral-50/30">
             {/* Column 1: Today */}
-            <div className="flex flex-col h-full min-h-0 rounded-card border border-neutral-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.01)]">
+            <div className="flex flex-col h-full min-h-0 rounded-card border border-neutral-200 bg-neutral-0 p-4 shadow-xs">
               <h3 className="shrink-0 mb-3 flex items-center justify-between text-sm font-bold text-neutral-800 border-b border-neutral-100 pb-2">
                 <span className="flex items-center gap-1.5">
                   <Calendar className="h-4 w-4 text-primary-500" /> Hôm nay
                 </span>
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-primary-50 text-primary-700">
+                <span className="text-3xs font-bold px-2 py-0.5 rounded-full bg-primary-50 text-primary-700">
                   {timelines.today.length} buổi
                 </span>
               </h3>
@@ -179,12 +180,12 @@ export function TeachingSessionWorkspace({ onEditLessonPlan, onCreateLessonPlan 
             </div>
 
             {/* Column 2: Next 7 days */}
-            <div className="flex flex-col h-full min-h-0 rounded-card border border-neutral-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.01)]">
+            <div className="flex flex-col h-full min-h-0 rounded-card border border-neutral-200 bg-neutral-0 p-4 shadow-xs">
               <h3 className="shrink-0 mb-3 flex items-center justify-between text-sm font-bold text-neutral-800 border-b border-neutral-100 pb-2">
                 <span className="flex items-center gap-1.5">
                   <Clock className="h-4 w-4 text-green-500" /> 7 ngày tới
                 </span>
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-green-50 text-green-700">
+                <span className="text-3xs font-bold px-2 py-0.5 rounded-full bg-green-50 text-green-700">
                   {timelines.upcoming.length} buổi
                 </span>
               </h3>
@@ -213,12 +214,12 @@ export function TeachingSessionWorkspace({ onEditLessonPlan, onCreateLessonPlan 
             </div>
 
             {/* Column 3: Need notes */}
-            <div className="flex flex-col h-full min-h-0 rounded-card border border-neutral-200 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.01)]">
+            <div className="flex flex-col h-full min-h-0 rounded-card border border-neutral-200 bg-neutral-0 p-4 shadow-xs">
               <h3 className="shrink-0 mb-3 flex items-center justify-between text-sm font-bold text-neutral-800 border-b border-neutral-100 pb-2">
                 <span className="flex items-center gap-1.5">
                   <AlertTriangle className="h-4 w-4 text-yellow-500" /> Cần hoàn tất nhật ký
                 </span>
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-yellow-50 text-yellow-700">
+                <span className="text-3xs font-bold px-2 py-0.5 rounded-full bg-yellow-50 text-yellow-700">
                   {timelines.needNotes.length} buổi
                 </span>
               </h3>
@@ -253,7 +254,7 @@ export function TeachingSessionWorkspace({ onEditLessonPlan, onCreateLessonPlan 
       {/* Diary Modal */}
       {editingSessionId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg rounded-card bg-white p-6 shadow-xl border border-neutral-200">
+          <div className="w-full max-w-lg rounded-card bg-neutral-0 p-6 shadow-xl border border-neutral-200">
             <h3 className="text-lg font-bold text-neutral-800 mb-4 flex items-center gap-2">
               <PenTool className="text-primary-500 h-5 w-5" /> Ghi Nhật ký sau dạy
             </h3>
@@ -314,9 +315,9 @@ function SessionItem({
   // Washout pastels matching minimalist design specification
   const statusBadgeClass = session.linkedPlan
     ? session.linkedPlan.status === "published"
-      ? "bg-[#EDF3EC] text-[#346538]" // Pale Green
-      : "bg-[#FBF3DB] text-[#956400]" // Pale Yellow (draft)
-    : "bg-[#FDEBEC] text-[#9F2F2D]"; // Pale Red (missing)
+      ? "bg-success-50 text-success-700" // Pale Green
+      : "bg-warning-50 text-warning-800" // Pale Yellow (draft)
+    : "bg-danger-50 text-danger-700"; // Pale Red (missing)
 
   const statusText = session.linkedPlan
     ? session.linkedPlan.status === "published"
@@ -325,18 +326,18 @@ function SessionItem({
     : "Thiếu giáo án";
 
   return (
-    <div className="rounded-card border border-neutral-200 bg-white p-4 space-y-3 shadow-[0_1px_2px_rgba(0,0,0,0.01)] hover:border-neutral-300 transition-colors">
+    <div className="rounded-card border border-neutral-200 bg-neutral-0 p-4 space-y-3 shadow-xs hover:border-neutral-300 transition-colors">
       <div className="flex items-center justify-between">
         <h4 className="text-xs font-bold text-neutral-800 uppercase tracking-wide">
-          {classLabel} · Buổi {session.sequenceNumber || "—"}
+          {classLabel} · {session.sequenceNumber ? `Buổi ${session.sequenceNumber}` : session.title}
         </h4>
-        <span className="text-[10px] font-mono font-semibold text-neutral-600 bg-[#F7F6F3] border border-neutral-200 px-1.5 py-0.5 rounded">
+        <span className="text-3xs font-mono font-semibold text-neutral-600 bg-neutral-100 border border-neutral-200 px-1.5 py-0.5 rounded">
           {dateStr} · {startStr}-{endStr}
         </span>
       </div>
 
       <div className="flex items-center justify-between gap-4 pt-1">
-        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${statusBadgeClass}`}>
+        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-3xs font-bold uppercase tracking-wider ${statusBadgeClass}`}>
           {statusText}
         </span>
 

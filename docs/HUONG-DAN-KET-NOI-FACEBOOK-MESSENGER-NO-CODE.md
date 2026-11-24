@@ -273,9 +273,11 @@ Các quyền liên quan đến dự án:
 | Gửi và nhận Messenger | `pages_messaging` |
 | Quản lý đăng ký Webhook Page | `pages_manage_metadata` |
 | Hiển thị/chọn Page | `pages_show_list` |
-| Đọc tương tác Page | `pages_read_engagement` |
+| Gửi Utility Template đã duyệt | `pages_utility_messaging` |
 
-Hệ thống hiện chỉ tích hợp Messenger Chat, không yêu cầu quyền đăng bài Page.
+Hệ thống hiện chỉ tích hợp Messenger Chat, không yêu cầu quyền đăng bài hoặc đọc
+tương tác Page. Nếu cần tên và ảnh đại diện từ PSID, kiểm tra riêng tính năng
+Business Asset User Profile Access.
 
 ### Checkpoint Phần C
 

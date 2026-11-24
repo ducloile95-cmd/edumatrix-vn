@@ -4,12 +4,13 @@
   "type": "module",
   "scripts": {
     "build": "wrangler deploy --dry-run",
-    "build:prod": "npm run check:prod-config && wrangler deploy --dry-run --env production",
+    "build:prod": "npm run check:prod-config && node scripts/run-production.mjs --dry-run",
     "check:prod-config": "node scripts/check-production-config.mjs",
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "deploy:prod": "npm run check:prod-config && wrangler deploy --env production",
-    "test": "vitest run"
+    "deploy:prod": "npm run check:prod-config && node scripts/run-production.mjs",
+    "test": "vitest run",
+    "verify:prod": "npm run check:prod-config && node scripts/verify-production.mjs"
   },
   "dependencies": {
     "jose": "^6.1.0"

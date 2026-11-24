@@ -19,6 +19,7 @@ import { COLLECTIONS } from "@/constants/collections";
 import type { ClassDoc, CourseDoc, CourseStatus, SubjectDoc } from "@/types/academic";
 import type { UserDoc } from "@/types/user";
 import { listAllQueryDocuments } from "@/services/firestore/pagination";
+import { assertDeletionAllowed } from "@/services/firestore/deletionDependencies";
 
 export interface CreateCourseInput {
   name: string;
@@ -83,7 +84,11 @@ async function runWithStableCourseClasses(
   throw new Error(COURSE_CLASS_REVISION_CHANGED);
 }
 
-async function validateCourseReferences(transaction: Transaction, input: CreateCourseInput): Promise<{
+async function validateCourseReferences(
+  transaction: Transaction,
+  input: CreateCourseInput,
+  retained?: Pick<CourseDoc, "subjectIds" | "teacherIds">,
+): Promise<{
   subjectIds: string[];
   teacherIds: string[];
 }> {
@@ -95,13 +100,15 @@ async function validateCourseReferences(transaction: Transaction, input: CreateC
     Promise.all(subjectIds.map((id) => transaction.get(doc(db, COLLECTIONS.SUBJECTS, id)))),
     Promise.all(teacherIds.map((id) => transaction.get(doc(db, COLLECTIONS.USERS, id)))),
   ]);
-  if (subjectSnaps.some((snap) => !snap.exists() || (snap.data() as SubjectDoc).status !== "active")) {
+  if (subjectSnaps.some((snap) => (
+    (!snap.exists() || (snap.data() as SubjectDoc).status !== "active") && !retained?.subjectIds?.includes(snap.id)
+  ))) {
     throw new Error("COURSE_SUBJECT_INVALID");
   }
   if (teacherSnaps.some((snap) => {
-    if (!snap.exists()) return true;
+    if (!snap.exists()) return !retained?.teacherIds?.includes(snap.id);
     const teacher = snap.data() as UserDoc;
-    return teacher.role !== "teacher" || teacher.status !== "active";
+    return (teacher.role !== "teacher" || teacher.status !== "active") && !retained?.teacherIds?.includes(snap.id);
   })) {
     throw new Error("COURSE_TEACHER_INVALID");
   }
@@ -138,13 +145,14 @@ export async function updateCourse(courseId: string, input: CreateCourseInput): 
   const endDate = toTimestamp(input.endDate);
   await runWithStableCourseClasses(courseId, false, async ({ revision, documents }) => runTransaction(db, async (transaction) => {
     const courseRef = doc(db, COLLECTIONS.COURSES, courseId);
-    const [{ subjectIds, teacherIds }, courseSnap, ...classSnaps] = await Promise.all([
-      validateCourseReferences(transaction, input),
-      transaction.get(courseRef),
+    const courseSnap = await transaction.get(courseRef);
+    if (!courseSnap.exists()) throw new Error("COURSE_NOT_FOUND");
+    const course = courseSnap.data() as CourseDoc;
+    const [{ subjectIds, teacherIds }, ...classSnaps] = await Promise.all([
+      validateCourseReferences(transaction, input, course),
       ...documents.map((classSnap) => transaction.get(classSnap.ref)),
     ]);
-    if (!courseSnap.exists()) throw new Error("COURSE_NOT_FOUND");
-    if (courseClassRevision(courseSnap.data() as CourseDoc) !== revision) throw new Error(COURSE_CLASS_REVISION_CHANGED);
+    if (courseClassRevision(course) !== revision) throw new Error(COURSE_CLASS_REVISION_CHANGED);
     const activeClasses = classSnaps
       .map((classSnap) => classSnap.data() as ClassDoc)
       .filter((klass) => klass.status === "active");
@@ -188,6 +196,22 @@ export async function setCourseStatus(courseId: string, status: CourseStatus): P
       throw new Error("COURSE_HAS_ACTIVE_CLASSES");
     }
     transaction.update(courseRef, { status, updatedAt: serverTimestamp() });
+  }));
+}
+
+/** Xoa cung khoa hoc chi khi khong con bat ky du lieu nghiep vu nao tham chieu. */
+export async function deleteCourse(courseId: string): Promise<void> {
+  await assertDeletionAllowed("course", courseId);
+  await runWithStableCourseClasses(courseId, false, async ({ revision, documents }) => runTransaction(db, async (transaction) => {
+    const courseRef = doc(db, COLLECTIONS.COURSES, courseId);
+    const [courseSnap, ...classSnaps] = await Promise.all([
+      transaction.get(courseRef),
+      ...documents.map((classSnap) => transaction.get(classSnap.ref)),
+    ]);
+    if (!courseSnap.exists()) throw new Error("COURSE_NOT_FOUND");
+    if (courseClassRevision(courseSnap.data() as CourseDoc) !== revision) throw new Error(COURSE_CLASS_REVISION_CHANGED);
+    if (classSnaps.some((classSnap) => classSnap.exists())) throw new Error("DELETION_BLOCKED");
+    transaction.delete(courseRef);
   }));
 }
 

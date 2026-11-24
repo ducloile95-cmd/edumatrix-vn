@@ -7,7 +7,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { collection, deleteDoc, doc, documentId, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, Timestamp, where, writeBatch } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, Timestamp, where, writeBatch } from "firebase/firestore";
 
 /**
  * Emulator test cho Firestore Security Rules (A16, A28).
@@ -286,6 +286,43 @@ describe("phan quyen Admin/Teacher", () => {
     );
   });
 
+  test("Chi Admin duoc xoa cung tai khoan nguoi khac", async () => {
+    await assertFails(deleteDoc(doc(asTeacher(), "users", VIEWER_UID)));
+    await assertSucceeds(deleteDoc(doc(asAdmin(), "users", TEACHER_UID)));
+  });
+
+  test("Khong ai duoc xoa tai khoan Admin qua client", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "users", "admin_2"), { role: "admin", status: "active", studentIds: [] });
+    });
+    await assertFails(deleteDoc(doc(asAdmin(), "users", "admin_2")));
+    await assertFails(deleteDoc(doc(asTeacher(), "users", ADMIN_UID)));
+  });
+
+  test("Staff khong duoc tu xoa tai khoan dang dang nhap", async () => {
+    await assertFails(deleteDoc(doc(asAdmin(), "users", ADMIN_UID)));
+    await assertFails(deleteDoc(doc(asTeacher(), "users", TEACHER_UID)));
+  });
+
+  test("Teacher khong duoc quan ly tai khoan nguoi khac", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "users", VIEWER_UID), {
+        email: VIEWER_EMAIL,
+        displayName: "Parent",
+        photoURL: null,
+        role: "viewer",
+        studentIds: [],
+        status: "active",
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      });
+    });
+    await assertFails(updateDoc(doc(asTeacher(), "users", VIEWER_UID), {
+      status: "disabled",
+      updatedAt: serverTimestamp(),
+    }));
+  });
+
   test("Admin chuyen Viewer thanh Admin va go lien ket hoc sinh trong mot batch", async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(doc(ctx.firestore(), "users", VIEWER_UID), {
@@ -377,7 +414,7 @@ describe("phan quyen Admin/Teacher", () => {
   });
 });
 
-describe("chat and message outbox", () => {
+describe("chat threads and server-owned messages", () => {
   beforeEach(async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       const db = ctx.firestore();
@@ -386,8 +423,6 @@ describe("chat and message outbox", () => {
       await setDoc(doc(db, "chat_threads", "thread_assigned"), { assignedTeacherIds: [TEACHER_UID], parentUid: VIEWER_UID, studentId: "student_001" });
       await setDoc(doc(db, "chat_threads", "thread_other"), { assignedTeacherIds: ["other-teacher"], parentUid: "other-parent", studentId: "student_002" });
       await setDoc(doc(db, "chat_threads", "thread_assigned", "messages", "message_1"), { direction: "inbound", text: "Xin chao" });
-      await setDoc(doc(db, "message_outbox", "own_message"), { actorUid: TEACHER_UID, status: "sent" });
-      await setDoc(doc(db, "message_outbox", "other_message"), { actorUid: "other-teacher", status: "sent" });
     });
   });
 
@@ -395,9 +430,15 @@ describe("chat and message outbox", () => {
     await assertSucceeds(getDoc(doc(asAdmin(), "chat_threads", "thread_other")));
   });
 
-  test("Teacher chi doc thread duoc phan cong", async () => {
+  test("Teacher chi doc thread cua hoc sinh duoc phan cong", async () => {
     await assertSucceeds(getDoc(doc(asTeacher(), "chat_threads", "thread_assigned")));
     await assertFails(getDoc(doc(asTeacher(), "chat_threads", "thread_other")));
+    // Dang truy van cua subscribeChatThreads cho giao vien.
+    await assertSucceeds(getDocs(query(
+      collection(asTeacher(), "chat_threads"),
+      where("assignedTeacherIds", "array-contains", TEACHER_UID),
+    )));
+    await assertFails(getDocs(collection(asTeacher(), "chat_threads")));
   });
 
   test("Teacher doc message trong thread duoc phan cong", async () => {
@@ -408,14 +449,8 @@ describe("chat and message outbox", () => {
     await assertFails(getDoc(doc(asViewer(), "chat_threads", "thread_assigned")));
   });
 
-  test("Teacher chi doc outbox cua chinh minh", async () => {
-    await assertSucceeds(getDoc(doc(asTeacher(), "message_outbox", "own_message")));
-    await assertFails(getDoc(doc(asTeacher(), "message_outbox", "other_message")));
-  });
-
-  test("Client khong duoc gia mao message hoac outbox", async () => {
+  test("Client khong duoc gia mao thread hoac message", async () => {
     await assertFails(setDoc(doc(asAdmin(), "chat_threads", "new_thread"), { assignedTeacherIds: [] }));
-    await assertFails(setDoc(doc(asTeacher(), "message_outbox", "fake"), { actorUid: TEACHER_UID, status: "sent" }));
   });
 });
 
@@ -432,7 +467,7 @@ describe("admin settings", () => {
     }));
   });
 
-  test("Teacher chi doc public integration config va khong duoc ghi", async () => {
+  test("Teacher doc cau hinh can thiet va khong duoc ghi", async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => setDoc(doc(ctx.firestore(), "settings", "integrations"), {
       facebookPageId: "page-id",
       driveFolderId: "folder-id",
@@ -440,7 +475,7 @@ describe("admin settings", () => {
       updatedAt: Timestamp.now(),
     }));
     await assertSucceeds(getDoc(doc(asTeacher(), "settings", "integrations")));
-    await assertFails(getDoc(doc(asTeacher(), "settings", "payment")));
+    await assertSucceeds(getDoc(doc(asTeacher(), "settings", "payment")));
     await assertFails(setDoc(doc(asTeacher(), "settings", "integrations"), {
       facebookPageId: "page-id",
       driveFolderId: "folder-id",
@@ -480,6 +515,26 @@ describe("admin settings", () => {
   });
 });
 
+describe("audit logs", () => {
+  const auditData = {
+    action: "attendance_adjusted",
+    actorUid: TEACHER_UID,
+    actorEmail: TEACHER_EMAIL,
+    targetType: "attendance_session",
+    targetId: "session-1",
+    meta: {},
+    createdAt: Timestamp.now(),
+  };
+
+  test("Teacher ghi duoc audit cua chinh minh nhung khong gia mao actor", async () => {
+    await assertSucceeds(setDoc(doc(asTeacher(), "audit_logs", "teacher-own"), auditData));
+    await assertFails(setDoc(doc(asTeacher(), "audit_logs", "teacher-spoof"), {
+      ...auditData,
+      actorUid: ADMIN_UID,
+    }));
+  });
+});
+
 describe("teacher operational directory", () => {
   beforeEach(async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
@@ -507,17 +562,21 @@ describe("teacher operational directory", () => {
     });
   });
 
-  test("Teacher doc duoc ho so phu huynh va giao vien khac", async () => {
+  test("Teacher doc ho so ban than, nhan su va phu huynh cua hoc sinh minh phu trach", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, "students", "student_001"), { teacherIds: [TEACHER_UID] });
+      await setDoc(doc(db, "students", "student_999"), { teacherIds: ["other-teacher"] });
+      await setDoc(doc(db, "users", "other-parent"), { role: "viewer", status: "active", studentIds: ["student_999"] });
+    });
+    await assertSucceeds(getDoc(doc(asTeacher(), "users", TEACHER_UID)));
     await assertSucceeds(getDoc(doc(asTeacher(), "users", VIEWER_UID)));
     await assertSucceeds(getDoc(doc(asTeacher(), "users", "teacher-colleague")));
-    await assertSucceeds(getDocs(query(
-      collection(asTeacher(), "users"),
-      where(documentId(), "in", [VIEWER_UID, "teacher-colleague"]),
-    )));
+    await assertFails(getDoc(doc(asTeacher(), "users", "other-parent")));
   });
 
-  test("Teacher khong doc duoc ho so Admin", async () => {
-    await assertFails(getDoc(doc(asTeacher(), "users", ADMIN_UID)));
+  test("Teacher doc duoc ho so Admin (danh ba nhan su)", async () => {
+    await assertSucceeds(getDoc(doc(asTeacher(), "users", ADMIN_UID)));
   });
 
   test("Admin ghi academic settings hop le, moi tai khoan active duoc doc", async () => {
@@ -585,7 +644,7 @@ describe("teacher scoped finance and assignment summaries", () => {
     });
   });
 
-  test("Teacher chi doc tai chinh hoc sinh duoc phan cong", async () => {
+  test("Teacher chi doc tai chinh cua hoc sinh duoc phan cong", async () => {
     await assertSucceeds(getDoc(doc(asTeacher(), "invoices", "invoice_assigned")));
     await assertFails(getDoc(doc(asTeacher(), "invoices", "invoice_other")));
     await assertSucceeds(getDoc(doc(asTeacher(), "payments", "payment_assigned")));
@@ -596,18 +655,17 @@ describe("teacher scoped finance and assignment summaries", () => {
     await assertFails(getDocs(collection(asTeacher(), "payments")));
   });
 
-  test("Teacher khong duoc doi soat, Admin van duoc xu ly", async () => {
-    await assertFails(updateDoc(doc(asTeacher(), "invoices", "invoice_assigned"), { status: "paid", updatedAt: serverTimestamp() }));
-    await assertFails(updateDoc(doc(asTeacher(), "payments", "payment_assigned"), {
-      status: "verified", verifiedBy: TEACHER_UID, verifiedAt: serverTimestamp(), updatedAt: serverTimestamp(),
-    }));
-    const db = asAdmin();
+  test("Teacher khong duoc doi soat thanh toan, ke ca lop duoc phan cong", async () => {
+    const db = asTeacher();
     const batch = writeBatch(db);
     batch.update(doc(db, "invoices", "invoice_assigned"), { status: "paid", updatedAt: serverTimestamp() });
     batch.update(doc(db, "payments", "payment_assigned"), {
-      status: "verified", verifiedBy: ADMIN_UID, verifiedAt: serverTimestamp(), updatedAt: serverTimestamp(),
+      status: "verified", verifiedBy: TEACHER_UID, verifiedAt: serverTimestamp(), updatedAt: serverTimestamp(),
     });
-    await assertSucceeds(batch.commit());
+    await assertFails(batch.commit());
+    await assertFails(updateDoc(doc(asTeacher(), "payments", "payment_other"), {
+      status: "verified", verifiedBy: TEACHER_UID, verifiedAt: serverTimestamp(), updatedAt: serverTimestamp(),
+    }));
   });
 
   test("Teacher chi doc assignment summary cua lop duoc phan cong", async () => {
@@ -650,6 +708,15 @@ describe("notification read state", () => {
       readAt: serverTimestamp(),
     }));
     await assertSucceeds(getDoc(readRef));
+  });
+
+  test("viewer can persist dismissed state for an owned notification", async () => {
+    await assertSucceeds(setDoc(doc(asViewer(), "notification_reads", `${VIEWER_UID}_announcement_1`), {
+      uid: VIEWER_UID,
+      announcementId: "announcement_1",
+      readAt: serverTimestamp(),
+      dismissedAt: serverTimestamp(),
+    }));
   });
 
   test("viewer cannot forge uid, id, or announcement ownership", async () => {
@@ -720,14 +787,79 @@ describe("removed Fanpage posting", () => {
   });
 });
 
-describe("Messenger referral secrets", () => {
-  test("all client roles are denied nonce and PSID reverse-index access", async () => {
+describe("Messenger server-only collections", () => {
+  test("all client roles are denied nonce, reverse-index, tombstone and delivery-job writes", async () => {
     const nonceRef = doc(asAdmin(), "messenger_link_nonces", "abcdefghijklmnopqrstuv");
     const psidRef = doc(asAdmin(), "messenger_psid_links", "psid-1");
-    await assertFails(setDoc(nonceRef, { uid: VIEWER_UID, status: "active" }));
+    const tombstoneRef = doc(asAdmin(), "messenger_conversation_tombstones", "thread-1");
+    const jobRef = doc(asAdmin(), "messenger_delivery_jobs", "job-1");
+    await assertFails(setDoc(nonceRef, { parentUid: VIEWER_UID, studentId: "student_001", status: "active" }));
     await assertFails(getDoc(nonceRef));
     await assertFails(setDoc(psidRef, { uid: VIEWER_UID }));
     await assertFails(getDoc(psidRef));
+    await assertFails(setDoc(tombstoneRef, { status: "deleting" }));
+    await assertFails(getDoc(tombstoneRef));
+    await assertFails(setDoc(jobRef, { status: "pending" }));
+    await assertSucceeds(getDoc(jobRef));
+    await assertFails(setDoc(doc(asTeacher(), "messenger_delivery_jobs", "job-2"), { status: "pending" }));
+  });
+
+  test("staff creates only a validated immutable delivery event while jobs remain server-only", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "invoices", "invoice-r3"), {
+        studentId: "student_001",
+        status: "unpaid",
+      });
+    });
+    const eventId = "invoice_committed:invoice-r3:v1";
+    const payload = {
+      eventType: "invoice_committed",
+      entityId: "invoice-r3",
+      sourceId: "invoice-r3",
+      studentId: "student_001",
+      version: 1,
+      actorUid: ADMIN_UID,
+      idempotencyKey: eventId,
+      status: "pending",
+      attempts: 0,
+      lastErrorCode: null,
+      leaseUntil: null,
+      nextAttemptAt: serverTimestamp(),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+    const eventRef = doc(asAdmin(), "messenger_delivery_events", eventId);
+    await assertSucceeds(setDoc(eventRef, payload));
+    await assertFails(updateDoc(eventRef, { status: "processing" }));
+    await assertSucceeds(getDoc(eventRef));
+    await assertFails(setDoc(doc(asAdmin(), "messenger_delivery_events", `${eventId}-spoof`), {
+      ...payload,
+      idempotencyKey: `${eventId}-spoof`,
+      actorUid: TEACHER_UID,
+    }));
+  });
+
+  test("viewer reads only its materialized dashboard and no client writes it", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, "users", VIEWER_UID), {
+        email: VIEWER_EMAIL,
+        displayName: "Parent",
+        photoURL: null,
+        role: "viewer",
+        studentIds: ["student_001"],
+        status: "active",
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      });
+      await setDoc(doc(db, "viewer_dashboard", VIEWER_UID), {
+        studentIds: ["student_001"], updatedAt: Timestamp.now(),
+      });
+    });
+    await assertSucceeds(getDoc(doc(asViewer(), "viewer_dashboard", VIEWER_UID)));
+    await assertFails(getDoc(doc(asTeacher(), "viewer_dashboard", VIEWER_UID)));
+    await assertFails(getDoc(doc(asViewer("other-viewer", "other@example.com"), "viewer_dashboard", VIEWER_UID)));
+    await assertFails(setDoc(doc(asViewer(), "viewer_dashboard", VIEWER_UID), { studentIds: [] }));
   });
 });
 

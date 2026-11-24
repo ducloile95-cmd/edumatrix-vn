@@ -40,6 +40,7 @@ vi.mock("@/services/firestore/authz", () => ({
 vi.mock("@/services/firestore/students", () => ({ listStudents: vi.fn() }));
 
 import { createInvoices, listInvoices, reconcilePayment, reportPayment } from "@/services/firestore/invoices";
+import { InvoiceBatchPartialError } from "@/services/firestore/invoiceErrors";
 
 const baseInput = {
   courseId: "course-1",
@@ -81,7 +82,7 @@ describe("createInvoices", () => {
       { ...baseInput, studentId: "student-2" },
     ]);
 
-    expect(firestore.batchSet).toHaveBeenCalledTimes(2);
+    expect(firestore.batchSet).toHaveBeenCalledTimes(4);
     expect(firestore.batchSet).toHaveBeenNthCalledWith(1, expect.objectContaining({ id: "invoice-1" }), expect.objectContaining({
       studentId: "student-1",
       courseId: "course-1",
@@ -91,11 +92,47 @@ describe("createInvoices", () => {
       sourceType: "billing_item",
     }));
     expect(firestore.batchSet.mock.calls[0][1]).not.toHaveProperty("actorUid");
+    expect(firestore.batchSet).toHaveBeenNthCalledWith(2, expect.objectContaining({ path: "messenger_delivery_events/invoice_committed:invoice-1:v1" }), expect.objectContaining({
+      eventType: "invoice_committed",
+      entityId: "invoice-1",
+      status: "pending",
+    }));
     expect(firestore.batchCommit).toHaveBeenCalledTimes(1);
   });
 
+  test("commits invoices in groups of 5 to stay under the rules lookup limit", async () => {
+    await createInvoices(Array.from({ length: 12 }, (_, index) => ({ ...baseInput, studentId: `student-${index}` })));
+
+    expect(firestore.batchSet).toHaveBeenCalledTimes(24);
+    expect(firestore.batchCommit).toHaveBeenCalledTimes(3);
+  });
+
+  test("reports which students were already billed when a later group fails", async () => {
+    firestore.batchCommit.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("permission-denied"));
+
+    const error = await createInvoices(Array.from({ length: 7 }, (_, index) => ({ ...baseInput, studentId: `student-${index}` })))
+      .catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(InvoiceBatchPartialError);
+    expect((error as InvoiceBatchPartialError).createdStudentIds).toEqual(["student-0", "student-1", "student-2", "student-3", "student-4"]);
+  });
+
+  test("rethrows the original error when the first group fails", async () => {
+    firestore.batchCommit.mockRejectedValueOnce(new Error("permission-denied"));
+    await expect(createInvoices([{ ...baseInput, studentId: "student-1" }])).rejects.toThrow("permission-denied");
+  });
+
+  test("gives class invoices a deterministic id so a double submit cannot create a second one", async () => {
+    await createInvoices([{ ...baseInput, sourceType: "class", sourceId: "class-1", classId: "class-1", billingItemId: null, subjectId: null, studentId: "student-1", quantity: 3, billedSessionsBefore: 8, priorClassInvoiceCount: 2 }]);
+
+    // priorClassInvoiceCount gom ca hoa don da huy: lap lai sau khi huy ra ID moi.
+    expect(firestore.batchSet.mock.calls[0][0]).toMatchObject({ id: "class_class-1_student-1_8_3_2" });
+    expect(firestore.batchSet.mock.calls[0][1]).not.toHaveProperty("priorClassInvoiceCount");
+    expect(firestore.batchSet.mock.calls[0][1]).not.toHaveProperty("billedSessionsBefore");
+  });
+
   test("rejects a batch larger than the Firestore limit", async () => {
-    await expect(createInvoices(Array.from({ length: 501 }, (_, index) => ({
+    await expect(createInvoices(Array.from({ length: 251 }, (_, index) => ({
       ...baseInput,
       studentId: `student-${index}`,
     })))).rejects.toThrow("invoice_batch_limit");
@@ -124,6 +161,10 @@ describe("createInvoices", () => {
 
     expect(firestore.transactionUpdate).toHaveBeenCalledWith(expect.objectContaining({ path: "payments/payment-1" }), expect.objectContaining({ status: "verified" }));
     expect(firestore.transactionUpdate).toHaveBeenCalledWith(expect.objectContaining({ path: "invoices/invoice-1" }), expect.objectContaining({ status: "paid" }));
+    expect(firestore.transactionSet).toHaveBeenCalledWith(expect.objectContaining({ path: "messenger_delivery_events/payment_verified:payment-1:v1" }), expect.objectContaining({
+      eventType: "payment_verified",
+      status: "pending",
+    }));
   });
 
   test("reports payment from the live invoice instead of stale UI data", async () => {

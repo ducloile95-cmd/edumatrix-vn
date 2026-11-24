@@ -56,8 +56,8 @@ export function ClassroomParentView({
     <>
 {active && (
         <div className="grid gap-4 xl:grid-cols-[1.2fr_.8fr]">
-          <section className="rounded-card border border-neutral-200 bg-white p-5 shadow-[var(--shadow-1)]">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><h2 className="text-lg font-bold text-neutral-950">Xem trước thông báo</h2><select aria-label="Chọn học sinh xem trước" value={previewStudent?.id ?? ""} onChange={(event) => setPreviewStudentId(event.target.value)} className="min-h-10 rounded-input border border-neutral-300 bg-white px-3 text-sm font-semibold">{classStudents.map((student) => <option key={student.id} value={student.id}>{student.fullName}</option>)}</select></div>
+          <section className="rounded-card border border-neutral-200 bg-neutral-0 p-5 shadow-[var(--shadow-1)]">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><h2 className="text-lg font-bold text-neutral-950">Xem trước thông báo</h2><select aria-label="Chọn học sinh xem trước" value={previewStudent?.id ?? ""} onChange={(event) => setPreviewStudentId(event.target.value)} className="min-h-10 rounded-input border border-neutral-300 bg-neutral-0 px-3 text-sm font-semibold">{classStudents.map((student) => <option key={student.id} value={student.id}>{student.fullName}</option>)}</select></div>
             {previewStudent ? <pre className="mt-5 whitespace-pre-wrap rounded-card border border-primary-100 bg-primary-50 p-4 font-sans text-sm leading-6 text-neutral-800">{formatSessionSummaryMessage({
               studentName: previewStudent.fullName,
               className: className,
@@ -69,7 +69,7 @@ export function ClassroomParentView({
               isRepublish: isAmended,
             })}</pre> : <div className="mt-4"><EmptyState title="Chưa có học sinh để xem trước" /></div>}
           </section>
-          <section className="rounded-card border border-neutral-200 bg-white p-5 shadow-[var(--shadow-1)]">
+          <section className="rounded-card border border-neutral-200 bg-neutral-0 p-5 shadow-[var(--shadow-1)]">
             <h2 className="text-lg font-bold text-neutral-950">Kênh phát hành</h2>
             {isPublished ? (
               <div className="mt-4 space-y-3">
@@ -79,15 +79,15 @@ export function ClassroomParentView({
                     {publishResults.map((item) => (
                       <li key={item.studentId} className="flex items-center justify-between gap-3 rounded-input border border-neutral-200 p-3">
                         <div className="min-w-0"><p className="truncate text-sm font-bold text-neutral-900">{item.studentName}</p>{item.detail && <p className="mt-0.5 text-xs text-neutral-500">{item.detail}</p>}</div>
-                        <span className={`shrink-0 text-xs font-bold ${item.messenger === "sent" ? "text-success-700" : item.messenger === "skipped" ? "text-neutral-500" : "text-danger-700"}`}>{item.messenger === "sent" ? "Đã gửi Messenger" : item.messenger === "skipped" ? "Chưa cấu hình" : "Gửi thất bại"}</span>
+                        <span className={`shrink-0 text-xs font-bold ${item.messenger === "sent" ? "text-success-700" : item.messenger === "pending" ? "text-warning-700" : item.messenger === "skipped" ? "text-neutral-500" : "text-danger-700"}`}>{item.messenger === "sent" ? "Đã gửi Messenger" : item.messenger === "pending" ? "Đang chờ gửi" : item.messenger === "skipped" ? "Đã bỏ qua" : "Gửi thất bại"}</span>
                       </li>
                     ))}
                   </ul>
                 ) : (
                   <p className="text-xs text-neutral-500">Kết quả gửi Messenger của lần phát hành trước không còn trong phiên này. Nếu cần gửi bù, dùng màn hình Chat.</p>
                 )}
-                {publishResults.some((item) => item.messenger !== "sent") && (
-                  <Button className="w-full" disabled={resend.isPending} onClick={() => resend.mutate()}>{resend.isPending ? "Đang gửi lại..." : "Gửi lại cho học sinh còn thiếu"}</Button>
+                {publishResults.some((item) => item.messenger === "failed" || item.messenger === "skipped") && (
+                  <Button className="w-full" disabled={resend.isPending} onClick={() => resend.mutate()}>{resend.isPending ? "Đang xếp hàng lại..." : "Thử lại thông báo lỗi/bỏ qua"}</Button>
                 )}
                 <Button variant="secondary" className="w-full" icon={<Undo2 size={15} />} disabled={reopen.isPending} onClick={() => reopen.mutate()}>{reopen.isPending ? "Đang mở lại..." : "Mở lại để đính chính"}</Button>
                 {reopen.isError && <p role="alert" className="text-center text-xs font-semibold text-danger-700">Không mở lại được. Vui lòng thử lại.</p>}

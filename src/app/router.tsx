@@ -17,6 +17,7 @@ const LandingPage = lazy(() => import("@/features/landing/pages/LandingPage"));
 const LoginPage = lazy(() => import("@/features/auth/pages/LoginPage"));
 const PrivacyPolicyPage = lazy(() => import("@/features/legal/pages/PrivacyPolicyPage"));
 const DataDeletionPage = lazy(() => import("@/features/legal/pages/DataDeletionPage"));
+const SystemGuidePage = lazy(() => import("@/features/guide/pages/SystemGuidePage"));
 const AccessDeniedPage = lazy(() => import("@/features/auth/pages/AccessDeniedPage"));
 const AccountDisabledPage = lazy(() => import("@/features/auth/pages/AccountDisabledPage"));
 const StaffDashboardPage = lazy(() => import("@/features/dashboard/pages/StaffDashboardPage"));
@@ -50,6 +51,9 @@ const ViewerAnnouncementsPage = lazy(() => import("@/features/dashboard/pages/Vi
 const ViewerScheduleDemoPage = import.meta.env.DEV
   ? lazy(() => import("@/features/dashboard/pages/ViewerScheduleDemoPage"))
   : null;
+const ScheduleRedesignDemoPage = import.meta.env.DEV
+  ? lazy(() => import("@/features/sessions/pages/ScheduleRedesignDemoPage"))
+  : null;
 
 function RouteFallback() {
   const visible = useDelayedPending(true);
@@ -71,10 +75,14 @@ export function AppRouter() {
             <Route path={ROUTES.LOGIN} element={<PublicPageMotion><LoginPage /></PublicPageMotion>} />
           <Route path={ROUTES.PRIVACY_POLICY} element={<PublicPageMotion><PrivacyPolicyPage /></PublicPageMotion>} />
           <Route path={ROUTES.DATA_DELETION} element={<PublicPageMotion><DataDeletionPage /></PublicPageMotion>} />
+          <Route path={ROUTES.SYSTEM_GUIDE} element={<PublicPageMotion><SystemGuidePage /></PublicPageMotion>} />
           <Route path={ROUTES.ACCESS_DENIED} element={<PublicPageMotion><AccessDeniedPage /></PublicPageMotion>} />
           <Route path={ROUTES.ACCOUNT_DISABLED} element={<PublicPageMotion><AccountDisabledPage /></PublicPageMotion>} />
           {ViewerScheduleDemoPage && (
             <Route path={ROUTES.VIEWER_SCHEDULE_DEMO} element={<PublicPageMotion><ViewerScheduleDemoPage /></PublicPageMotion>} />
+          )}
+          {ScheduleRedesignDemoPage && (
+            <Route path={ROUTES.SCHEDULE_REDESIGN_DEMO} element={<PublicPageMotion><ScheduleRedesignDemoPage /></PublicPageMotion>} />
           )}
           {MotionDemoPage && (
             <Route path={ROUTES.MOTION_DEMO} element={<PublicPageMotion><MotionDemoPage /></PublicPageMotion>} />
@@ -115,15 +123,8 @@ export function AppRouter() {
             <Route path={ROUTES.STAFF_CHAT} element={<ChatPage />} />
             <Route path={ROUTES.STAFF_SETTINGS} element={<SettingsPage />} />
 
-            {/* Rieng module Nguoi dung chi danh cho Admin - guard long them ben trong shell. */}
-            <Route
-              path={ROUTES.STAFF_USERS}
-              element={
-                <RequireRole roles={[USER_ROLES.ADMIN]} redirectTo={ROUTES.STAFF_DASHBOARD}>
-                  <UsersPage />
-                </RequireRole>
-              }
-            />
+            {/* Admin va Teacher truy cap module Nguoi dung (layout route da chan theo role); chi Admin xoa. */}
+            <Route path={ROUTES.STAFF_USERS} element={<UsersPage />} />
           </Route>
 
           {/* Layout route Viewer: ViewerShell boc AppShell + BottomNavigation. */}

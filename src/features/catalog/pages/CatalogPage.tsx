@@ -16,8 +16,9 @@ import { USER_ROLES } from "@/constants/roles";
 type CatalogTab = "dashboard" | "catalog" | "billing-items";
 
 export default function CatalogPage() {
-  const { isStaff, role } = useAuth();
+  const { role } = useAuth();
   const isAdmin = role === USER_ROLES.ADMIN;
+  const canHardDelete = isAdmin;
   const initialCreate = new URLSearchParams(window.location.search).get("create");
   const [tab, setTab] = useState<CatalogTab>(initialCreate ? "catalog" : "dashboard");
 
@@ -101,18 +102,20 @@ export default function CatalogPage() {
 
       <MotionTabPanel motionKey={tab}>
         {tab === "dashboard" ? (
-          <CatalogDashboard onCreateCourseForSubject={handleCreateCourseForSubject} />
+          <CatalogDashboard canManage={isAdmin} onCreateCourseForSubject={handleCreateCourseForSubject} />
         ) : tab === "catalog" ? (
           <div className="grid items-start gap-4 lg:grid-cols-[1.6fr_1fr]">
           <CoursesList
-            canManage={isStaff}
+            canManage={isAdmin}
+            canDelete={canHardDelete}
             onEdit={openEditCourse}
             onAdd={() => openCreateCourse()}
             subjectFilter={subjectFilter}
             onClearSubjectFilter={() => setSubjectFilter(null)}
           />
           <SubjectsList
-            canManage={isStaff}
+            canManage={isAdmin}
+            canDelete={canHardDelete}
             onEdit={openEditSubject}
             onAdd={openCreateSubject}
             selectedSubjectId={subjectFilter}
@@ -122,7 +125,7 @@ export default function CatalogPage() {
         ) : <BillingItemsList canManage={isAdmin} onAdd={openCreateBillingItem} onEdit={openEditBillingItem} />}
       </MotionTabPanel>
 
-      {isStaff && <Modal
+      {isAdmin && <Modal
         open={subjectModalOpen}
         onClose={closeSubjectModal}
         title={editingSubject ? "Sửa môn học" : "Thêm môn học"}
@@ -139,7 +142,7 @@ export default function CatalogPage() {
       >
         <BillingItemForm editingItem={editingBillingItem} onDone={closeBillingItemModal} />
       </Modal>}
-      {isStaff && <Modal
+      {isAdmin && <Modal
         open={courseModalOpen}
         onClose={closeCourseModal}
         size="lg"

@@ -23,6 +23,7 @@ jobs:
       - run: npm test
       - run: npm run test:rules
       - run: npm run build
+      - run: npm run check:bundle-budget
 
   worker:
     runs-on: ubuntu-latest
@@ -37,5 +38,7 @@ jobs:
           cache: npm
           cache-dependency-path: workers/messenger/package-lock.json
       - run: npm ci
-      - run: npm test
+      - run: npm run test:coverage
+      - run: npm run check:prod-config
+      - run: npm run build:prod
       - run: npm audit --audit-level=high

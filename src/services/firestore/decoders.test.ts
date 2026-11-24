@@ -19,6 +19,20 @@ describe("Firestore document decoders", () => {
     expect(user.role).toBe("admin");
   });
 
+  it("normalizes a missing legacy photoURL to null", () => {
+    const user = decodeUserDoc({
+      email: "legacy-admin@example.com",
+      displayName: "Legacy Admin",
+      role: "admin",
+      studentIds: [],
+      status: "active",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    }, "users/legacy-admin");
+
+    expect(user.photoURL).toBeNull();
+  });
+
   it("rejects a legacy user document whose studentIds is not an array", () => {
     expect(() => decodeUserDoc({
       email: "parent@example.com",

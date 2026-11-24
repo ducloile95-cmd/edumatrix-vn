@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/Button";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { addDays, format, subDays } from "date-fns";
@@ -12,6 +13,7 @@ import {
   Save,
   Users,
 } from "lucide-react";
+import { useConfirm } from "@/components/feedback/confirmContext";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
 import { SearchInput } from "@/components/ui/SearchInput";
@@ -68,6 +70,7 @@ function getAttendanceInsight(history: AttendanceDoc[]) {
 
 export function AttendanceMarkPanel({ presetSessionId }: AttendanceMarkPanelProps) {
   const { firebaseUser, role } = useAuth();
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const [sessionId, setSessionId] = useState(presetSessionId ?? "");
   const [search, setSearch] = useState("");
@@ -83,12 +86,17 @@ export function AttendanceMarkPanel({ presetSessionId }: AttendanceMarkPanelProp
 
   useEffect(() => {
     if (!presetSessionId || presetSessionId === sessionId) return;
-    if (dirtyCount > 0 && !window.confirm("Bạn có thay đổi chưa lưu. Bỏ thay đổi và chuyển buổi học?")) return;
-    hydratedSessionRef.current = "";
-    setEntries({});
-    setBaselineEntries({});
-    setSessionId(presetSessionId);
-  }, [dirtyCount, presetSessionId, sessionId]);
+    let cancelled = false;
+    void (async () => {
+      if (dirtyCount > 0 && !(await confirm({ title: "Bỏ thay đổi chưa lưu?", message: "Điểm danh của buổi hiện tại chưa được lưu. Chuyển buổi học sẽ bỏ các thay đổi này.", confirmLabel: "Bỏ thay đổi" }))) return;
+      if (cancelled) return;
+      hydratedSessionRef.current = "";
+      setEntries({});
+      setBaselineEntries({});
+      setSessionId(presetSessionId);
+    })();
+    return () => { cancelled = true; };
+  }, [confirm, dirtyCount, presetSessionId, sessionId]);
 
   const sessions = useQuery({
     queryKey: ["attendance-sessions"],
@@ -180,8 +188,8 @@ export function AttendanceMarkPanel({ presetSessionId }: AttendanceMarkPanelProp
     : Math.max(0, (course?.totalSessions ?? klass.data?.recurrence?.sessionCount ?? 0) - completedSessions);
   const isLoadingDetails = klass.isLoading || students.isLoading || existing.isLoading || courses.isLoading;
 
-  const changeSession = (nextSessionId: string) => {
-    if (dirtyCount > 0 && !window.confirm("Bạn có thay đổi chưa lưu. Bỏ thay đổi và chuyển buổi học?")) return;
+  const changeSession = async (nextSessionId: string) => {
+    if (dirtyCount > 0 && !(await confirm({ title: "Bỏ thay đổi chưa lưu?", message: "Điểm danh của buổi hiện tại chưa được lưu. Chuyển buổi học sẽ bỏ các thay đổi này.", confirmLabel: "Bỏ thay đổi" }))) return;
     mutation.reset();
     hydratedSessionRef.current = "";
     setEntries({});
@@ -193,7 +201,7 @@ export function AttendanceMarkPanel({ presetSessionId }: AttendanceMarkPanelProp
 
   return (
     <div className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)]">
-      <aside className="hidden self-start overflow-hidden rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)] xl:sticky xl:top-4 xl:block">
+      <aside className="hidden self-start overflow-hidden rounded-card border border-neutral-200 bg-neutral-0 shadow-[var(--shadow-1)] xl:sticky xl:top-4 xl:block">
         <div className="border-b border-neutral-100 p-4">
           <h2 className="text-base font-bold text-neutral-900">Buổi học</h2>
           <p className="mt-1 text-xs text-neutral-500">
@@ -233,7 +241,7 @@ export function AttendanceMarkPanel({ presetSessionId }: AttendanceMarkPanelProp
       </aside>
 
       <div className="min-w-0 space-y-4">
-      <section className="overflow-hidden rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)]">
+      <section className="overflow-hidden rounded-card border border-neutral-200 bg-neutral-0 shadow-[var(--shadow-1)]">
         <div className="grid gap-4 border-b border-neutral-100 bg-neutral-50/70 p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end sm:p-5 xl:hidden">
           <div>
             <label htmlFor="attendance-session" className="mb-2 block text-xs font-bold uppercase tracking-[0.12em] text-neutral-500">
@@ -243,7 +251,7 @@ export function AttendanceMarkPanel({ presetSessionId }: AttendanceMarkPanelProp
               id="attendance-session"
               value={sessionId}
               onChange={(event) => changeSession(event.target.value)}
-              className="min-h-touch w-full rounded-input border border-neutral-300 bg-white px-3 text-sm font-medium text-neutral-900 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+              className="min-h-touch w-full rounded-input border border-neutral-300 bg-neutral-0 px-3 text-sm font-medium text-neutral-900 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
             >
               <option value="">Chọn buổi học</option>
               {sessions.data?.map((session) => (
@@ -254,16 +262,16 @@ export function AttendanceMarkPanel({ presetSessionId }: AttendanceMarkPanelProp
             </select>
           </div>
           {sessionId && (
-            <button
+            <Button variant="soft"
               type="button"
               onClick={() => {
                 mutation.reset();
                 setEntries((current) => Object.fromEntries(classStudents.map((student) => [student.id, { ...current[student.id], studentId: student.id, status: "present", note: current[student.id]?.note ?? "" }])));
               }}
-              className="inline-flex min-h-touch items-center justify-center gap-2 rounded-input border border-primary-200 bg-primary-50 px-4 text-sm font-semibold text-primary-700 transition hover:border-primary-300 hover:bg-primary-100"
+             
             >
               <CheckCheck size={17} /> Tất cả có mặt
-            </button>
+            </Button>
           )}
         </div>
 
@@ -296,7 +304,7 @@ export function AttendanceMarkPanel({ presetSessionId }: AttendanceMarkPanelProp
       {sessionId && classStudents.length === 0 && !students.isLoading && <EmptyState title="Lớp chưa có học sinh" />}
 
       {classStudents.length > 0 && (
-        <section className="rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)]">
+        <section className="rounded-card border border-neutral-200 bg-neutral-0 shadow-[var(--shadow-1)]">
           <div className="grid gap-3 border-b border-neutral-100 p-4 md:grid-cols-[minmax(0,1fr)_minmax(180px,.45fr)_auto_auto] md:items-end sm:p-5">
             <div>
               <h2 className="text-lg font-bold text-neutral-900">Danh sách học sinh</h2>
@@ -317,7 +325,7 @@ export function AttendanceMarkPanel({ presetSessionId }: AttendanceMarkPanelProp
               options={[{ value: "all", label: "Tất cả trạng thái" }, ...STATUS_OPTIONS]}
               onChange={(value) => setStatusFilter(value as AttendanceStatus | "all")}
             />
-            <button
+            <Button variant="soft"
               type="button"
               onClick={() => {
                 mutation.reset();
@@ -328,10 +336,10 @@ export function AttendanceMarkPanel({ presetSessionId }: AttendanceMarkPanelProp
                   note: current[student.id]?.note ?? "",
                 }])));
               }}
-              className="hidden min-h-touch items-center justify-center gap-2 rounded-input border border-primary-200 bg-primary-50 px-4 text-sm font-semibold text-primary-700 transition hover:border-primary-300 hover:bg-primary-100 md:inline-flex"
+              className="hidden md:inline-flex"
             >
               <CheckCheck size={17} /> Tất cả có mặt
-            </button>
+            </Button>
           </div>
 
           <div className="hidden grid-cols-[minmax(190px,1.15fr)_minmax(300px,1.5fr)_minmax(170px,.8fr)_minmax(180px,1fr)] gap-4 border-b border-neutral-100 bg-neutral-50 px-5 py-2.5 text-2xs font-bold uppercase tracking-[0.1em] text-neutral-500 lg:grid">
@@ -369,7 +377,7 @@ export function AttendanceMarkPanel({ presetSessionId }: AttendanceMarkPanelProp
                             aria-pressed={active}
                             aria-label={`${option.label}: ${student.fullName}`}
                             onClick={() => updateEntry(student.id, { status: option.value })}
-                            className={`relative min-h-touch rounded-input border px-2 text-xs font-semibold transition ${active ? option.activeClass : "border-neutral-200 bg-white text-neutral-500 hover:border-neutral-300 hover:bg-neutral-50"}`}
+                            className={`relative min-h-touch rounded-input border px-2 text-xs font-semibold transition ${active ? option.activeClass : "border-neutral-200 bg-neutral-0 text-neutral-500 hover:border-neutral-300 hover:bg-neutral-50"}`}
                           >
                             {active && <Check size={12} className="absolute right-1.5 top-1.5" />}
                             {option.shortLabel}
@@ -399,7 +407,7 @@ export function AttendanceMarkPanel({ presetSessionId }: AttendanceMarkPanelProp
                       placeholder="Nhập nhận xét ngắn"
                       value={entries[student.id]?.note ?? ""}
                       onChange={(event) => updateEntry(student.id, { note: event.target.value })}
-                      className="min-h-touch w-full rounded-input border border-neutral-300 bg-white px-3 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
+                      className="min-h-touch w-full rounded-input border border-neutral-300 bg-neutral-0 px-3 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100"
                     />
                   </div>
                 </li>
@@ -409,33 +417,33 @@ export function AttendanceMarkPanel({ presetSessionId }: AttendanceMarkPanelProp
 
           {visibleStudents.length === 0 && <div className="p-6"><EmptyState title="Không tìm thấy học sinh phù hợp" /></div>}
 
-          <div className="fixed inset-x-0 bottom-[calc(60px+env(safe-area-inset-bottom))] z-10 flex flex-col gap-3 border-t border-neutral-200 bg-white/95 p-3 shadow-[0_-10px_24px_rgba(28,26,21,.08)] backdrop-blur sm:p-4 md:relative md:inset-auto md:flex-row md:items-center md:justify-between md:p-5">
-            {mutation.isError && <p role="alert" className="absolute inset-x-0 bottom-full border-t border-danger-100 bg-danger-50 px-4 py-3 text-sm text-danger-700 shadow-[0_-8px_20px_rgba(28,26,21,.06)]">Lưu thất bại. Dữ liệu vẫn còn trên màn hình, hãy kiểm tra kết nối và thử lại.</p>}
-            {mutation.isSuccess && <p role="status" aria-live="polite" className="absolute inset-x-0 bottom-full border-t border-success-100 bg-success-50 px-4 py-3 text-sm font-medium text-success-700 shadow-[0_-8px_20px_rgba(28,26,21,.06)]">Đã lưu điểm danh và cập nhật đánh giá chuyên cần.</p>}
+          <div className="fixed inset-x-0 bottom-[calc(60px+env(safe-area-inset-bottom))] z-10 flex flex-col gap-3 border-t border-neutral-200 bg-neutral-0/95 p-3 shadow-up backdrop-blur sm:p-4 md:relative md:inset-auto md:flex-row md:items-center md:justify-between md:p-5">
+            {mutation.isError && <p role="alert" className="absolute inset-x-0 bottom-full border-t border-danger-100 bg-danger-50 px-4 py-3 text-sm text-danger-700 shadow-up">Lưu thất bại. Dữ liệu vẫn còn trên màn hình, hãy kiểm tra kết nối và thử lại.</p>}
+            {mutation.isSuccess && <p role="status" aria-live="polite" className="absolute inset-x-0 bottom-full border-t border-success-100 bg-success-50 px-4 py-3 text-sm font-medium text-success-700 shadow-up">Đã lưu điểm danh và cập nhật đánh giá chuyên cần.</p>}
             <div aria-live="polite" className="grid w-full grid-cols-2 gap-2 text-xs font-semibold sm:flex sm:w-auto sm:flex-wrap">
               {STATUS_OPTIONS.map((item) => <span key={item.value} className={`rounded-full px-2.5 py-1 ${item.activeClass}`}>{item.shortLabel}: {counts[item.value]}</span>)}
             </div>
             <div className="flex w-full items-center gap-2 md:w-auto">
               {dirtyCount > 0 && (
-                <button
+                <Button variant="secondary"
                   type="button"
                   onClick={() => {
                     mutation.reset();
                     setEntries(baselineEntries);
                   }}
-                  className="min-h-touch rounded-input border border-neutral-300 bg-white px-4 text-sm font-semibold text-neutral-700 hover:bg-neutral-50"
+                 
                 >
                   Hoàn tác
-                </button>
+                </Button>
               )}
-              <button
+              <Button variant="primary"
                 type="button"
                 onClick={() => mutation.mutate()}
                 disabled={mutation.isPending || Object.keys(entries).length === 0 || dirtyCount === 0}
-                className="inline-flex min-h-touch w-full flex-1 items-center justify-center gap-2 rounded-input bg-primary-500 px-5 text-sm font-bold text-white shadow-[0_6px_16px_rgba(51,102,240,.22)] transition hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-50 md:w-auto md:flex-none"
+                className="w-full flex-1 md:w-auto"
               >
                 <Save size={17} /> {mutation.isPending ? "Đang lưu..." : role === "admin" ? `Lưu điều chỉnh (${dirtyCount})` : `Lưu điểm danh (${classStudents.length})`}
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -460,7 +468,7 @@ function InfoCell({
   accent?: boolean;
 }) {
   return (
-    <div className={`min-w-0 p-3 sm:p-5 ${accent ? "col-span-2 bg-primary-500 text-white xl:col-span-1" : "bg-white"}`}>
+    <div className={`min-w-0 p-3 sm:p-5 ${accent ? "col-span-2 bg-primary-500 text-white xl:col-span-1" : "bg-neutral-0"}`}>
       <div className="flex items-center gap-2">
         <Icon size={16} className={accent ? "text-primary-100" : "text-primary-500"} />
         <p className={`text-2xs font-bold uppercase tracking-[0.1em] ${accent ? "text-primary-100" : "text-neutral-500"}`}>{label}</p>

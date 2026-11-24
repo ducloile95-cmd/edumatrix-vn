@@ -16,10 +16,10 @@ interface RegisterLeaveFormProps {
 
 type LeaveType = Extract<AttendanceStatus, "absent" | "excused">;
 
-const INPUT = "min-h-touch w-full rounded-input border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none transition placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-500";
+const INPUT = "min-h-touch w-full rounded-input border border-neutral-300 bg-neutral-0 px-3 text-sm text-neutral-900 outline-none transition placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-500";
 const TEXTAREA = `${INPUT} min-h-[116px] resize-none py-3 leading-6`;
 const LABEL = "mb-1.5 block text-xs font-bold text-neutral-700";
-const SECTION = "min-w-0 overflow-hidden rounded-card border border-neutral-200 bg-white shadow-[0_1px_2px_rgba(28,51,137,.04)]";
+const SECTION = "min-w-0 overflow-hidden rounded-card border border-neutral-200 bg-neutral-0 shadow-xs";
 
 /**
  * Dang ky nghi hoc truoc cho 1 hoc sinh - single-action, dat trong Modal
@@ -164,7 +164,7 @@ export function RegisterLeaveForm({ onDone }: RegisterLeaveFormProps) {
                 aria-pressed={leaveType === "excused"}
                 onClick={() => setLeaveType("excused")}
                 className={`min-h-touch rounded-input border px-3 text-sm font-bold transition active:scale-[.98] ${
-                  leaveType === "excused" ? "border-info-500 bg-info-50 text-info-700 ring-1 ring-info-100" : "border-neutral-300 bg-white text-neutral-600 hover:border-info-300 hover:bg-info-50/50"
+                  leaveType === "excused" ? "border-info-500 bg-info-50 text-info-700 ring-1 ring-info-100" : "border-neutral-300 bg-neutral-0 text-neutral-600 hover:border-info-300 hover:bg-info-50/50"
                 }`}
               >
                 Có phép
@@ -174,7 +174,7 @@ export function RegisterLeaveForm({ onDone }: RegisterLeaveFormProps) {
                 aria-pressed={leaveType === "absent"}
                 onClick={() => setLeaveType("absent")}
                 className={`min-h-touch rounded-input border px-3 text-sm font-bold transition active:scale-[.98] ${
-                  leaveType === "absent" ? "border-danger-500 bg-danger-50 text-danger-700 ring-1 ring-danger-100" : "border-neutral-300 bg-white text-neutral-600 hover:border-danger-300 hover:bg-danger-50/50"
+                  leaveType === "absent" ? "border-danger-500 bg-danger-50 text-danger-700 ring-1 ring-danger-100" : "border-neutral-300 bg-neutral-0 text-neutral-600 hover:border-danger-300 hover:bg-danger-50/50"
                 }`}
               >
                 Không phép

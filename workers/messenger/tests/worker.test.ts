@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
-import worker, { assertStudentScope, buildMessengerPayload, buildUtilityPayload, checkMetaUtilityPermission, corsHeaders, deleteChatConversation, extractBearer, extractInboundMessages, extractReferralLinks, extractUtilityTemplateStatuses, firebaseCertificates, isMessengerTagShape, markWebhookMessageProcessed, META_OAUTH_SCOPES, META_UTILITY_OAUTH_SCOPE, META_UTILITY_WEBHOOK_FIELD, META_WEBHOOK_FIELDS, metaErrorCode, metaOAuthCompletionErrorMessage, metaOAuthErrorMessage, metaOAuthScopes, metaUtilityPermissionStatus, metaWebhookFields, nextUnreadStaffCount, parseMessengerProfile, publicErrorCode, referralClaimUid, referralTargetAllowed, resetFirebaseCachesForTest, safeConnectOrigin, sendGraph, serviceAccessToken, subscribePageWebhooks, validChatThreadId, validUtilityParameters, verifyMetaSignature, webhookMessageProcessed, type Env } from "../src/index";
+import worker, { viewerUnpaidInvoices, viewerDashboardQueries, viewerVisibleDashboard, pagedStructuredQuery, assertStudentScope, buildMessengerPayload, buildUtilityPayload, checkMetaUtilityPermission, conversationTombstoneExpired, corsHeaders, deliveryEventEligible, deliveryEventTemplateKey, deliveryJobEligible, deliveryJobId, deliveryJobLeaseExpired, extractBearer, extractInboundMessages, extractReferralLinks, extractUtilityTemplateStatuses, firebaseCertificates, isMessengerTagShape, latestUtilityTemplateStatus, markWebhookMessageProcessed, META_OAUTH_SCOPES, META_UTILITY_OAUTH_SCOPE, META_UTILITY_WEBHOOK_FIELD, META_WEBHOOK_FIELDS, metaErrorCode, metaOAuthCompletionErrorMessage, metaOAuthErrorMessage, metaOAuthScopes, metaUtilityPermissionStatus, metaWebhookFields, nextUnreadStaffCount, normalizeMetaUtilityReason, oauthStateActive, parseMessengerProfile, publicErrorCode, referralClaimUid, referralTargetAllowed, resetFirebaseCachesForTest, safeConnectOrigin, sendGraph, serviceAccessToken, startDeleteChatConversation, subscribePageWebhooks, threadId, UTILITY_TEMPLATES, validChatThreadId, validUtilityParameters, verifyMetaSignature, webhookMessageProcessed, type Env } from "../src/index";
 const env={FIREBASE_PROJECT_ID:"project",FIREBASE_CLIENT_EMAIL:"email",FIREBASE_PRIVATE_KEY:"key",META_APP_ID:"app-id",META_PAGE_ACCESS_TOKEN:"token",META_APP_SECRET:"app-secret",META_WEBHOOK_VERIFY_TOKEN:"verify-me",META_GRAPH_VERSION:"v25.0",META_PAGE_ID:"page-id",ALLOWED_ORIGIN:"http://localhost:5173"}satisfies Env;
 describe("messenger worker",()=>{
 afterEach(()=>{vi.restoreAllMocks();resetFirebaseCachesForTest()});
@@ -10,7 +10,7 @@ test("extracts a referral nonce",()=>expect(extractReferralLinks({entry:[{messag
 test("claims only an active unused referral nonce without overwriting links",()=>{
   const future=new Date(Date.now()+60_000).toISOString();
   const past=new Date(Date.now()-60_000).toISOString();
-  const nonce=(overrides:Record<string,unknown>={})=>({fields:{uid:{stringValue:"parent-1"},status:{stringValue:"active"},expiresAt:{timestampValue:future},usedAt:{nullValue:null},...overrides}});
+  const nonce=(overrides:Record<string,unknown>={})=>({fields:{parentUid:{stringValue:"parent-1"},studentId:{stringValue:"student-1"},status:{stringValue:"active"},expiresAt:{timestampValue:future},usedAt:{nullValue:null},...overrides}});
   const connection=(psid:string)=>({fields:{facebookPsid:{stringValue:psid}}});
   const psidLink=(uid:string)=>({fields:{uid:{stringValue:uid}}});
   expect(referralClaimUid(nonce(),null,null,"psid-1")).toBe("parent-1");
@@ -31,26 +31,88 @@ test("limits referral creation to the parent-student relation and teacher assign
 });
 test("extracts inbound text messages",()=>expect(extractInboundMessages({entry:[{messaging:[{sender:{id:"psid"},recipient:{id:"page"},timestamp:123,message:{mid:"mid-1",text:" Xin chao "}}]}]})).toEqual([{psid:"psid",pageId:"page",timestamp:123,messageId:"mid-1",text:"Xin chao"}]));
 test("extracts utility template status updates without retaining the full payload",()=>expect(extractUtilityTemplateStatuses({entry:[{id:"page-1",time:123,changes:[{field:"message_template_status_update",value:{message_template_id:"template-1",message_template_name:"edumatrix_payment",message_template_status:"APPROVED",message_template_language:"vi",reason:"ok"}}]}]})).toEqual([{pageId:"page-1",templateId:"template-1",templateName:"edumatrix_payment",status:"APPROVED",language:"vi",reason:"ok",timestamp:123000}]));
+test("does not expose Meta NONE as a rejection reason",()=>{
+  expect(normalizeMetaUtilityReason("NONE")).toBeNull();
+  expect(normalizeMetaUtilityReason("  ")).toBeNull();
+  expect(normalizeMetaUtilityReason("Policy violation")).toBe("Policy violation");
+});
 test("ignores unrelated or incomplete template status changes",()=>expect(extractUtilityTemplateStatuses({entry:[{id:"page-1",changes:[{field:"feed",value:{name:"x"}},{field:"messenger_template_status_update",value:{status:"APPROVED"}}]}]})).toEqual([]));
+test("uses only the latest template status for the configured Page and language",()=>{
+  const template=UTILITY_TEMPLATES.tuition_payment_reminder;
+  const statusDocument=(pageId:string,language:string,status:string,updatedAt:string)=>({fields:{
+    pageId:{stringValue:pageId},templateName:{stringValue:template.metaName},language:{stringValue:language},
+    status:{stringValue:status},updatedAt:{timestampValue:updatedAt},
+  }});
+  expect(latestUtilityTemplateStatus([
+    statusDocument("page-1","vi","APPROVED","2026-08-24T08:00:00.000Z"),
+    statusDocument("page-1","vi","PAUSED","2026-08-24T09:00:00.000Z"),
+    statusDocument("page-2","vi","APPROVED","2026-08-24T10:00:00.000Z"),
+    statusDocument("page-1","en","APPROVED","2026-08-24T11:00:00.000Z"),
+  ],template,"page-1")).toBe("PAUSED");
+  expect(latestUtilityTemplateStatus([],template,"page-1")).toBeNull();
+});
 test("parses Messenger account name and secure avatar",()=>{expect(parseMessengerProfile({first_name:"Le",last_name:"Loi",profile_pic:"https://cdn.example/avatar.jpg"})).toEqual({name:"Le Loi",avatarUrl:"https://cdn.example/avatar.jpg"});expect(parseMessengerProfile({first_name:"Le",profile_pic:"http://unsafe.example/avatar.jpg"})).toEqual({name:"Le",avatarUrl:null})});
 test("ignores message echoes",()=>expect(extractInboundMessages({entry:[{messaging:[{sender:{id:"page"},recipient:{id:"psid"},message:{mid:"mid-2",text:"echo",is_echo:true}}]}]})).toEqual([]));
 test("increments unread messages for inbound events and clears them for outbound events",()=>{const thread={fields:{unreadStaffCount:{integerValue:"2"}}};expect(nextUnreadStaffCount(thread,"inbound")).toBe(3);expect(nextUnreadStaffCount(thread,"outbound")).toBe(0)});
 test("validates conversation ids before deletion",()=>{expect(validChatThreadId("messenger_thread-1")).toBe(true);expect(validChatThreadId("chat_threads/thread-1")).toBe(false);expect(validChatThreadId("")).toBe(false)});
-test("deletes a conversation and its messages without deleting Messenger mappings",async()=>{
+test("expires only completed conversation tombstones after their retention date",()=>{
+  const now=new Date("2026-08-25T05:00:00.000Z");
+  const tombstone=(status:string,expiresAt:string)=>({fields:{status:{stringValue:status},expiresAt:{timestampValue:expiresAt}}});
+  expect(conversationTombstoneExpired(tombstone("deleted","2026-08-25T04:59:59.000Z"),now)).toBe(true);
+  expect(conversationTombstoneExpired(tombstone("deleted","2026-08-25T05:00:01.000Z"),now)).toBe(false);
+  expect(conversationTombstoneExpired(tombstone("deleting","2026-08-25T04:59:59.000Z"),now)).toBe(false);
+});
+test("keeps separate stable threads for each parent and student context",()=>{
+  expect(threadId("parent-1","student-1")).toBe("messenger_parent-1_student-1");
+  expect(threadId("parent-1","student-2")).not.toBe(threadId("parent-1","student-1"));
+  expect(threadId("parent-2","student-1")).not.toBe(threadId("parent-1","student-1"));
+});
+test("rejects expired OAuth state for the expected admin",()=>{
+  const state=(expiresAt:string,uid="admin-1")=>({fields:{uid:{stringValue:uid},status:{stringValue:"ready"},expiresAt:{timestampValue:expiresAt}}});
+  const now=new Date("2026-08-25T05:00:00.000Z");
+  expect(oauthStateActive(state("2026-08-25T05:01:00.000Z"),"admin-1",now)).toBe(true);
+  expect(oauthStateActive(state("2026-08-25T04:59:00.000Z"),"admin-1",now)).toBe(false);
+  expect(oauthStateActive(state("2026-08-25T05:01:00.000Z","admin-2"),"admin-1",now)).toBe(false);
+});
+test("uses a stable delivery idempotency key and finite retry lease",()=>{
+  expect(deliveryJobId("invoice_committed","invoice/1","2","parent-1")).toBe("invoice_committed:invoice_1:2:parent-1");
+  const timestamp=(value:string)=>({timestampValue:value});
+  const job=(status:string,attempts:number,nextAttemptAt:string,leaseUntil:string)=>({fields:{status:{stringValue:status},attempts:{integerValue:String(attempts)},nextAttemptAt:timestamp(nextAttemptAt),leaseUntil:timestamp(leaseUntil)}});
+  const now=Date.parse("2026-08-25T05:00:00.000Z");
+  expect(deliveryJobEligible(job("pending",0,"2026-08-25T04:59:00.000Z","2026-08-25T04:59:00.000Z"),now)).toBe(true);
+  expect(deliveryJobEligible(job("processing",1,"2026-08-25T04:59:00.000Z","2026-08-25T05:01:00.000Z"),now)).toBe(false);
+  expect(deliveryJobEligible(job("processing",1,"2026-08-25T04:59:00.000Z","2026-08-25T04:59:00.000Z"),now)).toBe(false);
+  expect(deliveryJobLeaseExpired(job("processing",1,"2026-08-25T04:59:00.000Z","2026-08-25T04:59:00.000Z"),now)).toBe(true);
+  expect(deliveryJobEligible(job("failed",3,"2026-08-25T04:59:00.000Z","2026-08-25T04:59:00.000Z"),now)).toBe(false);
+});
+test("maps the five business events to approved Utility templates",()=>{
+  expect(deliveryEventTemplateKey("lesson_feedback_published")).toBe("lesson_feedback_request");
+  expect(deliveryEventTemplateKey("invoice_committed")).toBe("tuition_payment_reminder");
+  expect(deliveryEventTemplateKey("payment_verified")).toBe("tuition_payment_confirmation");
+  expect(deliveryEventTemplateKey("enrollment_completed")).toBe("enrollment_confirmation");
+  expect(deliveryEventTemplateKey("session_schedule_changed")).toBe("class_schedule_adjustment");
+  expect(deliveryEventTemplateKey("unknown_event")).toBeNull();
+  expect(deliveryEventTemplateKey("unknown")).toBeNull();
+});
+test("retries event expansion only while due, lease-expired, and below the attempt cap",()=>{
+  const timestamp=(value:string)=>({timestampValue:value});
+  const event=(status:string,attempts:number,nextAttemptAt:string,leaseUntil:string)=>({fields:{status:{stringValue:status},attempts:{integerValue:String(attempts)},nextAttemptAt:timestamp(nextAttemptAt),leaseUntil:timestamp(leaseUntil)}});
+  const now=Date.parse("2026-08-25T05:00:00.000Z");
+  expect(deliveryEventEligible(event("pending",0,"2026-08-25T04:59:00.000Z","2026-08-25T04:59:00.000Z"),now)).toBe(true);
+  expect(deliveryEventEligible(event("processing",1,"2026-08-25T04:59:00.000Z","2026-08-25T04:59:00.000Z"),now)).toBe(true);
+  expect(deliveryEventEligible(event("processing",1,"2026-08-25T04:59:00.000Z","2026-08-25T05:01:00.000Z"),now)).toBe(false);
+  expect(deliveryEventEligible(event("failed",3,"2026-08-25T04:59:00.000Z","2026-08-25T04:59:00.000Z"),now)).toBe(false);
+});
+test("starts idempotent two-phase conversation deletion without touching messages",async()=>{
   const fetchMock=vi.spyOn(globalThis,"fetch")
     .mockResolvedValueOnce(new Response(JSON.stringify({name:"projects/project/databases/(default)/documents/chat_threads/thread-1"}),{status:200}))
-    .mockResolvedValueOnce(new Response(JSON.stringify({documents:[
-      {name:"projects/project/databases/(default)/documents/chat_threads/thread-1/messages/message-1"},
-      {name:"projects/project/databases/(default)/documents/chat_threads/thread-1/messages/message-2"},
-    ]}),{status:200}))
+    .mockResolvedValueOnce(new Response("",{status:404}))
     .mockResolvedValueOnce(new Response(JSON.stringify({writeResults:[]}),{status:200}));
-  await expect(deleteChatConversation("thread-1","service-token",env)).resolves.toBe(2);
+  await expect(startDeleteChatConversation("thread-1","admin-1","service-token",env)).resolves.toBeUndefined();
   const commitBody=JSON.parse(String(fetchMock.mock.calls[2][1]?.body));
-  expect(commitBody.writes.map((write:{delete:string})=>write.delete)).toEqual([
-    "projects/project/databases/(default)/documents/chat_threads/thread-1/messages/message-1",
-    "projects/project/databases/(default)/documents/chat_threads/thread-1/messages/message-2",
-    "projects/project/databases/(default)/documents/chat_threads/thread-1",
-  ]);
+  expect(JSON.stringify(commitBody)).toContain("messenger_conversation_tombstones/thread-1");
+  expect(JSON.stringify(commitBody)).toContain("deletionState");
+  expect(JSON.stringify(commitBody)).not.toContain("/messages/");
   expect(JSON.stringify(commitBody)).not.toContain("messenger_psid_links");
   expect(JSON.stringify(commitBody)).not.toContain("messenger_connections");
 });
@@ -108,6 +170,13 @@ test("sends Messenger token in Authorization header, never the URL",async()=>{
   expect(String(url)).toBe("https://graph.facebook.com/v25.0/page-id/messages");
   expect(String(url)).not.toContain("access_token");
   expect(new Headers(init?.headers).get("authorization")).toBe("Bearer token");
+});
+test("automatic delivery treats an ambiguous Meta 5xx as unknown and never retries",async()=>{
+  const fetchMock=vi.spyOn(globalThis,"fetch").mockResolvedValue(new Response(JSON.stringify({error:{message:"temporary"}}),{status:500,headers:{"content-type":"application/json"}}));
+  let failure:unknown;
+  try { await sendGraph({recipientPsid:"psid",text:"Xin chao"},env,{retryTransient:false}); } catch (error) { failure=error; }
+  expect(publicErrorCode(failure)).toBe("meta_delivery_outcome_unknown");
+  expect(fetchMock).toHaveBeenCalledTimes(1);
 });
 test("caches Firebase public certificates",async()=>{
   const fetchMock=vi.spyOn(globalThis,"fetch").mockResolvedValue(new Response(JSON.stringify({kid:"certificate"}),{status:200,headers:{"cache-control":"public, max-age=3600","content-type":"application/json"}}));
@@ -173,7 +242,7 @@ test("does not log or return the rejected Page token",async()=>{
   expect(publicErrorCode(failure)).toBe("meta_token_invalid");
   expect(JSON.stringify(warn.mock.calls)).not.toContain(secretToken);
 });
-test("health check exposes local service version",async()=>expect(await(await worker.fetch(new Request("https://worker/health"),env)).json()).toEqual({ok:true,service:"messenger-worker",version:"local",release:"local",environment:"development"}));
+test("health check exposes local service version",async()=>expect(await(await worker.fetch(new Request("https://worker/health"),env)).json()).toEqual({ok:true,service:"messenger-worker",version:"local",release:"local",environment:"development",utilityMessagingEnabled:false,utilityAutomationEnabled:false}));
 test("health check exposes Cloudflare production version",async()=>{
   const productionEnv={...env,ALLOWED_ORIGIN:"https://edumatrix-vn-576b1.web.app",RELEASE_SHA:"07a1036",CF_VERSION_METADATA:{id:"version-123",tag:"",timestamp:"2026-07-27T00:00:00Z"}};
   await expect((await worker.fetch(new Request("https://worker/health"),productionEnv)).json()).resolves.toMatchObject({version:"version-123",release:"07a1036",environment:"production"});
@@ -203,7 +272,7 @@ test("returns the matching secondary production origin for referrals",async()=>{
   expect(response.headers.get("access-control-allow-origin")).toBe("https://edumatrix.id.vn");
 });
 test("requests Utility permission only after its production flag is enabled",()=>{
-  expect(META_OAUTH_SCOPES).toEqual(["pages_show_list","pages_manage_metadata","pages_messaging","pages_read_engagement"]);
+  expect(META_OAUTH_SCOPES).toEqual(["pages_show_list","pages_manage_metadata","pages_messaging"]);
   expect(metaOAuthScopes(env)).toEqual(META_OAUTH_SCOPES);
   expect(metaOAuthScopes({...env,UTILITY_MESSAGING_ENABLED:"true"})).toEqual([...META_OAUTH_SCOPES,META_UTILITY_OAUTH_SCOPE]);
   expect(META_UTILITY_OAUTH_SCOPE).toBe("pages_utility_messaging");
@@ -215,6 +284,7 @@ test("subscribes to Utility template status updates only when Utility Messaging 
 });
 test("recognizes granted, missing, and unknown Utility Messaging permission states",()=>{
   expect(metaUtilityPermissionStatus({data:[{permission:"pages_utility_messaging",status:"granted"}]})).toBe("granted");
+  expect(metaUtilityPermissionStatus({data:[{permission:"page_utility_messaging",status:"granted"}]})).toBe("missing");
   expect(metaUtilityPermissionStatus({data:[{permission:"pages_messaging",status:"granted"}]})).toBe("missing");
   expect(metaUtilityPermissionStatus({error:"unavailable"})).toBe("unknown");
 });
@@ -260,3 +330,46 @@ test("maps Meta OAuth denial separately from app configuration failures",()=>{
   expect(metaOAuthCompletionErrorMessage("meta_oauth_exchange_failed")).toContain("thử lại");
 });
 test("serializes meta error objects so token code 190 stays diagnosable",()=>{expect(metaErrorCode({error:{message:"Invalid OAuth",code:190}},400)).toContain('"code":190');expect(metaErrorCode({error:"bad"},400)).toBe("bad");expect(metaErrorCode({},502)).toBe("502")});});
+
+test("pages Firestore queries with a __name__ cursor instead of offset",()=>{
+  const base={from:[{collectionId:"chat_threads"}],limit:200};
+  expect(pagedStructuredQuery(base,null)).toEqual({...base,orderBy:[{field:{fieldPath:"__name__"},direction:"ASCENDING"}]});
+  const next=pagedStructuredQuery(base,"projects/p/databases/(default)/documents/chat_threads/t200");
+  expect(next).toMatchObject({startAt:{values:[{referenceValue:"projects/p/databases/(default)/documents/chat_threads/t200"}],before:false}});
+  expect(next).not.toHaveProperty("offset");
+});
+
+test("viewer dashboard queries are bounded and ordered like the client",()=>{
+  const now=new Date("2026-11-23T10:00:00.000Z");
+  const plan=viewerDashboardQueries(["c1"],["s1","s2"],now);
+  const sq=(key:keyof typeof plan,index=0)=>plan[key][index] as {from:unknown;where:unknown;orderBy:unknown;limit:number};
+  expect(plan.sessions).toHaveLength(1);
+  expect(plan.scores).toHaveLength(2);
+  expect(sq("sessions")).toMatchObject({from:[{collectionId:"sessions"}],orderBy:[{field:{fieldPath:"startAt"},direction:"ASCENDING"}],limit:12});
+  expect(JSON.stringify(sq("sessions").where)).toContain('"timestampValue":"2026-11-22T10:00:00.000Z"');
+  expect(JSON.stringify(sq("sessions").where)).toContain('"timestampValue":"2026-12-23T10:00:00.000Z"');
+  expect(JSON.stringify(sq("assignments").where)).toContain('"stringValue":"published"');
+  expect(sq("assignments")).toMatchObject({orderBy:[{field:{fieldPath:"dueAt"},direction:"ASCENDING"}],limit:25});
+  expect(sq("scores",1)).toMatchObject({orderBy:[{field:{fieldPath:"createdAt"},direction:"DESCENDING"}],limit:10});
+  expect(JSON.stringify(sq("scores",1).where)).toContain('"stringValue":"s2"');
+  expect(sq("submissions")).toMatchObject({orderBy:[{field:{fieldPath:"submittedAt"},direction:"DESCENDING"}],limit:100});
+  expect(sq("attendance")).toMatchObject({orderBy:[{field:{fieldPath:"markedAt"},direction:"DESCENDING"}],limit:50});
+  expect(sq("invoices")).toMatchObject({orderBy:[{field:{fieldPath:"dueAt"},direction:"DESCENDING"}],limit:30});
+  expect(sq("lessonPlans")).toMatchObject({orderBy:[{field:{fieldPath:"publishedAt"},direction:"DESCENDING"}],limit:12});
+  expect(sq("announcements")).toMatchObject({orderBy:[{field:{fieldPath:"createdAt"},direction:"DESCENDING"}],limit:10});
+});
+
+test("viewer dashboard hides unpublished scores, resolved announcements and classmates",()=>{
+  const visible=viewerVisibleDashboard({
+    classes:[{id:"c1",name:"A1",studentIds:["s1","other-child"]}],
+    scores:[{id:"x",published:true},{id:"y",published:false},{id:"z"}],
+    announcements:[{id:"a"},{id:"b",resolvedAt:new Date()}],
+  });
+  expect(visible.classes).toEqual([{id:"c1",name:"A1",studentIds:[]}]);
+  expect(visible.scores.map((item)=>item.id)).toEqual(["x","z"]);
+  expect(visible.announcements.map((item)=>item.id)).toEqual(["a"]);
+});
+
+test("viewer dashboard unpaid list excludes paid and void invoices",()=>{
+  expect(viewerUnpaidInvoices([{id:"a",status:"unpaid"},{id:"b",status:"paid"},{id:"c",status:"void"},{id:"d",status:"rejected"}]).map((i)=>i.id)).toEqual(["a","d"]);
+});

@@ -37,6 +37,8 @@ describe("FitWeekTimetable dense class layout", () => {
     );
 
     expect(container.querySelector('[data-columns="1"]')?.children).toHaveLength(2);
+    expect([...container.querySelectorAll("div")].some((element) => element.className.includes("grid-rows-[176px_176px_176px]"))).toBe(true);
+    expect(container.querySelector('[data-columns="1"]')?.className).toContain("overflow-y-auto");
 
     rerender(
       <FitWeekTimetable

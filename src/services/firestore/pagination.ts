@@ -27,3 +27,17 @@ export async function listAllQueryDocuments(
   } while (cursor);
   return documents;
 }
+
+/** Load one bounded page for previews and dashboards. */
+export async function listQueryDocumentsPage(
+  collectionName: string,
+  constraints: QueryConstraint[],
+  pageSize: number,
+): Promise<QueryDocumentSnapshot<DocumentData>[]> {
+  const snapshot = await getDocs(query(
+    collection(db, collectionName),
+    ...constraints,
+    limit(pageSize),
+  ));
+  return snapshot.docs;
+}

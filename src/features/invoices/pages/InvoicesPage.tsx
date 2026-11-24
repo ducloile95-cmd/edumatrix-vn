@@ -20,7 +20,8 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Tab, Tabs } from "@/components/ui/Tabs";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { InvoiceCreationForm, type InvoiceCreationValues } from "@/features/invoices/components/InvoiceCreationForm";
-import { createInvoices, listInvoices, listPayments, reconcilePayment } from "@/services/firestore/invoices";
+import { createInvoices, listInvoices, listPayments, reconcilePayment, voidInvoice } from "@/services/firestore/invoices";
+import { InvoiceBatchPartialError } from "@/services/firestore/invoiceErrors";
 import { getPaymentSettings } from "@/services/firestore/settings";
 import { listStudents } from "@/services/firestore/students";
 import { listClasses } from "@/services/firestore/classes";
@@ -32,6 +33,8 @@ import type { InvoiceStatus } from "@/types/academic";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { USER_ROLES } from "@/constants/roles";
 import { INVOICE_STATUS_LABEL, INVOICE_STATUS_TONE } from "@/features/invoices/constants";
+import { effectiveInvoiceStatus } from "@/features/invoices/invoiceStatus";
+import { getUtilityDeliveryStatus, retryUtilityDeliveryJob, summarizeUtilityDelivery, utilityDeliveryRefetchInterval, type UtilityDeliveryAggregateStatus } from "@/services/integrations/messenger";
 
 type FinanceTab = "overview" | "invoices" | "reconcile";
 
@@ -50,13 +53,20 @@ const TABS: Array<{ value: FinanceTab; label: string }> = [
   { value: "reconcile", label: "Đối soát" },
 ];
 
+// Q5: chi Admin huy han hoa don chua thanh toan hoac bi tu choi chung tu.
+const VOIDABLE_STATUSES: InvoiceStatus[] = ["unpaid", "overdue", "rejected"];
+
 export default function InvoicesPage() {
   const reducedMotion = useReducedMotion();
   const { firebaseUser, role } = useAuth();
-  const isAdmin = role === USER_ROLES.ADMIN;
+  const canManageFinance = role === USER_ROLES.ADMIN || role === USER_ROLES.TEACHER;
+  // Q2 (spec 22/11/2026): chi Admin doi soat thanh toan; khop firestore.rules payments update.
+  const canReconcile = role === USER_ROLES.ADMIN;
   const client = useQueryClient();
   const students = useQuery({ queryKey: ["students", role, firebaseUser?.uid], queryFn: listStudents });
   const invoices = useQuery({ queryKey: ["invoices", role, firebaseUser?.uid], queryFn: listInvoices });
+  // Trang thai hien thi: "Quá hạn" tinh tu hanh thanh toan (khong ghi xuong Firestore).
+  const invoiceList = useMemo(() => (invoices.data ?? []).map((invoice) => ({ ...invoice, status: effectiveInvoiceStatus(invoice) })), [invoices.data]);
   const payments = useQuery({ queryKey: ["payments", role, firebaseUser?.uid], queryFn: listPayments });
   const classes = useQuery({ queryKey: ["classes", role, firebaseUser?.uid], queryFn: listClasses });
   const courses = useQuery({ queryKey: ["courses"], queryFn: listCourses });
@@ -65,7 +75,7 @@ export default function InvoicesPage() {
   const paymentSettings = useQuery({
     queryKey: ["settings", "payment"],
     queryFn: getPaymentSettings,
-    enabled: isAdmin,
+    enabled: canManageFinance,
   });
   const [activeTab, setActiveTab] = useState<FinanceTab>("overview");
   const [createOpen, setCreateOpen] = useState(false);
@@ -73,14 +83,15 @@ export default function InvoicesPage() {
   const [statusFilter, setStatusFilter] = useState<InvoiceStatus | "all">("all");
 
   const studentNameById = useMemo(() => new Map((students.data ?? []).map((student) => [student.id, student.fullName])), [students.data]);
-  const invoiceById = useMemo(() => new Map((invoices.data ?? []).map((invoice) => [invoice.id, invoice])), [invoices.data]);
+  const invoiceById = useMemo(() => new Map(invoiceList.map((invoice) => [invoice.id, invoice])), [invoiceList]);
+  const verifiedPaymentByInvoice = useMemo(() => new Map((payments.data ?? []).filter((payment) => payment.status === "verified").map((payment) => [payment.invoiceId, payment])), [payments.data]);
 
   const create = useMutation({
     mutationFn: (values: InvoiceCreationValues) => createInvoices(values.studentIds.map((studentId) => ({
       studentId,
       courseId: values.courseId,
       title: values.title,
-      amount: values.amount,
+      amount: values.studentCharges[studentId].amount,
       dueAt: values.dueAt,
       bankBin: paymentSettings.data?.bankBin ?? "970436",
       accountNumber: paymentSettings.data?.accountNumber ?? "",
@@ -93,8 +104,12 @@ export default function InvoicesPage() {
       billingItemId: values.billingItemId,
       itemNameSnapshot: values.itemNameSnapshot,
       unitPriceSnapshot: values.unitPriceSnapshot,
-      quantity: values.quantity,
+      quantity: values.studentCharges[studentId].quantity,
+      billedSessionsBefore: values.studentCharges[studentId].billedSessionsBefore,
+      priorClassInvoiceCount: values.studentCharges[studentId].priorClassInvoiceCount,
     }))),
+    // Mot phan da ghi: tai lai hoa don de so buoi da tinh tien dung truoc khi thu lai.
+    onError: (error) => { if (error instanceof InvoiceBatchPartialError) client.invalidateQueries({ queryKey: ["invoices"] }); },
     onSuccess: () => {
       client.invalidateQueries({ queryKey: ["invoices"] });
       setCreateOpen(false);
@@ -102,12 +117,19 @@ export default function InvoicesPage() {
     },
   });
 
+  const [voiding, setVoiding] = useState<{ id: string; invoiceCode: string; amount: number; studentId: string } | null>(null);
+  const voidMutation = useMutation({
+    mutationFn: (invoiceId: string) => voidInvoice(invoiceId),
+    onSuccess: () => { setVoiding(null); client.invalidateQueries({ queryKey: ["invoices"] }); },
+  });
+  const [confirming, setConfirming] = useState<{ payment: NonNullable<typeof payments.data>[number]; status: "verified" | "rejected" } | null>(null);
   const reconcile = useMutation({
     mutationFn: ({ payment, status }: { payment: NonNullable<typeof payments.data>[number]; status: "verified" | "rejected" }) => {
-      if (!isAdmin) throw new Error("Chỉ Admin được đối soát thanh toán");
+      if (!canReconcile) throw new Error("Tài khoản không có quyền đối soát thanh toán");
       return reconcilePayment(payment, status, firebaseUser?.uid ?? "unknown");
     },
     onSuccess: () => {
+      setConfirming(null);
       client.invalidateQueries({ queryKey: ["payments"] });
       client.invalidateQueries({ queryKey: ["invoices"] });
     },
@@ -115,29 +137,46 @@ export default function InvoicesPage() {
 
   const filteredInvoices = useMemo(() => {
     const term = search.trim().toLocaleLowerCase("vi");
-    return (invoices.data ?? []).filter((invoice) => {
+    return invoiceList.filter((invoice) => {
       if (statusFilter !== "all" && invoice.status !== statusFilter) return false;
       if (!term) return true;
       const studentName = studentNameById.get(invoice.studentId) ?? "";
       return `${invoice.invoiceCode} ${studentName} ${invoice.title}`.toLocaleLowerCase("vi").includes(term);
     });
-  }, [invoices.data, search, statusFilter, studentNameById]);
+  }, [invoiceList, search, statusFilter, studentNameById]);
+
+  // Chi hoi Worker cho hoa don dang hien o tab Cong no: moi ID la vai luot doc Firestore.
+  const utilityEntityIds = useMemo(() => [
+    ...filteredInvoices.map((invoice) => invoice.id),
+    ...filteredInvoices.flatMap((invoice) => verifiedPaymentByInvoice.get(invoice.id)?.id ?? []),
+  ], [filteredInvoices, verifiedPaymentByInvoice]);
+  const utilityDeliveries = useQuery({
+    queryKey: ["utility-delivery", "finance", utilityEntityIds.join(",")],
+    queryFn: () => getUtilityDeliveryStatus(utilityEntityIds),
+    enabled: canManageFinance && activeTab === "invoices" && utilityEntityIds.length > 0,
+    refetchInterval: (query) => utilityDeliveryRefetchInterval(query.state.data),
+  });
+  const retryDelivery = useMutation({
+    mutationFn: (jobIds: string[]) => Promise.all(jobIds.map(retryUtilityDeliveryJob)),
+    onSuccess: () => utilityDeliveries.refetch(),
+  });
 
   const financeSummary = useMemo(() => {
-    const list = invoices.data ?? [];
-    const valid = list.filter((invoice) => invoice.status !== "rejected");
+    const list = invoiceList;
+    // Q5: hoa don bi tu choi chung tu van la khoan no; chi "void" moi khong tinh.
+    const valid = list.filter((invoice) => invoice.status !== "void");
     const billed = valid.reduce((sum, invoice) => sum + invoice.amount, 0);
     const collected = valid.filter((invoice) => invoice.status === "paid").reduce((sum, invoice) => sum + invoice.amount, 0);
     const outstanding = valid.filter((invoice) => invoice.status !== "paid").reduce((sum, invoice) => sum + invoice.amount, 0);
     const pendingCount = (payments.data ?? []).filter((payment) => payment.status === "reported").length;
     const collectionRate = billed > 0 ? Math.round((collected / billed) * 100) : 0;
     return { billed, collected, outstanding, pendingCount, collectionRate };
-  }, [invoices.data, payments.data]);
+  }, [invoiceList, payments.data]);
 
   const monthlyChart = useMemo(() => {
     const buckets = new Map<string, { month: string; duKien: number; thucThu: number }>();
-    (invoices.data ?? []).forEach((invoice) => {
-      if (invoice.status === "rejected") return;
+    invoiceList.forEach((invoice) => {
+      if (invoice.status === "void") return;
       const key = format(invoice.dueAt.toDate(), "MM/yyyy");
       const bucket = buckets.get(key) ?? { month: key, duKien: 0, thucThu: 0 };
       bucket.duKien += invoice.amount;
@@ -147,13 +186,13 @@ export default function InvoicesPage() {
     return [...buckets.values()]
       .sort((a, b) => a.month.split("/").reverse().join("").localeCompare(b.month.split("/").reverse().join("")))
       .slice(-6);
-  }, [invoices.data]);
+  }, [invoiceList]);
 
   const statusChart = useMemo(() => {
-    const counts: Record<InvoiceStatus, number> = { unpaid: 0, pending: 0, paid: 0, overdue: 0, rejected: 0 };
-    (invoices.data ?? []).forEach((invoice) => { counts[invoice.status] += 1; });
+    const counts: Record<InvoiceStatus, number> = { unpaid: 0, pending: 0, paid: 0, overdue: 0, rejected: 0, void: 0 };
+    invoiceList.forEach((invoice) => { counts[invoice.status] += 1; });
     return (Object.keys(counts) as InvoiceStatus[]).map((status) => ({ status: INVOICE_STATUS_LABEL[status], count: counts[status] }));
-  }, [invoices.data]);
+  }, [invoiceList]);
 
   const reportedPayments = (payments.data ?? []).filter((payment) => payment.status === "reported");
   const historyPayments = (payments.data ?? []).filter((payment) => payment.status !== "reported");
@@ -162,11 +201,11 @@ export default function InvoicesPage() {
   return (
     <>
       <PageHeader
-        actions={isAdmin ? <Button variant="primary" icon={<Plus size={17} />} onClick={() => setCreateOpen(true)}>Tạo hóa đơn</Button> : undefined}
+        actions={canManageFinance ? <Button variant="primary" icon={<Plus size={17} />} onClick={() => setCreateOpen(true)}>Tạo hóa đơn</Button> : undefined}
       />
 
       <Tabs label="Điều hướng tài chính" className="mb-5">
-        {TABS.filter((tab) => isAdmin || tab.value !== "reconcile").map((tab) => (
+        {TABS.filter((tab) => canReconcile || tab.value !== "reconcile").map((tab) => (
           <Tab
             key={tab.value}
             active={activeTab === tab.value}
@@ -186,7 +225,7 @@ export default function InvoicesPage() {
             <StatCard icon={ReceiptText} tone="primary" value={formatCompactVnd(financeSummary.billed)} label="Tổng phải thu" hint={`${invoices.data?.length ?? 0} hóa đơn đã phát hành`} />
             <StatCard icon={CircleDollarSign} tone="success" value={formatCompactVnd(financeSummary.collected)} label="Đã thu" hint={`${financeSummary.collectionRate}% tổng giá trị hóa đơn`} />
             <StatCard icon={WalletCards} tone="warning" value={formatCompactVnd(financeSummary.outstanding)} label="Công nợ còn lại" hint="Chưa thu và đang chờ xác nhận" />
-            <StatCard icon={Clock3} tone={financeSummary.pendingCount > 0 ? "danger" : "neutral"} value={financeSummary.pendingCount} label={isAdmin ? "Chờ đối soát" : "Đang chờ Admin"} hint={isAdmin ? "Giao dịch cần xử lý thủ công" : "Teacher chỉ được theo dõi"} />
+            <StatCard icon={Clock3} tone={financeSummary.pendingCount > 0 ? "danger" : "neutral"} value={financeSummary.pendingCount} label="Chờ đối soát" hint="Giao dịch cần xử lý thủ công" />
           </section>
 
           <section className="grid gap-4 xl:grid-cols-[1.45fr_1fr]">
@@ -200,8 +239,8 @@ export default function InvoicesPage() {
                       <YAxis tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} tickFormatter={(value: number) => formatAxisVnd(value)} />
                       <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number) => formatVnd(value)} />
                       <Legend />
-                      <Bar dataKey="duKien" name="Phải thu" fill={CHART_GRADIENT.primarySoft} filter={CHART_DEPTH_FILTER} radius={[9, 9, 2, 2]} isAnimationActive={!reducedMotion} animationDuration={CHART_ANIMATION_DURATION} />
-                      <Bar dataKey="thucThu" name="Đã thu" fill={CHART_GRADIENT.success} filter={CHART_DEPTH_FILTER} radius={[9, 9, 2, 2]} isAnimationActive={!reducedMotion} animationDuration={CHART_ANIMATION_DURATION} />
+                      <Bar dataKey="duKien" name="Phải thu" fill={CHART_GRADIENT.primarySoft} filter={CHART_DEPTH_FILTER} radius={[4, 4, 0, 0]} isAnimationActive={!reducedMotion} animationDuration={CHART_ANIMATION_DURATION} />
+                      <Bar dataKey="thucThu" name="Đã thu" fill={CHART_GRADIENT.success} filter={CHART_DEPTH_FILTER} radius={[4, 4, 0, 0]} isAnimationActive={!reducedMotion} animationDuration={CHART_ANIMATION_DURATION} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -217,7 +256,7 @@ export default function InvoicesPage() {
                       <XAxis type="number" allowDecimals={false} hide />
                       <YAxis type="category" dataKey="status" width={112} tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} />
                       <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number) => [`${value} hóa đơn`, "Số lượng"]} />
-                      <Bar dataKey="count" fill={CHART_GRADIENT.primary} filter={CHART_DEPTH_FILTER} radius={[0, 10, 10, 0]} barSize={18} isAnimationActive={!reducedMotion} animationDuration={CHART_ANIMATION_DURATION} />
+                      <Bar dataKey="count" fill={CHART_GRADIENT.primary} filter={CHART_DEPTH_FILTER} radius={[0, 4, 4, 0]} barSize={18} isAnimationActive={!reducedMotion} animationDuration={CHART_ANIMATION_DURATION} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -225,7 +264,7 @@ export default function InvoicesPage() {
             </ChartPanel>
           </section>
 
-          {isAdmin && financeSummary.pendingCount > 0 && (
+          {canReconcile && financeSummary.pendingCount > 0 && (
             <button type="button" onClick={() => setActiveTab("reconcile")} className="flex w-full items-center justify-between rounded-card border border-warning-100 bg-warning-50 p-4 text-left transition hover:border-warning-200">
               <span className="flex items-center gap-3"><ShieldCheck className="text-warning-700" size={21} /><span><span className="block text-sm font-bold text-neutral-900">Có {financeSummary.pendingCount} giao dịch đang chờ</span><span className="text-xs text-neutral-600">Mở hàng đợi đối soát để xác nhận hoặc từ chối.</span></span></span>
               <span className="text-sm font-bold text-warning-700">Xử lý ngay</span>
@@ -235,7 +274,7 @@ export default function InvoicesPage() {
       )}
 
       {activeTab === "invoices" && (
-        <DataListPanel className="motion-content-enter rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)]">
+        <DataListPanel className="motion-content-enter rounded-card border border-neutral-200 bg-neutral-0 shadow-[var(--shadow-1)]">
           <div className="shrink-0 border-b border-neutral-200 p-4 sm:p-5">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
               <div><h2 className="text-base font-bold text-neutral-900">Danh sách công nợ</h2><p className="mt-1 text-sm text-neutral-500">{filteredInvoices.length} hóa đơn phù hợp bộ lọc</p></div>
@@ -260,15 +299,18 @@ export default function InvoicesPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-100">
-                  {filteredInvoices.map((invoice) => (
-                    <tr key={invoice.id} className="transition hover:bg-neutral-50/80">
+                  {filteredInvoices.map((invoice) => {
+                    const reminder = summarizeUtilityDelivery(utilityDeliveries.data, invoice.id);
+                    const verifiedPayment = verifiedPaymentByInvoice.get(invoice.id);
+                    const confirmation = verifiedPayment ? summarizeUtilityDelivery(utilityDeliveries.data, verifiedPayment.id) : null;
+                    return <tr key={invoice.id} className="transition hover:bg-neutral-50/80">
                       <td className="px-5 py-4"><p className="font-bold text-neutral-900">{invoice.invoiceCode}</p><p className="mt-0.5 text-xs text-neutral-500">{invoice.title}</p>{invoice.sourceType && <p className="mt-1 text-2xs font-semibold text-primary-700">{invoice.sourceType === "billing_item" ? "Đồ dùng học tập" : "Lớp học"} / {invoice.itemNameSnapshot}</p>}</td>
                       <td className="px-4 py-4 font-medium text-neutral-700">{studentNameById.get(invoice.studentId) ?? invoice.studentId}</td>
                       <td className="px-4 py-4"><p className="tabular-nums text-neutral-700">{format(invoice.dueAt.toDate(), "dd/MM/yyyy")}</p>{invoice.status === "overdue" && <p className="mt-0.5 text-xs font-semibold text-danger-700">Đã quá hạn</p>}</td>
                       <td className="px-4 py-4 text-right font-bold tabular-nums text-neutral-900">{formatVnd(invoice.amount)}</td>
-                      <td className="px-5 py-4 text-right"><StatusBadge tone={INVOICE_STATUS_TONE[invoice.status]}>{INVOICE_STATUS_LABEL[invoice.status]}</StatusBadge></td>
+                      <td className="px-5 py-4 text-right"><StatusBadge tone={INVOICE_STATUS_TONE[invoice.status]}>{INVOICE_STATUS_LABEL[invoice.status]}</StatusBadge><UtilityDeliveryLine label="Nhắc phí" status={reminder.status} detail={reminder.detail} retryableJobIds={reminder.retryableJobIds} retrying={retryDelivery.isPending} onRetry={(ids) => retryDelivery.mutate(ids)} />{confirmation && <UtilityDeliveryLine label="Xác nhận" status={confirmation.status} detail={confirmation.detail} retryableJobIds={confirmation.retryableJobIds} retrying={retryDelivery.isPending} onRetry={(ids) => retryDelivery.mutate(ids)} />}{canReconcile && VOIDABLE_STATUSES.includes(invoice.status) && <Button size="sm" variant="secondary" className="mt-2" aria-label={`Huỷ hóa đơn ${invoice.invoiceCode}`} onClick={() => { voidMutation.reset(); setVoiding(invoice); }}>Huỷ</Button>}</td>
                     </tr>
-                  ))}
+                  })}
                 </tbody>
               </table>
             )}
@@ -277,8 +319,8 @@ export default function InvoicesPage() {
         </DataListPanel>
       )}
 
-      {isAdmin && activeTab === "reconcile" && (
-        <DataListPanel className="motion-content-enter rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)]">
+      {canReconcile && activeTab === "reconcile" && (
+        <DataListPanel className="motion-content-enter rounded-card border border-neutral-200 bg-neutral-0 shadow-[var(--shadow-1)]">
           <div className="shrink-0 border-b border-neutral-200 p-4 sm:p-5"><div className="flex items-center justify-between gap-3"><div><h2 className="text-base font-bold text-neutral-900">Hàng đợi đối soát</h2><p className="mt-1 text-sm text-neutral-500">Kiểm tra mã giao dịch trước khi xác nhận thu tiền.</p></div><span className="rounded-full bg-warning-50 px-3 py-1 text-xs font-bold text-warning-700">{reportedPayments.length} đang chờ</span></div></div>
           <div className={DATA_LIST_SCROLL}>
             {payments.isLoading && <div className="p-5"><LoadingSkeleton rows={5} /></div>}
@@ -291,7 +333,7 @@ export default function InvoicesPage() {
                   <li key={payment.id} className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[1.2fr_1fr_auto] lg:items-center">
                     <div><p className="text-sm font-bold text-neutral-900">{studentNameById.get(payment.studentId) ?? payment.studentId}</p><p className="mt-1 text-xs text-neutral-500">{invoice?.invoiceCode ?? payment.invoiceId} · {invoice?.title ?? "Thanh toán học phí"}</p></div>
                     <div><p className="text-lg font-bold tabular-nums text-neutral-900">{formatVnd(payment.amount)}</p><p className="mt-1 font-mono text-xs text-neutral-500">Mã GD: {payment.transactionReference || "Chưa cung cấp"}</p>{payment.note && <p className="mt-1 text-xs text-neutral-500">{payment.note}</p>}</div>
-                    <div className="flex gap-2"><Button size="sm" variant="primary" disabled={reconcile.isPending} onClick={() => reconcile.mutate({ payment, status: "verified" })}>Xác nhận</Button><Button size="sm" variant="danger" disabled={reconcile.isPending} onClick={() => reconcile.mutate({ payment, status: "rejected" })}>Từ chối</Button></div>
+                    <div className="flex gap-2"><Button size="sm" variant="primary" disabled={reconcile.isPending} onClick={() => { reconcile.reset(); setConfirming({ payment, status: "verified" }); }}>Xác nhận</Button><Button size="sm" variant="danger" disabled={reconcile.isPending} onClick={() => { reconcile.reset(); setConfirming({ payment, status: "rejected" }); }}>Từ chối</Button></div>
                   </li>
                 );
               })}
@@ -301,18 +343,56 @@ export default function InvoicesPage() {
         </DataListPanel>
       )}
 
-      {isAdmin && <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Tạo hóa đơn" description="Tạo học phí theo lớp hoặc khoản thu đồ dùng học tập." size="2xl" bodyClassName="flex overflow-hidden p-0">
+      {canReconcile && voiding && (
+        <Modal open onClose={() => setVoiding(null)} size="sm" title="Huỷ hóa đơn?" description="Hóa đơn đã huỷ không tính vào công nợ và phụ huynh không thể báo chuyển khoản. Không hoàn tác được.">
+          <p className="text-sm">{voiding.invoiceCode} · {studentNameById.get(voiding.studentId) ?? voiding.studentId} · <span className="tabular-nums">{formatVnd(voiding.amount)}</span></p>
+          {voidMutation.isError && <p role="alert" className="mt-3 text-sm font-semibold text-danger-700">Không thể huỷ hóa đơn. Kiểm tra kết nối và thử lại.</p>}
+          <div className="mt-5 flex justify-end gap-2">
+            <Button variant="secondary" disabled={voidMutation.isPending} onClick={() => setVoiding(null)}>Đóng</Button>
+            <Button variant="danger" loading={voidMutation.isPending} onClick={() => voidMutation.mutate(voiding.id)}>Xác nhận huỷ</Button>
+          </div>
+        </Modal>
+      )}
+
+      {canReconcile && confirming && (() => {
+        const invoice = invoiceById.get(confirming.payment.invoiceId);
+        const verifying = confirming.status === "verified";
+        return (
+          <Modal open onClose={() => setConfirming(null)} size="sm"
+            title={verifying ? "Xác nhận đã nhận tiền?" : "Từ chối giao dịch?"}
+            description="Thao tác này không hoàn tác được.">
+            <dl className="space-y-1 text-sm">
+              <div><dt className="inline font-semibold">Học sinh: </dt><dd className="inline">{studentNameById.get(confirming.payment.studentId) ?? confirming.payment.studentId}</dd></div>
+              <div><dt className="inline font-semibold">Hóa đơn: </dt><dd className="inline">{invoice?.invoiceCode ?? confirming.payment.invoiceId}</dd></div>
+              <div><dt className="inline font-semibold">Số tiền: </dt><dd className="inline tabular-nums">{formatVnd(confirming.payment.amount)}</dd></div>
+              <div><dt className="inline font-semibold">Mã GD: </dt><dd className="inline font-mono">{confirming.payment.transactionReference || "Chưa cung cấp"}</dd></div>
+            </dl>
+            {reconcile.isError && <p role="alert" className="mt-3 text-sm font-semibold text-danger-700">Không thể đối soát. Kiểm tra kết nối và thử lại.</p>}
+            <div className="mt-5 flex justify-end gap-2">
+              <Button variant="secondary" disabled={reconcile.isPending} onClick={() => setConfirming(null)}>Hủy</Button>
+              <Button variant={verifying ? "primary" : "danger"} loading={reconcile.isPending}
+                onClick={() => reconcile.mutate({ payment: confirming.payment, status: confirming.status })}>
+                {verifying ? "Xác nhận đã nhận tiền" : "Từ chối giao dịch"}
+              </Button>
+            </div>
+          </Modal>
+        );
+      })()}
+
+      {canManageFinance && <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Tạo hóa đơn" description="Tạo học phí theo lớp hoặc khoản thu đồ dùng học tập." size="2xl" bodyClassName="flex overflow-hidden p-0">
         <InvoiceCreationForm
           students={students.data ?? []}
           classes={classes.data ?? []}
           courses={courses.data ?? []}
           subjects={subjects.data ?? []}
           billingItems={billingItems.data ?? []}
+          invoices={invoices.data ?? []}
           bankBin={paymentSettings.data?.bankBin ?? "970436"}
           accountNumber={paymentSettings.data?.accountNumber ?? ""}
           accountName={paymentSettings.data?.accountName ?? "EDUMATRIX"}
           isPending={create.isPending}
           isError={create.isError}
+          createdStudentIds={create.error instanceof InvoiceBatchPartialError ? create.error.createdStudentIds : []}
           onCancel={() => setCreateOpen(false)}
           onSubmit={(values) => create.mutate(values)}
         />
@@ -331,4 +411,18 @@ function formatAxisVnd(value: number) {
   if (value >= 1_000_000_000) return `${Math.round(value / 1_000_000_000)}tỷ`;
   if (value >= 1_000_000) return `${Math.round(value / 1_000_000)}tr`;
   return `${Math.round(value / 1_000)}k`;
+}
+
+function UtilityDeliveryLine({ label, status, detail, retryableJobIds, retrying, onRetry }: {
+  label: string;
+  status: UtilityDeliveryAggregateStatus;
+  detail: string;
+  retryableJobIds: string[];
+  retrying: boolean;
+  onRetry: (jobIds: string[]) => void;
+}) {
+  if (status === "none") return null;
+  const tone = status === "sent" ? "text-success-700" : status === "failed" ? "text-danger-700" : status === "pending" ? "text-warning-700" : "text-neutral-500";
+  const text = status === "sent" ? "đã gửi" : status === "failed" ? "thất bại" : status === "pending" ? "đang chờ" : "bỏ qua";
+  return <p className={`mt-1 text-2xs font-semibold ${tone}`} title={detail}>{label}: {text}{retryableJobIds.length > 0 && <button type="button" className="ml-1 underline" disabled={retrying} onClick={() => onRetry(retryableJobIds)}>Thử lại</button>}</p>;
 }

@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/Button";
 import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -23,7 +24,7 @@ const defaults: BillingItemFormValues = {
   status: "active",
 };
 
-const inputClass = "min-h-touch w-full rounded-input border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100";
+const inputClass = "min-h-touch w-full rounded-input border border-neutral-300 bg-neutral-0 px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100";
 
 export function BillingItemForm({ editingItem, onDone }: BillingItemFormProps) {
   const queryClient = useQueryClient();
@@ -69,7 +70,7 @@ export function BillingItemForm({ editingItem, onDone }: BillingItemFormProps) {
 
   return (
     <form onSubmit={handleSubmit((values) => mutation.mutate(values))} className="grid gap-4">
-      <section className="rounded-card border border-neutral-200 bg-white">
+      <section className="rounded-card border border-neutral-200 bg-neutral-0">
         <div className="flex items-start gap-3 border-b border-neutral-200 bg-neutral-50 px-4 py-3">
           <span className="grid size-8 shrink-0 place-items-center rounded-input bg-primary-50 text-primary-700"><Package size={17} aria-hidden="true" /></span>
           <div><h3 className="text-sm font-bold text-neutral-900">Thông tin đồ dùng</h3><p className="mt-0.5 text-xs leading-5 text-neutral-500">Tên và đơn giá sẽ được lưu lại trên hóa đơn khi phát hành.</p></div>
@@ -87,7 +88,7 @@ export function BillingItemForm({ editingItem, onDone }: BillingItemFormProps) {
         </div>
       </section>
 
-      <section className="rounded-card border border-neutral-200 bg-white">
+      <section className="rounded-card border border-neutral-200 bg-neutral-0">
         <div className="flex items-start gap-3 border-b border-neutral-200 bg-neutral-50 px-4 py-3">
           <span className="grid size-8 shrink-0 place-items-center rounded-input bg-primary-50 text-primary-700"><Link2 size={17} aria-hidden="true" /></span>
           <div><h3 className="text-sm font-bold text-neutral-900">Phạm vi áp dụng</h3><p className="mt-0.5 text-xs leading-5 text-neutral-500">Môn học phải thuộc khóa học đã chọn.</p></div>
@@ -112,8 +113,8 @@ export function BillingItemForm({ editingItem, onDone }: BillingItemFormProps) {
 
       {mutation.isError && <p role="alert" className="rounded-input bg-danger-50 px-3 py-2 text-sm text-danger-700">Không thể lưu đồ dùng học tập. Vui lòng kiểm tra dữ liệu và thử lại.</p>}
       <div className="flex justify-end gap-2 border-t border-neutral-200 pt-4">
-        <button type="button" onClick={onDone} className="min-h-touch rounded-input border border-neutral-300 px-4 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50 active:scale-[.98]">Hủy</button>
-        <button type="submit" disabled={mutation.isPending} className="min-h-touch rounded-input bg-primary-500 px-5 text-sm font-bold text-white transition hover:bg-primary-600 active:scale-[.98] disabled:opacity-60">{mutation.isPending ? "Đang lưu..." : editingItem ? "Lưu thay đổi" : "Thêm đồ dùng"}</button>
+        <Button variant="secondary" type="button" onClick={onDone}>Hủy</Button>
+        <Button variant="primary" type="submit" disabled={mutation.isPending}>{mutation.isPending ? "Đang lưu..." : editingItem ? "Lưu thay đổi" : "Thêm đồ dùng"}</Button>
       </div>
     </form>
   );

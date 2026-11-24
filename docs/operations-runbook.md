@@ -8,6 +8,7 @@ Tài liệu này là đầu ra Chặng 6. Nó không thay thế checklist Go/No-
 - Không đưa Firebase service-account JSON, Meta token hoặc Worker secret vào repository.
 - Mọi thay đổi Rules phải có kết quả Emulator test trước khi deploy.
 - Spark cần được theo dõi reads/writes, số document và lỗi quota; khi có dấu hiệu vượt ngưỡng thì tắt luồng tổng hợp nặng trước khi thêm dữ liệu.
+- Spark không hỗ trợ Firestore managed TTL deletes. Worker cron là nguồn canonical để xóa `messenger_conversation_tombstones` trạng thái `deleted` khi `expiresAt` đã quá 30 ngày; kiểm tra structured log `conversation_tombstone_cleanup_completed` sau mỗi release.
 
 ## Kiểm tra trước phát hành
 
@@ -75,4 +76,37 @@ Emulator dùng cho dữ liệu test có thể export/import bằng Firebase CLI;
 - Production `ALLOWED_ORIGIN` phải là origin webapp thật, không phải localhost.
 - Secrets chỉ được đặt bằng `wrangler secret put`.
 - Nếu Meta lỗi hoặc hết quota, tắt feature Messenger ở UI và giữ webapp chính hoạt động.
-- Kiểm tra `message_outbox` sau smoke test; không coi test unit là bằng chứng gửi Meta thật.
+- Kiểm tra `chat_threads/{threadId}/messages` và structured log Worker sau smoke test; `message_outbox` cũ đã bị xóa. Không coi test unit là bằng chứng gửi Meta thật.
+- Xác nhận `GET /health.release` trả đúng SHA của commit phát hành trước khi mở frontend.
+- Utility phải giữ fail-closed cho đến khi quyền `pages_utility_messaging`, webhook status và cả sáu template được đồng bộ live.
+
+## R3 — Utility tự động trên Firebase Spark
+
+- Client không ghi trực tiếp `messenger_delivery_jobs`. Mỗi nghiệp vụ ghi một intent bất biến vào `messenger_delivery_events` trong cùng transaction/batch; Worker cron xác minh trạng thái nghiệp vụ rồi fan-out thành job server-only cho từng phụ huynh active.
+- Idempotency key của job là `eventType:entityId:version:parentUid`. Không sửa hoặc tạo job bằng Firebase Console trong quy trình thông thường.
+- Trước khi deploy Rules R3, chạy `npm run migrate:r3-enrollments` để dry-run. Chỉ khi số lượng hợp lý mới chạy `npm run migrate:r3-enrollments -- --apply`; giữ nguyên thư mục backup mà script in ra để rollback có precondition.
+- Thứ tự rollout: migration enrollment → indexes/Rules → Worker với `UTILITY_AUTOMATION_ENABLED=false` → frontend → xác minh template → Worker activation với flag `true`.
+- Chỉ bật automation khi bốn template nghiệp vụ `lesson_feedback_request`, `tuition_payment_reminder`, `tuition_payment_confirmation`, `enrollment_confirmation` và template `parent_account_link_confirmation` đều đang `APPROVED`, đúng Page/ngôn ngữ và được Admin bật. `schedule_adjustment` không thuộc năm trigger R3.
+- Cron xử lý event trước, job sau. Theo dõi `pending`, `processing`, `sent`, `failed`, `skipped`; `skipped:no_connection` là kết quả thật, không phải gửi thành công.
+- Nếu job ở `processing` hết lease hoặc request Meta trả kết quả mơ hồ, Worker đặt `skipped:meta_delivery_outcome_unknown` và không tự gửi lại. Kiểm tra Inbox/Meta log thủ công; không retry mù vì có nguy cơ gửi trùng.
+- Rollback nhanh nhất là đặt `UTILITY_AUTOMATION_ENABLED=false` và deploy Worker. Việc này dừng cron gửi mới nhưng giữ nguyên event/job để điều tra; chat 24 giờ và Utility thủ công không bị tắt.
+- R3.1 dùng `session_schedule_changed` cho template `class_schedule_adjustment`. Chỉ tăng `scheduleVersion` và tạo event khi thời gian bắt đầu/kết thúc thực sự đổi hoặc session lần đầu chuyển sang `cancelled`; sửa địa điểm/ghi chú hay ghi lại cùng trạng thái không gửi Messenger.
+- Event lịch dùng ID `session_schedule_changed:schedule_<sessionId>_<studentId>:v<scheduleVersion>`. Worker chỉ mở event khớp phiên bản session mới nhất, nên thay đổi cũ chưa xử lý sẽ bị bỏ qua thay vì gửi lịch đã lỗi thời.
+
+## Quyền theo vai trò (đợt 1, 23/11/2026)
+
+- Chỉ Admin được xoá cứng tài khoản, môn học, khoá học, học sinh, lớp học và đối soát thanh toán. Giáo viên vẫn tạo được hoá đơn cho lớp được phân công.
+- **Xoá tài khoản Admin:** client không xoá được tài khoản có `role == 'admin'` (`firestore.rules`). Muốn gỡ một Admin: Firebase Console → Firestore → `users/{uid}`, đổi `status` thành `disabled` hoặc xoá document; xoá tài khoản ở Authentication. Luôn giữ ít nhất 1 Admin `active`.
+- **Cấu hình thanh toán:** hoá đơn chỉ tạo được khi `settings/payment` đã cấu hình, và `bankBin/accountNumber/accountName` của hoá đơn phải trùng cấu hình đó. Kiểm tra `settings/payment` trên production trước khi deploy rules. Đổi tài khoản ngân hàng không ảnh hưởng hoá đơn cũ.
+- **Tạo nhiều hoá đơn:** client ghi theo nhóm 5 hoá đơn (giới hạn số lần đọc của rules mỗi batch). Nếu báo lỗi giữa chừng, các nhóm trước đã được tạo — kiểm tra danh sách rồi tạo lại cho học sinh còn thiếu.
+
+## Ngân sách Firestore (đợt 2, 23/11/2026)
+
+- **Mục tiêu:** 0đ/tháng trên Spark, hoặc dưới 100.000đ/tháng nếu lên Blaze. Hạn mức miễn phí: 50.000 lượt đọc, 20.000 lượt ghi, 20.000 lượt xoá mỗi ngày, 1 GiB dữ liệu. Cloudflare Workers free: 100.000 request/ngày.
+- **Theo dõi:** Firebase Console → Firestore → Usage (Reads/Writes theo ngày); Cloudflare → Workers → `edumatrix-messenger` → Metrics. Ngưỡng cần xử lý: trên 40.000 lượt đọc/ngày.
+- **Spark:** chi phí luôn 0đ; khi chạm hạn mức, app ngừng đọc/ghi đến 0h (giờ Thái Bình Dương) hôm sau. **Blaze:** Google Cloud → Billing → Budgets & alerts, budget 100.000đ/tháng, cảnh báo 50/90/100% (budget chỉ cảnh báo, không tự chặn chi).
+- **Quy tắc cho code mới:**
+  - Không dùng `refetchInterval` dưới 30 giây cho query Firestore; cần realtime thì dùng `onSnapshot` có `limit`.
+  - Poll trạng thái gửi tin dùng `utilityDeliveryRefetchInterval` (chỉ poll khi còn job đang chạy).
+  - Cache mặc định 10 phút (`src/app/providers.tsx`); không đặt `staleTime` ngắn hơn nếu không có lý do.
+  - Worker phân trang bằng cursor `__name__` (`pagedStructuredQuery`), không dùng `offset`.

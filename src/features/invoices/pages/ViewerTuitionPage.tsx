@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/Button";
 import { useMemo, useState } from "react";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -13,6 +14,7 @@ import { useViewerStudentSelection } from "@/features/students/hooks/useViewerSt
 import { listInvoicesByStudents, reportPayment } from "@/services/firestore/invoices";
 import { getStudent } from "@/services/firestore/students";
 import type { InvoiceDoc, InvoiceStatus } from "@/types/academic";
+import { effectiveInvoiceStatus } from "@/features/invoices/invoiceStatus";
 import { formatVnd } from "@/utils/currency";
 import { buildVietQrImageUrl } from "@/utils/payment";
 
@@ -24,6 +26,7 @@ const INVOICE_PRIORITY: Record<InvoiceStatus, number> = {
   unpaid: 2,
   pending: 3,
   paid: 4,
+  void: 5,
 };
 
 const REPORTABLE_STATUSES: InvoiceStatus[] = ["unpaid", "overdue", "rejected"];
@@ -53,6 +56,7 @@ export default function ViewerTuitionPage() {
 
   const visibleInvoices = useMemo(() => (invoices.data ?? [])
     .filter((invoice) => invoice.studentId === activeStudentId)
+    .map((invoice) => ({ ...invoice, status: effectiveInvoiceStatus(invoice) }))
     .sort((left, right) => {
       const priorityDifference = INVOICE_PRIORITY[left.status] - INVOICE_PRIORITY[right.status];
       return priorityDifference || left.dueAt.toMillis() - right.dueAt.toMillis();
@@ -135,7 +139,7 @@ function InvoiceCard({ invoice, onOpen }: { invoice: Invoice; onOpen: () => void
   const canReport = REPORTABLE_STATUSES.includes(invoice.status);
 
   return (
-    <article className="rounded-card border border-neutral-200 bg-white p-4 shadow-[0_4px_18px_rgba(37,61,124,.035)] transition-colors hover:border-primary-200 sm:p-5">
+    <article className="rounded-card border border-neutral-200 bg-neutral-0 p-4 shadow-xs transition-colors hover:border-primary-200 sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-2xs font-semibold uppercase tracking-wide text-neutral-500">{invoice.invoiceCode}</p>
@@ -151,13 +155,13 @@ function InvoiceCard({ invoice, onOpen }: { invoice: Invoice; onOpen: () => void
             {invoice.status === "overdue" ? "Đã quá hạn" : `Hạn ${format(invoice.dueAt.toDate(), "dd/MM/yyyy")}`}
           </span>
         </div>
-        <button
+        <Button variant="soft"
           type="button"
           onClick={onOpen}
-          className="motion-control min-h-touch w-full rounded-input border border-primary-300 px-4 text-sm font-bold text-primary-700 hover:border-primary-500 hover:bg-primary-50 active:scale-[.98] sm:w-auto"
+          className="w-full sm:w-auto"
         >
           {canReport ? "Mở mã QR" : "Xem chi tiết"}
-        </button>
+        </Button>
       </div>
     </article>
   );
@@ -206,14 +210,14 @@ function InvoiceDetails({
             onChange={(event) => setReference(event.target.value)}
             className="mt-4 min-h-touch w-full rounded-input border border-neutral-300 px-3 text-base"
           />
-          <button
+          <Button variant="primary"
             type="button"
             onClick={() => report.mutate()}
             disabled={report.isPending}
-            className="mt-2 min-h-touch w-full rounded-input bg-primary-600 px-4 text-sm font-bold text-white disabled:opacity-50"
+            className="mt-2 w-full"
           >
             {report.isPending ? "Đang gửi..." : "Tôi đã chuyển khoản"}
-          </button>
+          </Button>
         </>
       )}
 

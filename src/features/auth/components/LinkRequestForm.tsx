@@ -18,7 +18,7 @@ interface LinkRequestFormProps {
 const inputClass =
   "min-h-touch w-full rounded-input border border-neutral-300 px-3 text-sm text-neutral-900 outline-none transition placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:bg-neutral-100 disabled:text-neutral-400";
 
-const sectionClass = "overflow-hidden rounded-card border border-neutral-200 bg-white shadow-[0_1px_2px_rgba(28,51,137,.04)]";
+const sectionClass = "overflow-hidden rounded-card border border-neutral-200 bg-neutral-0 shadow-xs";
 
 const emptyChild = { dateOfBirth: "", fullName: "", nickname: "", note: "" };
 

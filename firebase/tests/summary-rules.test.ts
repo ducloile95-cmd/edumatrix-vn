@@ -27,6 +27,7 @@ beforeEach(async () => {
     await setDoc(doc(db, "classes", "class-1"), { teacherIds: [], studentIds: ["student-1"] });
     await setDoc(doc(db, "sessions", "session-1"), { classId: "class-1" });
     await setDoc(doc(db, "sessions", "session-2"), { classId: "class-1" });
+    await setDoc(doc(db, "students", "student-1"), { studentId: "student-1" });
   });
 });
 

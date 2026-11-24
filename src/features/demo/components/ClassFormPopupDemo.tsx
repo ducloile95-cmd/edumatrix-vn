@@ -25,7 +25,7 @@ import { Button } from "@/components/ui/Button";
 import { generateRecurringSessions } from "@/utils/recurrence";
 
 const FIELD_CLASS =
-  "min-h-touch w-full rounded-input border border-neutral-300 bg-white px-3 text-sm text-neutral-800 outline-none transition placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-100";
+  "min-h-touch w-full rounded-input border border-neutral-300 bg-neutral-0 px-3 text-sm text-neutral-800 outline-none transition placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-100";
 const WEEKDAYS = [
   { day: 1, short: "T2", full: "Thứ 2" },
   { day: 2, short: "T3", full: "Thứ 3" },
@@ -46,9 +46,9 @@ interface ScheduleState {
 
 function Section({ icon, title, description, children }: { icon: ReactNode; title: string; description: string; children: ReactNode }) {
   return (
-    <section className="rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+    <section className="rounded-modal border border-neutral-200 bg-neutral-0 p-4 shadow-sm">
       <div className="mb-3 flex items-start gap-3">
-        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary-50 text-primary-700">{icon}</span>
+        <span className="grid size-9 shrink-0 place-items-center rounded-card bg-primary-50 text-primary-700">{icon}</span>
         <div>
           <h3 className="text-sm font-bold text-neutral-950">{title}</h3>
           <p className="mt-0.5 text-xs leading-5 text-neutral-500">{description}</p>
@@ -95,7 +95,7 @@ function MultiSelect({ id, label, options }: { id: string; label: string; option
         </span>
       </button>
       {open && (
-        <div role="listbox" aria-multiselectable="true" aria-labelledby={labelId} className="absolute bottom-full inset-x-0 z-30 mb-1 max-h-52 overflow-y-auto rounded-xl border border-neutral-200 bg-white p-1.5 shadow-xl">
+        <div role="listbox" aria-multiselectable="true" aria-labelledby={labelId} className="absolute bottom-full inset-x-0 z-30 mb-1 max-h-52 overflow-y-auto rounded-card border border-neutral-200 bg-neutral-0 p-1.5 shadow-xl">
           {options.map((option) => {
             const active = selected.includes(option);
             return (
@@ -105,14 +105,14 @@ function MultiSelect({ id, label, options }: { id: string; label: string; option
                 role="option"
                 aria-selected={active}
                 onClick={() => toggle(option)}
-                className={`flex min-h-10 w-full cursor-pointer items-center justify-between rounded-lg px-3 text-left text-sm font-semibold transition ${active ? "bg-primary-50 text-primary-800" : "text-neutral-700 hover:bg-neutral-50"}`}
+                className={`flex min-h-10 w-full cursor-pointer items-center justify-between rounded-input px-3 text-left text-sm font-semibold transition ${active ? "bg-primary-50 text-primary-800" : "text-neutral-700 hover:bg-neutral-50"}`}
               >
                 {option}
-                <span className={`grid size-5 place-items-center rounded-md border ${active ? "border-primary-500 bg-primary-500 text-white" : "border-neutral-300 text-transparent"}`}><Check size={13} /></span>
+                <span className={`grid size-5 place-items-center rounded-input border ${active ? "border-primary-500 bg-primary-500 text-white" : "border-neutral-300 text-transparent"}`}><Check size={13} /></span>
               </button>
             );
           })}
-          <button type="button" onClick={() => setOpen(false)} className="mt-1 min-h-9 w-full cursor-pointer rounded-lg border border-neutral-200 text-xs font-bold text-neutral-700 transition hover:border-primary-300 hover:text-primary-700">Xong</button>
+          <button type="button" onClick={() => setOpen(false)} className="mt-1 min-h-9 w-full cursor-pointer rounded-input border border-neutral-200 text-xs font-bold text-neutral-700 transition hover:border-primary-300 hover:text-primary-700">Xong</button>
         </div>
       )}
     </div>
@@ -177,41 +177,41 @@ export function ClassFormPopupDemo({ onClose }: { onClose: () => void }) {
     <form onSubmit={(event: FormEvent) => { event.preventDefault(); onClose(); }} className="flex min-h-0 flex-1 flex-col">
       <div data-testid="class-popup-layout" className="grid min-h-0 flex-1 overflow-y-auto bg-neutral-50/80 xl:grid-cols-[minmax(0,1.2fr)_minmax(520px,.8fr)] xl:overflow-hidden">
         <div className="border-b border-neutral-200 p-3 xl:min-h-0 xl:border-b-0 xl:border-r">
-          <section className="flex h-full min-h-0 flex-col rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm">
+          <section className="flex h-full min-h-0 flex-col rounded-modal border border-neutral-200 bg-neutral-0 p-4 shadow-sm">
             <div className="mb-3 flex items-start justify-between gap-3">
               <div className="flex items-start gap-3">
-                <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary-50 text-primary-700"><Sparkles size={18} /></span>
+                <span className="grid size-9 shrink-0 place-items-center rounded-card bg-primary-50 text-primary-700"><Sparkles size={18} /></span>
                 <div><h3 className="text-sm font-bold text-neutral-950">Lịch học thông minh</h3><p className="mt-0.5 text-xs leading-5 text-neutral-500">Tự động sinh buổi học theo tuần và kiểm tra trực tiếp trên lịch tháng.</p></div>
               </div>
               <span className="inline-flex items-center gap-1.5 rounded-full border border-success-100 bg-success-50 px-3 py-2 text-xs font-bold text-success-800"><Check size={14} /> Mặc định bật</span>
             </div>
               <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[250px_minmax(0,1fr)]">
-                <div className="space-y-3 rounded-xl border border-neutral-200 bg-neutral-50 p-3">
+                <div className="space-y-3 rounded-card border border-neutral-200 bg-neutral-50 p-3">
                   <div><FieldLabel htmlFor="demo-recurrence-start" required>Ngày bắt đầu</FieldLabel><input id="demo-recurrence-start" type="date" className={FIELD_CLASS} value={schedule.startDate} onChange={(event) => updateStartDate(event.target.value)} /></div>
                   <div>
                     <span className="mb-2 block text-xs font-bold text-neutral-700">Các thứ trong tuần *</span>
                     <div className="grid grid-cols-4 gap-1.5" role="group" aria-label="Chọn thứ trong tuần">
                       {WEEKDAYS.map(({ day, short, full }) => {
                         const active = schedule.daysOfWeek.includes(day);
-                        return <button key={day} type="button" aria-label={full} aria-pressed={active} onClick={() => toggleWeekday(day)} className={`min-h-9 cursor-pointer rounded-lg border text-xs font-bold transition ${active ? "border-primary-500 bg-primary-500 text-white" : "border-neutral-300 bg-white text-neutral-600 hover:border-primary-300"}`}>{short}</button>;
+                        return <button key={day} type="button" aria-label={full} aria-pressed={active} onClick={() => toggleWeekday(day)} className={`min-h-9 cursor-pointer rounded-input border text-xs font-bold transition ${active ? "border-primary-500 bg-primary-500 text-white" : "border-neutral-300 bg-neutral-0 text-neutral-600 hover:border-primary-300"}`}>{short}</button>;
                       })}
                     </div>
                   </div>
                   <div className="grid gap-3 2xl:grid-cols-2"><div><FieldLabel htmlFor="demo-start-time" required>Bắt đầu</FieldLabel><input id="demo-start-time" type="time" className={FIELD_CLASS} value={schedule.startTime} onChange={(event) => setSchedule((current) => ({ ...current, startTime: event.target.value }))} /></div><div><FieldLabel htmlFor="demo-end-time" required>Kết thúc</FieldLabel><input id="demo-end-time" type="time" className={FIELD_CLASS} value={schedule.endTime} onChange={(event) => setSchedule((current) => ({ ...current, endTime: event.target.value }))} /></div></div>
                   <div><FieldLabel htmlFor="demo-session-count" required>Tổng số buổi</FieldLabel><input id="demo-session-count" type="number" min={1} max={120} className={FIELD_CLASS} value={schedule.sessionCount} onChange={(event) => setSchedule((current) => ({ ...current, sessionCount: Number(event.target.value) }))} /></div>
-                  <div className="rounded-xl border border-success-100 bg-success-50 p-2.5 text-xs leading-5 text-success-900"><strong className="block text-sm">{preview?.sessions.length ?? 0} buổi dự kiến</strong>{preview ? `Buổi đầu ${format(preview.sessions[0].startAt, "dd/MM/yyyy")}, bế giảng ${format(preview.endDate, "dd/MM/yyyy")}.` : "Hãy điền đủ điều kiện để xem trước."}</div>
+                  <div className="rounded-card border border-success-100 bg-success-50 p-2.5 text-xs leading-5 text-success-900"><strong className="block text-sm">{preview?.sessions.length ?? 0} buổi dự kiến</strong>{preview ? `Buổi đầu ${format(preview.sessions[0].startAt, "dd/MM/yyyy")}, bế giảng ${format(preview.endDate, "dd/MM/yyyy")}.` : "Hãy điền đủ điều kiện để xem trước."}</div>
                 </div>
 
-                <div className="min-w-0 rounded-xl border border-neutral-200 bg-white p-3">
+                <div className="min-w-0 rounded-card border border-neutral-200 bg-neutral-0 p-3">
                   <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                     <div><p className="text-xs font-semibold text-neutral-500">Lịch tháng tương tác</p><h4 className="text-base font-black capitalize text-neutral-950">Tháng {format(visibleMonth, "MM / yyyy")}</h4></div>
                     <div className="flex items-center gap-1.5">
                       <Button size="sm" onClick={() => setVisibleMonth(startOfMonth(new Date(`${schedule.startDate}T00:00:00`)))}>Tháng bắt đầu</Button>
-                      <button type="button" aria-label="Tháng trước" onClick={() => setVisibleMonth((month) => subMonths(month, 1))} className="grid size-9 cursor-pointer place-items-center rounded-lg border border-neutral-300 text-neutral-600 transition hover:border-primary-300 hover:text-primary-700"><ChevronLeft size={17} /></button>
-                      <button type="button" aria-label="Tháng sau" onClick={() => setVisibleMonth((month) => addMonths(month, 1))} className="grid size-9 cursor-pointer place-items-center rounded-lg border border-neutral-300 text-neutral-600 transition hover:border-primary-300 hover:text-primary-700"><ChevronRight size={17} /></button>
+                      <button type="button" aria-label="Tháng trước" onClick={() => setVisibleMonth((month) => subMonths(month, 1))} className="grid size-9 cursor-pointer place-items-center rounded-input border border-neutral-300 text-neutral-600 transition hover:border-primary-300 hover:text-primary-700"><ChevronLeft size={17} /></button>
+                      <button type="button" aria-label="Tháng sau" onClick={() => setVisibleMonth((month) => addMonths(month, 1))} className="grid size-9 cursor-pointer place-items-center rounded-input border border-neutral-300 text-neutral-600 transition hover:border-primary-300 hover:text-primary-700"><ChevronRight size={17} /></button>
                     </div>
                   </div>
-                  <div className="grid grid-cols-7 border-b border-neutral-200 pb-2 text-center text-[10px] font-bold uppercase tracking-wide text-neutral-400">{WEEKDAYS.map((day) => <span key={day.day}>{day.short}</span>)}</div>
+                  <div className="grid grid-cols-7 border-b border-neutral-200 pb-2 text-center text-3xs font-bold uppercase tracking-wide text-neutral-400">{WEEKDAYS.map((day) => <span key={day.day}>{day.short}</span>)}</div>
                   <div className="mt-2 grid grid-cols-7 gap-1 sm:gap-1.5">
                     {monthDays.map((date) => {
                       const key = format(date, "yyyy-MM-dd");
@@ -219,9 +219,9 @@ export function ClassFormPopupDemo({ onClose }: { onClose: () => void }) {
                       const isStart = key === schedule.startDate;
                       const inMonth = isSameMonth(date, visibleMonth);
                       return (
-                        <button key={key} type="button" onClick={() => selectCalendarDate(date)} aria-label={`Chọn ngày bắt đầu ${format(date, "dd/MM/yyyy")}`} aria-pressed={isStart} className={`group relative min-h-12 cursor-pointer rounded-lg border p-1.5 text-left transition 2xl:min-h-14 ${isStart ? "border-primary-500 bg-primary-50 ring-2 ring-primary-100" : sessionNumber ? "border-success-200 bg-success-50 hover:border-success-300" : "border-transparent hover:border-primary-200 hover:bg-neutral-50"} ${inMonth ? "text-neutral-800" : "text-neutral-300"}`}>
+                        <button key={key} type="button" onClick={() => selectCalendarDate(date)} aria-label={`Chọn ngày bắt đầu ${format(date, "dd/MM/yyyy")}`} aria-pressed={isStart} className={`group relative min-h-12 cursor-pointer rounded-input border p-1.5 text-left transition 2xl:min-h-14 ${isStart ? "border-primary-500 bg-primary-50 ring-2 ring-primary-100" : sessionNumber ? "border-success-200 bg-success-50 hover:border-success-300" : "border-transparent hover:border-primary-200 hover:bg-neutral-50"} ${inMonth ? "text-neutral-800" : "text-neutral-300"}`}>
                           <span className="text-xs font-bold">{format(date, "d")}</span>
-                          {sessionNumber && <span className="mt-1 flex items-center gap-1 text-[9px] font-bold text-success-700 sm:text-[10px]"><Clock3 size={10} /> Buổi {sessionNumber}</span>}
+                          {sessionNumber && <span className="mt-1 flex items-center gap-1 text-3xs font-bold text-success-700 sm:text-3xs"><Clock3 size={10} /> Buổi {sessionNumber}</span>}
                         </button>
                       );
                     })}
@@ -256,7 +256,7 @@ export function ClassFormPopupDemo({ onClose }: { onClose: () => void }) {
         </div>
       </div>
 
-      <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-neutral-200 bg-white px-4 py-3 sm:px-5">
+      <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-neutral-200 bg-neutral-0 px-4 py-3 sm:px-5">
         <p className="text-xs text-neutral-500"><strong className="text-neutral-700">Khung cố định 1.920 × 980</strong> · Lịch tương tác thật, không ghi dữ liệu</p>
         <div className="flex gap-2"><Button onClick={onClose}>Hủy</Button><Button type="submit" variant="primary">Tạo lớp học</Button></div>
       </footer>

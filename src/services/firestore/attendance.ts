@@ -4,6 +4,7 @@ import {
   documentId,
   getDocs,
   limit,
+  orderBy,
   query,
   runTransaction,
   serverTimestamp,
@@ -18,7 +19,7 @@ import { getCurrentUserDoc, isTeacherUser } from "@/services/firestore/authz";
 import { listClasses } from "@/services/firestore/classes";
 import { listSessions } from "@/services/firestore/sessions";
 import { listStudents } from "@/services/firestore/students";
-import { listAllQueryDocuments } from "@/services/firestore/pagination";
+import { listAllQueryDocuments, listQueryDocumentsPage } from "@/services/firestore/pagination";
 import type { AttendanceDoc, AttendanceStatus, AttendanceSummaryDoc, SessionDoc } from "@/types/academic";
 
 export interface AttendanceEntry { studentId: string; status: AttendanceStatus; note: string; }
@@ -109,6 +110,7 @@ export async function saveAttendance(sessionId: string, classId: string, entries
     sessionId,
     classId,
     total: entries.length,
+    expectedTotal: entries.length,
     ...counts,
     updatedAt: serverTimestamp(),
   });
@@ -150,7 +152,7 @@ export async function registerLeave(
       transaction.get(summaryRef),
     ]);
     const previousStatus = attendanceSnap.exists() ? (attendanceSnap.data() as AttendanceDoc).status : null;
-    const summary = summarySnap.exists()
+    const summary: Omit<AttendanceSummaryDoc, "updatedAt"> = summarySnap.exists()
       ? summarySnap.data() as AttendanceSummaryDoc
       : { sessionId, classId, total: 0, present: 0, absent: 0, late: 0, excused: 0 };
     const counts: Record<AttendanceStatus, number> = {
@@ -166,6 +168,8 @@ export async function registerLeave(
       sessionId,
       classId,
       total: summary.total + Number(!previousStatus),
+      // Dang ky nghi chi ghi 1 hoc sinh: giu si so cua lan diem danh day du neu da co.
+      ...(summary.expectedTotal !== undefined ? { expectedTotal: summary.expectedTotal } : {}),
       ...counts,
       updatedAt: serverTimestamp(),
     });
@@ -177,6 +181,12 @@ export async function listAttendanceBySession(sessionId: string, classId: string
     [where("classId", "==", classId), where("sessionId", "==", sessionId)],
     500,
   );
+}
+
+/** Tai lich su diem danh cua mot lop de tinh hoc phi theo buoi da tham gia. */
+export async function listAttendanceByClass(classId: string): Promise<(AttendanceDoc & { id: string })[]> {
+  if (!classId) return [];
+  return listAttendancePages([where("classId", "==", classId)], 500);
 }
 
 /** Cac attendance doc cho nhieu session cung luc - chunk 30 (gioi han Firestore "in"), dung cho Tong quan. */
@@ -261,6 +271,18 @@ export async function listAttendanceByStudents(studentIds: string[], pageSize = 
   return groups.flat().sort((a, b) => b.markedAt.toMillis() - a.markedAt.toMillis());
 }
 
+export async function listAttendancePreviewsByStudents(studentIds: string[], maxPerStudent: number): Promise<(AttendanceDoc & { id: string })[]> {
+  const groups = await Promise.all([...new Set(studentIds)].filter(Boolean).map(async (studentId) => {
+    const documents = await listQueryDocumentsPage(
+      COLLECTIONS.ATTENDANCE,
+      [where("studentId", "==", studentId), orderBy("markedAt", "desc")],
+      maxPerStudent,
+    );
+    return documents.map((item) => ({ id: item.id, ...(item.data() as AttendanceDoc) }));
+  }));
+  return groups.flat().sort((a, b) => b.markedAt.toMillis() - a.markedAt.toMillis());
+}
+
 /**
  * Buoi da ket thuc trong N ngay qua nhung chua diem danh DAY DU ca lop (so
  * sanh attendance_summaries.total voi si so lop, khong chi kiem tra "co
@@ -280,10 +302,11 @@ export async function listSessionsWithoutAttendance(days = 14): Promise<(Session
   const summaryBySessionId = new Map(summaries.map((summary) => [summary.sessionId, summary]));
 
   return pastSessions.filter((session) => {
-    const rosterSize = rosterSizeByClass.get(session.classId) ?? 0;
-    if (rosterSize === 0) return false;
-    const marked = summaryBySessionId.get(session.id)?.total ?? 0;
-    return marked < rosterSize;
+    const summary = summaryBySessionId.get(session.id);
+    // So voi si so luc diem danh, khong phai si so hom nay - hoc sinh vao lop sau khong lam buoi cu thanh "thieu".
+    const expected = summary?.expectedTotal ?? rosterSizeByClass.get(session.classId) ?? 0;
+    if (expected === 0) return false;
+    return (summary?.total ?? 0) < expected;
   });
 }
 
@@ -294,8 +317,11 @@ export async function listUpcomingRegisteredLeaves(days = 14): Promise<(Attendan
   const futureSessions = sessions.filter((session) => session.status !== "cancelled");
   if (futureSessions.length === 0) return [];
 
-  const entries = await listAttendanceBySessionIds(futureSessions.map((session) => session.id));
-  return entries.filter((entry) => entry.status === "absent" || entry.status === "excused");
+  const sessionIds = futureSessions.map((session) => session.id);
+  const [entries, summaries] = await Promise.all([listAttendanceBySessionIds(sessionIds), listAttendanceSummariesBySessionIds(sessionIds)]);
+  // Buoi da diem danh du roster (co expectedTotal) thi vang la ket qua diem danh, khong phai bao nghi truoc.
+  const fullyMarked = new Set(summaries.filter((summary) => summary.expectedTotal !== undefined).map((summary) => summary.sessionId));
+  return entries.filter((entry) => !fullyMarked.has(entry.sessionId) && (entry.status === "absent" || entry.status === "excused"));
 }
 
 export interface ClassAttendanceRate { classId: string; className: string; ratePercent: number; total: number; }

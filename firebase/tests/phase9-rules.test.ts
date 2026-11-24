@@ -5,7 +5,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { doc, getDoc, setDoc, Timestamp, updateDoc, writeBatch } from "firebase/firestore";
+import { deleteDoc, doc, getDoc, serverTimestamp, setDoc, Timestamp, updateDoc, writeBatch } from "firebase/firestore";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -53,6 +53,21 @@ const billingItemInvoice = {
   quantity: 1,
 };
 
+const classInvoice = {
+  ...invoice,
+  courseId: "course-1",
+  title: "Hoc phi lop",
+  amount: 300000,
+  sourceType: "class",
+  sourceId: "class-1",
+  classId: "class-1",
+  subjectId: null,
+  billingItemId: null,
+  itemNameSnapshot: "English Foundation",
+  unitPriceSnapshot: 100000,
+  quantity: 3,
+};
+
 beforeAll(async () => {
   env = await initializeTestEnvironment({
     projectId: "phase9-rules",
@@ -92,7 +107,17 @@ beforeEach(async () => {
     });
     await setDoc(doc(db, "subjects", "subject-1"), { name: "English", code: "subject-1", status: "active" });
     await setDoc(doc(db, "subjects", "subject-2"), { name: "Math", code: "subject-2", status: "active" });
-    await setDoc(doc(db, "courses", "course-1"), { subjectIds: ["subject-1"], teacherIds: ["teacher"] });
+    await setDoc(doc(db, "settings", "payment"), {
+      bankBin: "970436", bankName: "Vietcombank", accountNumber: "123", accountName: "EDU",
+      contentTemplate: "{invoiceCode}", vietQrTemplate: "compact2", updatedAt: Timestamp.now(),
+    });
+    await setDoc(doc(db, "courses", "course-1"), {
+      subjectIds: ["subject-1"], teacherIds: ["teacher"], pricePerSession: 100000, tuitionFee: 1000000, totalSessions: 10,
+    });
+    await setDoc(doc(db, "courses", "course-legacy"), {
+      subjectIds: ["subject-1"], teacherIds: ["teacher"], tuitionFee: 1000000, totalSessions: 3,
+    });
+    await setDoc(doc(db, "classes", "class-legacy"), { courseId: "course-legacy", subjectIds: ["subject-1"], studentIds: ["student-1"], teacherIds: ["teacher"], status: "active" });
     await setDoc(doc(db, "students", "student-1"), { studentCode: "student-1", teacherIds: ["teacher"] });
     await setDoc(doc(db, "students", "student-2"), { studentCode: "student-2", teacherIds: [] });
     await setDoc(doc(db, "classes", "class-1"), { courseId: "course-1", subjectIds: ["subject-1"], studentIds: ["student-1"], teacherIds: ["teacher"], status: "active" });
@@ -128,10 +153,27 @@ describe("Phase 9 payment", () => {
       }),
     ));
 
-  test("teacher cannot create invoice", async () =>
+  test("teacher cannot create an unscoped invoice", async () =>
     assertFails(
       setDoc(doc(env.authenticatedContext("teacher").firestore(), "invoices", "invoice-new"), {
         ...invoice,
+        createdBy: "teacher",
+      }),
+    ));
+
+  test("teacher creates an invoice for an assigned class", async () =>
+    assertSucceeds(
+      setDoc(doc(env.authenticatedContext("teacher").firestore(), "invoices", "invoice-teacher"), {
+        ...billingItemInvoice,
+        createdBy: "teacher",
+      }),
+    ));
+
+  test("teacher cannot create an invoice for a student outside the assigned class", async () =>
+    assertFails(
+      setDoc(doc(env.authenticatedContext("teacher").firestore(), "invoices", "invoice-cross-class"), {
+        ...billingItemInvoice,
+        studentId: "student-2",
         createdBy: "teacher",
       }),
     ));
@@ -313,6 +355,97 @@ describe("Phase 9 payment", () => {
     batch.update(doc(db, "invoices", "invoice-1"), { status: "paid", updatedAt: Timestamp.now() });
     await assertSucceeds(batch.commit());
   });
+
+  test("assigned teacher cannot verify payments (admin only)", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), "invoices", "invoice-1"), { status: "pending" });
+    });
+    const db = env.authenticatedContext("teacher").firestore();
+    const batch = writeBatch(db);
+    batch.update(doc(db, "payments", "payment-1"), {
+      status: "verified", verifiedBy: "teacher", verifiedAt: Timestamp.now(), updatedAt: Timestamp.now(),
+    });
+    batch.update(doc(db, "invoices", "invoice-1"), { status: "paid", updatedAt: Timestamp.now() });
+    await assertFails(batch.commit());
+  });
+});
+
+describe("Invoice integrity (A1)", () => {
+  const asTeacherDb = () => env.authenticatedContext("teacher").firestore();
+  const asAdminDb = () => env.authenticatedContext("admin").firestore();
+
+  test("teacher cannot create a manual invoice without sourceType", async () =>
+    assertFails(setDoc(doc(asTeacherDb(), "invoices", "manual"), { ...invoice, classId: "class-1", createdBy: "teacher" })));
+
+  test("teacher creates a class invoice priced from the course", async () =>
+    assertSucceeds(setDoc(doc(asTeacherDb(), "invoices", "class-ok"), { ...classInvoice, createdBy: "teacher" })));
+
+  test("nobody can set a custom unit price on a class invoice", async () =>
+    assertFails(setDoc(doc(asAdminDb(), "invoices", "class-price"), {
+      ...classInvoice, unitPriceSnapshot: 90000, amount: 270000,
+    })));
+
+  test("legacy course price falls back to round(tuitionFee / totalSessions)", async () =>
+    assertSucceeds(setDoc(doc(asAdminDb(), "invoices", "class-legacy"), {
+      ...classInvoice, courseId: "course-legacy", sourceId: "class-legacy", classId: "class-legacy",
+      unitPriceSnapshot: 333333, amount: 999999,
+    })));
+
+  test("legacy price rounds half up like the client (1,000,000 / 6 -> 166667)", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), "courses", "course-legacy"), { totalSessions: 6 });
+    });
+    await assertSucceeds(setDoc(doc(asAdminDb(), "invoices", "class-legacy-half"), {
+      ...classInvoice, courseId: "course-legacy", sourceId: "class-legacy", classId: "class-legacy",
+      unitPriceSnapshot: 166667, amount: 166667, quantity: 1,
+    }));
+  });
+
+  test("nobody can send payment to another bank account", async () => {
+    await assertFails(setDoc(doc(asAdminDb(), "invoices", "bank-admin"), { ...invoice, accountNumber: "999" }));
+    await assertFails(setDoc(doc(asTeacherDb(), "invoices", "bank-teacher"), { ...billingItemInvoice, accountName: "TEACHER", createdBy: "teacher" }));
+  });
+
+  test("invoice creation fails when payment settings are missing", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => { await deleteDoc(doc(ctx.firestore(), "settings", "payment")); });
+    await assertFails(setDoc(doc(asAdminDb(), "invoices", "no-settings"), invoice));
+  });
+
+  test("admin creates a chunk of 5 class invoices in one batch", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const ids = Array.from({ length: 5 }, (_, i) => `bulk-${i}`);
+      await Promise.all(ids.map((id) => setDoc(doc(ctx.firestore(), "students", id), { studentCode: id, teacherIds: ["teacher"] })));
+      await updateDoc(doc(ctx.firestore(), "classes", "class-1"), { studentIds: ["student-1", ...ids] });
+    });
+    const db = asAdminDb();
+    const batch = writeBatch(db);
+    // Giong createInvoices: moi hoa don kem mot delivery event trong cung batch.
+    Array.from({ length: 5 }, (_, i) => {
+      const invoiceId = `bulk-inv-${i}`;
+      batch.set(doc(db, "invoices", invoiceId), { ...classInvoice, studentId: `bulk-${i}` });
+      const eventId = `invoice_committed:${invoiceId}:v1`;
+      batch.set(doc(db, "messenger_delivery_events", eventId), {
+        eventType: "invoice_committed", entityId: invoiceId, sourceId: invoiceId, studentId: `bulk-${i}`, version: 1,
+        actorUid: "admin", idempotencyKey: eventId, status: "pending", attempts: 0, lastErrorCode: null, leaseUntil: null,
+        nextAttemptAt: serverTimestamp(), createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+      });
+    });
+    await assertSucceeds(batch.commit());
+  });
+});
+
+describe("Void and duplicate invoices (C1)", () => {
+  test("only an admin can void an unpaid invoice; parents cannot pay a void invoice", async () => {
+    await assertFails(updateDoc(doc(env.authenticatedContext("teacher").firestore(), "invoices", "invoice-1"), { status: "void", updatedAt: Timestamp.now() }));
+    await assertSucceeds(updateDoc(doc(env.authenticatedContext("admin").firestore(), "invoices", "invoice-1"), { status: "void", updatedAt: Timestamp.now() }));
+    await assertFails(updateDoc(doc(env.authenticatedContext("viewer").firestore(), "invoices", "invoice-1"), { status: "pending", updatedAt: Timestamp.now() }));
+  });
+
+  test("creating the same deterministic class invoice id twice is denied", async () => {
+    const db = env.authenticatedContext("admin").firestore();
+    await assertSucceeds(setDoc(doc(db, "invoices", "class_class-1_student-1_0_3"), { ...classInvoice, createdAt: Timestamp.fromMillis(1) }));
+    await assertFails(setDoc(doc(db, "invoices", "class_class-1_student-1_0_3"), { ...classInvoice, createdAt: Timestamp.fromMillis(2) }));
+  });
 });
 
 describe("Billing item integrity", () => {
@@ -364,5 +497,11 @@ describe("Billing item integrity", () => {
     assertFails(setDoc(doc(env.authenticatedContext("admin").firestore(), "invoices", "invoice-orphan"), {
       ...invoice,
       courseId: "missing-course",
+    })));
+
+  test("rejects an invoice for a missing student", async () =>
+    assertFails(setDoc(doc(env.authenticatedContext("admin").firestore(), "invoices", "invoice-missing-student"), {
+      ...invoice,
+      studentId: "missing-student",
     })));
 });

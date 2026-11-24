@@ -12,6 +12,11 @@ beforeEach(async () => { await env.clearFirestore(); await env.withSecurityRules
 
 describe("Phase 5 lesson plan visibility", () => {
   test("staff creates lesson plan", async () => assertSucceeds(setDoc(doc(env.authenticatedContext("admin").firestore(), "lesson_plans", "new"), plan)));
+  test("lesson plan attachments must use HTTPS", async () => {
+    const db = env.authenticatedContext("admin").firestore();
+    await assertSucceeds(setDoc(doc(db, "lesson_plans", "https-attachment"), { ...plan, attachmentUrl: "https://example.com/lesson.pdf" }));
+    await assertFails(setDoc(doc(db, "lesson_plans", "unsafe-attachment"), { ...plan, attachmentUrl: "javascript:alert(1)" }));
+  });
   test("staff stores complete Drive metadata but not a partial attachment", async () => {
     const drive = { driveFileId: "file-1", driveFileName: "giao-an.pdf", driveMimeType: "application/pdf", driveWebViewLink: "https://drive.google.com/file/d/file-1/view", driveModifiedTime: "2026-07-19T00:00:00.000Z" };
     await assertSucceeds(setDoc(doc(env.authenticatedContext("admin").firestore(), "lesson_plans", "drive-ok"), { ...plan, ...drive }));

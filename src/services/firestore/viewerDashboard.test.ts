@@ -6,12 +6,12 @@ const serviceMocks = vi.hoisted(() => ({
   listAccessibleClassesByIds: vi.fn(),
   getCourse: vi.fn(),
   listSessionsByClass: vi.fn(),
-  listPublicLessonPlansByClass: vi.fn(),
-  listAssignmentsByClass: vi.fn(),
-  listSubmissionsByStudents: vi.fn(),
+  listPublicLessonPlanPreviewByClass: vi.fn(),
+  listAssignmentPreviewByClass: vi.fn(),
+  listSubmissionPreviewsByStudents: vi.fn(),
   listScoresByStudent: vi.fn(),
-  listAttendanceByStudents: vi.fn(),
-  listInvoicesByStudents: vi.fn(),
+  listAttendancePreviewsByStudents: vi.fn(),
+  listInvoicePreviewsByStudents: vi.fn(),
   listAnnouncementsByStudents: vi.fn(),
 }));
 
@@ -19,14 +19,14 @@ vi.mock("@/services/firestore/students", () => ({ getStudent: serviceMocks.getSt
 vi.mock("@/services/firestore/classes", () => ({ listAccessibleClassesByIds: serviceMocks.listAccessibleClassesByIds }));
 vi.mock("@/services/firestore/courses", () => ({ getCourse: serviceMocks.getCourse }));
 vi.mock("@/services/firestore/sessions", () => ({ listSessionsByClass: serviceMocks.listSessionsByClass }));
-vi.mock("@/services/firestore/lessonPlans", () => ({ listPublicLessonPlansByClass: serviceMocks.listPublicLessonPlansByClass }));
+vi.mock("@/services/firestore/lessonPlans", () => ({ listPublicLessonPlanPreviewByClass: serviceMocks.listPublicLessonPlanPreviewByClass }));
 vi.mock("@/services/firestore/assignments", () => ({
-  listAssignmentsByClass: serviceMocks.listAssignmentsByClass,
-  listSubmissionsByStudents: serviceMocks.listSubmissionsByStudents,
+  listAssignmentPreviewByClass: serviceMocks.listAssignmentPreviewByClass,
+  listSubmissionPreviewsByStudents: serviceMocks.listSubmissionPreviewsByStudents,
 }));
 vi.mock("@/services/firestore/scores", () => ({ listScoresByStudent: serviceMocks.listScoresByStudent }));
-vi.mock("@/services/firestore/attendance", () => ({ listAttendanceByStudents: serviceMocks.listAttendanceByStudents }));
-vi.mock("@/services/firestore/invoices", () => ({ listInvoicesByStudents: serviceMocks.listInvoicesByStudents }));
+vi.mock("@/services/firestore/attendance", () => ({ listAttendancePreviewsByStudents: serviceMocks.listAttendancePreviewsByStudents }));
+vi.mock("@/services/firestore/invoices", () => ({ listInvoicePreviewsByStudents: serviceMocks.listInvoicePreviewsByStudents }));
 vi.mock("@/services/firestore/announcements", () => ({ listAnnouncementsByStudents: serviceMocks.listAnnouncementsByStudents }));
 
 const CLASSES: Record<string, { id: string; courseId: string }> = {
@@ -43,12 +43,12 @@ function primeMocks() {
   serviceMocks.listAccessibleClassesByIds.mockResolvedValue(Object.values(CLASSES));
   serviceMocks.getCourse.mockImplementation(async (id: string) => ({ id, name: `Khoa ${id}` }));
   serviceMocks.listSessionsByClass.mockResolvedValue([]);
-  serviceMocks.listPublicLessonPlansByClass.mockResolvedValue([]);
-  serviceMocks.listAssignmentsByClass.mockResolvedValue([]);
-  serviceMocks.listSubmissionsByStudents.mockResolvedValue([]);
+  serviceMocks.listPublicLessonPlanPreviewByClass.mockResolvedValue([]);
+  serviceMocks.listAssignmentPreviewByClass.mockResolvedValue([]);
+  serviceMocks.listSubmissionPreviewsByStudents.mockResolvedValue([]);
   serviceMocks.listScoresByStudent.mockResolvedValue([]);
-  serviceMocks.listAttendanceByStudents.mockResolvedValue([]);
-  serviceMocks.listInvoicesByStudents.mockResolvedValue([]);
+  serviceMocks.listAttendancePreviewsByStudents.mockResolvedValue([]);
+  serviceMocks.listInvoicePreviewsByStudents.mockResolvedValue([]);
   serviceMocks.listAnnouncementsByStudents.mockResolvedValue([]);
 }
 
@@ -95,7 +95,27 @@ describe("buildViewerDashboard course reads", () => {
 
     expect(dashboard.students).toHaveLength(1);
     expect(dashboard.classes).toEqual([]);
-    expect(serviceMocks.listAttendanceByStudents).toHaveBeenCalledWith(["student-1"], 50);
+    expect(serviceMocks.listAttendancePreviewsByStudents).toHaveBeenCalledWith(["student-1"], 50);
     expect(serviceMocks.listSessionsByClass).not.toHaveBeenCalled();
+  });
+
+  test("keeps bounded preview data for every linked student", async () => {
+    primeMocks();
+    serviceMocks.listAccessibleClassesByIds.mockResolvedValue([]);
+    serviceMocks.listInvoicePreviewsByStudents.mockResolvedValue([
+      { id: "invoice-1", studentId: "student-1", status: "unpaid", dueAt: { toMillis: () => 1 } },
+      { id: "invoice-2", studentId: "student-2", status: "unpaid", dueAt: { toMillis: () => 2 } },
+      { id: "invoice-void", studentId: "student-2", status: "void", dueAt: { toMillis: () => 3 } },
+    ]);
+    serviceMocks.listAttendancePreviewsByStudents.mockResolvedValue([
+      { id: "attendance-1", studentId: "student-1" },
+      { id: "attendance-2", studentId: "student-2" },
+    ]);
+
+    const dashboard = await buildViewerDashboard(["student-1", "student-2"]);
+
+    expect(serviceMocks.listInvoicePreviewsByStudents).toHaveBeenCalledWith(["student-1", "student-2"], 30);
+    expect(dashboard.unpaidInvoices.map((item) => item.studentId)).toEqual(["student-1", "student-2"]);
+    expect(dashboard.attendance.map((item) => item.studentId)).toEqual(["student-1", "student-2"]);
   });
 });

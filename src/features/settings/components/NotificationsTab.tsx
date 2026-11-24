@@ -8,12 +8,9 @@ interface NotificationItem {
   description: string;
 }
 
+// Chi liet ke cong tac co code doc that su; email/nhac lich chua co kenh gui nen khong hien.
 const NOTIFICATION_ITEMS: NotificationItem[] = [
   { key: "notificationSound", title: "Âm thanh thông báo mới", description: "Phát âm báo khi có tin nhắn Messenger hoặc thông báo hệ thống mới" },
-  { key: "newInvoiceEmail", title: "Email khi có hóa đơn mới", description: "Gửi cho phụ huynh ngay khi hóa đơn được tạo" },
-  { key: "absenceEmail", title: "Email khi học sinh vắng không phép", description: "Gửi cho phụ huynh trong ngày điểm danh" },
-  { key: "sessionReminder", title: "Nhắc lịch dạy trước 30 phút", description: "Thông báo cho giáo viên trước buổi học" },
-  { key: "weeklyDigest", title: "Tóm tắt hoạt động mỗi tuần", description: "Gửi qua email vào sáng thứ Hai" },
 ];
 
 /**
@@ -26,7 +23,7 @@ export function NotificationsTab() {
   const prefs = userDoc?.notificationPrefs ?? {};
 
   // Gui kem `key` de biet dung hang nao dang ghi: chi khoa + hien trang thai lac
-  // quan cho hang do, thay vi lam mo ca 5 nut gat.
+  // quan cho hang do, thay vi lam mo ca danh sach.
   const mutation = useMutation({
     mutationFn: ({ nextPrefs }: { key: string; nextPrefs: Record<string, boolean> }) => {
       if (!firebaseUser) throw new Error("Chưa đăng nhập");
@@ -65,7 +62,7 @@ export function NotificationsTab() {
             >
               <span
                 aria-hidden="true"
-                className={`absolute left-0.5 top-0.5 size-5 rounded-full bg-white shadow-[0_1px_3px_rgba(15,23,42,.25)] transition-transform ${
+                className={`absolute left-0.5 top-0.5 size-5 rounded-full bg-neutral-0 shadow-sm transition-transform ${
                   enabled ? "translate-x-4" : "translate-x-0"
                 }`}
                 style={{ transitionDuration: "var(--motion-duration)" }}

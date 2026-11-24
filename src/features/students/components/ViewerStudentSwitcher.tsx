@@ -26,7 +26,7 @@ export function ViewerStudentSwitcher({
         htmlFor={selectId}
         className="grid min-h-touch grid-cols-[auto_1fr] items-center gap-x-3 rounded-card border border-primary-200 bg-primary-50 px-3 py-2 md:hidden"
       >
-        <span className="row-span-2 grid size-9 place-items-center rounded-full bg-white text-primary-700">
+        <span className="row-span-2 grid size-9 place-items-center rounded-full bg-neutral-0 text-primary-700">
           <UserRound size={18} aria-hidden="true" />
         </span>
         <span className="text-2xs font-semibold text-primary-700">Đang xem thông tin của</span>
@@ -54,7 +54,7 @@ export function ViewerStudentSwitcher({
             className={`motion-control min-h-touch shrink-0 rounded-input border px-4 text-sm font-semibold active:scale-[.98] ${
               selectedStudentId === student.id
                 ? "border-primary-600 bg-primary-600 text-white"
-                : "border-neutral-300 bg-white text-neutral-700 hover:border-primary-300"
+                : "border-neutral-300 bg-neutral-0 text-neutral-700 hover:border-primary-300"
             }`}
           >
             {studentLabel(student)}

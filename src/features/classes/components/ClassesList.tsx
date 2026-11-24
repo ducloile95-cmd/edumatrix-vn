@@ -44,7 +44,7 @@ const STATUS_FILTERS: { value: ClassStatus | "all"; label: string }[] = [
   { value: "cancelled", label: "Đã hủy" },
 ];
 
-const ROW_ICON_ACTION = "grid size-10 shrink-0 place-items-center rounded-input border border-neutral-200 bg-white text-neutral-500 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700";
+const ROW_ICON_ACTION = "grid size-10 shrink-0 place-items-center rounded-input border border-neutral-200 bg-neutral-0 text-neutral-500 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700";
 
 export function ClassesList({ onDelete, onEdit, canDelete = false, canEdit = false, primaryAction }: ClassesListProps) {
   const [search, setSearch] = useState("");
@@ -59,12 +59,11 @@ export function ClassesList({ onDelete, onEdit, canDelete = false, canEdit = fal
   // Tái dùng listCourses/listSubjects/listUsersByRole đã có sẵn (dùng trong ClassForm/StudentsList/
   // ClassDetailPage) để hiện tên khóa học + môn học + giáo viên thay vì ID thô. Cùng queryKey nên
   // React Query cache chung giữa các trang, không phát sinh loại truy vấn Firestore mới.
-  const coursesQuery = useQuery({ queryKey: ["courses"], queryFn: listCourses, staleTime: 60_000 });
-  const subjectsQuery = useQuery({ queryKey: ["subjects"], queryFn: listSubjects, staleTime: 60_000 });
+  const coursesQuery = useQuery({ queryKey: ["courses"], queryFn: listCourses });
+  const subjectsQuery = useQuery({ queryKey: ["subjects"], queryFn: listSubjects });
   const teachersQuery = useQuery({
     queryKey: ["users", "teacher"],
     queryFn: () => listUsersByRole(USER_ROLES.TEACHER),
-    staleTime: 60_000,
   });
 
   const courseById = useMemo(
@@ -94,7 +93,7 @@ export function ClassesList({ onDelete, onEdit, canDelete = false, canEdit = fal
   const { page, pageSize, pageItems, setPage } = usePagination(filtered);
 
   const filterToolbar = (
-    <section aria-label="Tìm kiếm và lọc lớp học" className="mb-3 rounded-card border border-neutral-200 bg-white p-3 shadow-[var(--shadow-1)] sm:p-4">
+    <section aria-label="Tìm kiếm và lọc lớp học" className="mb-3 rounded-card border border-neutral-200 bg-neutral-0 p-3 shadow-[var(--shadow-1)] sm:p-4">
       <div className="grid gap-3 md:grid-cols-[minmax(320px,1fr)_200px_auto] md:items-end">
         <FilterField label="Tìm kiếm" htmlFor="class-search">
           <SearchInput
@@ -132,7 +131,7 @@ export function ClassesList({ onDelete, onEdit, canDelete = false, canEdit = fal
     <div>
       {filterToolbar}
 
-      <DataListPanel className="rounded-card border border-neutral-200 bg-white">
+      <DataListPanel className="rounded-card border border-neutral-200 bg-neutral-0">
         <div className="flex shrink-0 items-center justify-between gap-4 border-b border-neutral-200 px-4 py-3 sm:px-5">
           <div>
             <h2 className="text-base font-semibold text-neutral-900">Danh sách lớp học</h2>
@@ -250,13 +249,13 @@ export function ClassesList({ onDelete, onEdit, canDelete = false, canEdit = fal
                                 <Pencil size={16} aria-hidden="true" />
                               </button>
                             )}
-                            {canDelete && klass.status !== "cancelled" && (
+                            {canDelete && (
                               <button
                                 type="button"
                                 onClick={() => onDelete?.(klass)}
                                 className={`${ROW_ICON_ACTION} text-danger-600 hover:border-danger-200 hover:bg-danger-50 hover:text-danger-700`}
-                                aria-label={`Xóa lớp ${klass.name}`}
-                                title="Xóa lớp"
+                                aria-label={`Xóa vĩnh viễn lớp ${klass.name}`}
+                                title="Xóa vĩnh viễn lớp"
                               >
                                 <Trash2 size={16} aria-hidden="true" />
                               </button>

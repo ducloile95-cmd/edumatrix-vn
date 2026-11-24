@@ -16,13 +16,13 @@ import type { StudentDoc } from "@/types/academic";
 
 type Student = StudentDoc & { id: string };
 
-const FIELD = "min-h-touch w-full rounded-input border border-neutral-300 bg-white px-3 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100";
+const FIELD = "min-h-touch w-full rounded-input border border-neutral-300 bg-neutral-0 px-3 text-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100";
 
 export function LinkRequestsPanel({ students }: { students: Student[] }) {
   const client = useQueryClient();
   const query = useQuery({ queryKey: ["link-requests", "pending"], queryFn: () => listPendingLinkRequests() });
 
-  if (query.isLoading) return <div className="rounded-card border border-neutral-200 bg-white p-5"><LoadingSkeleton rows={6} /></div>;
+  if (query.isLoading) return <div className="rounded-card border border-neutral-200 bg-neutral-0 p-5"><LoadingSkeleton rows={6} /></div>;
   if (query.isError) return <ErrorState message="Không tải được danh sách yêu cầu liên kết." onRetry={() => query.refetch()} />;
 
   const requests = query.data ?? [];
@@ -74,7 +74,7 @@ function RequestCard({ onDone, request, students }: { onDone: () => void; reques
   }
 
   return (
-    <section className="overflow-hidden rounded-card border border-neutral-200 bg-white shadow-[0_1px_2px_rgba(28,51,137,.04)]">
+    <section className="overflow-hidden rounded-card border border-neutral-200 bg-neutral-0 shadow-xs">
       <div className="border-b border-neutral-200 bg-neutral-50 px-4 py-3">
         <h3 className="text-sm font-semibold text-neutral-900">{request.parentName}</h3>
         <p className="mt-1 text-xs leading-5 text-neutral-500">

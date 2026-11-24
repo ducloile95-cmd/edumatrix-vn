@@ -1,7 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { PackageCheck, ReceiptText, School, UsersRound } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import type { BillingItemDoc, ClassDoc, CourseDoc, InvoiceSourceType, StudentDoc, SubjectDoc } from "@/types/academic";
+import { listAttendanceByClass } from "@/services/firestore/attendance";
+import type { BillingItemDoc, ClassDoc, CourseDoc, InvoiceDoc, InvoiceSourceType, StudentDoc, SubjectDoc } from "@/types/academic";
 import { formatVnd } from "@/utils/currency";
 import { studentLabel } from "@/utils/student";
 
@@ -10,9 +12,9 @@ type BillingMode = "class" | "item";
 export interface InvoiceCreationValues {
   studentIds: string[];
   studentClassIds: Record<string, string>;
+  studentCharges: Record<string, { amount: number; quantity: number; billedSessionsBefore: number; priorClassInvoiceCount: number }>;
   courseId: string;
   title: string;
-  amount: number;
   dueAt: Date;
   sourceType: InvoiceSourceType;
   sourceId: string;
@@ -21,7 +23,6 @@ export interface InvoiceCreationValues {
   billingItemId: string | null;
   itemNameSnapshot: string;
   unitPriceSnapshot: number;
-  quantity: number;
 }
 
 interface InvoiceCreationFormProps {
@@ -30,17 +31,20 @@ interface InvoiceCreationFormProps {
   courses: Array<CourseDoc & { id: string }>;
   subjects: Array<SubjectDoc & { id: string }>;
   billingItems: Array<BillingItemDoc & { id: string }>;
+  invoices: Array<InvoiceDoc & { id: string }>;
   bankBin: string;
   accountNumber: string;
   accountName: string;
   isPending: boolean;
   isError: boolean;
+  /** Hoc sinh da duoc tao hoa don truoc khi mot nhom sau bi loi. */
+  createdStudentIds?: string[];
   onCancel: () => void;
   onSubmit: (values: InvoiceCreationValues) => void;
 }
 
-const FIELD_CLASS = "min-h-11 w-full rounded-input border border-neutral-300 bg-white px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-500";
-const PANEL_CLASS = "min-w-0 overflow-hidden rounded-card border border-neutral-200 bg-white";
+const FIELD_CLASS = "min-h-11 w-full rounded-input border border-neutral-300 bg-neutral-0 px-3 text-sm text-neutral-900 outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-500";
+const PANEL_CLASS = "min-w-0 overflow-hidden rounded-card border border-neutral-200 bg-neutral-0";
 
 export function InvoiceCreationForm({
   students,
@@ -48,18 +52,22 @@ export function InvoiceCreationForm({
   courses,
   subjects,
   billingItems,
+  invoices,
   bankBin,
   accountNumber,
   accountName,
   isPending,
   isError,
+  createdStudentIds = [],
   onCancel,
   onSubmit,
 }: InvoiceCreationFormProps) {
   const [billingMode, setBillingMode] = useState<BillingMode>("class");
   const [selectedTargetId, setSelectedTargetId] = useState("");
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
-  const [sessionCount, setSessionCount] = useState(1);
+  useEffect(() => {
+    if (createdStudentIds.length > 0) setSelectedStudentIds((current) => current.filter((id) => !createdStudentIds.includes(id)));
+  }, [createdStudentIds]);
   const [title, setTitle] = useState("Học phí");
   const [dueAt, setDueAt] = useState("");
 
@@ -70,6 +78,11 @@ export function InvoiceCreationForm({
   const activeBillingItems = useMemo(() => billingItems.filter((item) => item.status === "active"), [billingItems]);
   const selectedClass = billingMode === "class" ? classes.find((item) => item.id === selectedTargetId) : undefined;
   const selectedBillingItem = billingMode === "item" ? billingItems.find((item) => item.id === selectedTargetId) : undefined;
+  const classAttendance = useQuery({
+    queryKey: ["attendance", "invoice", selectedClass?.id],
+    queryFn: () => selectedClass ? listAttendanceByClass(selectedClass.id) : Promise.resolve([]),
+    enabled: billingMode === "class" && !!selectedClass,
+  });
   const selectedCourse = selectedClass
     ? courseById.get(selectedClass.courseId)
     : selectedBillingItem ? courseById.get(selectedBillingItem.courseId) : undefined;
@@ -90,15 +103,50 @@ export function InvoiceCreationForm({
   const eligibleStudentIds = [...eligibleStudentClassIds.keys()];
   const eligibleStudents = eligibleStudentIds.map((id) => studentById.get(id)).filter((student): student is StudentDoc & { id: string } => !!student);
   const selectedStudents = eligibleStudents.filter((student) => selectedStudentIds.includes(student.id));
+  const attendedSessionCountByStudent = useMemo(() => {
+    const counts = new Map<string, number>();
+    (classAttendance.data ?? []).forEach((entry) => {
+      if (entry.status !== "present" && entry.status !== "late") return;
+      counts.set(entry.studentId, (counts.get(entry.studentId) ?? 0) + 1);
+    });
+    return counts;
+  }, [classAttendance.data]);
+  const billedSessionCountByStudent = useMemo(() => {
+    const counts = new Map<string, number>();
+    if (!selectedClass) return counts;
+    invoices.forEach((invoice) => {
+      if (invoice.sourceType !== "class" || invoice.sourceId !== selectedClass.id || invoice.status === "void") return;
+      const quantity = Number.isInteger(invoice.quantity) && (invoice.quantity ?? 0) > 0 ? invoice.quantity! : 0;
+      counts.set(invoice.studentId, (counts.get(invoice.studentId) ?? 0) + quantity);
+    });
+    return counts;
+  }, [invoices, selectedClass]);
+  // Gom ca hoa don da huy: lap lai cac buoi cua hoa don da huy phai ra ID moi (khong trung ID hoa don void).
+  const priorClassInvoiceCountByStudent = useMemo(() => {
+    const counts = new Map<string, number>();
+    if (!selectedClass) return counts;
+    invoices.forEach((invoice) => {
+      if (invoice.sourceType === "class" && invoice.sourceId === selectedClass.id) counts.set(invoice.studentId, (counts.get(invoice.studentId) ?? 0) + 1);
+    });
+    return counts;
+  }, [invoices, selectedClass]);
   const unitPrice = selectedBillingItem?.unitPrice ?? (selectedCourse
     ? selectedCourse.pricePerSession ?? Math.round(selectedCourse.tuitionFee / selectedCourse.totalSessions)
     : 0);
-  const quantity = billingMode === "class" ? sessionCount : 1;
-  const amountPerStudent = unitPrice * quantity;
+  const quantityForStudent = (studentId: string) => billingMode === "class"
+    ? Math.max(0, (attendedSessionCountByStudent.get(studentId) ?? 0) - (billedSessionCountByStudent.get(studentId) ?? 0))
+    : 1;
+  const amountForStudent = (studentId: string) => unitPrice * quantityForStudent(studentId);
+  const selectableStudents = billingMode === "class"
+    ? eligibleStudents.filter((student) => quantityForStudent(student.id) > 0)
+    : eligibleStudents;
+  const selectedTotal = selectedStudents.reduce((sum, student) => sum + amountForStudent(student.id), 0);
+  const selectedSessionTotal = selectedStudents.reduce((sum, student) => sum + quantityForStudent(student.id), 0);
   const availableTargets = billingMode === "class" ? activeClasses : activeBillingItems;
-  const allSelected = eligibleStudents.length > 0 && selectedStudentIds.length === eligibleStudents.length;
+  const allSelected = selectableStudents.length > 0 && selectedStudentIds.length === selectableStudents.length;
   const targetLabel = billingMode === "class" ? "lớp học" : "đồ dùng học tập";
-  const canSubmit = selectedStudents.length > 0 && amountPerStudent > 0 && title.trim() !== "" && dueAt !== "" && accountNumber !== "";
+  const attendanceReady = billingMode !== "class" || (!classAttendance.isLoading && !classAttendance.isError);
+  const canSubmit = attendanceReady && selectedStudents.length > 0 && selectedTotal > 0 && title.trim() !== "" && dueAt !== "" && accountNumber !== "";
 
   function changeBillingMode(mode: BillingMode) {
     setBillingMode(mode);
@@ -123,7 +171,7 @@ export function InvoiceCreationForm({
   }
 
   function toggleAllStudents() {
-    setSelectedStudentIds(allSelected ? [] : eligibleStudents.map((student) => student.id));
+    setSelectedStudentIds(allSelected ? [] : selectableStudents.map((student) => student.id));
   }
 
   return (
@@ -138,9 +186,14 @@ export function InvoiceCreationForm({
         onSubmit({
           studentIds: selectedStudents.map((student) => student.id),
           studentClassIds: Object.fromEntries(selectedStudents.map((student) => [student.id, eligibleStudentClassIds.get(student.id)!])),
+          studentCharges: Object.fromEntries(selectedStudents.map((student) => [student.id, {
+            amount: amountForStudent(student.id),
+            quantity: quantityForStudent(student.id),
+            billedSessionsBefore: billedSessionCountByStudent.get(student.id) ?? 0,
+            priorClassInvoiceCount: priorClassInvoiceCountByStudent.get(student.id) ?? 0,
+          }])),
           courseId: selectedCourse.id,
           title: title.trim(),
-          amount: amountPerStudent,
           dueAt: new Date(`${dueAt}T00:00:00`),
           sourceType,
           sourceId,
@@ -149,13 +202,12 @@ export function InvoiceCreationForm({
           billingItemId: selectedBillingItem?.id ?? null,
           itemNameSnapshot,
           unitPriceSnapshot: unitPrice,
-          quantity,
         });
       }}
       className="flex min-h-0 flex-1 flex-col"
     >
       <div className="min-h-0 flex-1 overflow-y-auto bg-neutral-50/70 p-4 sm:p-6">
-        <div className="mx-auto mb-4 flex max-w-[1600px] flex-col gap-3 rounded-card border border-neutral-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mx-auto mb-4 flex max-w-[1600px] flex-col gap-3 rounded-card border border-neutral-200 bg-neutral-0 p-3 sm:flex-row sm:items-center sm:justify-between">
           <div><p className="text-sm font-bold text-neutral-900">Loại hóa đơn</p><p className="mt-0.5 text-xs text-neutral-500">Chọn cách tính học phí trước khi chọn người học.</p></div>
           <div role="tablist" aria-label="Chọn loại hóa đơn" className="grid grid-cols-2 gap-1 rounded-input border border-neutral-200 bg-neutral-50 p-1">
             <ModeTab active={billingMode === "class"} onClick={() => changeBillingMode("class")}>Theo lớp học</ModeTab>
@@ -169,7 +221,7 @@ export function InvoiceCreationForm({
               icon={billingMode === "class" ? <School size={17} /> : <PackageCheck size={17} />}
               id="invoice-target-heading"
               title={billingMode === "class" ? "Chọn lớp lập học phí" : "Chọn đồ dùng học tập"}
-              description={billingMode === "class" ? "Học phí được tính theo số buổi." : "Đơn giá lấy từ danh mục đã thiết lập."}
+              description={billingMode === "class" ? "Tự động tính từ các buổi Có mặt và Đi muộn." : "Đơn giá lấy từ danh mục đã thiết lập."}
             />
             <div className="max-h-[420px] overflow-auto">
               <table className="w-full min-w-[300px] text-left text-sm">
@@ -191,7 +243,7 @@ export function InvoiceCreationForm({
                     return (
                       <tr key={item.id} className={selected ? "bg-primary-50" : "hover:bg-neutral-50"}>
                         <td className="px-4 py-3"><p className="font-bold text-neutral-900">{item.name}</p>{association && <p className="mt-0.5 line-clamp-1 text-xs text-neutral-500">{association}</p>}<p className="mt-0.5 text-xs text-neutral-500">{studentCount} học sinh / {formatVnd(amount)}{billingMode === "class" ? "/buổi" : ""}</p></td>
-                        <td className="px-4 py-3 text-right"><button type="button" aria-pressed={selected} aria-label={`${selected ? "Đã chọn" : "Chọn"} ${targetLabel} ${item.name}`} onClick={() => selectTarget(item.id)} className={`min-h-9 rounded-input border px-3 text-xs font-bold transition ${selected ? "border-primary-600 bg-primary-600 text-white" : "border-neutral-300 bg-white text-primary-700 hover:border-primary-300 hover:bg-primary-50"}`}>{selected ? "Đã chọn" : billingMode === "class" ? "Chọn lớp" : "Chọn"}</button></td>
+                        <td className="px-4 py-3 text-right"><button type="button" aria-pressed={selected} aria-label={`${selected ? "Đã chọn" : "Chọn"} ${targetLabel} ${item.name}`} onClick={() => selectTarget(item.id)} className={`min-h-9 rounded-input border px-3 text-xs font-bold transition ${selected ? "border-primary-600 bg-primary-600 text-white" : "border-neutral-300 bg-neutral-0 text-primary-700 hover:border-primary-300 hover:bg-primary-50"}`}>{selected ? "Đã chọn" : billingMode === "class" ? "Chọn lớp" : "Chọn"}</button></td>
                       </tr>
                     );
                   })}
@@ -202,10 +254,14 @@ export function InvoiceCreationForm({
 
           <section className={PANEL_CLASS} aria-labelledby="invoice-students-heading">
             <PanelHeader icon={<UsersRound size={17} />} id="invoice-students-heading" title="Chọn học sinh" description={selectedCourse?.name ?? `Danh sách hiển thị sau khi chọn ${targetLabel}.`} />
-            {!selectedCourse ? <EmptySelection icon={billingMode === "class" ? <School size={30} /> : <PackageCheck size={30} />} title={`Chưa chọn ${targetLabel}`} description={`Chọn một ${targetLabel} ở bảng bên trái để xem học sinh.`} /> : eligibleStudents.length === 0 ? <EmptySelection icon={<UsersRound size={30} />} title="Chưa có học sinh phù hợp" description="Cần có học sinh trong lớp đang hoạt động thuộc đúng khóa học và môn học." /> : (
+            {!selectedCourse ? <EmptySelection icon={billingMode === "class" ? <School size={30} /> : <PackageCheck size={30} />} title={`Chưa chọn ${targetLabel}`} description={`Chọn một ${targetLabel} ở bảng bên trái để xem học sinh.`} /> : classAttendance.isLoading && billingMode === "class" ? <EmptySelection icon={<ReceiptText size={30} />} title="Đang tính học phí" description="Hệ thống đang tải các buổi đã điểm danh của lớp." /> : classAttendance.isError && billingMode === "class" ? <div className="grid min-h-56 place-items-center px-6 py-10 text-center"><div><p className="text-sm font-bold text-danger-700">Không tải được dữ liệu điểm danh</p><Button variant="secondary" size="sm" type="button" onClick={() => classAttendance.refetch()} className="mt-3">Thử lại</Button></div></div> : eligibleStudents.length === 0 ? <EmptySelection icon={<UsersRound size={30} />} title="Chưa có học sinh phù hợp" description="Cần có học sinh trong lớp đang hoạt động thuộc đúng khóa học và môn học." /> : (
               <fieldset><legend className="sr-only">Danh sách học sinh của {selectedCourse.name}</legend>
-                <label className="flex min-h-11 cursor-pointer items-center gap-3 border-b border-neutral-200 bg-neutral-50 px-4 text-xs font-bold text-neutral-700"><input type="checkbox" checked={allSelected} onChange={toggleAllStudents} className="size-4 accent-primary-600" />Chọn tất cả ({eligibleStudents.length})</label>
-                <div className="max-h-[365px] divide-y divide-neutral-100 overflow-y-auto">{eligibleStudents.map((student) => <label key={student.id} className="flex min-h-[58px] cursor-pointer items-center gap-3 px-4 py-2.5 transition hover:bg-primary-50/60"><input type="checkbox" checked={selectedStudentIds.includes(student.id)} onChange={() => toggleStudent(student.id)} className="size-4 shrink-0 accent-primary-600" /><span className="min-w-0 flex-1"><strong className="block truncate text-sm text-neutral-900">{studentLabel(student)}</strong><span className="mt-0.5 block text-xs text-neutral-500">{student.studentCode}</span></span><span className="text-xs font-semibold tabular-nums text-neutral-500">{formatVnd(amountPerStudent)}</span></label>)}</div>
+                <label className="flex min-h-11 cursor-pointer items-center gap-3 border-b border-neutral-200 bg-neutral-50 px-4 text-xs font-bold text-neutral-700"><input type="checkbox" checked={allSelected} onChange={toggleAllStudents} disabled={selectableStudents.length === 0} className="size-4 accent-primary-600" />Chọn tất cả có phát sinh phí ({selectableStudents.length})</label>
+                <div className="max-h-[365px] divide-y divide-neutral-100 overflow-y-auto">{eligibleStudents.map((student) => {
+                  const quantity = quantityForStudent(student.id);
+                  const disabled = billingMode === "class" && quantity === 0;
+                  return <label key={student.id} className={`flex min-h-[58px] items-center gap-3 px-4 py-2.5 transition ${disabled ? "cursor-not-allowed bg-neutral-50 text-neutral-400" : "cursor-pointer hover:bg-primary-50/60"}`}><input type="checkbox" checked={selectedStudentIds.includes(student.id)} onChange={() => toggleStudent(student.id)} disabled={disabled} className="size-4 shrink-0 accent-primary-600" /><span className="min-w-0 flex-1"><strong className="block truncate text-sm text-neutral-900">{studentLabel(student)}</strong><span className="mt-0.5 block text-xs text-neutral-500">{student.studentCode}{billingMode === "class" ? ` · ${quantity} buổi chưa lập hóa đơn` : ""}</span></span><span className="text-xs font-semibold tabular-nums text-neutral-500">{formatVnd(amountForStudent(student.id))}</span></label>;
+                })}</div>
               </fieldset>
             )}
           </section>
@@ -215,27 +271,27 @@ export function InvoiceCreationForm({
             <div className="grid gap-4 p-4">
               <Field label="Nội dung thu" htmlFor="invoice-title"><input id="invoice-title" required value={title} onChange={(event) => setTitle(event.target.value)} className={FIELD_CLASS} /></Field>
               <div className="grid grid-cols-2 gap-3">
-                {billingMode === "class" ? <Field label="Số buổi" htmlFor="invoice-sessions"><input id="invoice-sessions" required type="number" min={1} step={1} value={sessionCount} onChange={(event) => setSessionCount(Math.max(1, Number(event.target.value)))} className={FIELD_CLASS} /></Field> : <Field label="Đơn giá đồ dùng" htmlFor="invoice-item-fee"><input id="invoice-item-fee" value={selectedBillingItem ? formatVnd(selectedBillingItem.unitPrice) : "Chọn đồ dùng"} readOnly className={`${FIELD_CLASS} bg-neutral-100`} /></Field>}
+                {billingMode === "class" ? <Field label="Số buổi tính phí" htmlFor="invoice-sessions"><input id="invoice-sessions" value={selectedStudents.length > 0 ? `${selectedSessionTotal} lượt / ${selectedStudents.length} học sinh` : "Tự động theo điểm danh"} readOnly className={`${FIELD_CLASS} bg-neutral-100`} /></Field> : <Field label="Đơn giá đồ dùng" htmlFor="invoice-item-fee"><input id="invoice-item-fee" value={selectedBillingItem ? formatVnd(selectedBillingItem.unitPrice) : "Chọn đồ dùng"} readOnly className={`${FIELD_CLASS} bg-neutral-100`} /></Field>}
                 <Field label="Hạn thanh toán" htmlFor="invoice-due-at"><input id="invoice-due-at" required type="date" value={dueAt} onChange={(event) => setDueAt(event.target.value)} className={FIELD_CLASS} /></Field>
               </div>
-              <div className="rounded-input border border-neutral-200 bg-neutral-50 p-3 text-xs text-neutral-600"><p className="font-bold text-neutral-800">Tài khoản nhận: {accountNumber || "Chưa cấu hình"}</p><p className="mt-1">{accountName} · Mã ngân hàng {bankBin}</p></div>
-              <div className="rounded-input border border-primary-100 bg-primary-50 p-3" aria-live="polite"><SummaryRow label="Học phí mỗi học sinh" value={formatVnd(amountPerStudent)} /><SummaryRow label="Số học sinh đã chọn" value={String(selectedStudents.length)} /><div className="mt-3 border-t border-primary-100 pt-3"><span className="block text-xs font-bold text-primary-700">Tổng giá trị dự kiến</span><strong className="mt-1 block text-2xl font-black tabular-nums text-primary-800">{formatVnd(amountPerStudent * selectedStudents.length)}</strong></div></div>
+              <div className="rounded-input border border-neutral-200 bg-neutral-50 p-3 text-xs text-neutral-600"><p className="font-bold text-neutral-800">Tài khoản nhận: {accountNumber || "Chưa cấu hình"}</p>{accountNumber ? <p className="mt-1">{accountName} · Mã ngân hàng {bankBin}</p> : <p role="alert" className="mt-1 font-semibold text-warning-700">Admin cần cấu hình tài khoản nhận tiền ở Cài đặt → Thanh toán trước khi tạo hóa đơn.</p>}</div>
+              <div className="rounded-input border border-primary-100 bg-primary-50 p-3" aria-live="polite"><SummaryRow label={billingMode === "class" ? "Đơn giá mỗi buổi" : "Đơn giá mỗi học sinh"} value={formatVnd(unitPrice)} />{billingMode === "class" && <SummaryRow label="Tổng lượt tính phí" value={String(selectedSessionTotal)} />}<SummaryRow label="Số học sinh đã chọn" value={String(selectedStudents.length)} /><div className="mt-3 border-t border-primary-100 pt-3"><span className="block text-xs font-bold text-primary-700">Tổng giá trị dự kiến</span><strong className="mt-1 block text-2xl font-black tabular-nums text-primary-800">{formatVnd(selectedTotal)}</strong></div></div>
               <p className="text-xs leading-5 text-neutral-500">Mỗi học sinh nhận một hóa đơn riêng để theo dõi và đối soát độc lập.</p>
             </div>
           </section>
         </div>
       </div>
 
-      <footer className="flex flex-col gap-3 border-t border-neutral-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <div><p aria-live="polite" className="text-xs text-neutral-500">{selectedStudents.length} học sinh đã chọn.</p>{isError && <p role="alert" className="mt-1 text-xs font-semibold text-danger-700">Không thể tạo hóa đơn. Dữ liệu vẫn được giữ lại.</p>}</div>
-        <div className="grid grid-cols-2 gap-2 sm:flex"><Button type="button" onClick={onCancel}>Hủy</Button><Button type="submit" variant="primary" disabled={!canSubmit || isPending}>{isPending ? "Đang tạo..." : `Tạo ${selectedStudents.length || ""} hóa đơn`}</Button></div>
+      <footer className="flex flex-col gap-3 border-t border-neutral-200 bg-neutral-0 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <div><p aria-live="polite" className="text-xs text-neutral-500">{selectedStudents.length} học sinh đã chọn.</p>{isError && <p role="alert" className="mt-1 text-xs font-semibold text-danger-700">{createdStudentIds.length > 0 ? `Đã tạo ${createdStudentIds.length} hóa đơn và bỏ chọn các học sinh đó; phần còn lại chưa tạo được. Kiểm tra rồi thử lại.` : "Không thể tạo hóa đơn. Dữ liệu vẫn được giữ lại."}</p>}</div>
+        <div className="grid grid-cols-2 gap-2 sm:flex"><Button type="button" onClick={onCancel}>Hủy</Button><Button type="submit" variant="primary" disabled={!canSubmit || isPending}>{isPending ? "Đang tạo..." : selectedStudents.length > 0 ? `Tạo ${selectedStudents.length} hóa đơn` : "Tạo hóa đơn"}</Button></div>
       </footer>
     </form>
   );
 }
 
 function ModeTab({ active, children, onClick }: { active: boolean; children: React.ReactNode; onClick: () => void }) {
-  return <button type="button" role="tab" aria-selected={active} onClick={onClick} className={`min-h-10 rounded-lg px-4 text-xs font-bold transition ${active ? "bg-white text-primary-700 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}>{children}</button>;
+  return <button type="button" role="tab" aria-selected={active} onClick={onClick} className={`min-h-10 rounded-input px-4 text-xs font-bold transition ${active ? "bg-neutral-0 text-primary-700 shadow-sm" : "text-neutral-600 hover:text-neutral-900"}`}>{children}</button>;
 }
 
 function PanelHeader({ description, icon, id, title }: { description: string; icon: React.ReactNode; id: string; title: string }) {

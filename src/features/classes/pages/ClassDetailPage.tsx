@@ -35,12 +35,11 @@ export default function ClassDetailPage() {
   // Tái dùng listCourses/listSubjects/listUsersByRole (đã dùng ở ClassForm/ClassesList) để hiện
   // tên khóa học, môn học và giáo viên trong hero thay vì chỉ ID — cùng queryKey nên React Query
   // dùng chung cache, không phát sinh loại truy vấn Firestore mới.
-  const coursesQuery = useQuery({ queryKey: ["courses"], queryFn: listCourses, staleTime: 60_000 });
-  const subjectsQuery = useQuery({ queryKey: ["subjects"], queryFn: listSubjects, staleTime: 60_000 });
+  const coursesQuery = useQuery({ queryKey: ["courses"], queryFn: listCourses });
+  const subjectsQuery = useQuery({ queryKey: ["subjects"], queryFn: listSubjects });
   const teachersQuery = useQuery({
     queryKey: ["users", "teacher"],
     queryFn: () => listUsersByRole(USER_ROLES.TEACHER),
-    staleTime: 60_000,
   });
 
   const courseName = useMemo(

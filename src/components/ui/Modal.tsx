@@ -8,7 +8,7 @@ interface ModalProps {
   description?: string;
   children: ReactNode;
   onClose: () => void;
-  size?: "sm" | "md" | "lg" | "xl" | "2xl";
+  size?: "sm" | "md" | "lg" | "xl" | "workspace" | "2xl";
   /** Ghi đè class vùng nội dung khi children tự quản lý scroll/layout. */
   bodyClassName?: string;
 }
@@ -18,6 +18,7 @@ const sizes = {
   md: "max-w-2xl lg:max-w-[1080px]",
   lg: "max-w-[960px] lg:max-w-[1440px]",
   xl: "max-w-[1320px] lg:max-w-[1760px]",
+  workspace: "sm:w-[calc(100vw-2rem)] sm:max-w-[1180px] xl:max-w-[1280px]",
   "2xl": "max-w-[1920px]",
 };
 const MODAL_EXIT_MS = 200;
@@ -45,7 +46,8 @@ export function Modal({ open, title, description, children, onClose, size = "md"
     previousFocus.current = document.activeElement as HTMLElement; const originalOverflow = document.body.style.overflow; const appRoot = document.getElementById("root"); const rootWasInert = appRoot?.hasAttribute("inert") ?? false; document.body.style.overflow = "hidden"; appRoot?.setAttribute("inert", "");
     window.requestAnimationFrame(() => panelRef.current?.querySelector<HTMLElement>("button, input, select, textarea, [tabindex]:not([tabindex='-1'])")?.focus());
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") { event.preventDefault(); onCloseRef.current(); return; }
+      // Khi có modal chồng lên (vd. hộp xác nhận), chỉ modal đang giữ focus phản ứng với Escape.
+      if (event.key === "Escape") { if (panelRef.current && !panelRef.current.contains(document.activeElement)) return; event.preventDefault(); onCloseRef.current(); return; }
       if (event.key !== "Tab" || !panelRef.current) return;
       const focusable = [...panelRef.current.querySelectorAll<HTMLElement>("button, input, select, textarea, a[href], [tabindex]:not([tabindex='-1'])")].filter((element) => !element.hasAttribute("disabled"));
       if (!focusable.length) return; const first = focusable[0]; const last = focusable[focusable.length - 1];
@@ -58,9 +60,9 @@ export function Modal({ open, title, description, children, onClose, size = "md"
   if (!mounted) return null;
   const state = open ? "open" : "closed";
   const fullscreen = size === "2xl";
-  return createPortal(<div data-state={state} className={`modal-backdrop fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-neutral-900/50 pt-[env(safe-area-inset-top)] sm:grid sm:place-items-center sm:p-4 ${fullscreen ? "lg:p-0" : ""}`} onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-    <div data-state={state} ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={description ? descriptionId : undefined} style={fullscreen ? { width: "100vw", maxWidth: "1920px", height: "100%", maxHeight: "980px" } : undefined} className={`modal-panel grid max-h-full w-full grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-t-modal border border-b-0 border-neutral-200 bg-neutral-50 pb-[env(safe-area-inset-bottom)] shadow-[0_28px_90px_rgba(28,26,21,.24)] ring-1 ring-white/70 sm:max-h-[calc(100dvh-2rem)] sm:rounded-modal sm:border-b ${fullscreen ? "h-full sm:h-[calc(100dvh-2rem)] lg:h-dvh lg:max-h-[980px] lg:rounded-none lg:border-x-0" : ""} ${sizes[size]}`}>
-      <header className={`flex items-start justify-between border-b border-neutral-200 px-4 py-3 sm:px-5 sm:py-4 ${fullscreen ? "bg-gradient-to-r from-white via-white to-primary-50/70 lg:px-6" : "bg-white"}`}><div className="min-w-0"><h2 id={titleId} className="text-lg font-bold tracking-[-0.01em] text-neutral-900">{title}</h2>{description && <p id={descriptionId} className="mt-1 text-sm text-neutral-500">{description}</p>}</div><button type="button" onClick={onClose} aria-label="Đóng hộp thoại" className="icon-button -mr-2 -mt-1 flex shrink-0 border border-neutral-200 bg-white shadow-sm"><X size={19} /></button></header>
+  return createPortal(<div data-state={state} className={`modal-backdrop fixed inset-0 z-50 flex items-end justify-center overflow-hidden bg-ink/50 pt-[env(safe-area-inset-top)] sm:grid sm:place-items-center sm:p-4 ${fullscreen ? "lg:p-0" : ""}`} onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <div data-state={state} ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={description ? descriptionId : undefined} style={fullscreen ? { width: "100vw", maxWidth: "1920px", height: "100%", maxHeight: "980px" } : undefined} className={`modal-panel grid max-h-full w-full grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-t-modal border border-b-0 border-neutral-200 bg-neutral-50 pb-[env(safe-area-inset-bottom)] shadow-[var(--shadow-4)] ring-1 ring-neutral-0/70 sm:max-h-[calc(100dvh-2rem)] sm:rounded-modal sm:border-b ${fullscreen ? "h-full sm:h-[calc(100dvh-2rem)] lg:h-dvh lg:max-h-[980px] lg:rounded-none lg:border-x-0" : ""} ${sizes[size]}`}>
+      <header className={`flex items-start justify-between border-b border-neutral-200 px-4 py-3 sm:px-5 sm:py-4 ${fullscreen ? "bg-neutral-0 lg:px-6" : "bg-neutral-0"}`}><div className="min-w-0"><h2 id={titleId} className="text-lg font-bold tracking-[-0.01em] text-neutral-900">{title}</h2>{description && <p id={descriptionId} className="mt-1 text-sm text-neutral-500">{description}</p>}</div><button type="button" onClick={onClose} aria-label="Đóng hộp thoại" className="icon-button -mr-2 -mt-1 flex shrink-0 border border-neutral-200 bg-neutral-0 shadow-sm"><X size={19} /></button></header>
       <div className={bodyClassName !== undefined ? `min-h-0 ${bodyClassName}` : "min-h-0 overflow-y-auto overscroll-contain bg-neutral-50 p-4 sm:p-6"}>{children}</div>
     </div>
   </div>, document.body);

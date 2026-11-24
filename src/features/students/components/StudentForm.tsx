@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/Button";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -18,14 +19,14 @@ interface StudentFormProps {
 const inputClass =
   "min-h-touch w-full rounded-input border border-neutral-300 px-3 text-sm text-neutral-900 outline-none transition placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:bg-neutral-100 disabled:text-neutral-400";
 
-const sectionClass = "flex h-full min-w-0 flex-col overflow-hidden rounded-card border border-neutral-200 bg-white shadow-[0_1px_2px_rgba(28,51,137,.04)]";
+const sectionClass = "flex h-full min-w-0 flex-col overflow-hidden rounded-card border border-neutral-200 bg-neutral-0 shadow-xs";
 
 export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
   const queryClient = useQueryClient();
   const isEditing = !!editingStudent;
   const { role } = useAuth();
   const isAdmin = role === USER_ROLES.ADMIN;
-  const classes = useQuery({ queryKey: ["classes"], queryFn: listClasses, staleTime: 60_000 });
+  const classes = useQuery({ queryKey: ["classes"], queryFn: listClasses });
 
   const {
     register,
@@ -136,7 +137,7 @@ export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
       <section className={sectionClass}>
         <SectionHeader title="Thông tin cơ bản" description="Thông tin định danh của học sinh trong hệ thống." />
         <div className="grid flex-1 gap-3 p-4 sm:grid-cols-2">
-          <Field error={errors.studentCode?.message} label="Mã học sinh">
+          <Field error={errors.studentCode?.message} label="Mã học sinh" required>
             <input
               type="text"
               placeholder="HS001"
@@ -145,13 +146,13 @@ export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
               {...register("studentCode")}
             />
           </Field>
-          <Field error={errors.fullName?.message} label="Tên học sinh">
+          <Field error={errors.fullName?.message} label="Tên học sinh" required>
             <input type="text" placeholder="Nguyễn Minh Anh" className={inputClass} {...register("fullName")} />
           </Field>
           <Field error={errors.nickname?.message} label="Biệt danh / tên gọi khác">
             <input type="text" placeholder="Bi (bỏ trống nếu không cần)" className={inputClass} {...register("nickname")} />
           </Field>
-          <Field error={errors.dateOfBirth?.message} label="Ngày sinh">
+          <Field error={errors.dateOfBirth?.message} label="Ngày sinh" required>
             <input type="date" className={inputClass} {...register("dateOfBirth")} />
           </Field>
           <div className="sm:col-span-2">
@@ -167,7 +168,7 @@ export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
       </section>
 
       {isAdmin && <section className={sectionClass}>
-        <SectionHeader title="Thông tin phụ huynh" description="Nhập email để liên kết tài khoản phụ huynh đã có trong hệ thống." />
+        <SectionHeader title="Thông tin phụ huynh" description="Email phải là tài khoản phụ huynh đã có. Chưa có thì để trống, liên kết sau ở hồ sơ học sinh." />
         <div className="grid flex-1 gap-3 p-4 sm:grid-cols-2">
           <Field error={errors.parentName?.message} label="Tên phụ huynh">
             <input type="text" placeholder="Nguyễn Văn A" className={inputClass} {...register("parentName")} />
@@ -205,12 +206,12 @@ export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
               <option value="">{isAdmin ? "Chưa đăng ký lớp" : "Chọn lớp phụ trách"}</option>
               {selectableClasses.map((item) => (
                 <option key={item.id} value={item.id}>
-                  {item.name} - {item.id}
+                  {item.name}
                 </option>
               ))}
             </select>
           </Field>
-          <div className="rounded-input border border-neutral-200 bg-white px-3 py-2 text-xs leading-5 text-neutral-500">
+          <div className="rounded-input border border-neutral-200 bg-neutral-0 px-3 py-2 text-xs leading-5 text-neutral-500">
             Khi chọn lớp, hệ thống tự tạo ghi danh, thêm học sinh vào lớp và đồng bộ giáo viên phụ trách.
           </div>
         </div>
@@ -223,20 +224,20 @@ export function StudentForm({ editingStudent, onDone }: StudentFormProps) {
       )}
 
       <div className="flex justify-end gap-2 border-t border-neutral-200 pt-4 lg:col-span-full">
-        <button
+        <Button variant="secondary"
           type="button"
           onClick={() => onDone?.()}
-          className="min-h-touch rounded-input border border-neutral-300 px-5 text-sm font-medium text-neutral-600 transition hover:bg-neutral-50"
+         
         >
           Hủy
-        </button>
-        <button
+        </Button>
+        <Button variant="primary"
           type="submit"
           disabled={mutation.isPending}
-          className="min-h-touch rounded-input bg-primary-500 px-5 text-sm font-medium text-white transition hover:bg-primary-600 disabled:opacity-60"
+         
         >
           {mutation.isPending ? "Đang lưu..." : isEditing ? "Lưu thay đổi" : "Thêm học sinh"}
-        </button>
+        </Button>
       </div>
     </form>
   );
@@ -251,10 +252,10 @@ function SectionHeader({ description, title }: { description: string; title: str
   );
 }
 
-function Field({ children, error, label }: { children: React.ReactNode; error?: string; label: string }) {
+function Field({ children, error, label, required }: { children: React.ReactNode; error?: string; label: string; required?: boolean }) {
   return (
     <label className="grid gap-1">
-      <span className="text-xs font-semibold text-neutral-500">{label}</span>
+      <span className="text-xs font-semibold text-neutral-500">{label}{required && <span className="text-danger-600" aria-hidden="true"> *</span>}</span>
       {children}
       {error && (
         <span role="alert" className="text-xs text-danger-700">
@@ -267,7 +268,7 @@ function Field({ children, error, label }: { children: React.ReactNode; error?: 
 
 function getMutationErrorMessage(error: unknown): string {
   const message = error instanceof Error ? error.message : "";
-  if (message === "PARENT_NOT_FOUND") return "Không tìm thấy tài khoản phụ huynh theo email đã nhập.";
+  if (message === "PARENT_NOT_FOUND") return "Không tìm thấy tài khoản phụ huynh theo email đã nhập. Để trống email để tạo học sinh trước, liên kết phụ huynh sau.";
   if (message === "PARENT_NOT_VIEWER") return "Email này không thuộc tài khoản phụ huynh/học sinh.";
   if (message === "PARENT_NOT_ACTIVE") return "Tài khoản phụ huynh đang bị vô hiệu hóa.";
   if (message === "PARENT_EMAIL_CHANGED") return "Email phụ huynh vừa thay đổi. Vui lòng kiểm tra và thử lại.";

@@ -97,7 +97,7 @@ export function AttendanceOverview({ onJumpToSession }: AttendanceOverviewProps)
           </p>
           <div className="space-y-2">
             {data.gapSessions.map((session) => (
-              <div key={session.id} className="flex flex-wrap items-center justify-between gap-2 rounded-input border border-warning-100 bg-white px-3 py-2">
+              <div key={session.id} className="flex flex-wrap items-center justify-between gap-2 rounded-input border border-warning-100 bg-neutral-0 px-3 py-2">
                 <p className="text-sm font-semibold text-neutral-900">
                   {classById.get(session.classId)?.name ?? "Lớp"} · {formatSessionLabel(session)}
                 </p>
@@ -143,7 +143,7 @@ export function AttendanceOverview({ onJumpToSession }: AttendanceOverviewProps)
                 <Bar dataKey="present" name={STATUS_LABEL.present} stackId="a" fill={CHART_GRADIENT.success} filter={CHART_DEPTH_FILTER} isAnimationActive={!reducedMotion} animationDuration={CHART_ANIMATION_DURATION} />
                 <Bar dataKey="late" name={STATUS_LABEL.late} stackId="a" fill={CHART_GRADIENT.warning} filter={CHART_DEPTH_FILTER} isAnimationActive={!reducedMotion} animationDuration={CHART_ANIMATION_DURATION} />
                 <Bar dataKey="absent" name={STATUS_LABEL.absent} stackId="a" fill={CHART_GRADIENT.danger} filter={CHART_DEPTH_FILTER} isAnimationActive={!reducedMotion} animationDuration={CHART_ANIMATION_DURATION} />
-                <Bar dataKey="excused" name={STATUS_LABEL.excused} stackId="a" fill={CHART_GRADIENT.info} filter={CHART_DEPTH_FILTER} radius={[9, 9, 2, 2]} isAnimationActive={!reducedMotion} animationDuration={CHART_ANIMATION_DURATION} />
+                <Bar dataKey="excused" name={STATUS_LABEL.excused} stackId="a" fill={CHART_GRADIENT.info} filter={CHART_DEPTH_FILTER} radius={[4, 4, 0, 0]} isAnimationActive={!reducedMotion} animationDuration={CHART_ANIMATION_DURATION} />
               </BarChart>
             </ResponsiveContainer>
           </div>

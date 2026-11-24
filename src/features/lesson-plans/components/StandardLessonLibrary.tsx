@@ -148,7 +148,7 @@ export function StandardLessonLibrary({ onEdit, onCreateNew }: StandardLessonLib
       </FilterToolbar>
 
       {/* List container */}
-      <DataListPanel className="rounded-card border border-neutral-200 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.02)] min-h-0">
+      <DataListPanel className="rounded-card border border-neutral-200 bg-neutral-0 shadow-xs min-h-0">
         <div className="shrink-0 border-b border-neutral-200 px-4 py-4 sm:px-5">
           <h2 className="text-base font-semibold text-neutral-900">Thư viện bài học chuẩn</h2>
           <p className="mt-0.5 text-xs text-neutral-500">
@@ -169,11 +169,11 @@ export function StandardLessonLibrary({ onEdit, onCreateNew }: StandardLessonLib
                 
                 // Muted desaturated pastel status badges matching minimalist spec
                 const badgeStyle = lesson.approvalStatus === "approved"
-                  ? "bg-[#EDF3EC] text-[#346538]" // Pale Green
+                  ? "bg-success-50 text-success-700" // Pale Green
                   : lesson.approvalStatus === "pending"
-                  ? "bg-[#FBF3DB] text-[#956400]" // Pale Yellow
+                  ? "bg-warning-50 text-warning-800" // Pale Yellow
                   : lesson.approvalStatus === "archived"
-                  ? "bg-[#FDEBEC] text-[#9F2F2D]" // Pale Red
+                  ? "bg-danger-50 text-danger-700" // Pale Red
                   : "bg-neutral-100 text-neutral-600"; // Muted Gray for draft
 
                 const statusLabel = lesson.approvalStatus === "approved"
@@ -187,14 +187,14 @@ export function StandardLessonLibrary({ onEdit, onCreateNew }: StandardLessonLib
                 return (
                   <div
                     key={lesson.id}
-                    className="flex flex-col justify-between rounded-card border border-neutral-200 bg-white p-5 shadow-[0_1px_2px_rgba(0,0,0,0.01)] hover:border-neutral-300 transition-colors"
+                    className="flex flex-col justify-between rounded-card border border-neutral-200 bg-neutral-0 p-5 shadow-xs hover:border-neutral-300 transition-colors"
                   >
                     <div>
                       <div className="flex items-center justify-between mb-3">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-primary-700 bg-primary-50 px-2 py-0.5 rounded-full">
+                        <span className="text-3xs font-bold uppercase tracking-wider text-primary-700 bg-primary-50 px-2 py-0.5 rounded-full">
                           {subjectName}
                         </span>
-                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${badgeStyle}`}>
+                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-3xs font-bold uppercase tracking-wider ${badgeStyle}`}>
                           {statusLabel}
                         </span>
                       </div>
@@ -283,7 +283,7 @@ export function StandardLessonLibrary({ onEdit, onCreateNew }: StandardLessonLib
                           </Button>
                         )}
                       </div>
-                      <span className="text-[10px] font-mono text-neutral-400">v{lesson.revision}</span>
+                      <span className="text-3xs font-mono text-neutral-400">v{lesson.revision}</span>
                     </div>
                   </div>
                 );

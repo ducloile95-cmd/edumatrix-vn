@@ -1,6 +1,6 @@
 import LegalPageLayout from "../components/LegalPageLayout";
 
-const sectionTitleClass = "text-xl font-bold text-slate-950";
+const sectionTitleClass = "text-xl font-bold text-neutral-900";
 
 export default function DataDeletionPage() {
   return (
@@ -10,7 +10,7 @@ export default function DataDeletionPage() {
     >
       <section>
         <h2 className={sectionTitleClass}>Cách gửi yêu cầu</h2>
-        <ol className="mt-3 list-decimal space-y-3 pl-6 text-slate-700">
+        <ol className="mt-3 list-decimal space-y-3 pl-6 text-neutral-700">
           <li>
             Liên hệ quản trị viên của trường hoặc trung tâm đã cấp tài khoản
             EduMatrix cho bạn.
@@ -33,7 +33,7 @@ export default function DataDeletionPage() {
 
       <section>
         <h2 className={sectionTitleClass}>Nếu bạn không đăng nhập được</h2>
-        <p className="mt-3 text-slate-700">
+        <p className="mt-3 text-neutral-700">
           Hãy liên hệ trực tiếp trường hoặc trung tâm đã đăng ký hồ sơ của bạn.
           Cung cấp email hoặc số điện thoại đã dùng khi đăng ký để đơn vị xác
           minh. Không đăng thông tin định danh cá nhân lên kênh công khai.
@@ -42,7 +42,7 @@ export default function DataDeletionPage() {
 
       <section>
         <h2 className={sectionTitleClass}>Dữ liệu Messenger</h2>
-        <p className="mt-3 text-slate-700">
+        <p className="mt-3 text-neutral-700">
           Bạn có thể yêu cầu ngừng liên kết tài khoản Facebook với hồ sơ học
           sinh và xóa dữ liệu hội thoại do EduMatrix lưu giữ. Việc xóa tại
           EduMatrix không tự động xóa bản sao tin nhắn đang được Meta hoặc chính
@@ -53,7 +53,7 @@ export default function DataDeletionPage() {
 
       <section>
         <h2 className={sectionTitleClass}>Phạm vi xử lý</h2>
-        <p className="mt-3 text-slate-700">
+        <p className="mt-3 text-neutral-700">
           Một số dữ liệu có thể cần được giữ lại khi đơn vị đào tạo có nghĩa vụ
           pháp lý, kế toán, giải quyết tranh chấp hoặc bảo vệ an toàn hệ thống.
           Khi đó, dữ liệu sẽ chỉ được giữ trong phạm vi cần thiết và được hạn

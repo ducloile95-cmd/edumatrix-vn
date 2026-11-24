@@ -13,9 +13,10 @@ export interface FinanceMetrics {
 }
 
 export function buildFinanceMetrics(invoices: (InvoiceDoc & { id: string })[], now = new Date()): FinanceMetrics {
-  const outstanding = invoices.filter((invoice) => invoice.status !== "paid" && invoice.status !== "rejected");
+  // Q5: hoa don bi tu choi chung tu van la khoan no; chi "void" moi khong tinh.
+  const outstanding = invoices.filter((invoice) => invoice.status !== "paid" && invoice.status !== "void");
   const paidAmount = invoices.filter((invoice) => invoice.status === "paid").reduce((sum, invoice) => sum + invoice.amount, 0);
-  const billableAmount = invoices.filter((invoice) => invoice.status !== "rejected").reduce((sum, invoice) => sum + invoice.amount, 0);
+  const billableAmount = invoices.filter((invoice) => invoice.status !== "void").reduce((sum, invoice) => sum + invoice.amount, 0);
   const aging = [
     { label: "Chưa đến hạn", amount: 0 },
     { label: "1–30 ngày", amount: 0 },

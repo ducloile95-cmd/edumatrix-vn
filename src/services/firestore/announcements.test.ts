@@ -14,6 +14,7 @@ vi.mock("firebase/firestore", () => ({
 
 vi.mock("@/services/firebase/firestoreClient", () => ({ db: {} }));
 
+import { limit } from "firebase/firestore";
 import { listAnnouncementsByStudent } from "@/services/firestore/announcements";
 
 function snapshot(items: Array<{ id: string; resolvedAt?: string }>) {
@@ -40,5 +41,11 @@ describe("listAnnouncementsByStudent", () => {
 
     expect(result.map((item) => item.id)).toEqual(["unresolved-1"]);
     expect(getDocs).toHaveBeenCalledTimes(2);
+  });
+
+  test("uses the requested page size as the Firestore limit", async () => {
+    getDocs.mockResolvedValue(snapshot([]));
+    await listAnnouncementsByStudent("student-1", 20);
+    expect(vi.mocked(limit)).toHaveBeenCalledWith(20);
   });
 });

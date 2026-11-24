@@ -85,6 +85,18 @@ beforeEach(async () => {
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
     });
+    await setDoc(doc(db, "students", "student-1"), {
+      studentCode: "student-1",
+      fullName: "Assigned Student",
+      dateOfBirth: "2012-01-01",
+      parentUids: [],
+      currentClassIds: ["class-owned"],
+      teacherIds: [assignedTeacher],
+      staffNote: "",
+      status: "active",
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
     await setDoc(doc(db, "sessions", "session-owned"), {
       classId: "class-owned",
       title: "Session",
@@ -198,8 +210,9 @@ describe("teacher scope by assigned class", () => {
     await assertFails(getDoc(doc(asTeacher(otherTeacher), "classes", "class-owned")));
   });
 
-  test("teacher can read enrollment candidates", async () => {
-    await assertSucceeds(getDoc(doc(asTeacher(assignedTeacher), "students", "student-available")));
+  test("teacher reads only assigned students", async () => {
+    await assertSucceeds(getDoc(doc(asTeacher(assignedTeacher), "students", "student-1")));
+    await assertFails(getDoc(doc(asTeacher(assignedTeacher), "students", "student-available")));
   });
 
   test("teacher enrolls a student only into an assigned class", async () => {
@@ -212,6 +225,8 @@ describe("teacher scope by assigned class", () => {
       status: "active",
       joinedAt: serverTimestamp(),
       endedAt: null,
+      version: 1,
+      updatedAt: serverTimestamp(),
     });
     ownedBatch.update(doc(ownedDb, "classes", "class-owned"), {
       studentIds: ["student-1", "student-available"],
@@ -233,6 +248,8 @@ describe("teacher scope by assigned class", () => {
       status: "active",
       joinedAt: serverTimestamp(),
       endedAt: null,
+      version: 1,
+      updatedAt: serverTimestamp(),
     });
     otherBatch.update(doc(otherDb, "classes", "class-other"), {
       studentIds: ["student-2", "student-available"],
@@ -278,6 +295,100 @@ describe("teacher scope by assigned class", () => {
     );
   });
 
+  test("teacher queues one immutable schedule event with the same session version", async () => {
+    const teacherDb = asTeacher(assignedTeacher);
+    const eventId = "session_schedule_changed:schedule_session-owned_student-1:v1";
+    const batch = writeBatch(teacherDb);
+    batch.update(doc(teacherDb, "sessions", "session-owned"), {
+      startAt: Timestamp.fromMillis(Date.now() + 3_600_000),
+      endAt: Timestamp.fromMillis(Date.now() + 7_200_000),
+      status: "rescheduled",
+      scheduleVersion: 1,
+      updatedAt: serverTimestamp(),
+    });
+    batch.set(doc(teacherDb, "messenger_delivery_events", eventId), {
+      eventType: "session_schedule_changed",
+      entityId: "schedule_session-owned_student-1",
+      sourceId: "session-owned",
+      studentId: "student-1",
+      version: 1,
+      actorUid: assignedTeacher,
+      idempotencyKey: eventId,
+      status: "pending",
+      attempts: 0,
+      lastErrorCode: null,
+      leaseUntil: null,
+      nextAttemptAt: serverTimestamp(),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    await assertSucceeds(batch.commit());
+
+    await assertFails(setDoc(doc(teacherDb, "messenger_delivery_events", `${eventId}-stale`), {
+      eventType: "session_schedule_changed",
+      entityId: "schedule_session-owned_student-1",
+      sourceId: "session-owned",
+      studentId: "student-1",
+      version: 2,
+      actorUid: assignedTeacher,
+      idempotencyKey: `${eventId}-stale`,
+      status: "pending",
+      attempts: 0,
+      lastErrorCode: null,
+      leaseUntil: null,
+      nextAttemptAt: serverTimestamp(),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }));
+  });
+
+  test("teacher reschedules the same session twice with matching announcements and utility versions", async () => {
+    const teacherDb = asTeacher(assignedTeacher);
+    const sessionRef = doc(teacherDb, "sessions", "session-owned");
+    const announcementRef = doc(teacherDb, "announcements", "schedule_session-owned_student-1");
+
+    for (const version of [1, 2]) {
+      const eventId = `session_schedule_changed:schedule_session-owned_student-1:v${version}`;
+      const batch = writeBatch(teacherDb);
+      batch.update(sessionRef, {
+        startAt: Timestamp.fromMillis(Date.now() + version * 3_600_000),
+        endAt: Timestamp.fromMillis(Date.now() + (version + 1) * 3_600_000),
+        status: "rescheduled",
+        note: version === 1 ? "Giáo viên có lịch công tác." : "Trung tâm điều chỉnh phòng học.",
+        scheduleVersion: version,
+        updatedAt: serverTimestamp(),
+      });
+      batch.set(doc(teacherDb, "messenger_delivery_events", eventId), {
+        eventType: "session_schedule_changed",
+        entityId: "schedule_session-owned_student-1",
+        sourceId: "session-owned",
+        studentId: "student-1",
+        version,
+        actorUid: assignedTeacher,
+        idempotencyKey: eventId,
+        status: "pending",
+        attempts: 0,
+        lastErrorCode: null,
+        leaseUntil: null,
+        nextAttemptAt: serverTimestamp(),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      await assertSucceeds(batch.commit());
+
+      await assertSucceeds(setDoc(announcementRef, {
+        type: "schedule_change",
+        sessionId: "session-owned",
+        classId: "class-owned",
+        studentId: "student-1",
+        title: "Lịch học đã thay đổi",
+        message: version === 1 ? "Giáo viên có lịch công tác." : "Trung tâm điều chỉnh phòng học.",
+        createdAt: serverTimestamp(),
+        resolvedAt: null,
+      }));
+    }
+  });
+
   test("teacher updates attendance only for assigned classes", async () => {
     await assertSucceeds(
       updateDoc(doc(asTeacher(assignedTeacher), "attendance", "session-owned_student-1"), {
@@ -293,7 +404,7 @@ describe("teacher scope by assigned class", () => {
     );
   });
 
-  test("teacher attendance list query must include the assigned class scope", async () => {
+  test("teacher attendance queries must be scoped to an assigned class", async () => {
     const teacherDb = asTeacher(assignedTeacher);
     await assertSucceeds(getDocs(query(
       collection(teacherDb, "attendance"),
@@ -346,6 +457,13 @@ describe("teacher scope by assigned class", () => {
       ...summary,
       sessionId: "session-other",
     }));
+  });
+
+  test("attendance summary accepts an integer expectedTotal only (C3)", async () => {
+    const teacherDb = asTeacher(assignedTeacher);
+    const summary = { sessionId: "session-owned-new", classId: "class-owned", total: 1, present: 1, absent: 0, late: 0, excused: 0, updatedAt: Timestamp.now() };
+    await assertFails(setDoc(doc(teacherDb, "attendance_summaries", "session-owned-new"), { ...summary, expectedTotal: "1" }));
+    await assertSucceeds(setDoc(doc(teacherDb, "attendance_summaries", "session-owned-new"), { ...summary, expectedTotal: 1 }));
   });
 
   test("teacher can resolve an attendance alert for an assigned class", async () => {

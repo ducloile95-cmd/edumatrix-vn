@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   deleteDoc: vi.fn(),
   getDocs: vi.fn(),
   updateDoc: vi.fn(),
+  where: vi.fn((...values) => ({ where: values })),
   writeBatch: vi.fn(),
 }));
 
@@ -24,7 +25,7 @@ vi.mock("firebase/firestore", () => ({
   serverTimestamp: vi.fn(() => "server-time"),
   startAfter: vi.fn((value) => ({ startAfter: value })),
   updateDoc: mocks.updateDoc,
-  where: vi.fn((...values) => ({ where: values })),
+  where: mocks.where,
   writeBatch: mocks.writeBatch,
 }));
 
@@ -81,18 +82,31 @@ describe("chat tags", () => {
     });
   });
 
-  test("loads every chat thread instead of hiding conversations after the first 30", async () => {
-    const page = (offset: number, count: number) => ({
-      docs: Array.from({ length: count }, (_, index) => ({
-        id: `thread-${offset + index}`,
-        data: () => ({ parentName: `Parent ${offset + index}` }),
+  test("loads the latest 50 active chat threads in one query", async () => {
+    mocks.getDocs.mockResolvedValueOnce({
+      docs: Array.from({ length: 51 }, (_, index) => ({
+        id: `thread-${index}`,
+        data: () => ({ parentName: `Parent ${index}`, deletionState: index === 50 ? "deleting" : "active" }),
       })),
     });
-    mocks.getDocs.mockResolvedValueOnce(page(0, 30)).mockResolvedValueOnce(page(30, 1));
 
     const result = await listChatThreads("admin", "admin-1");
 
-    expect(result).toHaveLength(31);
-    expect(mocks.getDocs).toHaveBeenCalledTimes(2);
+    expect(result).toHaveLength(50);
+    expect(mocks.getDocs).toHaveBeenCalledTimes(1);
+  });
+
+  test("scopes teacher threads with one assignedTeacherIds query", async () => {
+    mocks.getDocs.mockResolvedValueOnce({ docs: [
+      { id: "thread-1", data: () => ({ studentId: "student-1" }) },
+      { id: "thread-2", data: () => ({ studentId: "student-2" }) },
+    ] });
+
+    const result = await listChatThreads("teacher", "teacher-1");
+
+    expect(result.map((thread) => thread.id)).toEqual(["thread-1", "thread-2"]);
+    expect(mocks.where).toHaveBeenCalledWith("assignedTeacherIds", "array-contains", "teacher-1");
+    expect(mocks.where).toHaveBeenCalledTimes(1);
+    expect(mocks.getDocs).toHaveBeenCalledTimes(1);
   });
 });

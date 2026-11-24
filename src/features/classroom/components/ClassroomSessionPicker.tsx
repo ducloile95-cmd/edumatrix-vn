@@ -75,7 +75,7 @@ export function ClassroomSessionPicker() {
 
   return (
     <div className="space-y-5">
-      <section className="overflow-hidden rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)]">
+      <section className="overflow-hidden rounded-card border border-neutral-200 bg-neutral-0 shadow-[var(--shadow-1)]">
         <div className="flex flex-col gap-3 border-b border-neutral-100 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-wide text-primary-700">Ưu tiên hôm nay</p>
@@ -122,7 +122,7 @@ export function ClassroomSessionPicker() {
         )}
       </section>
 
-      <section className="overflow-hidden rounded-card border border-neutral-200 bg-white shadow-[var(--shadow-1)]">
+      <section className="overflow-hidden rounded-card border border-neutral-200 bg-neutral-0 shadow-[var(--shadow-1)]">
         <div className="border-b border-neutral-100 p-5">
           <h2 className="text-xl font-bold text-neutral-900">Danh sách lớp học</h2>
           <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(220px,1fr)_190px]">
@@ -150,7 +150,7 @@ export function ClassroomSessionPicker() {
           <div className="p-5"><ErrorState message="Không tải được danh sách lớp học." onRetry={() => classes.refetch()} /></div>
         ) : filteredClasses.length ? (
           <>
-            <div className="grid gap-3 bg-neutral-50 p-3 md:block md:bg-white md:p-0" role="region" aria-label="Danh sách lớp học">
+            <div className="grid gap-3 bg-neutral-50 p-3 md:block md:bg-neutral-0 md:p-0" role="region" aria-label="Danh sách lớp học">
               <table className="block w-full border-collapse text-sm md:table">
                 <thead className="hidden bg-neutral-50 md:table-header-group">
                   <tr className="border-b border-neutral-200 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
@@ -167,7 +167,7 @@ export function ClassroomSessionPicker() {
                     const teacherNames = klass.teacherIds.map((id) => teacherById.get(id)).filter((name): name is string => !!name);
                     const status = CLASS_STATUS_META[klass.status];
                     return (
-                      <tr key={klass.id} className="block rounded-card border border-neutral-200 bg-white p-3 md:table-row md:border-0 md:p-0 md:hover:bg-neutral-50">
+                      <tr key={klass.id} className="block rounded-card border border-neutral-200 bg-neutral-0 p-3 md:table-row md:border-0 md:p-0 md:hover:bg-neutral-50">
                         <td className="flex items-start justify-between gap-4 py-2 md:table-cell md:px-4 md:py-3">
                           <span className="text-xs font-semibold text-neutral-500 md:hidden">Lớp học</span>
                           <div className="text-right md:text-left">

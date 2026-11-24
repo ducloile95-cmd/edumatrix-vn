@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { addDays, subDays } from "date-fns";
 import { Save } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { useConfirm } from "@/components/feedback/confirmContext";
 import { LessonPlanActivitiesSection } from "@/features/lesson-plans/components/LessonPlanActivitiesSection";
 import { LessonPlanBasicsSection } from "@/features/lesson-plans/components/LessonPlanBasicsSection";
 import { LessonPlanDriveSection } from "@/features/lesson-plans/components/LessonPlanDriveSection";
@@ -30,6 +31,7 @@ import {
 } from "@/services/integrations/googleDrive";
 import { lessonPlanFormSchema, type LessonPlanFormValues } from "@/schemas/lessonPlan";
 import type { LessonPlanDoc, LessonPlanDriveAttachment } from "@/types/academic";
+import { invalidateLessonPlanQueries } from "@/hooks/queryInvalidation";
 
 interface LessonPlanFormProps {
   /** Neu co gia tri => form o che do sua. */
@@ -65,7 +67,7 @@ const TEXTAREA = "min-h-20 w-full rounded-input border border-neutral-300 p-3 te
 const LABEL = "mb-1 block text-sm font-medium text-neutral-700";
 const SECTION_TITLE = "mb-3 text-xs font-bold uppercase tracking-wide text-primary-700";
 /** Khung ngăn cách các khối trong 1 cột (không dùng card lồng card vì cột đã có viền riêng). */
-const BLOCK = "rounded-card border border-neutral-200 bg-white p-4 shadow-[var(--shadow-1)]";
+const BLOCK = "rounded-card border border-neutral-200 bg-neutral-0 p-4 shadow-[var(--shadow-1)]";
 
 function driveAttachmentFromPlan(plan?: LessonPlanDoc | null): LessonPlanDriveAttachment | null {
   if (!plan?.driveFileId || !plan.driveFileName || !plan.driveMimeType || !plan.driveWebViewLink || !plan.driveModifiedTime) return null;
@@ -80,6 +82,7 @@ function driveAttachmentFromPlan(plan?: LessonPlanDoc | null): LessonPlanDriveAt
 
 export function LessonPlanForm({ editingPlan, onDone, initialValues }: LessonPlanFormProps) {
   const { firebaseUser } = useAuth();
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const isEditing = !!editingPlan;
   const driveInputRef = useRef<HTMLInputElement>(null);
@@ -155,11 +158,14 @@ export function LessonPlanForm({ editingPlan, onDone, initialValues }: LessonPla
       const classId = initialValues?.classId ?? null;
       const sessionId = initialValues?.sessionId ?? null;
       const saved = loadLessonPlanDraft(uid, classId, sessionId);
-      reset(saved && confirm("Phát hiện bản nháp tự động lưu chưa được lưu lại. Bạn có muốn phục hồi không?")
-        ? saved
-        : { ...DEFAULT_VALUES, ...initialValues });
+      reset({ ...DEFAULT_VALUES, ...initialValues });
+      if (!saved) return;
+      let cancelled = false;
+      void confirm({ title: "Khôi phục bản nháp?", message: "Có một bản nháp tự động lưu của giáo án này chưa được lưu lại.", confirmLabel: "Khôi phục", cancelLabel: "Bắt đầu mới", tone: "primary" })
+        .then((restore) => { if (restore && !cancelled) reset(saved); });
+      return () => { cancelled = true; };
     }
-  }, [editingPlan, initialValues, reset, uid]);
+  }, [confirm, editingPlan, initialValues, reset, uid]);
 
   const classId = watch("classId");
   const selectedClass = classes?.find((item) => item.id === classId) ?? null;
@@ -186,7 +192,7 @@ export function LessonPlanForm({ editingPlan, onDone, initialValues }: LessonPla
     onSuccess: () => {
       removeLessonPlanDraft(uid, watchedValues.classId, watchedValues.sessionId);
       reset(DEFAULT_VALUES);
-      queryClient.invalidateQueries({ queryKey: ["lesson-plans"] });
+      invalidateLessonPlanQueries(queryClient);
       onDone?.();
     },
   });
@@ -199,7 +205,7 @@ export function LessonPlanForm({ editingPlan, onDone, initialValues }: LessonPla
         preparation: values.preparation,
         activities: values.activities,
         homework: values.homework,
-      });
+      }, uid);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lesson-plan-templates"] }),
   });
@@ -289,7 +295,7 @@ export function LessonPlanForm({ editingPlan, onDone, initialValues }: LessonPla
                     key={template.id}
                     type="button"
                     onClick={() => applyTemplate(template)}
-                    className="min-w-[200px] shrink-0 rounded-input border border-neutral-200 bg-white p-3 text-left text-sm transition hover:border-primary-300 hover:shadow-sm"
+                    className="min-w-[200px] shrink-0 rounded-input border border-neutral-200 bg-neutral-0 p-3 text-left text-sm transition hover:border-primary-300 hover:shadow-sm"
                   >
                     <p className="font-semibold text-neutral-900">{template.name}</p>
                     <p className="mt-1 text-xs text-neutral-500">{template.activities.length} hoạt động</p>
@@ -333,7 +339,7 @@ export function LessonPlanForm({ editingPlan, onDone, initialValues }: LessonPla
         </div>
       </div>
 
-      <div className="flex flex-none flex-col gap-2 border-t border-neutral-200 bg-white/95 px-4 py-3 shadow-[0_-8px_24px_rgba(28,26,21,.06)] backdrop-blur sm:px-5">
+      <div className="flex flex-none flex-col gap-2 border-t border-neutral-200 bg-neutral-0/95 px-4 py-3 shadow-up backdrop-blur sm:px-5">
         {saveMutation.isError && (
           <p role="alert" className="text-sm text-danger-700">Không thể lưu giáo án. Vui lòng thử lại.</p>
         )}
@@ -343,11 +349,9 @@ export function LessonPlanForm({ editingPlan, onDone, initialValues }: LessonPla
           </Button>
           <Button
             type="button"
-            onClick={() => {
-              if (formState.isDirty) {
-                if (!confirm("Bạn có các thay đổi chưa lưu. Bạn thực sự muốn thoát?")) {
-                  return;
-                }
+            onClick={async () => {
+              if (formState.isDirty && !(await confirm({ title: "Thoát mà không lưu?", message: "Các thay đổi trên giáo án sẽ bị bỏ.", confirmLabel: "Thoát" }))) {
+                return;
               }
               removeLessonPlanDraft(uid, watchedValues.classId, watchedValues.sessionId);
               onDone?.();

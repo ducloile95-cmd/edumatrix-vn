@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   documentId: vi.fn(() => "__name__"), getDocs: vi.fn(), orderBy: vi.fn(),
   getCurrentUserDoc: vi.fn(), isAdminUser: vi.fn(), isTeacherUser: vi.fn(), where: vi.fn(),
-  runTransaction: vi.fn(), transactionGet: vi.fn(), transactionUpdate: vi.fn(), writeAuditLog: vi.fn(),
+  runTransaction: vi.fn(), transactionDelete: vi.fn(), transactionGet: vi.fn(), transactionUpdate: vi.fn(), writeAuditLog: vi.fn(),
+  assertDeletionAllowed: vi.fn(),
 }));
 
 vi.mock("firebase/firestore", () => ({
@@ -14,13 +15,14 @@ vi.mock("firebase/firestore", () => ({
 }));
 vi.mock("@/services/firebase/firestoreClient", () => ({ db: {} }));
 vi.mock("@/services/firestore/auditLog", () => ({ writeAuditLog: mocks.writeAuditLog }));
+vi.mock("@/services/firestore/deletionDependencies", () => ({ assertDeletionAllowed: mocks.assertDeletionAllowed }));
 vi.mock("@/services/firestore/authz", () => ({
   getCurrentUserDoc: mocks.getCurrentUserDoc,
   isAdminUser: mocks.isAdminUser,
   isTeacherUser: mocks.isTeacherUser,
 }));
 
-import { listUsers, listUsersByRole, updateUserAccount } from "./users";
+import { deleteUserAccount, listTeacherVisibleUsers, listUsers, listUsersByIds, listUsersByRole, updateUserAccount } from "./users";
 
 function snapshot(id: string, data: Record<string, unknown> | null) {
   return { id, ref: { id, path: `students/${id}` }, exists: () => data !== null, data: () => data };
@@ -28,6 +30,7 @@ function snapshot(id: string, data: Record<string, unknown> | null) {
 
 describe("updateUserAccount", () => {
   beforeEach(() => {
+    mocks.assertDeletionAllowed.mockReset().mockResolvedValue(undefined);
     mocks.transactionGet.mockReset(); mocks.transactionUpdate.mockReset();
     mocks.writeAuditLog.mockReset().mockResolvedValue(undefined);
     mocks.runTransaction.mockReset().mockImplementation(async (_db, callback) => callback({
@@ -76,6 +79,42 @@ describe("updateUserAccount", () => {
   });
 });
 
+describe("deleteUserAccount", () => {
+  beforeEach(() => {
+    mocks.transactionDelete.mockReset(); mocks.transactionGet.mockReset(); mocks.transactionUpdate.mockReset();
+    mocks.writeAuditLog.mockReset().mockResolvedValue(undefined);
+    mocks.runTransaction.mockReset().mockImplementation(async (_db, callback) => callback({
+      delete: mocks.transactionDelete, get: mocks.transactionGet, update: mocks.transactionUpdate,
+    }));
+  });
+
+  test("hard deletes only an unreferenced account", async () => {
+    mocks.transactionGet.mockResolvedValueOnce(snapshot("parent-1", { email: "parent@example.com", role: "viewer", studentIds: [] }));
+
+    await deleteUserAccount({ uid: "admin-1" } as never, "parent-1");
+
+    expect(mocks.transactionUpdate).not.toHaveBeenCalled();
+    expect(mocks.transactionDelete).toHaveBeenCalledWith(expect.objectContaining({ path: "users/parent-1" }));
+    expect(mocks.writeAuditLog).toHaveBeenCalledWith(
+      expect.anything(), "user_account_deleted", "user", "parent-1",
+      expect.objectContaining({ email: "parent@example.com", role: "viewer" }),
+    );
+  });
+
+  test("does not allow an admin to delete the signed-in account", async () => {
+    await expect(deleteUserAccount({ uid: "admin-1" } as never, "admin-1"))
+      .rejects.toThrow("USER_SELF_DELETE_NOT_ALLOWED");
+    expect(mocks.runTransaction).not.toHaveBeenCalled();
+  });
+
+  test("does not delete an account that is still assigned", async () => {
+    mocks.assertDeletionAllowed.mockRejectedValueOnce(new Error("DELETION_BLOCKED"));
+    await expect(deleteUserAccount({ uid: "admin-1" } as never, "teacher-1"))
+      .rejects.toThrow("DELETION_BLOCKED");
+    expect(mocks.runTransaction).not.toHaveBeenCalled();
+  });
+});
+
 describe("user list queries", () => {
   beforeEach(() => {
     mocks.documentId.mockClear(); mocks.getDocs.mockReset(); mocks.orderBy.mockClear(); mocks.where.mockClear();
@@ -103,5 +142,41 @@ describe("user list queries", () => {
     expect(mocks.where).toHaveBeenCalledWith("role", "==", "teacher");
     expect(mocks.where).toHaveBeenCalledWith("status", "==", "active");
     expect(mocks.documentId).not.toHaveBeenCalled();
+  });
+});
+
+describe("listTeacherVisibleUsers", () => {
+  const user = (uid: string, role: string) => ({ id: uid, data: () => ({ email: `${uid}@x.vn`, displayName: uid, role, status: "active", studentIds: [] }) });
+  beforeEach(() => { mocks.getDocs.mockReset(); mocks.where.mockClear(); mocks.orderBy.mockClear(); });
+
+  test("returns the staff directory plus the given parents, without a full users scan", async () => {
+    mocks.getDocs.mockResolvedValueOnce({ docs: [user("admin-1", "admin"), user("teacher-1", "teacher")] });
+    const firestoreModule = await import("firebase/firestore");
+    vi.mocked(firestoreModule.getDoc).mockReset().mockImplementation(async (ref) => {
+      const id = (ref as unknown as { id: string }).id;
+      return { ...user(id, id.startsWith("parent") ? "viewer" : "teacher"), exists: () => true } as never;
+    });
+
+    const result = await listTeacherVisibleUsers(["parent-1", "teacher-1", "parent-1"]);
+
+    expect(mocks.where).toHaveBeenCalledWith("role", "in", ["admin", "teacher"]);
+    expect(mocks.orderBy).not.toHaveBeenCalled();
+    expect(result.map((item) => item.uid).sort()).toEqual(["admin-1", "parent-1", "teacher-1"]);
+  });
+});
+
+describe("listUsersByIds", () => {
+  test("skips a profile the rules deny instead of failing the whole list", async () => {
+    const firestoreModule = await import("firebase/firestore");
+    const getDoc = vi.mocked(firestoreModule.getDoc);
+    const profile = (uid: string) => ({ id: uid, exists: () => true, data: () => ({ email: `${uid}@x.vn`, displayName: uid, role: "viewer", status: "active", studentIds: [] }) });
+    getDoc.mockReset()
+      .mockResolvedValueOnce(profile("parent-1") as never)
+      .mockRejectedValueOnce(Object.assign(new Error("denied"), { code: "permission-denied" }))
+      .mockResolvedValueOnce({ id: "parent-3", exists: () => false, data: () => undefined } as never);
+
+    const result = await listUsersByIds(["parent-1", "parent-2", "parent-3"]);
+
+    expect(result.map((user) => user.uid)).toEqual(["parent-1"]);
   });
 });

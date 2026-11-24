@@ -100,7 +100,7 @@ export function DriveLessonPlanAttachment({ plan }: { plan: LessonPlanDoc & { id
   if (integrations.isLoading) return <div className="rounded-input border border-neutral-200 bg-neutral-50 p-4 text-sm text-neutral-500">Đang tải cấu hình Google Drive...</div>;
 
   return (
-    <section className="rounded-card border border-neutral-200 bg-white p-4 shadow-[var(--shadow-1)]">
+    <section className="rounded-card border border-neutral-200 bg-neutral-0 p-4 shadow-[var(--shadow-1)]">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex gap-3">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-input bg-primary-50 text-primary-700 ring-1 ring-primary-100"><Cloud size={19} /></span>

@@ -53,14 +53,14 @@ export function TimetableGrid({ days, sessions, today, onSessionClick }: Timetab
         className="grid min-w-[900px]"
         style={{ gridTemplateColumns: `56px repeat(${days.length}, minmax(120px, 1fr))` }}
       >
-        <div className="sticky left-0 top-0 z-[3] border-b border-r border-neutral-200 bg-white" />
+        <div className="sticky left-0 top-0 z-[3] border-b border-r border-neutral-200 bg-neutral-0" />
         {days.map((day) => {
           const isToday = isSameDay(day, today);
           return (
             <div
               key={dayKey(day)}
               className={`sticky top-0 z-[2] border-b border-r border-neutral-100 px-1.5 py-2 text-center last:border-r-0 ${
-                isToday ? "bg-primary-50" : "bg-white"
+                isToday ? "bg-primary-50" : "bg-neutral-0"
               }`}
             >
               <p className={`text-3xs font-bold uppercase tracking-wide ${isToday ? "text-primary-600" : "text-neutral-500"}`}>
@@ -73,10 +73,10 @@ export function TimetableGrid({ days, sessions, today, onSessionClick }: Timetab
           );
         })}
 
-        <div className="sticky left-0 z-[1] border-r border-neutral-200 bg-white">
+        <div className="sticky left-0 z-[1] border-r border-neutral-200 bg-neutral-0">
           {hourLabels().map((label, index) => (
             <div key={label} className="relative" style={{ height: HOUR_HEIGHT_PX }}>
-              <span className={`absolute right-2 bg-white px-0.5 text-3xs font-semibold text-neutral-500 ${index === 0 ? "top-1" : "-top-[7px]"}`}>
+              <span className={`absolute right-2 bg-neutral-0 px-0.5 text-3xs font-semibold text-neutral-500 ${index === 0 ? "top-1" : "-top-[7px]"}`}>
                 {label}
               </span>
             </div>
@@ -115,7 +115,7 @@ export function TimetableGrid({ days, sessions, today, onSessionClick }: Timetab
                     key={session.id}
                     type="button"
                     onClick={() => onSessionClick(session)}
-                    className={`absolute overflow-hidden rounded-md border-l-[3px] px-1.5 py-1 text-left transition hover:brightness-95 ${tone.bg} ${tone.border} ${tone.text}`}
+                    className={`absolute overflow-hidden rounded-input border-l-[3px] px-1.5 py-1 text-left transition hover:brightness-95 ${tone.bg} ${tone.border} ${tone.text}`}
                     style={{
                       top: layout.topPx,
                       height: layout.heightPx,
@@ -129,7 +129,7 @@ export function TimetableGrid({ days, sessions, today, onSessionClick }: Timetab
                       {wide && session.location ? ` · ${session.location}` : ""}
                     </p>
                     {tone.tagLabel && (
-                      <span className={`mt-0.5 inline-block rounded px-1 py-px text-4xs font-extrabold uppercase tracking-wide text-white ${tone.tagBg}`}>
+                      <span className={`mt-0.5 inline-block rounded px-1 py-px text-3xs font-extrabold uppercase tracking-wide text-white ${tone.tagBg}`}>
                         {tone.tagLabel}
                       </span>
                     )}

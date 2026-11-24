@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, test } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment } from "@firebase/rules-unit-testing";
-import { collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc, Timestamp, updateDoc } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDoc, getDocs, query, serverTimestamp, setDoc, Timestamp, updateDoc, where } from "firebase/firestore";
 
 const PROJECT_ID = "edumatrix-chat-tag-rules-test";
 const ADMIN_UID = "admin-uid";
@@ -68,10 +68,15 @@ describe("conversation tag assignment", () => {
     await assertFails(updateDoc(doc(as(VIEWER_UID), "chat_threads", "thread-1"), { tagIds: ["tag-red"], updatedAt: serverTimestamp() }));
   });
 
-  test("a former teacher loses access even when the thread cache is stale", async () => {
+  test("a former teacher keeps read while still in assignedTeacherIds but loses write access", async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await updateDoc(doc(ctx.firestore(), "students", "student-1"), { teacherIds: [] });
     });
-    await assertFails(getDoc(doc(as(TEACHER_UID), "chat_threads", "thread-1")));
+    await assertSucceeds(getDoc(doc(as(TEACHER_UID), "chat_threads", "thread-1")));
+    await assertSucceeds(getDocs(query(
+      collection(as(TEACHER_UID), "chat_threads"),
+      where("assignedTeacherIds", "array-contains", TEACHER_UID),
+      where("studentId", "==", "student-1"),
+    )));
   });
 });

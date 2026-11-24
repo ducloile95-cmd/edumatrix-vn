@@ -214,4 +214,38 @@ describe("ClassForm", () => {
       }));
     });
   });
+
+  test("opens an older class whose saved recurrence timestamp is malformed", async () => {
+    authState.value = {
+      firebaseUser: { uid: "admin-1" },
+      role: "admin",
+    };
+    const editingClass: ClassDoc & { id: string } = {
+      id: "class-legacy",
+      name: "Lớp dữ liệu cũ",
+      courseId: "course-1",
+      subjectIds: ["subject-1"],
+      teacherIds: ["teacher-1"],
+      studentIds: [],
+      scheduleText: "",
+      location: "",
+      status: "active",
+      recurrence: {
+        startDate: {} as Timestamp,
+        endDate: Timestamp.fromDate(new Date("2026-08-08T00:00:00")),
+        daysOfWeek: [2, 4],
+        startTime: "18:00",
+        endTime: "19:30",
+        sessionCount: 12,
+      },
+      createdAt: Timestamp.fromDate(new Date("2026-06-01T00:00:00")),
+      updatedAt: Timestamp.fromDate(new Date("2026-06-01T00:00:00")),
+    };
+
+    renderWithQueryClient(<ClassForm editingClass={editingClass} />);
+    await screen.findByRole("option", { name: "English Foundation" });
+
+    expect(screen.getByLabelText(/Tên lớp/)).toHaveProperty("value", "Lớp dữ liệu cũ");
+    expect(screen.getByLabelText(/Ngày bắt đầu/)).toHaveProperty("value", "");
+  });
 });

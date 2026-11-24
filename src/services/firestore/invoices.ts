@@ -2,11 +2,14 @@ import {
   Timestamp,
   collection,
   doc,
+  documentId,
   getDocs,
   limit,
+  orderBy,
   query,
   runTransaction,
   serverTimestamp,
+  updateDoc,
   startAfter,
   where,
   writeBatch,
@@ -17,10 +20,13 @@ import {
 } from "firebase/firestore";
 import { COLLECTIONS } from "@/constants/collections";
 import { db } from "@/services/firebase/firestoreClient";
+import { InvoiceBatchPartialError } from "@/services/firestore/invoiceErrors";
 import { stableDocumentId } from "@/utils/idempotency";
 import { createInvoiceCode, createPaymentContent } from "@/utils/payment";
 import { getCurrentUserDoc, isAdminUser, isTeacherUser } from "@/services/firestore/authz";
 import { listStudents } from "@/services/firestore/students";
+import { listQueryDocumentsPage } from "@/services/firestore/pagination";
+import { queueUtilityDeliveryEvent } from "@/services/firestore/messengerDelivery";
 import type { InvoiceDoc, InvoiceSourceType, PaymentDoc, PaymentStatus } from "@/types/academic";
 
 export interface CreateInvoiceInput {
@@ -41,35 +47,65 @@ export interface CreateInvoiceInput {
   itemNameSnapshot: string;
   unitPriceSnapshot: number;
   quantity: number;
+  /** So buoi da tinh tien truoc hoa don nay (hoa don lop) - tao ID tat dinh chong tao trung. */
+  billedSessionsBefore?: number;
+  /** So hoa don lop da co cua hoc sinh (ke ca da huy) - dua vao ID de lap lai sau khi huy khong trung ID. */
+  priorClassInvoiceCount?: number;
 }
 
 export async function createInvoice(input: CreateInvoiceInput): Promise<void> {
   await createInvoices([input]);
 }
 
-/** Phát hành nhiều hóa đơn trong một batch để tránh chỉ tạo được một phần danh sách. */
+const INVOICES_PER_BATCH = 5;
+
+/** Phát hành nhiều hóa đơn theo từng nhóm nguyên tử (xem INVOICES_PER_BATCH). */
 export async function createInvoices(inputs: CreateInvoiceInput[]): Promise<void> {
   if (inputs.length === 0) return;
-  if (inputs.length > 500) throw new Error("invoice_batch_limit");
+  // Moi hoa don kem mot event intent trong cung batch.
+  if (inputs.length > 250) throw new Error("invoice_batch_limit");
 
-  const batch = writeBatch(db);
-  inputs.forEach((input) => {
-    const invoiceRef = doc(collection(db, COLLECTIONS.INVOICES));
-    const invoiceCode = createInvoiceCode(input.studentId, invoiceRef.id);
-    const { actorUid, ...invoiceData } = input;
+  // shortcut: rules chi duoc doc ~20 document moi batch; nhom 5 hoa don (+5 event) da test o phase9.
+  // Moi nhom la nguyen tu, khong phai ca lop. Tang khi Firestore noi gioi han truy cap.
+  const createdStudentIds: string[] = [];
+  for (let offset = 0; offset < inputs.length; offset += INVOICES_PER_BATCH) {
+    const group = inputs.slice(offset, offset + INVOICES_PER_BATCH);
+    const batch = writeBatch(db);
+    group.forEach((input) => {
+      const { actorUid, billedSessionsBefore, priorClassInvoiceCount, ...invoiceData } = input;
+      // Hoa don lop: cung lop/hoc sinh/so buoi da tinh -> cung ID; rules khong cho ghi de (createdAt bat bien).
+      const invoiceRef = input.sourceType === "class" && input.classId && billedSessionsBefore !== undefined
+        ? doc(db, COLLECTIONS.INVOICES, stableDocumentId(["class", input.classId, input.studentId, String(billedSessionsBefore), String(input.quantity), String(priorClassInvoiceCount ?? 0)]))
+        : doc(collection(db, COLLECTIONS.INVOICES));
+      const invoiceCode = createInvoiceCode(input.studentId, invoiceRef.id);
 
-    batch.set(invoiceRef, {
-      ...invoiceData,
-      invoiceCode,
-      paymentContent: createPaymentContent(invoiceCode),
-      dueAt: Timestamp.fromDate(input.dueAt),
-      status: "unpaid",
-      createdBy: actorUid,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+      batch.set(invoiceRef, {
+        ...invoiceData,
+        invoiceCode,
+        paymentContent: createPaymentContent(invoiceCode),
+        dueAt: Timestamp.fromDate(input.dueAt),
+        status: "unpaid",
+        createdBy: actorUid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      queueUtilityDeliveryEvent(batch, {
+        eventType: "invoice_committed",
+        entityId: invoiceRef.id,
+        sourceId: invoiceRef.id,
+        studentId: input.studentId,
+        version: 1,
+        actorUid,
+      });
     });
-  });
-  await batch.commit();
+    try {
+      await batch.commit();
+    } catch (error) {
+      if (createdStudentIds.length === 0) throw error;
+      throw new InvoiceBatchPartialError(createdStudentIds, error);
+    }
+    createdStudentIds.push(...group.map((input) => input.studentId));
+  }
 }
 
 async function listAllDocuments(collectionName: string, baseConstraints: QueryConstraint[], pageSize: number): Promise<QueryDocumentSnapshot<DocumentData, DocumentData>[]> {
@@ -79,6 +115,7 @@ async function listAllDocuments(collectionName: string, baseConstraints: QueryCo
     const snapshot: QuerySnapshot<DocumentData, DocumentData> = await getDocs(query(
       collection(db, collectionName),
       ...baseConstraints,
+      orderBy(documentId()),
       ...(cursor ? [startAfter(cursor)] : []),
       limit(pageSize),
     ));
@@ -113,6 +150,19 @@ export async function listInvoicesByStudents(ids: string[], pageSize = 100): Pro
   );
 
   return groups.flat();
+}
+
+export async function listInvoicePreviewsByStudents(ids: string[], maxPerStudent: number): Promise<(InvoiceDoc & { id: string })[]> {
+  const groups = await Promise.all([...new Set(ids)].filter(Boolean).map(async (studentId) => {
+    const documents = await listQueryDocumentsPage(
+      COLLECTIONS.INVOICES,
+      // Moi nhat truoc: lay N cu nhat roi loc "da tra" se giau hoa don chua tra moi sau khoang N hoa don.
+      [where("studentId", "==", studentId), orderBy("dueAt", "desc")],
+      maxPerStudent,
+    );
+    return documents.map((item) => ({ id: item.id, ...(item.data() as InvoiceDoc) }));
+  }));
+  return groups.flat().sort((a, b) => a.dueAt.toMillis() - b.dueAt.toMillis());
 }
 
 export async function reportPayment(
@@ -184,6 +234,11 @@ export async function listPaymentsByStudents(ids: string[], pageSize = 100): Pro
   return groups.flat();
 }
 
+/** Huy han mot hoa don (Q5) - chi Admin (rules); khong tinh vao cong no, phu huynh khong nop chung tu duoc nua. */
+export async function voidInvoice(invoiceId: string): Promise<void> {
+  await updateDoc(doc(db, COLLECTIONS.INVOICES, invoiceId), { status: "void", updatedAt: serverTimestamp() });
+}
+
 export async function reconcilePayment(
   payment: PaymentDoc & { id: string },
   status: Exclude<PaymentStatus, "reported">,
@@ -215,5 +270,15 @@ export async function reconcilePayment(
       status: status === "verified" ? "paid" : "rejected",
       updatedAt: serverTimestamp(),
     });
+    if (status === "verified") {
+      queueUtilityDeliveryEvent(transaction, {
+        eventType: "payment_verified",
+        entityId: payment.id,
+        sourceId: payment.id,
+        studentId: currentPayment.studentId,
+        version: 1,
+        actorUid: uid,
+      });
+    }
   });
 }

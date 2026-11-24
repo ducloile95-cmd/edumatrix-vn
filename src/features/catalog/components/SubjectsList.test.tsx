@@ -6,16 +6,20 @@ import { SubjectsList } from "@/features/catalog/components/SubjectsList";
 import { renderWithQueryClient } from "@/test/renderWithQueryClient";
 
 const serviceMocks = vi.hoisted(() => ({
+  deleteSubject: vi.fn(),
   listSubjects: vi.fn(),
   setSubjectStatus: vi.fn(),
   listCourses: vi.fn(),
+  inspectDeletionDependencies: vi.fn(),
 }));
 
 vi.mock("@/services/firestore/subjects", () => ({
+  deleteSubject: serviceMocks.deleteSubject,
   listSubjects: serviceMocks.listSubjects,
   setSubjectStatus: serviceMocks.setSubjectStatus,
 }));
 vi.mock("@/services/firestore/courses", () => ({ listCourses: serviceMocks.listCourses }));
+vi.mock("@/services/firestore/deletionDependencies", () => ({ inspectDeletionDependencies: serviceMocks.inspectDeletionDependencies }));
 
 describe("SubjectsList information layout", () => {
   beforeEach(() => {
@@ -27,6 +31,8 @@ describe("SubjectsList information layout", () => {
       { id: "course-1", subjectIds: ["handwriting"] },
     ]);
     serviceMocks.setSubjectStatus.mockResolvedValue(undefined);
+    serviceMocks.deleteSubject.mockResolvedValue(undefined);
+    serviceMocks.inspectDeletionDependencies.mockResolvedValue({ allowed: true, total: 0, blockers: [] });
   });
 
   afterEach(() => {
@@ -52,15 +58,32 @@ describe("SubjectsList information layout", () => {
     expect(firstRow).toBeTruthy();
     const row = within(firstRow as HTMLElement);
     expect(row.getByText("Đang dùng")).toBeTruthy();
-    expect(row.getAllByRole("cell")[2].textContent).toContain("1");
+    expect(row.getAllByRole("cell")[1].textContent).toContain("1");
 
-    fireEvent.click(row.getByRole("button", { name: /Luyện chữ đẹp Tiểu học & THCS/ }));
+    fireEvent.click(row.getByRole("button", { name: /Lọc 1 khóa học của môn Luyện chữ đẹp Tiểu học & THCS/ }));
     expect(onSelect).toHaveBeenCalledWith("handwriting");
 
-    fireEvent.click(row.getByRole("button", { name: "Sửa" }));
+    fireEvent.click(row.getByRole("button", { name: "Sửa môn Luyện chữ đẹp Tiểu học & THCS" }));
     expect(onEdit).toHaveBeenCalledWith(expect.objectContaining({ id: "handwriting" }));
 
-    fireEvent.click(row.getByRole("button", { name: "Lưu trữ" }));
+    fireEvent.click(row.getByRole("button", { name: "Lưu trữ môn Luyện chữ đẹp Tiểu học & THCS" }));
     await waitFor(() => expect(serviceMocks.setSubjectStatus).toHaveBeenCalledWith("handwriting", "archived"));
+
+    fireEvent.click(row.getByRole("button", { name: "Xóa vĩnh viễn môn học Luyện chữ đẹp Tiểu học & THCS" }));
+    const confirmDelete = screen.getByRole("button", { name: "Xóa vĩnh viễn" });
+    await waitFor(() => expect((confirmDelete as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(confirmDelete);
+    await waitFor(() => expect(serviceMocks.deleteSubject).toHaveBeenCalledWith("handwriting", expect.anything()));
+  });
+
+  test("gives Teacher delete-only actions without Admin subject controls", async () => {
+    renderWithQueryClient(
+      <SubjectsList canManage={false} canDelete onAdd={vi.fn()} onEdit={vi.fn()} onSelect={vi.fn()} selectedSubjectId={null} />,
+    );
+
+    expect(await screen.findByRole("button", { name: "Xóa vĩnh viễn môn học Luyện chữ đẹp Tiểu học & THCS" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Thêm môn học" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Sửa" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Lưu trữ" })).toBeNull();
   });
 });

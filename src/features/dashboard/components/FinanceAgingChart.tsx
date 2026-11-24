@@ -20,7 +20,7 @@ export default function FinanceAgingChart({ aging, reducedMotion, money }: Finan
           <XAxis type="number" hide />
           <YAxis type="category" dataKey="label" width={90} tick={CHART_AXIS_TICK} axisLine={false} tickLine={false} />
           <Tooltip contentStyle={CHART_TOOLTIP_STYLE} formatter={(value: number) => money(value)} />
-          <Bar dataKey="amount" fill={CHART_GRADIENT.primary} filter={CHART_DEPTH_FILTER} radius={[0, 10, 10, 0]} barSize={18} isAnimationActive={!reducedMotion} animationDuration={CHART_ANIMATION_DURATION} />
+          <Bar dataKey="amount" fill={CHART_GRADIENT.primary} filter={CHART_DEPTH_FILTER} radius={[0, 4, 4, 0]} barSize={18} isAnimationActive={!reducedMotion} animationDuration={CHART_ANIMATION_DURATION} />
         </BarChart>
       </ResponsiveContainer>
     </div>

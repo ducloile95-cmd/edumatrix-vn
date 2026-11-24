@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/Button";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingSkeleton } from "@/components/feedback/LoadingSkeleton";
 import { Modal } from "@/components/ui/Modal";
+import { useConfirm } from "@/components/feedback/confirmContext";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { createChatTag, deleteChatTag, listChatTags, listMessageOutbox, markChatThreadRead, setChatThreadTags } from "@/services/firestore/chat";
+import { createChatTag, deleteChatTag, listChatTags, markChatThreadRead, setChatThreadTags } from "@/services/firestore/chat";
 import { listStudents } from "@/services/firestore/students";
 import { listUsersByIds } from "@/services/firestore/users";
 import { isMessengerInviteConfigured, MessengerSendError, sendMessenger, type UtilityTemplateKey } from "@/services/integrations/messenger";
@@ -47,13 +48,14 @@ const MESSAGE_TOPICS: Array<{ value: MessageTopic; label: string }> = [
   { value: "general_notice", label: "Thông báo tổng" },
   { value: "tuition_reminder", label: "Nhắc học phí" },
 ];
-export function UtilityTemplatesModal({ open, onClose, role }: { open: boolean; onClose: () => void; role: StaffRole }) {
+export function UtilityTemplatesModal({ open, onClose, onUseTemplate, role, configured }: { open: boolean; onClose: () => void; onUseTemplate: (templateKey: UtilityTemplateKey) => void; role: StaffRole; configured: boolean }) {
   const enabled = utilityMessagingEnabled();
+  const canSend = enabled && configured;
   const templates = useMemo(
     () => UTILITY_TEMPLATES.filter((template) => role === "admin" || template.teacherAllowed),
     [role],
   );
-  const [selectedKey, setSelectedKey] = useState<string>(templates[0]?.key ?? "");
+  const [selectedKey, setSelectedKey] = useState<UtilityTemplateKey | null>(templates[0]?.key ?? null);
   const selected = templates.find((template) => template.key === selectedKey) ?? templates[0];
 
   return (
@@ -61,17 +63,17 @@ export function UtilityTemplatesModal({ open, onClose, role }: { open: boolean; 
       <div className="grid min-h-[430px] gap-4 md:grid-cols-[280px_minmax(0,1fr)]">
         <aside className="space-y-1 rounded-card bg-neutral-50 p-2" aria-label="Danh sách mẫu tiện ích">
           {templates.map(({ key, label, description, icon: Icon }) => (
-            <button key={key} type="button" onClick={() => setSelectedKey(key)} aria-pressed={selected?.key === key} className={`flex w-full gap-3 rounded-input px-3 py-3 text-left transition ${selected?.key === key ? "bg-white text-primary-700 shadow-sm ring-1 ring-primary-100" : "text-neutral-600 hover:bg-white"}`}>
+            <button key={key} type="button" onClick={() => setSelectedKey(key)} aria-pressed={selected?.key === key} className={`flex w-full gap-3 rounded-input px-3 py-3 text-left transition ${selected?.key === key ? "bg-neutral-0 text-primary-700 shadow-sm ring-1 ring-primary-100" : "text-neutral-600 hover:bg-neutral-0"}`}>
               <span className={`flex size-9 shrink-0 items-center justify-center rounded-input ${selected?.key === key ? "bg-primary-50" : "bg-neutral-100"}`}><Icon size={17} /></span>
               <span className="min-w-0"><b className="block text-sm text-neutral-900">{label}</b><span className="mt-1 block text-xs leading-5">{description}</span></span>
             </button>
           ))}
         </aside>
         {selected && (
-          <section className="flex min-w-0 flex-col rounded-card border border-neutral-200 bg-white p-5">
+          <section className="flex min-w-0 flex-col rounded-card border border-neutral-200 bg-neutral-0 p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div><p className="text-xs font-semibold text-primary-700">UTILITY TEMPLATE</p><h3 className="mt-1 text-lg font-bold text-neutral-900">{selected.label}</h3><p className="mt-1 font-mono text-xs text-neutral-400">{selected.key}</p></div>
-              <StatusBadge tone={enabled ? "success" : "warning"}>{enabled ? "Đã kích hoạt" : "Chờ Meta phê duyệt"}</StatusBadge>
+              <StatusBadge tone={canSend ? "success" : "warning"}>{canSend ? "Đã kích hoạt" : !configured ? "Chưa kết nối Messenger" : "Chờ Meta phê duyệt"}</StatusBadge>
             </div>
             <div className={`mt-5 rounded-input border p-4 text-sm leading-6 ${enabled ? "border-primary-200 bg-primary-50 text-primary-700" : "border-warning-200 bg-warning-50 text-warning-900"}`}>
               <b>{enabled ? "Gửi từ màn hình \"Nhắn mới\"." : "Chưa thể gửi trên production."}</b>
@@ -82,7 +84,7 @@ export function UtilityTemplatesModal({ open, onClose, role }: { open: boolean; 
               <div className="rounded-input bg-neutral-50 p-3"><dt className="text-xs text-neutral-400">Ngôn ngữ</dt><dd className="mt-1 text-sm font-semibold text-neutral-800">Tiếng Việt</dd></div>
             </dl>
             <div className="mt-auto flex items-center justify-between gap-3 border-t border-neutral-200 pt-5">
-              <Button type="button" variant="primary" disabled icon={<Send size={15} />}>Gửi mẫu</Button>
+              <Button type="button" variant="primary" disabled={!canSend || !selected} title={!configured ? "Chưa cấu hình kết nối Messenger" : !enabled ? "Utility Messaging chưa được kích hoạt" : undefined} icon={<Send size={15} />} onClick={() => selectedKey && onUseTemplate(selectedKey)}>Gửi mẫu</Button>
             </div>
           </section>
         )}
@@ -93,6 +95,7 @@ export function UtilityTemplatesModal({ open, onClose, role }: { open: boolean; 
 
 function ConversationTagManager({ open, tags, onClose, onCreate, onDelete }: { open: boolean; tags: ChatTag[]; onClose: () => void; onCreate: (label: string, color: ChatTagColor) => Promise<void>; onDelete: (id: string) => Promise<void> }) {
   const [search, setSearch] = useState("");
+  const confirm = useConfirm();
   const [creating, setCreating] = useState(false);
   const [label, setLabel] = useState("");
   const [color, setColor] = useState<ChatTagColor>("blue");
@@ -124,22 +127,22 @@ function ConversationTagManager({ open, tags, onClose, onCreate, onDelete }: { o
     <>
       <Modal open={open && !creating} onClose={onClose} title="Quản lý tag hội thoại" size="md">
         <div className="flex gap-2">
-          <label className="relative min-w-0 flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={17} /><span className="sr-only">Tìm tag mẫu</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm tag mẫu" className="min-h-11 w-full rounded-input border border-neutral-300 bg-white pl-10 pr-3 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100" /></label>
+          <label className="relative min-w-0 flex-1"><Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={17} /><span className="sr-only">Tìm tag mẫu</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm tag mẫu" className="min-h-11 w-full rounded-input border border-neutral-300 bg-neutral-0 pl-10 pr-3 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100" /></label>
           <button type="button" onClick={() => setCreating(true)} className="flex min-h-11 shrink-0 items-center gap-2 rounded-input bg-primary-600 px-3.5 text-sm font-semibold text-white transition hover:bg-primary-700 active:scale-[.98]"><Plus size={17} />Thêm tag</button>
         </div>
         <div className="mt-4 overflow-hidden rounded-card border border-neutral-200">
           <div className="grid grid-cols-[minmax(0,1fr)_56px] bg-neutral-100 px-4 py-2.5 text-xs font-semibold text-neutral-600"><span>Tag hội thoại</span><span className="text-center">Xóa</span></div>
-          {filtered.length ? <div className="divide-y divide-neutral-200">{filtered.map((tag) => <div key={tag.id} className="grid min-h-12 grid-cols-[minmax(0,1fr)_56px] items-center px-4 py-2"><span className="flex items-center gap-2 text-sm font-medium text-neutral-700"><span className={`size-2 rounded-full ${CHAT_TAG_COLORS.find((item) => item.value === tag.color)?.swatch}`} />{tag.label}</span><button type="button" onClick={async () => { setPending(true); setError(null); try { await onDelete(tag.id); } catch (cause) { setError(cause instanceof Error ? cause.message : "Không xóa được tag."); } finally { setPending(false); } }} disabled={pending} aria-label={`Xóa tag mẫu ${tag.label}`} className="mx-auto flex size-9 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-danger-50 hover:text-danger-700 disabled:opacity-40"><Trash2 size={16} /></button></div>)}</div> : <p className="px-4 py-8 text-center text-sm text-neutral-500">Không tìm thấy tag phù hợp.</p>}
+          {filtered.length ? <div className="divide-y divide-neutral-200">{filtered.map((tag) => <div key={tag.id} className="grid min-h-12 grid-cols-[minmax(0,1fr)_56px] items-center px-4 py-2"><span className="flex items-center gap-2 text-sm font-medium text-neutral-700"><span className={`size-2 rounded-full ${CHAT_TAG_COLORS.find((item) => item.value === tag.color)?.swatch}`} />{tag.label}</span><button type="button" onClick={async () => { if (!(await confirm({ title: `Xóa tag "${tag.label}"?`, message: "Tag sẽ bị gỡ khỏi mọi hội thoại đang dùng.", confirmLabel: "Xóa tag" }))) return; setPending(true); setError(null); try { await onDelete(tag.id); } catch (cause) { setError(cause instanceof Error ? cause.message : "Không xóa được tag."); } finally { setPending(false); } }} disabled={pending} aria-label={`Xóa tag mẫu ${tag.label}`} className="mx-auto flex size-9 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-danger-50 hover:text-danger-700 disabled:opacity-40"><Trash2 size={16} /></button></div>)}</div> : <p className="px-4 py-8 text-center text-sm text-neutral-500">Không tìm thấy tag phù hợp.</p>}
         </div>
         {error && <p role="alert" className="mt-3 text-xs font-semibold text-danger-700">{error}</p>}
       </Modal>
       <Modal open={open && creating} onClose={() => { setCreating(false); setError(null); }} title="Thêm tag mẫu" size="sm">
         <form onSubmit={save}>
-          <label className="block text-sm font-medium text-neutral-700">Tên tag<input value={label} onChange={(event) => setLabel(event.target.value)} maxLength={24} autoFocus placeholder="Nhập tên tag" className="mt-2 min-h-11 w-full rounded-input border border-neutral-300 bg-white px-3 text-sm outline-none placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-100" /></label>
-          <fieldset className="mt-5"><legend className="text-sm font-medium text-neutral-700">Màu tag</legend><div className="mt-2 flex gap-1">{CHAT_TAG_COLORS.map((item) => <button key={item.value} type="button" onClick={() => setColor(item.value)} aria-label={`Chọn màu ${item.label}`} aria-pressed={color === item.value} className={`flex size-10 items-center justify-center rounded-input transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 ${color === item.value ? "bg-neutral-100 ring-1 ring-neutral-300" : "hover:bg-neutral-100"}`}><span className={`size-6 rounded-md ${item.swatch}`} /></button>)}</div></fieldset>
+          <label className="block text-sm font-medium text-neutral-700">Tên tag<input value={label} onChange={(event) => setLabel(event.target.value)} maxLength={24} autoFocus placeholder="Nhập tên tag" className="mt-2 min-h-11 w-full rounded-input border border-neutral-300 bg-neutral-0 px-3 text-sm outline-none placeholder:text-neutral-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-100" /></label>
+          <fieldset className="mt-5"><legend className="text-sm font-medium text-neutral-700">Màu tag</legend><div className="mt-2 flex gap-1">{CHAT_TAG_COLORS.map((item) => <button key={item.value} type="button" onClick={() => setColor(item.value)} aria-label={`Chọn màu ${item.label}`} aria-pressed={color === item.value} className={`flex size-10 items-center justify-center rounded-input transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 ${color === item.value ? "bg-neutral-100 ring-1 ring-neutral-300" : "hover:bg-neutral-100"}`}><span className={`size-6 rounded-input ${item.swatch}`} /></button>)}</div></fieldset>
           <div className="mt-5 border-t border-neutral-200 pt-4"><span className="text-xs font-medium text-neutral-500">Xem trước</span><div className="mt-2"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${CHAT_TAG_STYLES[color]}`}>{label.trim() || "Tên tag"}</span></div></div>
           {error && <p role="alert" className="mt-3 text-xs font-semibold text-danger-700">{error}</p>}
-          <div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => { setCreating(false); setError(null); }} className="min-h-10 rounded-input border border-neutral-300 px-4 text-sm font-semibold text-neutral-700 hover:bg-neutral-50">Hủy</button><button type="submit" disabled={!label.trim() || pending} className="min-h-10 rounded-input bg-primary-600 px-4 text-sm font-semibold text-white transition hover:bg-primary-700 active:scale-[.98] disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-neutral-400">{pending ? "Đang lưu..." : "Lưu tag"}</button></div>
+          <div className="mt-6 flex justify-end gap-2"><Button variant="secondary" type="button" onClick={() => { setCreating(false); setError(null); }}>Hủy</Button><Button variant="primary" type="submit" disabled={!label.trim() || pending}>{pending ? "Đang lưu..." : "Lưu tag"}</Button></div>
         </form>
       </Modal>
     </>
@@ -147,7 +150,7 @@ function ConversationTagManager({ open, tags, onClose, onCreate, onDelete }: { o
 }
 
 /** Nut copy 1 link vao clipboard, doi label sang "Da copy" tam thoi de xac nhan - dung chung cho link moi lien ket Messenger. */
-function NewConversationPicker({ open, onClose, configured, onSent }: { open: boolean; onClose: () => void; configured: boolean; onSent: (studentId: string) => void }) {
+function NewConversationPicker({ open, onClose, configured, initialTemplateKey, onSent }: { open: boolean; onClose: () => void; configured: boolean; initialTemplateKey?: UtilityTemplateKey | null; onSent: (studentId: string) => void }) {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<{ id: string; fullName: string; studentCode: string; parentUids: string[] } | null>(null);
   const [draft, setDraft] = useState("");
@@ -209,6 +212,13 @@ function NewConversationPicker({ open, onClose, configured, onSent }: { open: bo
     setSelected({ id: student.id, fullName: student.fullName, studentCode: student.studentCode, parentUids: student.parentUids });
   }, [open, selected, students.data]);
 
+  useEffect(() => {
+    if (!open || !initialTemplateKey) return;
+    setDeliveryMode("utility");
+    setTemplateKey(initialTemplateKey);
+    setParameters({});
+  }, [initialTemplateKey, open]);
+
   // Che do utility khong co o nhap noi dung, dieu kien du la moi tham so cua mau.
   const readyToSend = !!selected && configured && (isUtility ? utilityEnabled && !missingParameters.length : !!draft.trim());
 
@@ -233,7 +243,7 @@ function NewConversationPicker({ open, onClose, configured, onSent }: { open: bo
             <label className="relative block">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={16} />
               <span className="sr-only">Tìm học sinh</span>
-              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm tên hoặc mã học sinh" className="min-h-touch w-full rounded-input border border-neutral-300 bg-white pl-9 pr-3 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100" />
+              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm tên hoặc mã học sinh" className="min-h-touch w-full rounded-input border border-neutral-300 bg-neutral-0 pl-9 pr-3 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100" />
             </label>
           </div>
           <div className="min-h-0 overflow-auto p-2">
@@ -247,35 +257,35 @@ function NewConversationPicker({ open, onClose, configured, onSent }: { open: bo
                     type="button"
                     aria-pressed={active}
                     onClick={() => setSelected({ id: student.id, fullName: student.fullName, studentCode: student.studentCode, parentUids: student.parentUids })}
-                    className={`mb-1 flex w-full items-center gap-3 rounded-input px-3 py-2.5 text-left transition last:mb-0 ${active ? "bg-primary-50 shadow-[inset_3px_0_0_rgb(36_71_216)]" : "hover:bg-white"}`}
+                    className={`mb-1 flex w-full items-center gap-3 rounded-input px-3 py-2.5 text-left transition last:mb-0 ${active ? "bg-primary-50 shadow-[inset_3px_0_0_rgb(36_71_216)]" : "hover:bg-neutral-0"}`}
                   >
                     <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-bold text-primary-700">{initials(student.fullName)}</span>
-                    <span className="min-w-0"><b className="block truncate text-sm">{student.fullName}</b><span className="mt-0.5 block truncate text-xs text-neutral-500">{student.studentCode}</span></span>
+                    <span className="min-w-0"><b translate="no" className="block truncate text-sm">{student.fullName}</b><span className="mt-0.5 block truncate text-xs text-neutral-500">{student.studentCode}</span></span>
                   </button>
                 );
               }) : <p className="p-5 text-center text-sm text-neutral-500">Không tìm thấy học sinh phù hợp.</p>}
           </div>
         </aside>
 
-        <form onSubmit={submit} className="grid min-h-0 grid-rows-[minmax(0,1fr)_auto] bg-white">
+        <form onSubmit={submit} className="grid min-h-0 grid-rows-[minmax(0,1fr)_auto] bg-neutral-0">
           <div className="min-h-0 overflow-y-auto p-5 sm:p-6">
             {selected ? (
               <>
                 <div className="flex items-center justify-between gap-3 rounded-input border border-primary-200 bg-primary-50 px-4 py-3">
-                  <span className="min-w-0"><b className="block truncate text-sm text-neutral-900">{selected.fullName}</b><span className="mt-0.5 block text-xs text-neutral-500">{selected.studentCode}</span></span>
+                  <span className="min-w-0"><b translate="no" className="block truncate text-sm text-neutral-900">{selected.fullName}</b><span className="mt-0.5 block text-xs text-neutral-500">{selected.studentCode}</span></span>
                   <StatusBadge tone={selected.parentUids.length ? "success" : "warning"}>{selected.parentUids.length ? "Có phụ huynh" : "Chưa liên kết"}</StatusBadge>
                 </div>
 
                 <label className="mt-5 block">
                   <span className="mb-1.5 flex items-center justify-between gap-3 text-xs font-bold text-neutral-700"><span>Chủ đề tin nhắn</span><span className="font-normal text-neutral-400">Bắt buộc</span></span>
-                  <select value={topic} onChange={(event) => setTopic(event.target.value as MessageTopic)} disabled={send.isPending} className="min-h-touch w-full rounded-input border border-neutral-300 bg-white px-3 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:bg-neutral-100">
+                  <select value={topic} onChange={(event) => setTopic(event.target.value as MessageTopic)} disabled={send.isPending} className="min-h-touch w-full rounded-input border border-neutral-300 bg-neutral-0 px-3 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:bg-neutral-100">
                     {MESSAGE_TOPICS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
                   </select>
                 </label>
 
                 <label className="mt-4 block">
                   <span className="mb-1.5 flex items-center justify-between gap-3 text-xs font-bold text-neutral-700"><span>Cách gửi</span><span className="font-normal text-neutral-400">Theo chính sách Meta</span></span>
-                  <select value={deliveryMode} onChange={(event) => setDeliveryMode(event.target.value as DeliveryMode)} disabled={send.isPending} className="min-h-touch w-full rounded-input border border-neutral-300 bg-white px-3 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:bg-neutral-100">
+                  <select value={deliveryMode} onChange={(event) => setDeliveryMode(event.target.value as DeliveryMode)} disabled={send.isPending} className="min-h-touch w-full rounded-input border border-neutral-300 bg-neutral-0 px-3 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:bg-neutral-100">
                     <option value="response">Phản hồi trong cửa sổ 24 giờ</option>
                     <option value="account_update">Cập nhật tài khoản, dùng ACCOUNT_UPDATE khi phù hợp</option>
                     <option value="utility" disabled={!utilityEnabled}>Mẫu tiện ích, gửi được ngoài cửa sổ 24 giờ{utilityEnabled ? "" : " (chờ Meta duyệt)"}</option>
@@ -286,7 +296,7 @@ function NewConversationPicker({ open, onClose, configured, onSent }: { open: bo
                   <>
                     <label className="mt-4 block">
                       <span className="mb-1.5 flex items-center justify-between gap-3 text-xs font-bold text-neutral-700"><span>Mẫu tiện ích</span><span className="font-normal text-neutral-400">Đã đăng ký với Meta</span></span>
-                      <select value={templateKey} onChange={(event) => { setTemplateKey(event.target.value as UtilityTemplateKey); setParameters({}); }} disabled={send.isPending} className="min-h-touch w-full rounded-input border border-neutral-300 bg-white px-3 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:bg-neutral-100">
+                      <select value={templateKey} onChange={(event) => { setTemplateKey(event.target.value as UtilityTemplateKey); setParameters({}); }} disabled={send.isPending} className="min-h-touch w-full rounded-input border border-neutral-300 bg-neutral-0 px-3 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:bg-neutral-100">
                         {UTILITY_TEMPLATES.map((item) => <option key={item.key} value={item.key}>{item.label}</option>)}
                       </select>
                     </label>
@@ -302,7 +312,7 @@ function NewConversationPicker({ open, onClose, configured, onSent }: { open: bo
                               value={parameters[key] ?? ""}
                               onChange={(event) => setParameters((current) => ({ ...current, [key]: event.target.value }))}
                               disabled={send.isPending}
-                              className="min-h-touch w-full rounded-input border border-neutral-300 bg-white px-3 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:bg-neutral-100"
+                              className="min-h-touch w-full rounded-input border border-neutral-300 bg-neutral-0 px-3 text-sm outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-100 disabled:bg-neutral-100"
                             />
                           </label>
                         );
@@ -367,13 +377,15 @@ function NewConversationPicker({ open, onClose, configured, onSent }: { open: bo
   );
 }
 
-export function Conversations({ threads, configured, initialPickerOpen = false, role, uid, onOpenTemplates }: { threads: Thread[]; configured: boolean; initialPickerOpen?: boolean; role: StaffRole; uid: string; onOpenTemplates: () => void }) {
+export function Conversations({ threads, configured, initialPickerOpen = false, role, uid }: { threads: Thread[]; configured: boolean; initialPickerOpen?: boolean; role: StaffRole; uid: string }) {
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState(threads[0]?.id ?? "");
   const [mobileThreadOpen, setMobileThreadOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<ConversationFilter>("all");
   const [pickerOpen, setPickerOpen] = useState(initialPickerOpen);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [composeTemplateKey, setComposeTemplateKey] = useState<UtilityTemplateKey | null>(null);
   const [pendingStudentId, setPendingStudentId] = useState<string | null>(null);
   const [tagManagerOpen, setTagManagerOpen] = useState(false);
   const tagsQuery = useQuery({ queryKey: queryKeys.chatTags(), queryFn: listChatTags });
@@ -416,6 +428,10 @@ export function Conversations({ threads, configured, initialPickerOpen = false, 
   }, [threads, selectedId]);
 
   useEffect(() => {
+    if (composeTemplateKey) setPickerOpen(true);
+  }, [composeTemplateKey]);
+
+  useEffect(() => {
     if (!pendingStudentId) return;
     const match = threads.find((thread) => thread.studentId === pendingStudentId);
     if (match) {
@@ -436,17 +452,17 @@ export function Conversations({ threads, configured, initialPickerOpen = false, 
   const selected = threads.find((thread) => thread.id === selectedId);
 
   return (
-    <div className="grid min-h-0 flex-1 lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)_288px]">
-      <aside className={`${mobileThreadOpen ? "hidden lg:flex" : "flex"} min-h-0 min-w-0 flex-col border-r border-neutral-200 bg-white`} aria-label="Danh sách hội thoại">
+    <div className={`grid min-h-0 flex-1 lg:grid-cols-[320px_minmax(0,1fr)] ${selected ? "xl:grid-cols-[320px_minmax(0,1fr)_288px]" : ""}`}>
+      <aside className={`${mobileThreadOpen ? "hidden lg:flex" : "flex"} min-h-0 min-w-0 flex-col border-r border-neutral-200 bg-neutral-0`} aria-label="Danh sách hội thoại">
         <div className="border-b border-neutral-200 px-4 pb-3 pt-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <h1 className="text-xl font-semibold leading-7 tracking-[-.015em] text-neutral-900">Đoạn chat</h1>
             <div className="flex items-center gap-1.5">
-              <button type="button" onClick={onOpenTemplates} aria-label="Mẫu tiện ích" className="flex size-9 items-center justify-center rounded-card bg-neutral-100 text-neutral-600 transition-colors hover:bg-neutral-200 active:scale-[.98]"><Star size={16} /></button>
-              <button type="button" onClick={() => setPickerOpen(true)} aria-label="Nhắn mới" className="flex size-9 items-center justify-center rounded-card bg-primary-50 text-primary-700 transition-colors hover:bg-primary-100 active:scale-[.98]"><Plus size={17} /></button>
+              <button type="button" onClick={() => setTemplatesOpen(true)} aria-label="Mẫu tiện ích" className="flex size-9 items-center justify-center rounded-card bg-neutral-100 text-neutral-600 transition-colors hover:bg-neutral-200 active:scale-[.98]"><Star size={16} /></button>
+              <button type="button" onClick={() => setPickerOpen(true)} className="flex h-9 items-center gap-1.5 rounded-card bg-primary-50 px-3 text-xs font-semibold text-primary-700 transition-colors hover:bg-primary-100 active:scale-[.98]"><Plus size={16} />Nhắn mới</button>
             </div>
           </div>
-          <label className="relative block"><Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" size={17} /><span className="sr-only">Tìm hội thoại</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm phụ huynh" className="min-h-11 w-full rounded-card border border-neutral-300 bg-neutral-50 pl-10 pr-3 text-sm text-neutral-800 outline-none transition-colors placeholder:text-neutral-400 focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-100" /></label>
+          <label className="relative block"><Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" size={17} /><span className="sr-only">Tìm hội thoại</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm phụ huynh" className="min-h-11 w-full rounded-card border border-neutral-300 bg-neutral-50 pl-10 pr-3 text-sm text-neutral-800 outline-none transition-colors placeholder:text-neutral-400 focus:border-primary-500 focus:bg-neutral-0 focus:ring-2 focus:ring-primary-100" /></label>
           <div className="mt-3 flex gap-1.5 overflow-x-auto" aria-label="Lọc hội thoại">
             {([["all", "Tất cả"], ["unread", "Chưa đọc"], ["attention", "Cần xử lý"]] as const).map(([value, label]) => <button key={value} type="button" onClick={() => setFilter(value)} aria-pressed={filter === value} className={`min-h-9 shrink-0 rounded-card px-3 text-xs font-semibold transition-colors active:scale-[.98] ${filter === value ? "bg-primary-600 text-white" : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200 hover:text-neutral-900"}`}>{label}</button>)}
           </div>
@@ -460,8 +476,8 @@ export function Conversations({ threads, configured, initialPickerOpen = false, 
             <div className="px-5 py-14 text-center"><Search className="mx-auto text-neutral-300" size={28} /><p className="mt-3 text-sm font-semibold text-neutral-700">Không có hội thoại phù hợp</p><p className="mt-1 text-xs text-neutral-500">Thử đổi từ khóa hoặc bộ lọc.</p></div>
           ) : filtered.map((thread) => (
             <button key={thread.id} type="button" onClick={() => { setSelectedId(thread.id); setMobileThreadOpen(true); if (thread.unreadStaffCount > 0) markRead.mutate(thread.id); }} aria-current={thread.id === selectedId ? "true" : undefined} className={`flex min-h-[76px] w-full gap-3 px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500 ${thread.id === selectedId ? "bg-primary-50" : "hover:bg-neutral-50"}`}>
-              <span className="relative shrink-0"><AccountAvatar thread={thread} />{thread.linkStatus !== "unlinked" && thread.status !== "blocked" && <span className="absolute bottom-0 right-0 size-3 rounded-full border-2 border-white bg-success-500" aria-label="Đã kết nối" />}</span>
-              <span className="min-w-0 flex-1"><span className="flex items-baseline justify-between gap-2"><b className="truncate text-sm font-semibold leading-5 text-neutral-900">{accountName(thread)}</b><span className="shrink-0 text-2xs text-neutral-400">{time(thread.lastMessageAt)}</span></span><span className={`mt-1 block truncate text-xs leading-5 ${thread.unreadStaffCount ? "font-semibold text-neutral-800" : "text-neutral-500"}`}>{thread.lastMessagePreview}</span>{assignedTagsFor(thread).length > 0 && <span className="mt-1.5 flex flex-wrap gap-1">{assignedTagsFor(thread).slice(0, 2).map((tag) => <span key={tag.id} className={`rounded px-1.5 py-0.5 text-3xs font-semibold leading-4 ${CHAT_TAG_STYLES[tag.color]}`}>{tag.label}</span>)}{assignedTagsFor(thread).length > 2 && <span className="px-1 py-0.5 text-3xs font-semibold text-neutral-500">+{assignedTagsFor(thread).length - 2}</span>}</span>}</span>
+              <span className="relative shrink-0"><AccountAvatar thread={thread} />{thread.linkStatus !== "unlinked" && thread.status !== "blocked" && <span className="absolute bottom-0 right-0 size-3 rounded-full border-2 border-neutral-0 bg-success-500" aria-label="Đã kết nối" />}</span>
+              <span translate="no" className="min-w-0 flex-1"><span className="flex items-baseline justify-between gap-2"><b className="truncate text-sm font-semibold leading-5 text-neutral-900">{accountName(thread)}</b><span className="shrink-0 text-2xs text-neutral-400">{time(thread.lastMessageAt)}</span></span><span className={`mt-1 block truncate text-xs leading-5 ${thread.unreadStaffCount ? "font-semibold text-neutral-800" : "text-neutral-500"}`}>{thread.lastMessagePreview}</span>{assignedTagsFor(thread).length > 0 && <span className="mt-1.5 flex flex-wrap gap-1">{assignedTagsFor(thread).slice(0, 2).map((tag) => <span key={tag.id} className={`rounded px-1.5 py-0.5 text-3xs font-semibold leading-4 ${CHAT_TAG_STYLES[tag.color]}`}>{tag.label}</span>)}{assignedTagsFor(thread).length > 2 && <span className="px-1 py-0.5 text-3xs font-semibold text-neutral-500">+{assignedTagsFor(thread).length - 2}</span>}</span>}</span>
               <span className="flex w-5 shrink-0 flex-col items-center justify-end gap-1.5">{thread.unreadStaffCount > 0 && <span className="flex size-5 items-center justify-center rounded-full bg-primary-600 text-2xs font-bold text-white">{thread.unreadStaffCount}</span>}{(thread.status === "blocked" || thread.linkStatus === "unlinked") && <AlertTriangle size={15} className="text-warning-700" />}</span>
             </button>
           ))}
@@ -472,25 +488,10 @@ export function Conversations({ threads, configured, initialPickerOpen = false, 
           <div className="flex min-h-0 flex-1 items-center justify-center bg-neutral-50 p-6 text-center"><div><MessageCircle className="mx-auto text-neutral-300" size={36} /><p className="mt-3 text-sm font-semibold">Chưa có hội thoại Messenger</p><p className="mt-1 text-sm text-neutral-500">Chọn &quot;Nhắn mới&quot; để bắt đầu.</p></div></div>
         )}
       </div>
-      <aside className="hidden min-h-0 overflow-y-auto border-l border-neutral-200 bg-white p-5 xl:block">{selected ? <ConversationContext thread={selected} parent={parentFor(selected)} tags={assignedTagsFor(selected)} onRemoveTag={(tagId) => { const tag = tagCatalog.find((item) => item.id === tagId); if (tag) toggleTag(selected, tag); }} onManageTags={role === "admin" ? () => setTagManagerOpen(true) : undefined} /> : null}</aside>
-      <NewConversationPicker open={pickerOpen} onClose={() => setPickerOpen(false)} configured={configured} onSent={setPendingStudentId} />
+      {selected && <aside className="hidden min-h-0 overflow-y-auto border-l border-neutral-200 bg-neutral-0 p-5 xl:block">{<ConversationContext thread={selected} parent={parentFor(selected)} tags={assignedTagsFor(selected)} onRemoveTag={(tagId) => { const tag = tagCatalog.find((item) => item.id === tagId); if (tag) toggleTag(selected, tag); }} onManageTags={role === "admin" ? () => setTagManagerOpen(true) : undefined} />}</aside>}
+      <NewConversationPicker open={pickerOpen || Boolean(composeTemplateKey)} onClose={() => { setPickerOpen(false); setComposeTemplateKey(null); }} configured={configured} initialTemplateKey={composeTemplateKey} onSent={setPendingStudentId} />
+      <UtilityTemplatesModal open={templatesOpen && !composeTemplateKey} configured={configured} onClose={() => setTemplatesOpen(false)} onUseTemplate={(templateKey) => { setComposeTemplateKey(templateKey); setPickerOpen(true); setTemplatesOpen(false); }} role={role} />
       {role === "admin" && <ConversationTagManager open={tagManagerOpen} tags={tagCatalog} onClose={() => setTagManagerOpen(false)} onCreate={(label, color) => createTag.mutateAsync({ label, color }).then(() => undefined)} onDelete={(tagId) => removeCatalogTag.mutateAsync(tagId).then(() => undefined)} />}
-    </div>
-  );
-}
-
-export function Outbox({ role, uid }: { role: "admin" | "teacher"; uid: string }) {
-  const result = useQuery({ queryKey: ["message-outbox", role, uid], queryFn: () => listMessageOutbox(role, uid) });
-  if (result.isLoading) return <div className="p-5"><LoadingSkeleton rows={6} /></div>;
-  if (result.isError) return <div className="p-5"><ErrorState message="Không tải được nhật ký gửi." onRetry={() => result.refetch()} /></div>;
-  return (
-    <div className="min-h-0 flex-1 overflow-y-auto bg-neutral-50 p-3 sm:p-5">
-      <div className="mx-auto max-w-6xl overflow-hidden rounded-card border border-neutral-200 bg-white">
-        <header className="border-b border-neutral-200 px-4 py-4"><h2 className="text-sm font-bold">Nhật ký gửi</h2><p className="mt-1 text-xs text-neutral-500">{role === "admin" ? "Toàn bộ kết quả gửi gần nhất." : "Chỉ các tin do bạn gửi."}</p></header>
-        <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-sm"><thead className="bg-neutral-50 text-left text-xs font-bold text-neutral-500"><tr><th className="px-4 py-3">Mã gửi</th><th className="px-4 py-3">Học sinh</th><th className="px-4 py-3">Nội dung</th><th className="px-4 py-3">Loại gửi</th><th className="px-4 py-3">Thời gian</th><th className="px-4 py-3 text-right">Trạng thái</th></tr></thead><tbody>
-          {result.data?.length ? result.data.map((row) => <tr key={row.id} className="border-t border-neutral-100"><td className="px-4 py-3 font-mono text-xs">{row.id.slice(0, 14)}</td><td className="px-4 py-3">{row.studentId ?? "Fanpage"}</td><td className="max-w-sm truncate px-4 py-3 text-neutral-600">{row.content}</td><td className="px-4 py-3">{row.messageTag ? <span className="rounded-full bg-info-50 px-2 py-0.5 text-2xs font-semibold text-info-700">TAG · {row.messageTag}</span> : <span className="text-xs text-neutral-400">RESPONSE</span>}</td><td className="px-4 py-3 text-neutral-500">{time(row.createdAt)}</td><td className="px-4 py-3 text-right"><StatusBadge tone={row.status === "sent" ? "success" : "danger"}>{row.status === "sent" ? "Đã gửi" : "Thất bại"}</StatusBadge></td></tr>) : <tr><td colSpan={6} className="px-4 py-12 text-center text-neutral-500">Chưa có nhật ký gửi.</td></tr>}
-        </tbody></table></div>
-      </div>
     </div>
   );
 }

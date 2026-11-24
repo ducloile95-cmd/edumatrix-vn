@@ -20,12 +20,12 @@ export function RouteLoadingState() {
         </div>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 4 }).map((_, index) => (
-            <div key={index} className="h-24 rounded-card border border-neutral-200 bg-white/75 p-4">
+            <div key={index} className="h-24 rounded-card border border-neutral-200 bg-neutral-0/75 p-4">
               <LoadingSkeleton rows={2} />
             </div>
           ))}
         </div>
-        <div className="rounded-card border border-neutral-200 bg-white/80 p-5">
+        <div className="rounded-card border border-neutral-200 bg-neutral-0/80 p-5">
           <LoadingSkeleton rows={6} />
         </div>
       </div>

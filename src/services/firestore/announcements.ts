@@ -21,7 +21,7 @@ export async function listAnnouncementsByStudent(
 ): Promise<(AnnouncementDoc & { id: string })[]> {
   const result: (AnnouncementDoc & { id: string })[] = [];
   let cursor: QueryDocumentSnapshot | null = null;
-  const batchSize = Math.max(pageSize, 50);
+  const batchSize = Math.max(pageSize, 1);
   while (result.length < pageSize) {
     const snap: QuerySnapshot<DocumentData> = await getDocs(query(
       collection(db, COLLECTIONS.ANNOUNCEMENTS),

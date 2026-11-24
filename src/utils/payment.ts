@@ -1,4 +1,6 @@
-export function createInvoiceCode(studentId:string,idSuffix:string,date=new Date()):string{return `HP-${studentId.toUpperCase()}-${date.getFullYear()}${String(date.getMonth()+1).padStart(2,"0")}-${idSuffix.slice(-4).toUpperCase()}`;}
+import { formatInTimeZone } from "date-fns-tz";
+// Thang theo gio Viet Nam, khong theo mui gio cua may nguoi tao hoa don.
+export function createInvoiceCode(studentId:string,idSuffix:string,date=new Date()):string{return `HP-${studentId.toUpperCase()}-${formatInTimeZone(date,"Asia/Ho_Chi_Minh","yyyyMM")}-${idSuffix.slice(-4).toUpperCase()}`;}
 export function createPaymentContent(invoiceCode:string):string{return invoiceCode.split("-").join(" ");}
 interface VietQrImageInput {
   bankBin: string;

@@ -1,6 +1,6 @@
 # Gói hướng dẫn Meta App Reviewer — EduMatrix
 
-Ngày kiểm tra: 28/07/2026
+Ngày kiểm tra: 24/08/2026
 Ứng dụng Meta: `Edumatrix_VN`
 App ID: `1028280243271801`
 
@@ -11,13 +11,14 @@ App ID: `1028280243271801`
 - Privacy Policy: `https://edumatrix.id.vn/privacy`
 - Data Deletion: `https://edumatrix.id.vn/data-deletion`
 - Messenger Worker health: hoạt động.
-- Utility production flag: `false`.
-- Hồ sơ giữ 5 quyền:
+- Utility production flag: `true`; Worker vẫn chặn gửi nếu trạng thái quyền lưu
+  trong cấu hình Page không phải `granted`.
+- Hồ sơ giữ 4 quyền đã được Meta phê duyệt:
   - `pages_show_list`
   - `pages_manage_metadata`
-- `page_utility_messaging`
+  - `pages_utility_messaging`
   - `pages_messaging`
-  - `pages_read_engagement`
+- Không yêu cầu lại `pages_read_engagement`; quyền này không cần cho luồng Messenger hiện tại.
 
 ## 2. Thông tin cần chuẩn bị ngoài repository
 
@@ -51,12 +52,11 @@ After signing in:
 4. Enter a reply in the composer and press Enter. This demonstrates
    pages_messaging within the 24-hour response window.
 5. Open the Facebook integration status to see the Page selected by the
-   administrator. This demonstrates pages_show_list and the Page information
-   used by pages_read_engagement.
+   administrator. This demonstrates pages_show_list.
 6. The Page is subscribed to Messenger webhook events so inbound messages,
-   delivery events, and read events can be processed. This demonstrates
+   postbacks, and referrals can be processed. This demonstrates
    pages_manage_metadata.
-7. For page_utility_messaging, open a test conversation outside the 24-hour
+7. For pages_utility_messaging, open a test conversation outside the 24-hour
    response window. Free-form input is unavailable. Select the approved Utility
    Template, review its fixed business parameters, and send it to the linked
    test recipient.
@@ -67,8 +67,9 @@ recruitment, discounts, or unsolicited bulk messaging.
 
 ## 4. Câu trả lời Facebook Login
 
-Chọn `No`: Reviewer đăng nhập EduMatrix bằng Email/Password. EduMatrix không dùng
-Facebook Login làm cơ chế đăng nhập website.
+Chọn `Yes` vì EduMatrix có tích hợp hộp thoại Facebook OAuth để Admin kết nối
+Fanpage. Reviewer vẫn đăng nhập EduMatrix bằng Email/Password; Facebook Login
+không phải cơ chế đăng nhập người dùng cuối của website.
 
 **Bổ sung 28/07/2026 — phải khai rõ, không được bỏ qua.**
 
@@ -87,11 +88,12 @@ Valid OAuth Redirect URIs:
 https://edumatrix-messenger-production.edumatrix-vn.workers.dev/api/meta/connect/callback
 ```
 
-Quyền mà hộp thoại OAuth đang yêu cầu (khớp đúng năm quyền trong hồ sơ):
+Quyền mà hộp thoại OAuth đang yêu cầu (khớp đúng bốn quyền đã được duyệt; quyền
+Utility chỉ xuất hiện khi feature flag được bật):
 
 ```text
-pages_show_list, pages_manage_metadata, pages_messaging, pages_read_engagement,
-page_utility_messaging
+pages_show_list, pages_manage_metadata, pages_messaging,
+pages_utility_messaging
 ```
 
 Admin phải **kết nối lại Fanpage** sau thay đổi này thì Page Access Token mới mang

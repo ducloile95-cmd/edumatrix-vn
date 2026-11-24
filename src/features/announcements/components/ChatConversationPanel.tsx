@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/Button";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { Modal } from "@/components/ui/Modal";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { subscribeChatMessages } from "@/services/firestore/chat";
+import { loadOlderMessages, subscribeChatMessages } from "@/services/firestore/chat";
 import { listStudents } from "@/services/firestore/students";
-import { createMessengerInviteLink, deleteMessengerConversation, isMessengerInviteConfigured, linkMessengerConversation, MessengerSendError, sendMessenger } from "@/services/integrations/messenger";
+import { listUsersByIds } from "@/services/firestore/users";
+import { createMessengerInviteLink, deleteMessengerConversation, getUtilityDeliveryStatus, isMessengerInviteConfigured, linkMessengerConversation, MessengerSendError, retryUtilityDeliveryJob, sendMessenger, summarizeUtilityDelivery, utilityDeliveryRefetchInterval } from "@/services/integrations/messenger";
 import { queryKeys } from "@/hooks/queryKeys";
 import type { ChatMessageDoc, ChatTagDoc, ChatThreadDoc } from "@/types/chat";
 import type { UserDoc } from "@/types/user";
@@ -35,7 +36,7 @@ const CHAT_TAG_STYLES = {
 export function AccountAvatar({ thread, size = "md" }: { thread: Thread; size?: "sm" | "md" | "lg" }) {
   const [imageFailed, setImageFailed] = useState(false);
   useEffect(() => setImageFailed(false), [thread.facebookAvatarUrl]);
-  const sizeClass = size === "lg" ? "size-16 text-base" : size === "sm" ? "size-7 text-4xs" : "size-10 text-xs";
+  const sizeClass = size === "lg" ? "size-16 text-base" : size === "sm" ? "size-7 text-3xs" : "size-10 text-xs";
   const name = accountName(thread);
   return (
     <span className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary-100 font-bold text-primary-700 ${sizeClass}`}>
@@ -69,7 +70,7 @@ export function CopyInviteLinkButton({ parentUid, studentId, label }: { parentUi
             setPending(false);
           }
         }}
-        className="inline-flex items-center gap-1.5 rounded-input border border-neutral-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-primary-700 hover:bg-primary-50 disabled:opacity-50"
+        className="inline-flex items-center gap-1.5 rounded-input border border-neutral-300 bg-neutral-0 px-2.5 py-1.5 text-xs font-semibold text-primary-700 hover:bg-primary-50 disabled:opacity-50"
       >
         <Copy size={13} />{pending ? "Đang tạo link..." : copied ? "Đã copy link" : label}
       </button>
@@ -119,12 +120,31 @@ export function ConversationContext({ thread, parent, tags, onRemoveTag, onManag
   const queryClient = useQueryClient();
   const students = useQuery({ queryKey: queryKeys.students(), queryFn: listStudents, enabled: thread.linkStatus === "unlinked" });
   const [studentId, setStudentId] = useState("");
+  const [parentUid, setParentUid] = useState("");
+  const selectedStudent = students.data?.find((student) => student.id === studentId);
+  const parentUids = selectedStudent?.parentUids ?? [];
+  const parents = useQuery({
+    queryKey: ["messenger-link-parents", ...parentUids],
+    queryFn: () => listUsersByIds(parentUids),
+    enabled: thread.linkStatus === "unlinked" && parentUids.length > 0,
+  });
   const link = useMutation({
     mutationFn: async () => {
-      if (!thread.messengerPsid || !studentId) throw new Error("Chọn học sinh cần liên kết");
-      await linkMessengerConversation(thread.messengerPsid, studentId);
+      if (!thread.messengerPsid || !studentId || !parentUid) throw new Error("Chọn đúng học sinh và phụ huynh cần liên kết");
+      await linkMessengerConversation(thread.messengerPsid, parentUid, studentId);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["chat-threads"] }),
+  });
+  const utilityDelivery = useQuery({
+    queryKey: ["utility-delivery", "parent-link", thread.id],
+    queryFn: () => getUtilityDeliveryStatus([thread.id]),
+    enabled: thread.linkStatus !== "unlinked",
+    refetchInterval: (query) => utilityDeliveryRefetchInterval(query.state.data),
+  });
+  const linkConfirmation = summarizeUtilityDelivery(utilityDelivery.data, thread.id);
+  const retryConfirmation = useMutation({
+    mutationFn: () => Promise.all(linkConfirmation.retryableJobIds.map(retryUtilityDeliveryJob)),
+    onSuccess: () => utilityDelivery.refetch(),
   });
 
   if (thread.linkStatus === "unlinked") {
@@ -136,12 +156,20 @@ export function ConversationContext({ thread, parent, tags, onRemoveTag, onManag
         </div>
         <label className="block">
           <span className="mb-1.5 block text-xs font-bold text-neutral-700">Liên kết với học sinh</span>
-          <select value={studentId} onChange={(event) => setStudentId(event.target.value)} className="min-h-touch w-full rounded-input border border-neutral-300 bg-white px-3 text-sm">
+          <select value={studentId} onChange={(event) => { setStudentId(event.target.value); setParentUid(""); }} className="min-h-touch w-full rounded-input border border-neutral-300 bg-neutral-0 px-3 text-sm">
             <option value="">Chọn học sinh...</option>
             {(students.data ?? []).map((student) => <option key={student.id} value={student.id}>{student.fullName} · {student.studentCode}</option>)}
           </select>
         </label>
-        <Button type="button" variant="primary" disabled={!studentId || link.isPending} onClick={() => link.mutate()}>
+        <label className="block">
+          <span className="mb-1.5 block text-xs font-bold text-neutral-700">Phụ huynh của học sinh</span>
+          <select value={parentUid} disabled={!studentId || parents.isLoading} onChange={(event) => setParentUid(event.target.value)} className="min-h-touch w-full rounded-input border border-neutral-300 bg-neutral-0 px-3 text-sm disabled:bg-neutral-100">
+            <option value="">{!studentId ? "Chọn học sinh trước..." : parents.isLoading ? "Đang tải phụ huynh..." : "Chọn phụ huynh..."}</option>
+            {(parents.data ?? []).map((parentItem) => <option key={parentItem.uid} value={parentItem.uid}>{parentItem.displayName || parentItem.email || parentItem.uid}</option>)}
+          </select>
+        </label>
+        {studentId && !parents.isLoading && parentUids.length === 0 && <p className="text-xs font-semibold text-warning-700">Học sinh chưa có phụ huynh active để liên kết.</p>}
+        <Button type="button" variant="primary" disabled={!studentId || !parentUid || link.isPending} onClick={() => link.mutate()}>
           {link.isPending ? "Đang liên kết..." : "Liên kết học sinh"}
         </Button>
         {link.isError && <p className="text-xs font-semibold text-danger-700">{link.error instanceof Error ? link.error.message : "Liên kết thất bại"}</p>}
@@ -152,11 +180,12 @@ export function ConversationContext({ thread, parent, tags, onRemoveTag, onManag
   return (
     <div>
       <ThreadInfo thread={thread} parent={parent} />
+      {linkConfirmation.status !== "none" && <div className="mt-4 rounded-input border border-neutral-200 bg-neutral-50 p-3 text-xs"><p className="font-bold text-neutral-800">Xác nhận liên kết Utility</p><p className="mt-1 text-neutral-600">{linkConfirmation.detail}</p>{linkConfirmation.retryableJobIds.length > 0 && <button type="button" className="mt-2 font-bold text-primary-700 underline" disabled={retryConfirmation.isPending} onClick={() => retryConfirmation.mutate()}>Thử gửi lại</button>}</div>}
       <div className="mt-5 border-t border-neutral-200 pt-4">
         <h4 className="text-sm font-semibold text-neutral-900">Tag hội thoại</h4>
         {tags.length ? <div className="mt-3 flex flex-wrap gap-1.5">{tags.map((tag) => <button key={tag.id} type="button" onClick={() => onRemoveTag(tag.id)} aria-label={`Bỏ tag ${tag.label}`} className={`flex min-h-8 items-center gap-1.5 rounded-full px-2.5 text-xs font-semibold transition-opacity hover:opacity-85 ${CHAT_TAG_STYLES[tag.color]}`}>{tag.label}<X size={12} aria-hidden="true" /></button>)}</div> : <p className="mt-2 text-xs leading-5 text-neutral-500">Chưa có tag.</p>}
         <p className="mt-2 text-xs leading-5 text-neutral-500">Gắn tag nhanh tại thanh phía trên ô nhập tin nhắn.</p>
-        {onManageTags && <button type="button" onClick={onManageTags} className="mt-3 flex min-h-10 w-full items-center justify-center gap-2 rounded-card border border-neutral-300 bg-white px-3 text-xs font-semibold text-neutral-700 transition-colors hover:bg-neutral-50 active:scale-[.99]"><Settings2 size={15} />Quản lý tag mẫu</button>}
+        {onManageTags && <Button variant="secondary" size="sm" type="button" onClick={onManageTags} className="mt-3 w-full"><Settings2 size={15} />Quản lý tag mẫu</Button>}
       </div>
     </div>
   );
@@ -164,6 +193,9 @@ export function ConversationContext({ thread, parent, tags, onRemoveTag, onManag
 
 export function ConversationPanel({ thread, parent, configured, tagCatalog, assignedTags, tagUpdatePending, canDelete = false, onBack, onToggleTag, onManageTags }: { thread: Thread; parent: ParentProfile; configured: boolean; tagCatalog: ChatTag[]; assignedTags: ChatTag[]; tagUpdatePending: boolean; canDelete?: boolean; onBack: () => void; onToggleTag: (tag: ChatTag) => void; onManageTags?: () => void }) {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [olderMessages, setOlderMessages] = useState<Message[]>([]);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [hasOlder, setHasOlder] = useState(true);
   const [messageError, setMessageError] = useState<Error | null>(null);
   const [draft, setDraft] = useState("");
   const [tag, setTag] = useState("");
@@ -182,10 +214,12 @@ export function ConversationPanel({ thread, parent, configured, tagCatalog, assi
     },
   });
 
-  useEffect(
-    () => subscribeChatMessages(thread.id, (items) => { setMessages(items); setMessageError(null); }, setMessageError),
-    [thread.id],
-  );
+  useEffect(() => {
+    setOlderMessages([]);
+    setHasOlder(true);
+    return subscribeChatMessages(thread.id, (items) => { setMessages(items); setMessageError(null); }, setMessageError);
+  }, [thread.id]);
+  const visibleMessages = [...new Map([...olderMessages, ...messages].map((item) => [item.id, item])).values()];
 
   const send = useMutation({
     mutationFn: async (text: string) => {
@@ -219,8 +253,8 @@ export function ConversationPanel({ thread, parent, configured, tagCatalog, assi
 
   return (
     <>
-      <section className="flex min-h-0 min-w-0 w-full flex-col bg-white" aria-label={`Hội thoại với ${accountName(thread)}`}>
-        <header className="flex min-h-16 shrink-0 items-center justify-between border-b border-neutral-200 bg-white px-4 sm:px-5">
+      <section className="flex min-h-0 min-w-0 w-full flex-col bg-neutral-0" aria-label={`Hội thoại với ${accountName(thread)}`}>
+        <header className="flex min-h-16 shrink-0 items-center justify-between border-b border-neutral-200 bg-neutral-0 px-4 sm:px-5">
           <div className="flex min-w-0 items-center gap-3">
             <button type="button" onClick={onBack} className="icon-button flex lg:hidden" aria-label="Quay lại danh sách"><ArrowLeft size={18} /></button>
             <AccountAvatar thread={thread} />
@@ -236,16 +270,26 @@ export function ConversationPanel({ thread, parent, configured, tagCatalog, assi
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5">
           <div className="w-full">
             <p className="mb-4 text-center text-xs font-medium text-neutral-400">Hôm nay</p>
-            {messageError ? <ErrorState message="Không tải được lịch sử hội thoại." /> : messages.length ? messages.map((message, index) => {
+            {messages.length > 0 && hasOlder && <div className="mb-4 text-center"><button type="button" disabled={loadingOlder} onClick={async () => {
+              const before = visibleMessages[0]?.createdAt;
+              if (!before) return;
+              setLoadingOlder(true);
+              try {
+                const page = await loadOlderMessages(thread.id, before, 50);
+                setOlderMessages((current) => [...new Map([...page, ...current].map((item) => [item.id, item])).values()]);
+                setHasOlder(page.length === 50);
+              } finally { setLoadingOlder(false); }
+            }} className="rounded-full border border-neutral-300 px-3 py-1.5 text-xs font-semibold text-neutral-600 hover:bg-neutral-50 disabled:opacity-50">{loadingOlder ? "Đang tải..." : "Tải tin nhắn cũ hơn"}</button></div>}
+            {messageError ? <ErrorState message="Không tải được lịch sử hội thoại." /> : visibleMessages.length ? visibleMessages.map((message, index) => {
               const inbound = message.direction === "inbound";
-              const groupedWithPrevious = messages[index - 1]?.direction === message.direction;
-              const showAvatar = inbound && messages[index + 1]?.direction !== "inbound";
+              const groupedWithPrevious = visibleMessages[index - 1]?.direction === message.direction;
+              const showAvatar = inbound && visibleMessages[index + 1]?.direction !== "inbound";
               return (
                 <div key={message.id} className={`${index === 0 ? "" : groupedWithPrevious ? "mt-0.5" : "mt-3"} flex items-end ${inbound ? "justify-start gap-2" : "justify-end"}`}>
                   {inbound && <span aria-hidden={!showAvatar} className={showAvatar ? "" : "invisible"}><AccountAvatar thread={thread} size="sm" /></span>}
                   <div className={`flex min-w-0 max-w-[80%] flex-col sm:max-w-[70%] ${inbound ? "items-start" : "items-end"}`}>
-                    <div title={`Gửi lúc ${time(message.createdAt)}`} className={`break-words rounded-[18px] px-3.5 py-2.5 text-sm leading-5 ${inbound ? "bg-neutral-100 text-neutral-800" : "bg-primary-600 text-white"}`}>
-                      <p>{message.text}</p>
+                    <div title={`Gửi lúc ${time(message.createdAt)}`} className={`break-words rounded-modal px-3.5 py-2.5 text-sm leading-5 ${inbound ? "bg-neutral-100 text-neutral-800" : "bg-primary-600 text-white"}`}>
+                      <p translate="no">{message.text}</p>
                       <span className="sr-only">Gửi lúc {time(message.createdAt)}</span>
                     </div>
                     {message.status === "failed" && <span className="mt-1 flex items-center gap-1 text-2xs text-danger-700"><AlertTriangle size={12} />Gửi thất bại</span>}
@@ -256,22 +300,22 @@ export function ConversationPanel({ thread, parent, configured, tagCatalog, assi
           </div>
         </div>
         {(!!tagCatalog.length || onManageTags) && (
-          <div className="shrink-0 border-t border-neutral-100 bg-white px-3 pt-2 sm:px-4" aria-label="Tag mẫu trên Composer">
+          <div className="shrink-0 border-t border-neutral-100 bg-neutral-0 px-3 pt-2 sm:px-4" aria-label="Tag mẫu trên Composer">
             <div className="flex w-full items-center gap-2">
               <div className="min-w-0 flex-1 overflow-x-auto pb-0.5" aria-label="Danh sách tag mẫu">
                 <div className="flex w-max items-center gap-1.5">
                   {tagCatalog.map((conversationTag) => {
                     const selected = assignedTags.some((item) => item.id === conversationTag.id);
                     const swatch = CHAT_TAG_COLORS.find((item) => item.value === conversationTag.color)?.swatch;
-                    return <button key={conversationTag.id} type="button" onClick={() => onToggleTag(conversationTag)} disabled={tagUpdatePending} aria-pressed={selected} aria-label={`${selected ? "Bỏ" : "Gắn"} tag ${conversationTag.label}`} className={`flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold transition active:scale-[.97] disabled:opacity-50 ${selected ? `${CHAT_TAG_STYLES[conversationTag.color]} border-transparent` : "border-neutral-300 bg-white text-neutral-600 hover:bg-neutral-50"}`}>{!selected && <span className={`size-2 rounded-full ${swatch}`} />}{conversationTag.label}</button>;
+                    return <button key={conversationTag.id} type="button" onClick={() => onToggleTag(conversationTag)} disabled={tagUpdatePending} aria-pressed={selected} aria-label={`${selected ? "Bỏ" : "Gắn"} tag ${conversationTag.label}`} className={`flex min-h-8 shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold transition active:scale-[.97] disabled:opacity-50 ${selected ? `${CHAT_TAG_STYLES[conversationTag.color]} border-transparent` : "border-neutral-300 bg-neutral-0 text-neutral-600 hover:bg-neutral-50"}`}>{!selected && <span className={`size-2 rounded-full ${swatch}`} />}{conversationTag.label}</button>;
                   })}
                 </div>
               </div>
-              {onManageTags && <button type="button" onClick={onManageTags} aria-label="Quản lý tag mẫu" title="Quản lý tag mẫu" className="flex size-8 shrink-0 items-center justify-center rounded-full border border-neutral-300 bg-white text-neutral-500 transition-colors hover:bg-neutral-50 hover:text-neutral-800 active:scale-[.97]"><Settings2 size={14} /></button>}
+              {onManageTags && <button type="button" onClick={onManageTags} aria-label="Quản lý tag mẫu" title="Quản lý tag mẫu" className="flex size-8 shrink-0 items-center justify-center rounded-full border border-neutral-300 bg-neutral-0 text-neutral-500 transition-colors hover:bg-neutral-50 hover:text-neutral-800 active:scale-[.97]"><Settings2 size={14} /></button>}
             </div>
           </div>
         )}
-        <form onSubmit={submit} aria-label="Trình soạn tin nhắn" className="shrink-0 bg-white px-3 pb-3 pt-2 sm:px-4 sm:pb-4">
+        <form onSubmit={submit} aria-label="Trình soạn tin nhắn" className="shrink-0 bg-neutral-0 px-3 pb-3 pt-2 sm:px-4 sm:pb-4">
           <div className="w-full">
             {!responseWindowActive && (
               <p className="mb-2 rounded-input border-l-4 border-warning-500 bg-warning-50 px-3 py-2 text-xs leading-5 text-warning-800">
@@ -286,7 +330,7 @@ export function ConversationPanel({ thread, parent, configured, tagCatalog, assi
               </label>
             </details>
             <div className="flex items-end gap-2">
-              <label className="min-w-0 flex-1 rounded-[20px] bg-neutral-100 px-4">
+              <label className="min-w-0 flex-1 rounded-modal bg-neutral-100 px-4">
                 <span className="sr-only">Soạn tin nhắn</span>
                 <textarea
                   value={draft}

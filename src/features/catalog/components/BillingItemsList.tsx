@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/Button";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PackagePlus } from "lucide-react";
@@ -50,11 +51,11 @@ export function BillingItemsList({ canManage, onAdd, onEdit }: BillingItemsListP
   const hasRows = !items.isLoading && !items.isError && filtered.length > 0;
 
   return (
-    <DataListPanel className="rounded-card border border-neutral-200 bg-white">
+    <DataListPanel className="rounded-card border border-neutral-200 bg-neutral-0">
       <div className="shrink-0 border-b border-neutral-200 p-4 sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div><h2 className="text-base font-bold text-neutral-900">Đồ dùng học tập</h2><p className="mt-1 text-sm text-neutral-500">Danh mục khoản thu gắn với khóa học và môn học.</p></div>
-          {canManage && <button type="button" onClick={onAdd} className="inline-flex min-h-touch items-center gap-2 rounded-input bg-primary-500 px-4 text-sm font-bold text-white transition hover:bg-primary-600 active:scale-[.98]"><PackagePlus size={17} aria-hidden="true" />Thêm đồ dùng</button>}
+          {canManage && <Button variant="primary" type="button" onClick={onAdd}><PackagePlus size={17} aria-hidden="true" />Thêm đồ dùng</Button>}
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(240px,1fr)_220px]">
           <FilterField label="Tìm kiếm" htmlFor="billing-item-search"><SearchInput id="billing-item-search" value={search} onChange={(value) => { setSearch(value); setPage(1); }} placeholder="Tên đồ dùng, khóa học hoặc môn học" /></FilterField>
@@ -74,7 +75,7 @@ export function BillingItemsList({ canManage, onAdd, onEdit }: BillingItemsListP
             <td className="px-4 py-4 text-neutral-700">{subjectById.get(item.subjectId) ?? item.subjectId}</td>
             <td className="px-4 py-4 text-right font-bold tabular-nums text-neutral-900">{formatVnd(item.unitPrice)}</td>
             <td className="px-4 py-4"><StatusBadge tone={item.status === "active" ? "success" : "neutral"}>{item.status === "active" ? "Đang dùng" : "Đã lưu trữ"}</StatusBadge></td>
-            {canManage && <td className="px-5 py-4 text-right"><div className="flex justify-end gap-2"><button type="button" onClick={() => onEdit(item)} className="min-h-9 rounded-input border border-neutral-300 px-3 text-xs font-bold text-neutral-700 transition hover:border-primary-300 hover:text-primary-700 active:scale-[.98]">Sửa</button><button type="button" disabled={statusMutation.isPending} onClick={() => statusMutation.mutate({ id: item.id, nextStatus: item.status === "active" ? "archived" : "active" })} className="min-h-9 rounded-input border border-neutral-300 px-3 text-xs font-bold text-neutral-700 transition hover:border-primary-300 hover:text-primary-700 active:scale-[.98] disabled:opacity-50">{item.status === "active" ? "Lưu trữ" : "Kích hoạt"}</button></div></td>}
+            {canManage && <td className="px-5 py-4 text-right"><div className="flex justify-end gap-2"><Button variant="secondary" size="sm" type="button" onClick={() => onEdit(item)}>Sửa</Button><Button variant="secondary" size="sm" type="button" disabled={statusMutation.isPending} onClick={() => statusMutation.mutate({ id: item.id, nextStatus: item.status === "active" ? "archived" : "active" })}>{item.status === "active" ? "Lưu trữ" : "Kích hoạt"}</Button></div></td>}
           </tr>)}</tbody>
         </table>}
       </div>

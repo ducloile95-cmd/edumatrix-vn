@@ -1,28 +1,42 @@
 import {
-  addDoc, arrayRemove, collection, deleteDoc, doc, documentId, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where, writeBatch, type Unsubscribe,
+  addDoc, arrayRemove, collection, deleteDoc, doc, documentId, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, startAfter, updateDoc, where, writeBatch, type Timestamp, type Unsubscribe,
 } from "firebase/firestore";
 import { COLLECTIONS } from "@/constants/collections";
 import { db } from "@/services/firebase/firestoreClient";
-import { listAllQueryDocuments } from "@/services/firestore/pagination";
-import type { ChatMessageDoc, ChatTagColor, ChatTagDoc, ChatThreadDoc, MessageOutboxDoc } from "@/types/chat";
+import type { ChatMessageDoc, ChatTagColor, ChatTagDoc, ChatThreadDoc } from "@/types/chat";
 import type { UserRole } from "@/types/user";
 
 export async function listChatThreads(role: UserRole, uid: string): Promise<Array<ChatThreadDoc & { id: string }>> {
-  const constraints = role === "admin"
-    ? [orderBy("lastMessageAt", "desc")]
-    : [where("assignedTeacherIds", "array-contains", uid), orderBy("lastMessageAt", "desc")];
-  const documents = await listAllQueryDocuments(COLLECTIONS.CHAT_THREADS, constraints, 30);
-  return documents.map((item) => ({ id: item.id, ...(item.data() as ChatThreadDoc) }));
+  const source = collection(db, COLLECTIONS.CHAT_THREADS);
+  const q = role === "admin"
+    ? query(source, orderBy("lastMessageAt", "desc"), limit(50))
+    : query(source, where("assignedTeacherIds", "array-contains", uid), orderBy("lastMessageAt", "desc"), limit(50));
+  const documents = await getDocs(q);
+  return documents.docs.map((item) => ({ id: item.id, ...(item.data() as ChatThreadDoc) }))
+    .filter((item) => item.deletionState !== "deleting" && item.deletionState !== "deleted");
 }
 
 export function subscribeChatThreads(role: UserRole, uid: string, listener: (items: Array<ChatThreadDoc & { id: string }>) => void, onError: (error: Error) => void): Unsubscribe {
   const source = collection(db, COLLECTIONS.CHAT_THREADS);
   const q = role === "admin"
-    ? query(source, orderBy("lastMessageAt", "desc"))
-    : query(source, where("assignedTeacherIds", "array-contains", uid), orderBy("lastMessageAt", "desc"));
+    ? query(source, orderBy("lastMessageAt", "desc"), limit(50))
+    : query(source, where("assignedTeacherIds", "array-contains", uid), orderBy("lastMessageAt", "desc"), limit(50));
   return onSnapshot(q, (snapshot) => {
-    listener(snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as ChatThreadDoc) })));
+    const items = snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as ChatThreadDoc) }))
+      .filter((item) => item.deletionState !== "deleting" && item.deletionState !== "deleted");
+    listener([...new Map(items.map((item) => [item.id, item])).values()]);
   }, onError);
+}
+
+export async function loadOlderMessages(threadId: string, before: Timestamp, pageSize = 50): Promise<Array<ChatMessageDoc & { id: string }>> {
+  const q = query(
+    collection(db, COLLECTIONS.CHAT_THREADS, threadId, "messages"),
+    orderBy("createdAt", "desc"),
+    startAfter(before),
+    limit(Math.min(Math.max(pageSize, 1), 50)),
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as ChatMessageDoc) })).reverse();
 }
 
 export function subscribeChatMessages(threadId: string, listener: (items: Array<ChatMessageDoc & { id: string }>) => void, onError: (error: Error) => void): Unsubscribe {
@@ -79,13 +93,4 @@ export async function markChatThreadRead(threadId: string) {
     unreadStaffCount: 0,
     updatedAt: serverTimestamp(),
   });
-}
-
-export async function listMessageOutbox(role: UserRole, uid: string): Promise<Array<MessageOutboxDoc & { id: string }>> {
-  const source = collection(db, COLLECTIONS.MESSAGE_OUTBOX);
-  const q = role === "admin"
-    ? query(source, orderBy("createdAt", "desc"), limit(50))
-    : query(source, where("actorUid", "==", uid), orderBy("createdAt", "desc"), limit(50));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as MessageOutboxDoc) }));
 }

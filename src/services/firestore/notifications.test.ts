@@ -23,7 +23,7 @@ vi.mock("@/services/firestore/announcements", () => ({
   listAnnouncementsByStudent: mocks.listAnnouncementsByStudent,
 }));
 
-import { listViewerNotifications, markNotificationsRead } from "@/services/firestore/notifications";
+import { dismissNotifications, listViewerNotifications, markNotificationsRead } from "@/services/firestore/notifications";
 
 function snapshot(items: { id: string; data: Record<string, unknown> }[]) {
   return { docs: items.map((item) => ({ id: item.id, data: () => item.data })) };
@@ -34,6 +34,19 @@ describe("viewer notifications", () => {
     vi.clearAllMocks();
     mocks.batchCommit.mockResolvedValue(undefined);
     mocks.writeBatch.mockReturnValue({ set: mocks.batchSet, commit: mocks.batchCommit });
+  });
+
+  test("requests at most 20 announcements per student and keeps every child", async () => {
+    mocks.listAnnouncementsByStudent.mockImplementation(async (studentId: string) => [
+      { id: `a-${studentId}`, title: studentId, message: "", createdAt: { toMillis: () => 1 } },
+    ]);
+    mocks.getDocs.mockResolvedValue(snapshot([]));
+
+    const result = await listViewerNotifications("parent-1", ["student-1", "student-2"]);
+
+    expect(mocks.listAnnouncementsByStudent).toHaveBeenCalledWith("student-1", 20);
+    expect(mocks.listAnnouncementsByStudent).toHaveBeenCalledWith("student-2", 20);
+    expect(result.map((item) => item.id).sort()).toEqual(["a-student-1", "a-student-2"]);
   });
 
   test("deduplicates announcements and joins read state for the current user", async () => {
@@ -50,6 +63,17 @@ describe("viewer notifications", () => {
     expect(result).toHaveLength(2);
     expect(result[0]).toMatchObject({ id: "announcement-1", isRead: true });
     expect(result[1]).toMatchObject({ id: "announcement-2", isRead: false });
+  });
+
+  test("does not return notifications dismissed by the current user", async () => {
+    mocks.listAnnouncementsByStudent.mockResolvedValueOnce([
+      { id: "announcement-1", title: "One", message: "First", createdAt: { toMillis: () => 1 } },
+    ]);
+    mocks.getDocs.mockResolvedValueOnce(snapshot([
+      { id: "viewer-1_announcement-1", data: { announcementId: "announcement-1", dismissedAt: "server-time" } },
+    ]));
+
+    await expect(listViewerNotifications("viewer-1", ["student-1"])).resolves.toEqual([]);
   });
 
   test("writes read state in one batch with deterministic ids", async () => {
@@ -72,5 +96,15 @@ describe("viewer notifications", () => {
 
     expect(mocks.writeBatch).toHaveBeenCalledTimes(2);
     expect(mocks.batchCommit).toHaveBeenCalledTimes(2);
+  });
+
+  test("persists dismiss state so clear all survives reload", async () => {
+    await dismissNotifications("viewer-1", ["announcement-1"]);
+
+    expect(mocks.batchSet).toHaveBeenCalledWith(
+      "notification_reads/viewer-1_announcement-1",
+      { uid: "viewer-1", announcementId: "announcement-1", readAt: "server-time", dismissedAt: "server-time" },
+      { merge: true },
+    );
   });
 });

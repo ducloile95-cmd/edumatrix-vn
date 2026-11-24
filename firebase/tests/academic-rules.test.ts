@@ -7,7 +7,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { doc, getDoc, serverTimestamp, setDoc, Timestamp, updateDoc, writeBatch } from "firebase/firestore";
+import { deleteDoc, doc, getDoc, serverTimestamp, setDoc, Timestamp, updateDoc, writeBatch } from "firebase/firestore";
 
 /**
  * Emulator test cho Firestore Security Rules cua subjects/students/courses/
@@ -202,6 +202,18 @@ describe("subjects", () => {
     });
     await assertSucceeds(getDoc(doc(asViewer(), "subjects", "TOEIC")));
   });
+
+  test("Chi Admin duoc xoa cung mon hoc", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "subjects", "TOEIC"), {
+        name: "TOEIC", code: "TOEIC", description: "", status: "active",
+        createdAt: Timestamp.now(), updatedAt: Timestamp.now(),
+      });
+    });
+    await assertFails(deleteDoc(doc(asViewer(), "subjects", "TOEIC")));
+    await assertFails(deleteDoc(doc(asTeacher(), "subjects", "TOEIC")));
+    await assertSucceeds(deleteDoc(doc(asAdmin(), "subjects", "TOEIC")));
+  });
 });
 
 describe("courses", () => {
@@ -258,6 +270,12 @@ describe("courses", () => {
         endDate: Timestamp.fromDate(new Date("2026-01-01T00:00:00")),
       }),
     );
+  });
+
+  test("Chi Admin duoc xoa cung khoa hoc", async () => {
+    await assertFails(deleteDoc(doc(asViewer(), "courses", "course_001")));
+    await assertFails(deleteDoc(doc(asTeacher(), "courses", "course_001")));
+    await assertSucceeds(deleteDoc(doc(asAdmin(), "courses", "course_001")));
   });
 });
 
@@ -325,10 +343,10 @@ describe("class curriculum payload and private demo requests", () => {
 });
 
 describe("students - ownership", () => {
-  test("Admin va Teacher doc duoc danh ba hoc sinh de ghi danh", async () => {
+  test("Teacher chi doc hoc sinh duoc phan cong", async () => {
     await assertSucceeds(getDoc(doc(asAdmin(), "students", STUDENT_OWNED)));
     await assertSucceeds(getDoc(doc(asTeacher(), "students", STUDENT_OWNED)));
-    await assertSucceeds(getDoc(doc(asTeacher(), "students", STUDENT_OTHER)));
+    await assertFails(getDoc(doc(asTeacher(), "students", STUDENT_OTHER)));
   });
 
   test("Viewer doc duoc hoc sinh cua minh", async () => {
@@ -358,6 +376,13 @@ describe("students - ownership", () => {
         updatedAt: serverTimestamp(),
       }),
     );
+  });
+
+  test("Chi Admin duoc xoa cung hoc sinh", async () => {
+    await assertFails(deleteDoc(doc(asViewer(), "students", STUDENT_OWNED)));
+    await assertFails(deleteDoc(doc(asTeacher(), "students", STUDENT_OWNED)));
+    await assertSucceeds(deleteDoc(doc(asAdmin(), "students", STUDENT_OWNED)));
+    await assertSucceeds(deleteDoc(doc(asAdmin(), "students", STUDENT_OTHER)));
   });
 });
 
@@ -464,6 +489,12 @@ describe("classes - ownership qua studentIds", () => {
       }),
     );
   });
+
+  test("Chi Admin duoc xoa cung lop hoc", async () => {
+    await assertFails(deleteDoc(doc(asViewer(), "classes", "class_001")));
+    await assertFails(deleteDoc(doc(asTeacher(), "classes", "class_001")));
+    await assertSucceeds(deleteDoc(doc(asAdmin(), "classes", "class_001")));
+  });
 });
 
 describe("enrollments", () => {
@@ -487,6 +518,8 @@ describe("enrollments", () => {
         status: "active",
         joinedAt: serverTimestamp(),
         endedAt: null,
+        version: 1,
+        updatedAt: serverTimestamp(),
       }),
     );
   });
@@ -500,6 +533,8 @@ describe("enrollments", () => {
         status: "active",
         joinedAt: serverTimestamp(),
         endedAt: null,
+        version: 1,
+        updatedAt: serverTimestamp(),
       }),
     );
   });
@@ -525,6 +560,8 @@ describe("enrollments", () => {
       status: "active",
       joinedAt: serverTimestamp(),
       endedAt: null,
+      version: 1,
+      updatedAt: serverTimestamp(),
     }));
   });
 
@@ -536,6 +573,8 @@ describe("enrollments", () => {
       status: "active",
       joinedAt: serverTimestamp(),
       endedAt: null,
+      version: 1,
+      updatedAt: serverTimestamp(),
     }));
   });
 
@@ -547,6 +586,8 @@ describe("enrollments", () => {
       status: "active",
       joinedAt: serverTimestamp(),
       endedAt: null,
+      version: 1,
+      updatedAt: serverTimestamp(),
     }));
   });
 
@@ -559,6 +600,8 @@ describe("enrollments", () => {
         status: "active",
         joinedAt: serverTimestamp(),
         endedAt: null,
+        version: 1,
+        updatedAt: serverTimestamp(),
       }),
     );
   });
@@ -572,6 +615,8 @@ describe("enrollments", () => {
         status: "active",
         joinedAt: Timestamp.now(),
         endedAt: null,
+        version: 1,
+        updatedAt: Timestamp.now(),
       });
     });
     await assertSucceeds(getDoc(doc(asViewer(), "enrollments", `class_001_${STUDENT_OWNED}`)));
@@ -586,8 +631,28 @@ describe("enrollments", () => {
         status: "active",
         joinedAt: Timestamp.now(),
         endedAt: null,
+        version: 1,
+        updatedAt: Timestamp.now(),
       });
     });
     await assertFails(getDoc(doc(asViewer(), "enrollments", `class_001_${STUDENT_OTHER}`)));
+  });
+
+  test("Chi Admin duoc xoa enrollment khi xoa cung hoc sinh", async () => {
+    const enrollmentId = `class_001_${STUDENT_OWNED}`;
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "enrollments", enrollmentId), {
+        classId: "class_001",
+        courseId: "course_001",
+        studentId: STUDENT_OWNED,
+        status: "active",
+        joinedAt: Timestamp.now(),
+        endedAt: null,
+        version: 1,
+        updatedAt: Timestamp.now(),
+      });
+    });
+    await assertFails(deleteDoc(doc(asTeacher(), "enrollments", enrollmentId)));
+    await assertSucceeds(deleteDoc(doc(asAdmin(), "enrollments", enrollmentId)));
   });
 });

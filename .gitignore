@@ -21,6 +21,7 @@ ui-debug.log*
 coverage/
 *firebase-adminsdk*.json
 *service-account*.json
+zalo-service/zalo-credentials.json
 .tsc-out/
 *.tsbuildinfo
 Agents Instuctions/

@@ -1,0 +1,24 @@
+{
+  "capturedAt": "2026-08-25",
+  "release": "R3.1",
+  "tests": {
+    "frontend": 311,
+    "firestoreRules": 216,
+    "messengerWorker": 64
+  },
+  "coveragePercent": {
+    "statements": 40.3,
+    "branches": 70.86,
+    "functions": 50.03,
+    "lines": 40.3
+  },
+  "enforcedFloorPercent": {
+    "statements": 40,
+    "branches": 70,
+    "functions": 50,
+    "lines": 40
+  },
+  "bundleBaselineBytes": 2710554,
+  "bundleBudgetBytes": 2981610,
+  "bundleBudgetRule": "R1 production JavaScript total plus 10 percent"
+}

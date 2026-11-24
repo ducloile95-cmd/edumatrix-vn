@@ -23,10 +23,10 @@ describe("Button", () => {
       <Button variant="ghost">Xem thêm</Button>
     </>);
 
-    expect(screen.getByRole("button", { name: "Lưu" }).className).toContain("bg-gradient-to-br");
-    expect(screen.getByRole("button", { name: "Hủy" }).className).toContain("from-white");
-    expect(screen.getByRole("button", { name: "Xóa" }).className).toContain("from-danger-500");
-    expect(screen.getByRole("button", { name: "Xem thêm" }).className).toContain("to-neutral-100/80");
+    expect(screen.getByRole("button", { name: "Lưu" }).className).toContain("bg-primary-600");
+    expect(screen.getByRole("button", { name: "Hủy" }).className).toContain("bg-neutral-0");
+    expect(screen.getByRole("button", { name: "Xóa" }).className).toContain("bg-danger-700");
+    expect(screen.getByRole("button", { name: "Xem thêm" }).className).toContain("bg-transparent");
     expect(screen.getByRole("button", { name: "Lưu" }).className).toContain("shadow-none");
   });
 });

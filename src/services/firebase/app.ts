@@ -20,13 +20,18 @@ const firebaseConfig = {
 
 export const firebaseApp: FirebaseApp = initializeApp(firebaseConfig);
 
+const appCheckDebugToken = import.meta.env.VITE_APPCHECK_DEBUG_TOKEN;
+
 // App Check debug token cho local dev (A17) - khong bao gio dung trong production.
-if (import.meta.env.DEV && import.meta.env.VITE_APPCHECK_DEBUG_TOKEN) {
+if (import.meta.env.DEV && appCheckDebugToken) {
   (globalThis as Record<string, unknown>).FIREBASE_APPCHECK_DEBUG_TOKEN =
-    import.meta.env.VITE_APPCHECK_DEBUG_TOKEN;
+    appCheckDebugToken;
 }
 
-if (import.meta.env.VITE_APPCHECK_SITE_KEY) {
+// reCAPTCHA production rejects localhost when no registered debug token exists.
+// Keep production protected; local development opts in only with that token.
+const shouldInitializeAppCheck = import.meta.env.PROD || Boolean(appCheckDebugToken);
+if (typeof document !== "undefined" && import.meta.env.VITE_APPCHECK_SITE_KEY && shouldInitializeAppCheck) {
   initializeAppCheck(firebaseApp, {
       provider: new ReCaptchaV3Provider(
         import.meta.env.VITE_APPCHECK_SITE_KEY,
