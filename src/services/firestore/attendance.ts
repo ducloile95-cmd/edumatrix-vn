@@ -317,8 +317,11 @@ export async function listUpcomingRegisteredLeaves(days = 14): Promise<(Attendan
   const futureSessions = sessions.filter((session) => session.status !== "cancelled");
   if (futureSessions.length === 0) return [];
 
-  const entries = await listAttendanceBySessionIds(futureSessions.map((session) => session.id));
-  return entries.filter((entry) => entry.status === "absent" || entry.status === "excused");
+  const sessionIds = futureSessions.map((session) => session.id);
+  const [entries, summaries] = await Promise.all([listAttendanceBySessionIds(sessionIds), listAttendanceSummariesBySessionIds(sessionIds)]);
+  // Buoi da diem danh du roster (co expectedTotal) thi vang la ket qua diem danh, khong phai bao nghi truoc.
+  const fullyMarked = new Set(summaries.filter((summary) => summary.expectedTotal !== undefined).map((summary) => summary.sessionId));
+  return entries.filter((entry) => !fullyMarked.has(entry.sessionId) && (entry.status === "absent" || entry.status === "excused"));
 }
 
 export interface ClassAttendanceRate { classId: string; className: string; ratePercent: number; total: number; }

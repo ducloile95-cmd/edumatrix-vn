@@ -19,7 +19,7 @@ import {
   CHART_PRIMARY_SOFTER,
   CHART_TOOLTIP_STYLE,
 } from "@/components/charts/chartTheme";
-import { listAssignments, listAssignmentSummaries } from "@/services/firestore/assignments";
+import { listAssignments, listAssignmentSummariesByIds } from "@/services/firestore/assignments";
 import { listClasses } from "@/services/firestore/classes";
 import { listScoresByClass } from "@/services/firestore/scores";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
@@ -42,7 +42,13 @@ const SCORE_BUCKETS = [
 export function LearningOverview({ onOpenAssignments }: { onOpenAssignments: () => void }) {
   const reducedMotion = useReducedMotion();
   const assignments = useQuery({ queryKey: ["assignments"], queryFn: listAssignments });
-  const summaries = useQuery({ queryKey: ["assignment-summaries"], queryFn: listAssignmentSummaries });
+  const assignmentIds = (assignments.data ?? []).map((item) => item.id);
+  // Doc theo id cua bai tap trong pham vi: query toan collection bi Rules chan voi giao vien.
+  const summaries = useQuery({
+    queryKey: ["assignment-summaries", assignmentIds],
+    queryFn: () => listAssignmentSummariesByIds(assignmentIds),
+    enabled: assignments.isSuccess,
+  });
   const classes = useQuery({ queryKey: ["classes"], queryFn: listClasses });
   const classIds = (classes.data ?? []).map((item) => item.id);
   const scores = useQuery({

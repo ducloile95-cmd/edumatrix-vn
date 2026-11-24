@@ -282,6 +282,7 @@ export async function publishClassroomInteraction(input: PublishClassroomInput):
       homeworkText: interaction.homeworkText,
     });
     if (blockers.length) throw new Error(`CLASSROOM_PUBLISH_INCOMPLETE: ${blockers.join(" ")}`);
+    if (input.sessionStartAt.getTime() > Date.now()) throw new Error("CLASSROOM_SESSION_NOT_STARTED");
     const isRepublish = interaction.workflowStatus === "amended";
     const entryByStudent = new Map(entries.map((entry) => [entry.studentId, entry]));
     const messages = students.map((student) => ({

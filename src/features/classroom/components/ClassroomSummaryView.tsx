@@ -19,7 +19,7 @@ interface ClassroomSummaryViewProps {
   attentionStudents: Student[];
   classStudents: Student[];
   entries: Record<string, ClassroomStudentEntry>;
-  homeworkDone: number;
+  homeworkMetric: string;
   homeworkText: string;
   quickSummary: string;
   taughtContent: string;
@@ -32,7 +32,7 @@ export function ClassroomSummaryView({
   attentionStudents,
   classStudents,
   entries,
-  homeworkDone,
+  homeworkMetric,
   homeworkText,
   quickSummary,
   taughtContent,
@@ -46,7 +46,7 @@ export function ClassroomSummaryView({
             <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
               <Metric value={`${attendancePresent}/${classStudents.length}`} label="Có mặt" />
               <Metric value={attendanceLate} label="Đi muộn" />
-              <Metric value={`${homeworkDone}/${classStudents.length}`} label="Hoàn thành bài" />
+              <Metric value={homeworkMetric} label="Hoàn thành bài" />
               <Metric value={attentionStudents.length} label="Cần lưu ý" />
             </div>
             <div className="mt-5 space-y-4 text-sm text-neutral-700">

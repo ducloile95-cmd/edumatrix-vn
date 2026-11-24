@@ -20,7 +20,7 @@ vi.mock("@/services/firestore/students", () => ({
 vi.mock("@/services/firestore/classes", () => ({ listClasses: serviceMocks.listClasses }));
 
 async function fillRequiredFields() {
-  await screen.findByRole("option", { name: "Lớp A1 - class-1" });
+  await screen.findByRole("option", { name: "Lớp A1" });
   fireEvent.change(screen.getByLabelText(/Mã học sinh/), { target: { value: "HS001" } });
   fireEvent.change(screen.getByLabelText(/Tên học sinh/), { target: { value: "Nguyễn Minh Anh" } });
   fireEvent.change(screen.getByLabelText(/Ngày sinh/), { target: { value: "2015-04-02" } });

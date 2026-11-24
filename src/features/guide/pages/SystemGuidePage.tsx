@@ -89,8 +89,8 @@ const teacherChapters: GuideChapter[] = [
     title: "Bắt đầu ngày dạy",
     summary: "Dùng Tổng quan để xác định việc cần ưu tiên trước khi mở từng module.",
     actions: [
-      { title: "Đăng nhập đúng tài khoản", body: "Dùng email đã được Admin mời và chọn đúng hồ sơ Teacher. Nếu tài khoản bị khóa, liên hệ Admin thay vì tạo tài khoản mới." },
-      { title: "Kiểm tra lớp được phân công", body: "Teacher chỉ thao tác trên lớp, khóa học, học sinh và buổi học thuộc phạm vi được gán. Nếu thiếu lớp, yêu cầu Admin cập nhật phân công." },
+      { title: "Đăng nhập đúng tài khoản", body: "Dùng email đã được Admin mời và chọn đúng hồ sơ Giáo viên. Nếu tài khoản bị khóa, liên hệ Admin thay vì tạo tài khoản mới." },
+      { title: "Kiểm tra lớp được phân công", body: "Giáo viên chỉ thao tác trên lớp, khóa học, học sinh và buổi học thuộc phạm vi được gán. Nếu thiếu lớp, yêu cầu Admin cập nhật phân công." },
       { title: "Đọc các việc cần xử lý", body: "Ưu tiên buổi sắp diễn ra, giáo án chưa hoàn thiện, buổi chưa điểm danh, bài chờ chấm và thông báo cần phản hồi." },
     ],
     notes: ["Thanh bên trái là điều hướng đầy đủ trên desktop.", "Trên điện thoại, dùng thanh điều hướng dưới cùng và nút Khác để mở toàn bộ chức năng."],
@@ -126,7 +126,7 @@ const teacherChapters: GuideChapter[] = [
       { title: "Theo dõi hồ sơ tổng hợp", body: "Từ danh sách học sinh, xem lớp đang học, chuyên cần, kết quả học tập, khoản phí và tình trạng liên kết gia đình." },
       { title: "Ngưng thay vì xóa lịch sử", body: "Khi học sinh nghỉ học, ưu tiên đổi trạng thái hoặc kết thúc ghi danh. Không xóa hồ sơ có điểm danh, điểm số hoặc hóa đơn." },
     ],
-    notes: ["Mã học sinh cần ổn định vì được dùng để đối chiếu trên nhiều module.", "Teacher chỉ nên chỉnh dữ liệu trong phạm vi được phân công; các thay đổi tài khoản thuộc quyền Admin."],
+    notes: ["Mã học sinh cần ổn định vì được dùng để đối chiếu trên nhiều module.", "Giáo viên chỉ nên chỉnh dữ liệu trong phạm vi được phân công; các thay đổi tài khoản thuộc quyền Admin."],
   },
   {
     id: "teacher-classroom",
@@ -209,7 +209,7 @@ const parentChapters: GuideChapter[] = [
     summary: "Dashboard tổng hợp chuyên cần, tiến trình điểm số, lịch học, bài tập, học phí và thông báo gần đây.",
     actions: [
       { title: "Chọn học sinh", body: "Nếu có nhiều con, dùng bộ chuyển học sinh ở đầu trang. Luôn kiểm tra tên đang hiển thị trước khi xem chi tiết." },
-      { title: "Đọc nhịp học tập", body: "Theo dõi tỷ lệ chuyên cần, số buổi đi muộn hoặc vắng và các đánh giá gần nhất đã được Teacher công bố." },
+      { title: "Đọc nhịp học tập", body: "Theo dõi tỷ lệ chuyên cần, số buổi đi muộn hoặc vắng và các đánh giá gần nhất đã được Giáo viên công bố." },
       { title: "Mở nhóm cần xử lý", body: "Chọn Lịch học sắp tới, Bài tập cần nộp, Học phí cần xử lý hoặc Thông báo gần đây để xem đầy đủ." },
     ],
   },
@@ -238,7 +238,7 @@ const parentChapters: GuideChapter[] = [
     actions: [
       { title: "Lọc đúng trạng thái", body: "Dùng Tất cả, Cần làm, Đã nộp và Đã chấm. Kiểm tra hạn hoàn thành và lớp của từng bài." },
       { title: "Đọc yêu cầu", body: "Mở bài tập để xem mô tả, hình thức nộp, tài liệu đính kèm và thang điểm." },
-      { title: "Xem điểm và nhận xét", body: "Kết quả chỉ xuất hiện sau khi Teacher chấm hoặc công bố. Nếu có yêu cầu làm lại, đọc nhận xét trước khi hỗ trợ con." },
+      { title: "Xem điểm và nhận xét", body: "Kết quả chỉ xuất hiện sau khi Giáo viên chấm hoặc công bố. Nếu có yêu cầu làm lại, đọc nhận xét trước khi hỗ trợ con." },
     ],
   },
   {
@@ -256,7 +256,7 @@ const parentChapters: GuideChapter[] = [
     id: "parent-notifications",
     icon: <MessageCircleMore size={20} />,
     title: "Đọc thông báo và phối hợp",
-    summary: "Thông báo tập trung các cập nhật về lớp học, chuyên cần, bài tập và trao đổi từ Teacher hoặc trung tâm.",
+    summary: "Thông báo tập trung các cập nhật về lớp học, chuyên cần, bài tập và trao đổi từ Giáo viên hoặc trung tâm.",
     actions: [
       { title: "Đọc thông báo mới", body: "Mở mục Thông báo và kiểm tra tiêu đề, học sinh liên quan, người gửi và thời gian." },
       { title: "Đối chiếu dữ liệu", body: "Nếu nội dung nói về điểm danh, bài tập hoặc học phí, mở module tương ứng để xem chi tiết chính thức." },
@@ -267,7 +267,7 @@ const parentChapters: GuideChapter[] = [
 
 const businessFlow = [
   { icon: <Sparkles size={18} />, label: "Môn và khóa học", body: "Định nghĩa nội dung, học phí và phạm vi giảng dạy." },
-  { icon: <Users size={18} />, label: "Lớp và học sinh", body: "Gắn Teacher, ghi danh học sinh và liên kết gia đình." },
+  { icon: <Users size={18} />, label: "Lớp và học sinh", body: "Gắn Giáo viên, ghi danh học sinh và liên kết gia đình." },
   { icon: <CalendarDays size={18} />, label: "Lịch và buổi học", body: "Sinh các session theo lịch chuẩn, buổi bù hoặc thay đổi." },
   { icon: <NotebookPen size={18} />, label: "Giáo án", body: "Chuẩn bị mục tiêu, học liệu và tiến trình cho từng buổi." },
   { icon: <Presentation size={18} />, label: "Trong lớp", body: "Ghi nhận chuyên cần, bài tập và nội dung thực dạy." },
@@ -283,10 +283,10 @@ const teacherRoutine = [
 ];
 
 const troubleshooting = [
-  { question: "Không thấy lớp hoặc học sinh cần thao tác?", answer: "Kiểm tra tài khoản đang dùng và phạm vi Teacher. Nếu lớp chưa được phân công, liên hệ Admin để gắn Teacher vào lớp hoặc khóa học." },
+  { question: "Không thấy lớp hoặc học sinh cần thao tác?", answer: "Kiểm tra tài khoản đang dùng và phạm vi Giáo viên. Nếu lớp chưa được phân công, liên hệ Admin để gắn Giáo viên vào lớp hoặc khóa học." },
   { question: "Không tạo được giáo án cho buổi học?", answer: "Kiểm tra lớp đã có session, buổi chưa bị hủy và bạn có quyền trên lớp. Chọn lại đúng khóa, lớp và buổi trong workspace Buổi dạy." },
   { question: "Nút phát hành tổng kết bị khóa?", answer: "Mở danh sách điều kiện còn thiếu. Thường cần đủ trạng thái học sinh, nội dung đã dạy, tổng kết nhanh và xác nhận bài tập về nhà hoặc không giao bài." },
-  { question: "Phụ huynh không thấy dữ liệu của con?", answer: "Kiểm tra tài khoản Viewer đã liên kết đúng studentIds, học sinh đã được ghi danh và dữ liệu đã được Teacher phát hành hoặc công bố." },
+  { question: "Phụ huynh không thấy dữ liệu của con?", answer: "Kiểm tra tài khoản phụ huynh đã liên kết đúng studentIds, học sinh đã được ghi danh và dữ liệu đã được Giáo viên phát hành hoặc công bố." },
   { question: "Điểm danh hoặc điểm số hiển thị sai?", answer: "Đối chiếu đúng lớp, session, học sinh và thang điểm. Sửa tại dữ liệu nguồn, sau đó tải lại trang. Không tạo bản ghi mới để che bản ghi sai." },
   { question: "Không gửi được tin nhắn?", answer: "Kiểm tra học sinh đã liên kết người nhận, kết nối Messenger còn hoạt động, chủ đề và cách gửi phù hợp chính sách, sau đó theo dõi trạng thái gửi." },
 ];
@@ -297,7 +297,7 @@ export default function SystemGuidePage() {
   const requestedRole: GuideRole = searchParams.get("role") === "parent" ? "parent" : "teacher";
   const lockedRole = isSignedIn ? systemGuideRoleForUserRole(userRole) : null;
   const role: GuideRole = lockedRole ?? requestedRole;
-  const roleLabel = role === "teacher" ? "Teacher" : "Phụ huynh";
+  const roleLabel = role === "teacher" ? "Giáo viên" : "Phụ huynh";
   const returnHref = userRole === "viewer" ? ROUTES.VIEWER_DASHBOARD : ROUTES.STAFF_DASHBOARD;
   const [mobileOpen, setMobileOpen] = useState(false);
   const [lightbox, setLightbox] = useState<Screenshot | null>(null);
@@ -369,7 +369,7 @@ export default function SystemGuidePage() {
               <a href="#role-guide" className="text-sm font-semibold text-primary-700">Hướng dẫn {roleLabel}</a>
             ) : (
               <>
-                <button type="button" onClick={() => chooseRole("teacher")} className="text-sm font-semibold text-neutral-600 hover:text-primary-700">Teacher</button>
+                <button type="button" onClick={() => chooseRole("teacher")} className="text-sm font-semibold text-neutral-600 hover:text-primary-700">Giáo viên</button>
                 <button type="button" onClick={() => chooseRole("parent")} className="text-sm font-semibold text-neutral-600 hover:text-primary-700">Phụ huynh</button>
               </>
             )}
@@ -390,7 +390,7 @@ export default function SystemGuidePage() {
                 <a href="#role-guide" onClick={() => setMobileOpen(false)} className="rounded-input bg-primary-50 px-3 py-3 text-sm font-semibold text-primary-700">Hướng dẫn {roleLabel}</a>
               ) : (
                 <>
-                  <button type="button" onClick={() => chooseRole("teacher")} className="rounded-input px-3 py-3 text-left text-sm font-semibold text-neutral-700 hover:bg-neutral-100">Hướng dẫn Teacher</button>
+                  <button type="button" onClick={() => chooseRole("teacher")} className="rounded-input px-3 py-3 text-left text-sm font-semibold text-neutral-700 hover:bg-neutral-100">Hướng dẫn Giáo viên</button>
                   <button type="button" onClick={() => chooseRole("parent")} className="rounded-input px-3 py-3 text-left text-sm font-semibold text-neutral-700 hover:bg-neutral-100">Hướng dẫn phụ huynh</button>
                 </>
               )}
@@ -412,7 +412,7 @@ export default function SystemGuidePage() {
               </h1>
               <p className="mt-5 max-w-[46ch] text-base leading-7 text-neutral-600 sm:text-lg">
                 {role === "teacher"
-                  ? "Hướng dẫn thực hành dành cho Teacher trên web app Edumatrix."
+                  ? "Hướng dẫn thực hành dành cho Giáo viên trên web app Edumatrix."
                   : "Hướng dẫn phụ huynh xem lịch học, bài tập, kết quả và học phí trên Edumatrix."}
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -421,7 +421,7 @@ export default function SystemGuidePage() {
                 </button>
                 {!lockedRole && (
                   <Button variant="secondary" type="button" onClick={() => chooseRole(role === "teacher" ? "parent" : "teacher")}>
-                    Xem hướng dẫn {role === "teacher" ? "Phụ huynh" : "Teacher"}
+                    Xem hướng dẫn {role === "teacher" ? "Phụ huynh" : "Giáo viên"}
                   </Button>
                 )}
               </div>
@@ -488,7 +488,7 @@ export default function SystemGuidePage() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="grid gap-10 lg:grid-cols-[.72fr_1.28fr] lg:items-start">
               <div>
-                <h2 className="text-3xl font-bold tracking-[-.025em] text-neutral-950 sm:text-4xl">Nhịp làm việc của Teacher</h2>
+                <h2 className="text-3xl font-bold tracking-[-.025em] text-neutral-950 sm:text-4xl">Nhịp làm việc của Giáo viên</h2>
                 <p className="mt-4 max-w-md text-base leading-7 text-neutral-600">Bốn mốc này giúp giáo viên không bỏ sót dữ liệu trước, trong và sau buổi học.</p>
                 <Button variant="soft" type="button" onClick={() => chooseRole("teacher")} className="mt-7">
                   Mở quy trình chi tiết <ChevronRight size={17} />
@@ -522,7 +522,7 @@ export default function SystemGuidePage() {
                 </div>
               ) : (
                 <div className="inline-grid w-full grid-cols-2 rounded-card border border-neutral-200 bg-neutral-0 p-1 sm:w-auto" role="group" aria-label="Chọn vai trò hướng dẫn">
-                  <RoleButton active={role === "teacher"} onClick={() => chooseRole("teacher")} icon={<GraduationCap size={18} />} label="Teacher" />
+                  <RoleButton active={role === "teacher"} onClick={() => chooseRole("teacher")} icon={<GraduationCap size={18} />} label="Giáo viên" />
                   <RoleButton active={role === "parent"} onClick={() => chooseRole("parent")} icon={<Users size={18} />} label="Phụ huynh" />
                 </div>
               )}
@@ -535,7 +535,7 @@ export default function SystemGuidePage() {
                   <Search size={17} className="shrink-0 text-neutral-400" />
                   <input id="guide-search" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Ví dụ: giáo án" className="h-11 min-w-0 flex-1 bg-transparent text-sm text-neutral-900 outline-none placeholder:text-neutral-400" />
                 </div>
-                <nav className="mt-5 hidden lg:block" aria-label={`Mục lục ${role === "teacher" ? "Teacher" : "phụ huynh"}`}>
+                <nav className="mt-5 hidden lg:block" aria-label={`Mục lục ${role === "teacher" ? "Giáo viên" : "phụ huynh"}`}>
                   <p className="mb-2 text-xs font-bold text-neutral-500">Nội dung</p>
                   <ul className="space-y-1">
                     {chapters.map((chapter) => (
@@ -578,7 +578,7 @@ export default function SystemGuidePage() {
         {role === "teacher" && <section className="bg-neutral-0 py-16 md:py-20">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="max-w-2xl">
-              <h2 className="text-3xl font-bold tracking-[-.025em] text-neutral-950 sm:text-4xl">Các màn hình Teacher chính</h2>
+              <h2 className="text-3xl font-bold tracking-[-.025em] text-neutral-950 sm:text-4xl">Các màn hình Giáo viên chính</h2>
               <p className="mt-4 text-base leading-7 text-neutral-600">Ảnh chụp từ giao diện web app và bản demo nghiệp vụ của Edumatrix. Dữ liệu trong ảnh là dữ liệu minh họa.</p>
             </div>
             <div className="mt-10 grid gap-5 md:grid-cols-12">

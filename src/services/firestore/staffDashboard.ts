@@ -176,7 +176,7 @@ export async function getDashboardLearning(range: DashboardRange, filters: Dashb
   });
   const studentRows = context.students.map((student) => {
     const studentAttendance = attendance.filter((item) => item.studentId === student.id).sort((a, b) => a.markedAt.toMillis() - b.markedAt.toMillis());
-    const studentAssignments = scopedAssignments.filter((assignment) => student.currentClassIds.includes(assignment.classId));
+    const studentAssignments = scopedAssignments.filter((assignment) => student.currentClassIds.includes(assignment.classId) && assignment.createdAt.toMillis() >= (student.createdAt?.toMillis() ?? 0));
     const studentScores = scores.filter((score) => score.studentId === student.id).sort((a, b) => a.createdAt.toMillis() - b.createdAt.toMillis()).map(scorePercent);
     const average = studentScores.length ? Math.round(studentScores.reduce((sum, value) => sum + value, 0) / studentScores.length) : null;
     const rank = rankFromPercent(average, thresholds);

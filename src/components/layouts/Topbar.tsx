@@ -159,7 +159,7 @@ function HelpButton() {
   const guideRole = systemGuideRoleForUserRole(role);
   if (!guideRole) return null;
 
-  const roleLabel = guideRole === "teacher" ? "Teacher" : "Phụ huynh";
+  const roleLabel = guideRole === "teacher" ? "Giáo viên" : "Phụ huynh";
   return (
     <Link
       to={systemGuidePath(guideRole)}

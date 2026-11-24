@@ -7,6 +7,8 @@ import { listClasses } from "@/services/firestore/classes";
 import { listCourses } from "@/services/firestore/courses";
 import { listStudentSummariesByIds } from "@/services/firestore/scores";
 import { listStudents } from "@/services/firestore/students";
+import { getAcademicSettings } from "@/services/firestore/settings";
+import { DEFAULT_RANK_THRESHOLDS, rankFromPercent } from "@/utils/ranking";
 import { studentLabel } from "@/utils/student";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { USER_ROLES } from "@/constants/roles";
@@ -24,7 +26,6 @@ import {
   buildAttendanceMetrics,
   buildHomeworkMetrics,
   getAssessmentPercent,
-  getGradeLetter,
   getLearningProgress,
 } from "@/features/students/components/studentListMetrics";
 import {
@@ -35,8 +36,8 @@ import type { StudentDoc } from "@/types/academic";
 
 type StatusFilter = "all" | "active" | "inactive";
 const PAGE_SIZE_OPTIONS = [15, 20, 30, 50, 100];
-const STUDENT_TABLE_COLUMNS = "180px 96px 170px 170px 280px minmax(360px, 1fr) 88px";
-const STUDENT_TABLE_MIN_WIDTH = 1440;
+const STUDENT_TABLE_COLUMNS = "minmax(140px, 1fr) 84px minmax(140px, 1fr) 190px 300px 84px";
+const STUDENT_TABLE_MIN_WIDTH = 1020;
 
 export function StudentsList() {
   const [search, setSearch] = useState("");
@@ -110,6 +111,7 @@ export function StudentsList() {
     enabled: visibleStudentIds.length > 0,
   });
 
+  const academicQuery = useQuery({ queryKey: ["settings", "academic"], queryFn: getAcademicSettings });
   const summariesQuery = useQuery({
     queryKey: ["student-score-summaries-page", visibleStudentIds],
     queryFn: () => listStudentSummariesByIds(visibleStudentIds),
@@ -140,10 +142,9 @@ export function StudentsList() {
     return {
       assessmentPercent,
       attendance,
-      grade: assessmentPercent === null ? null : getGradeLetter(assessmentPercent),
+      grade: rankFromPercent(assessmentPercent, academicQuery.data?.rankThresholds ?? DEFAULT_RANK_THRESHOLDS),
       homework,
       primaryClass,
-      primaryClassId,
       primaryCourse,
       progress: getLearningProgress(student, attendance, primaryCourse?.totalSessions),
       student,
@@ -220,8 +221,7 @@ export function StudentsList() {
                 grade,
                 homework,
                 primaryClass,
-                primaryClassId,
-                primaryCourse,
+                          primaryCourse,
                 progress,
                 student,
                 summary,
@@ -246,17 +246,11 @@ export function StudentsList() {
                         <dd className="mt-1 truncate text-xs font-semibold text-neutral-900">
                           {primaryClass?.name ?? "Chưa có lớp"}
                         </dd>
-                        <dd className="mt-0.5 truncate font-mono text-2xs text-neutral-500">
-                          {primaryClassId || "--"}
-                        </dd>
                       </div>
                       <div className="min-w-0">
                         <dt className="text-xs font-medium text-neutral-500">Khóa học</dt>
                         <dd className="mt-1 truncate text-xs font-semibold text-neutral-900">
                           {primaryCourse?.name ?? "Chưa có khóa"}
-                        </dd>
-                        <dd className="mt-0.5 truncate font-mono text-2xs text-neutral-500">
-                          {primaryClass?.courseId ?? "--"}
                         </dd>
                       </div>
                     </dl>
@@ -296,8 +290,7 @@ export function StudentsList() {
                 >
                   <div>Tên học sinh</div>
                   <div className="text-center">Trạng thái</div>
-                  <div className="text-center">Lớp học</div>
-                  <div className="text-center">Khóa học</div>
+                  <div>Lớp / Khóa học</div>
                   <div className="text-center">Tiến độ</div>
                   <div className="rounded-input bg-primary-100 py-1 text-center text-primary-800 ring-1 ring-primary-200">Đánh giá</div>
                   <div className="text-center">Thao tác</div>
@@ -309,8 +302,7 @@ export function StudentsList() {
                 grade,
                 homework,
                 primaryClass,
-                primaryClassId,
-                primaryCourse,
+                          primaryCourse,
                 progress,
                 student,
                 summary,
@@ -328,26 +320,17 @@ export function StudentsList() {
                         </span>
                       </div>
 
-                      <div>
-                        <p className="font-mono text-2xs font-semibold text-neutral-900">{primaryClassId || "--"}</p>
-                        <p className="mt-0.5 text-2xs text-neutral-500">
-                          {primaryClass?.name ?? "Chưa có lớp"}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-2xs font-semibold text-neutral-900">{primaryCourse?.name ?? "Chưa có khóa"}</p>
-                        <p className="mt-0.5 font-mono text-2xs text-neutral-500">
-                          {primaryClass?.courseId ?? "--"}
-                        </p>
+                      <div className="min-w-0">
+                        <p className="truncate text-2xs font-semibold text-neutral-900">{primaryClass?.name ?? "Chưa có lớp"}</p>
+                        <p className="mt-0.5 truncate text-2xs text-neutral-500">{primaryCourse?.name ?? "Chưa có khóa"}</p>
                       </div>
 
                       <ProgressCell progress={progress} />
 
-                      <div className="grid min-w-0 grid-cols-1 gap-2 rounded-input bg-primary-50 p-2 ring-1 ring-primary-200 sm:grid-cols-3 xl:grid-cols-3">
-                        <ScoreRing label="Điểm danh" value={attendance.percent} total={attendance.total} />
-                        <ScoreRing label="Bài tập" value={homework.percent} total={homework.total} />
-                        <ScoreRing label="Đánh giá" value={assessmentPercent} total={summary?.scoreCount ?? 0} grade={grade} />
+                      <div className="grid min-w-0 grid-cols-3 gap-2 rounded-input bg-primary-50 p-2 ring-1 ring-primary-200">
+                        <ScoreRing stacked label="Điểm danh" value={attendance.percent} total={attendance.total} />
+                        <ScoreRing stacked label="Bài tập" value={homework.percent} total={homework.total} />
+                        <ScoreRing stacked label="Đánh giá" value={assessmentPercent} total={summary?.scoreCount ?? 0} grade={grade} />
                       </div>
 
                       <div className="flex justify-start xl:justify-end">

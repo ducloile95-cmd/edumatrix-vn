@@ -222,7 +222,7 @@ export default function ViewerDashboardPage() {
 
               <div className="relative flex min-h-[190px] items-center justify-between gap-4 rounded-b-[11px] bg-primary-700 p-5 pr-16 text-white lg:min-h-0 lg:flex-col lg:items-start lg:justify-center lg:rounded-l-none lg:rounded-r-[11px] lg:p-6 lg:pr-14">
                 <div>
-                  <p className="flex items-center gap-2 text-xs font-bold text-primary-100"><Trophy size={16} />Xếp hạng từ Teacher</p>
+                  <p className="flex items-center gap-2 text-xs font-bold text-primary-100"><Trophy size={16} />Xếp hạng từ Giáo viên</p>
                   <div className="mt-3 flex items-end gap-3">
                     <strong className="text-[68px] font-black leading-[0.76] tracking-[-0.07em] drop-shadow-[var(--shadow-2)] sm:text-[76px] lg:text-[84px]">{overview.rank ?? "–"}</strong>
                     <span className="pb-1 text-sm font-extrabold text-white">
@@ -286,7 +286,7 @@ export default function ViewerDashboardPage() {
               </div>
             </ChartPanel>
 
-            <ChartPanel title="Tiến trình điểm số" description="7 đánh giá gần nhất đã được Teacher công bố" className="min-h-[300px]">
+            <ChartPanel title="Tiến trình điểm số" description="7 đánh giá gần nhất đã được Giáo viên công bố" className="min-h-[300px]">
               {overview.scoreTrend.length === 0 ? (
                 <div className="grid h-56 place-items-center text-sm text-neutral-500">Chưa có điểm được công bố.</div>
               ) : (

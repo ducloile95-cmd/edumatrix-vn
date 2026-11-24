@@ -253,9 +253,9 @@ export default function SessionsPage() {
           </div>
           <div className="grid min-h-touch grid-cols-4 gap-1 rounded-input border border-neutral-300 bg-neutral-50 p-1">
             {([
-              { value: "fit-week", label: "Fit week" },
+              { value: "fit-week", label: "Tuần gọn" },
               { value: "day", label: "Ngày" },
-              { value: "week", label: "Time-grid" },
+              { value: "week", label: "Lưới giờ" },
               { value: "month", label: "Tháng" },
             ] as { value: TimetableView; label: string }[]).map(({ value, label }) => (
               <button

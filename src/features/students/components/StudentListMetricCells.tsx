@@ -31,10 +31,12 @@ export function ProgressCell({ progress }: { progress: ReturnType<typeof getLear
 export function ScoreRing({
   grade,
   label,
+  stacked = false,
   total,
   value,
 }: {
   grade?: GradeLetter | null;
+  stacked?: boolean;
   label: string;
   total: number;
   value: MetricValue;
@@ -54,7 +56,7 @@ export function ScoreRing({
   };
 
   return (
-    <div className="flex min-w-0 items-center gap-2 rounded-input border border-neutral-200 bg-neutral-0 px-2 py-1.5">
+    <div className={`flex min-w-0 items-center gap-2 rounded-input border border-neutral-200 bg-neutral-0 px-2 py-1.5 ${stacked ? "flex-col gap-1 text-center" : ""}`}>
       <div
         className="grid size-9 shrink-0 place-items-center rounded-full transition"
         style={{

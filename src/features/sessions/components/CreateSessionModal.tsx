@@ -181,7 +181,7 @@ export function CreateSessionModal({
                 <label htmlFor="session-title" className="mb-1 block text-sm font-medium text-neutral-700">
                   Tên buổi học<span className="ml-0.5 text-danger-500">*</span>
                 </label>
-                <input id="session-title" {...register("title")} className={INPUT} />
+                <input id="session-title" {...register("title")} onFocus={(event) => event.currentTarget.select()} className={INPUT} />
                 <FieldError message={errors.title?.message} />
               </div>
             </div>

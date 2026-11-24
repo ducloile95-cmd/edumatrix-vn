@@ -329,7 +329,7 @@ function SessionItem({
     <div className="rounded-card border border-neutral-200 bg-neutral-0 p-4 space-y-3 shadow-xs hover:border-neutral-300 transition-colors">
       <div className="flex items-center justify-between">
         <h4 className="text-xs font-bold text-neutral-800 uppercase tracking-wide">
-          {classLabel} · Buổi {session.sequenceNumber || "—"}
+          {classLabel} · {session.sequenceNumber ? `Buổi ${session.sequenceNumber}` : session.title}
         </h4>
         <span className="text-3xs font-mono font-semibold text-neutral-600 bg-neutral-100 border border-neutral-200 px-1.5 py-0.5 rounded">
           {dateStr} · {startStr}-{endStr}

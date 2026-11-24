@@ -63,7 +63,7 @@ describe("Topbar role-aware guide link", () => {
     authState.role = "teacher";
     renderTopbar();
 
-    const link = screen.getByRole("link", { name: "Hướng dẫn sử dụng cho Teacher (mở tab mới)" });
+    const link = screen.getByRole("link", { name: "Hướng dẫn sử dụng cho Giáo viên (mở tab mới)" });
     expect(link.getAttribute("href")).toBe("/huong-dan?role=teacher");
     expect(link.getAttribute("target")).toBe("_blank");
   });
@@ -73,7 +73,7 @@ describe("Topbar role-aware guide link", () => {
     renderTopbar();
 
     expect(screen.getByRole("link", { name: "Hướng dẫn sử dụng cho Phụ huynh (mở tab mới)" }).getAttribute("href")).toBe("/huong-dan?role=parent");
-    expect(screen.queryByRole("link", { name: /Teacher/ })).toBeNull();
+    expect(screen.queryByRole("link", { name: /Giáo viên/ })).toBeNull();
   });
 
   test("does not guess a guide for Admin before an Admin guide exists", () => {

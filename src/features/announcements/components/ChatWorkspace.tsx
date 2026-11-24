@@ -452,14 +452,14 @@ export function Conversations({ threads, configured, initialPickerOpen = false, 
   const selected = threads.find((thread) => thread.id === selectedId);
 
   return (
-    <div className="grid min-h-0 flex-1 lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)_288px]">
+    <div className={`grid min-h-0 flex-1 lg:grid-cols-[320px_minmax(0,1fr)] ${selected ? "xl:grid-cols-[320px_minmax(0,1fr)_288px]" : ""}`}>
       <aside className={`${mobileThreadOpen ? "hidden lg:flex" : "flex"} min-h-0 min-w-0 flex-col border-r border-neutral-200 bg-neutral-0`} aria-label="Danh sách hội thoại">
         <div className="border-b border-neutral-200 px-4 pb-3 pt-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <h1 className="text-xl font-semibold leading-7 tracking-[-.015em] text-neutral-900">Đoạn chat</h1>
             <div className="flex items-center gap-1.5">
               <button type="button" onClick={() => setTemplatesOpen(true)} aria-label="Mẫu tiện ích" className="flex size-9 items-center justify-center rounded-card bg-neutral-100 text-neutral-600 transition-colors hover:bg-neutral-200 active:scale-[.98]"><Star size={16} /></button>
-              <button type="button" onClick={() => setPickerOpen(true)} aria-label="Nhắn mới" className="flex size-9 items-center justify-center rounded-card bg-primary-50 text-primary-700 transition-colors hover:bg-primary-100 active:scale-[.98]"><Plus size={17} /></button>
+              <button type="button" onClick={() => setPickerOpen(true)} className="flex h-9 items-center gap-1.5 rounded-card bg-primary-50 px-3 text-xs font-semibold text-primary-700 transition-colors hover:bg-primary-100 active:scale-[.98]"><Plus size={16} />Nhắn mới</button>
             </div>
           </div>
           <label className="relative block"><Search className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" size={17} /><span className="sr-only">Tìm hội thoại</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Tìm phụ huynh" className="min-h-11 w-full rounded-card border border-neutral-300 bg-neutral-50 pl-10 pr-3 text-sm text-neutral-800 outline-none transition-colors placeholder:text-neutral-400 focus:border-primary-500 focus:bg-neutral-0 focus:ring-2 focus:ring-primary-100" /></label>
@@ -488,7 +488,7 @@ export function Conversations({ threads, configured, initialPickerOpen = false, 
           <div className="flex min-h-0 flex-1 items-center justify-center bg-neutral-50 p-6 text-center"><div><MessageCircle className="mx-auto text-neutral-300" size={36} /><p className="mt-3 text-sm font-semibold">Chưa có hội thoại Messenger</p><p className="mt-1 text-sm text-neutral-500">Chọn &quot;Nhắn mới&quot; để bắt đầu.</p></div></div>
         )}
       </div>
-      <aside className="hidden min-h-0 overflow-y-auto border-l border-neutral-200 bg-neutral-0 p-5 xl:block">{selected ? <ConversationContext thread={selected} parent={parentFor(selected)} tags={assignedTagsFor(selected)} onRemoveTag={(tagId) => { const tag = tagCatalog.find((item) => item.id === tagId); if (tag) toggleTag(selected, tag); }} onManageTags={role === "admin" ? () => setTagManagerOpen(true) : undefined} /> : null}</aside>
+      {selected && <aside className="hidden min-h-0 overflow-y-auto border-l border-neutral-200 bg-neutral-0 p-5 xl:block">{<ConversationContext thread={selected} parent={parentFor(selected)} tags={assignedTagsFor(selected)} onRemoveTag={(tagId) => { const tag = tagCatalog.find((item) => item.id === tagId); if (tag) toggleTag(selected, tag); }} onManageTags={role === "admin" ? () => setTagManagerOpen(true) : undefined} />}</aside>}
       <NewConversationPicker open={pickerOpen || Boolean(composeTemplateKey)} onClose={() => { setPickerOpen(false); setComposeTemplateKey(null); }} configured={configured} initialTemplateKey={composeTemplateKey} onSent={setPendingStudentId} />
       <UtilityTemplatesModal open={templatesOpen && !composeTemplateKey} configured={configured} onClose={() => setTemplatesOpen(false)} onUseTemplate={(templateKey) => { setComposeTemplateKey(templateKey); setPickerOpen(true); setTemplatesOpen(false); }} role={role} />
       {role === "admin" && <ConversationTagManager open={tagManagerOpen} tags={tagCatalog} onClose={() => setTagManagerOpen(false)} onCreate={(label, color) => createTag.mutateAsync({ label, color }).then(() => undefined)} onDelete={(tagId) => removeCatalogTag.mutateAsync(tagId).then(() => undefined)} />}

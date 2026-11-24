@@ -153,6 +153,7 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
     quickSummary,
     homeworkText,
   });
+  if (session.data && session.data.startAt.toMillis() > Date.now()) blockers.unshift("Buổi học chưa bắt đầu, chỉ phát hành tổng kết sau giờ vào lớp.");
 
   const buildDraftInput = () => {
     if (!session.data || !klass.data || !firebaseUser) throw new Error("CLASSROOM_CONTEXT_MISSING");
@@ -268,6 +269,8 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
 
   const attendanceCount = (status: AttendanceStatus) => classStudents.filter((student) => entries[student.id]?.attendanceStatus === status).length;
   const homeworkDone = classStudents.filter((student) => entries[student.id]?.previousHomeworkStatus === "done").length;
+  const homeworkAssigned = classStudents.filter((student) => (entries[student.id]?.previousHomeworkStatus ?? "not_assigned") !== "not_assigned").length;
+  const homeworkMetric = homeworkAssigned ? `${homeworkDone}/${homeworkAssigned}` : "—";
   const attentionStudents = classStudents.filter((student) => {
     const entry = entries[student.id];
     return entry && (entry.attendanceStatus === "absent" || entry.attendanceStatus === "late" || entry.previousHomeworkStatus === "not_done" || entry.previousHomeworkStatus === "partial" || !!entry.individualComment);
@@ -289,7 +292,7 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
         </div>
       </section>
 
-      <Tabs label="Nội dung tương tác lớp học" className="rounded-t-card border border-neutral-200 bg-neutral-0 px-2">
+      <Tabs label="Nội dung tương tác lớp học" className="sticky top-16 z-10 rounded-t-card border border-neutral-200 bg-neutral-0 px-2">
         <Tab active={activeView === "students"} onClick={() => setActiveView("students")}><Users size={15} /> Học sinh</Tab>
         <Tab active={activeView === "summary"} onClick={() => setActiveView("summary")}><BarChart3 size={15} /> Tổng kết buổi học</Tab>
         <Tab active={activeView === "parent"} onClick={() => setActiveView("parent")}><Send size={15} /> Gửi thông báo</Tab>
@@ -321,7 +324,7 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
         attentionStudents={attentionStudents}
         classStudents={classStudents}
         entries={entries}
-        homeworkDone={homeworkDone}
+        homeworkMetric={homeworkMetric}
         homeworkText={homeworkText}
         quickSummary={quickSummary}
         taughtContent={taughtContent}
@@ -355,7 +358,7 @@ function ClassroomWorkspace({ sessionId }: { sessionId: string }) {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Metric value={`${attendanceCount("present")}/${classStudents.length}`} label="Có mặt" />
           <Metric value={attendanceCount("late")} label="Đi muộn" />
-          <Metric value={`${homeworkDone}/${classStudents.length}`} label="Hoàn thành bài" />
+          <Metric value={homeworkMetric} label="Hoàn thành bài" />
           <Metric value={attentionStudents.length} label="Cần lưu ý" />
         </div>
         <div className="mt-5 flex justify-end gap-2">

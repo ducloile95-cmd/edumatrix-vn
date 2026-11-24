@@ -71,14 +71,6 @@ export async function listAssignments(): Promise<(AssignmentDoc & { id: string }
   return groups.flat().sort((a, b) => b.dueAt.toMillis() - a.dueAt.toMillis());
 }
 
-export async function listAssignmentSummaries(): Promise<(AssignmentSummaryDoc & { id: string })[]> {
-  return listAllPages<AssignmentSummaryDoc>(
-    COLLECTIONS.ASSIGNMENT_SUMMARIES,
-    [],
-    300,
-  );
-}
-
 export async function listAssignmentSummariesByIds(
   assignmentIds: string[],
 ): Promise<(AssignmentSummaryDoc & { id: string })[]> {

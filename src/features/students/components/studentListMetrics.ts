@@ -1,6 +1,6 @@
 import type { AttendanceDoc, StudentDoc, SubmissionDoc } from "@/types/academic";
 
-export type GradeLetter = "S" | "A" | "B" | "D";
+export type { AcademicRank as GradeLetter } from "@/utils/ranking";
 export type MetricValue = number | null;
 
 export interface StudentScoreSummary {
@@ -50,13 +50,6 @@ function toPercentMap(source: Map<string, { counted: number; total: number }>): 
 export function getAssessmentPercent(summary?: StudentScoreSummary): MetricValue {
   if (!summary || summary.scoreCount === 0) return null;
   return Math.round(summary.averagePercent);
-}
-
-export function getGradeLetter(percent: number): GradeLetter {
-  if (percent >= 95) return "S";
-  if (percent >= 85) return "A";
-  if (percent >= 70) return "B";
-  return "D";
 }
 
 export function getLearningProgress(student: StudentDoc, attendance: CountMetric, totalSessions = TOTAL_SESSIONS_FALLBACK) {

@@ -28,9 +28,9 @@ describe("SystemGuidePage role scope", () => {
 
     await waitFor(() => expect(screen.getByRole("heading", { name: "Hướng dẫn dành cho Phụ huynh" })).toBeTruthy());
     expect(screen.getByRole("heading", { name: "Cổng thông tin phụ huynh" })).toBeTruthy();
-    expect(screen.queryByRole("heading", { name: "Nhịp làm việc của Teacher" })).toBeNull();
-    expect(screen.queryByRole("heading", { name: "Các màn hình Teacher chính" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Teacher" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Nhịp làm việc của Giáo viên" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Các màn hình Giáo viên chính" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Giáo viên" })).toBeNull();
   });
 
   test("keeps role switching available before login", () => {
@@ -41,7 +41,7 @@ describe("SystemGuidePage role scope", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getAllByRole("button", { name: "Teacher" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: "Giáo viên" }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("button", { name: "Phụ huynh" }).length).toBeGreaterThan(0);
   });
 });

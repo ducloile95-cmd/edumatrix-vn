@@ -227,7 +227,6 @@ function AssignmentCard({ assignment, submission, className }: { assignment: Ass
           </>
         )}
         <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-2xs text-neutral-500">
-          <span>Giao bởi <b className="text-neutral-700">Giáo viên/Admin phụ trách</b></span>
           <span>Hạn hoàn thành <b className="tabular-nums text-neutral-700">{format(assignment.dueAt.toDate(), "dd/MM · HH:mm")}</b></span>
         </div>
       </div>
